@@ -1,0 +1,107 @@
+"""Startup recovery dialog for missing or damaged pet packages."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QDialog,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QPlainTextEdit,
+    QPushButton,
+    QVBoxLayout,
+)
+
+
+@dataclass(frozen=True)
+class StartupRecoveryChoice:
+    action: str
+    pet_directory: Path | None = None
+
+
+class StartupRecoveryDialog(QDialog):
+    def __init__(self, startup_error, initial_directory, parent=None):
+        super().__init__(parent)
+        self.startup_error = startup_error
+        self.initial_directory = Path(initial_directory)
+        self.choice = StartupRecoveryChoice("quit")
+        self.setWindowTitle("Watched Kettle 복구")
+        self.setMinimumWidth(520)
+        self.setWindowFlag(Qt.WindowType.WindowContextHelpButtonHint, False)
+        self.setStyleSheet(
+            """
+            QDialog { background: #f5f2ec; color: #2d2924; }
+            QLabel#recoveryTitle { font-size: 20px; font-weight: 700; }
+            QLabel#recoveryGuidance { color: #746c62; }
+            QPlainTextEdit {
+                background: #fffdf9;
+                border: 1px solid #d8d1c6;
+                padding: 6px;
+            }
+            QPushButton { padding: 7px 12px; }
+            """
+        )
+
+        layout = QVBoxLayout(self)
+        title = QLabel("작은 비서를 시작할 수 없어요")
+        title.setObjectName("recoveryTitle")
+        layout.addWidget(title)
+
+        message = QLabel(startup_error.user_message)
+        message.setWordWrap(True)
+        layout.addWidget(message)
+
+        guidance = QLabel(
+            "펫 파일을 복구한 뒤 다시 시도하거나, pet.json과 "
+            "spritesheet가 들어 있는 다른 펫 폴더를 선택하세요."
+        )
+        guidance.setWordWrap(True)
+        guidance.setObjectName("recoveryGuidance")
+        layout.addWidget(guidance)
+
+        self.details = QPlainTextEdit(startup_error.details)
+        self.details.setReadOnly(True)
+        self.details.setMaximumHeight(150)
+        layout.addWidget(self.details)
+
+        actions = QHBoxLayout()
+        quit_button = QPushButton("종료")
+        quit_button.clicked.connect(self.reject)
+        actions.addWidget(quit_button)
+        actions.addStretch(1)
+        choose_button = QPushButton("다른 펫 폴더 선택…")
+        choose_button.clicked.connect(self.choose_directory)
+        actions.addWidget(choose_button)
+        retry_button = QPushButton("다시 시도")
+        retry_button.setDefault(True)
+        retry_button.clicked.connect(self.retry)
+        actions.addWidget(retry_button)
+        layout.addLayout(actions)
+
+    def retry(self):
+        self.choice = StartupRecoveryChoice("retry")
+        self.accept()
+
+    def choose_directory(self):
+        selected = QFileDialog.getExistingDirectory(
+            self,
+            "펫 폴더 선택",
+            str(self.initial_directory),
+        )
+        if not selected:
+            return
+        self.choice = StartupRecoveryChoice(
+            "choose",
+            Path(selected),
+        )
+        self.accept()
+
+    @classmethod
+    def request(cls, startup_error, initial_directory, parent=None):
+        dialog = cls(startup_error, initial_directory, parent)
+        dialog.exec()
+        return dialog.choice

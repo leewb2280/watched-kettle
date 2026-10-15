@@ -1,0 +1,7 @@
+"""Compatibility entry point for ``python main.py``."""
+
+from watched_kettle.entrypoint import main
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

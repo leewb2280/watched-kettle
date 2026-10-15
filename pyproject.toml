@@ -1,0 +1,48 @@
+[project]
+name = "watched-kettle"
+dynamic = ["version"]
+requires-python = ">=3.12,<3.15"
+
+[tool.setuptools.dynamic]
+version = {attr = "watched_kettle.branding.APPLICATION_VERSION"}
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+extend-exclude = [
+    ".codex",
+    "build",
+    "dist",
+    "dev-artifacts",
+    "pet-workspaces",
+]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "W"]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/validate_project.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.12"
+files = [
+    "watched_kettle/application",
+    "watched_kettle/features",
+    "watched_kettle/state",
+    "watched_kettle/storage",
+    "watched_kettle/usage",
+]
+check_untyped_defs = true
+ignore_missing_imports = true
+no_implicit_optional = true
+show_error_codes = true
+
+[tool.coverage.run]
+branch = true
+source = ["watched_kettle"]
+omit = ["*/__main__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+precision = 1

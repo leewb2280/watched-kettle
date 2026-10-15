@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.venv/
+venv/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Test and tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pnpm-store/
+coverage.xml
+.coverage
+*.log
+
+# Build output
+/build/
+/dist/
+/dev-artifacts/
+
+# Local runtime state a development run may create
+/.watched-kettle-runtime/
+
+# Private character packs never belong in this repository
+/private-pets/
+/pet-workspaces/
