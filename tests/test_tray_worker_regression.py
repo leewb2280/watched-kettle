@@ -65,6 +65,7 @@ class TrayWorkerTests(unittest.TestCase):
             root = Path(directory)
             settings = QSettings(str(root / "settings.ini"), QSettings.Format.IniFormat)
             preferences = ApplicationPreferences(settings)
+            preferences.save_claude_code_usage_enabled(True)
             worker = UsageWorkerService(
                 AppPaths(root),
                 preferences,
@@ -124,13 +125,13 @@ class TrayWorkerTests(unittest.TestCase):
             finally:
                 worker.close()
 
-    def test_old_shared_off_setting_is_migrated_once_before_codex_changes(self):
+    def test_claude_code_switch_never_inherits_the_codex_switch(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             preferences = ApplicationPreferences(
                 QSettings(str(root / "settings.ini"), QSettings.Format.IniFormat)
             )
-            preferences.save_usage_enabled(False)
+            preferences.save_usage_enabled(True)
             worker = UsageWorkerService(
                 AppPaths(root),
                 preferences,
@@ -298,13 +299,13 @@ class TrayWorkerTests(unittest.TestCase):
                     connection.rollback()
                     connection.close()
                 vm.set_enabled(False)
-                self.assertEqual(
-                    tray.usage_status_action.text(), "Codex 사용량: 비활성"
-                )
+                tray.refresh()
+                # Codex switched off has no tray line at all.
+                self.assertFalse(tray.usage_status_action.isVisible())
+                self.assertNotIn("Codex", tray.tray.toolTip())
                 vm.set_enabled(True)
-                self.assertNotEqual(
-                    tray.usage_status_action.text(), "Codex 사용량: 비활성"
-                )
+                tray.refresh()
+                self.assertTrue(tray.usage_status_action.isVisible())
             finally:
                 if tray is not None:
                     tray.close()

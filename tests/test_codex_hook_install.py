@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 from pathlib import Path
@@ -139,7 +140,7 @@ class CodexHookInstallerTests(unittest.TestCase):
         )
         self.assertEqual(
             sum(
-                MANAGED_MARKER in hook.get("commandWindows", "")
+                MANAGED_MARKER in hook.get("command", "")
                 for groups in installed["hooks"].values()
                 for group in groups
                 for hook in group["hooks"]
@@ -294,9 +295,42 @@ class CodexHookInstallerTests(unittest.TestCase):
             executable=self.root / "Installed App" / "Watched Kettle.exe"
         )
 
-        self.assertIn("Watched Kettle.exe", hook["commandWindows"])
-        self.assertIn("--codex-hook-bridge", hook["commandWindows"])
-        self.assertIn(MANAGED_MARKER, hook["commandWindows"])
+        script = base64.b64decode(hook["commandWindows"].split()[-1]).decode(
+            "utf-16-le"
+        )
+        self.assertIn("Watched Kettle.exe", script)
+        self.assertIn("'--codex-hook-bridge' '--managed-id'", script)
+        self.assertIn(MANAGED_MARKER, script)
+        self.assertIn(MANAGED_MARKER, hook["command"])
+
+    def test_repair_upgrades_bare_packaged_commands_without_changing_other_hooks(self):
+        self.write_existing_settings()
+        executable = self.root / "Installed App" / "WatchedKettleHookBridge.exe"
+        self.installer.managed_hook = build_managed_hook(executable=executable)
+        self.installer.apply(self.installer.preview_install())
+        payload = json.loads(self.hooks_path.read_text(encoding="utf-8"))
+        for groups in payload["hooks"].values():
+            for group in groups:
+                for hook in group["hooks"]:
+                    if MANAGED_MARKER in hook.get("command", ""):
+                        hook["commandWindows"] = (
+                            f'"{executable}" --codex-hook-bridge '
+                            f"--managed-id {MANAGED_MARKER}"
+                        )
+        self.hooks_path.write_text(json.dumps(payload), encoding="utf-8")
+        config_before = self.config_path.read_bytes()
+
+        self.assertEqual(self.installer.inspect().state, "drifted")
+        repaired = self.installer.apply(self.installer.preview_repair())
+
+        self.assertEqual(repaired.status.state, "installed")
+        self.assertEqual(self.config_path.read_bytes(), config_before)
+        installed = json.loads(self.hooks_path.read_text(encoding="utf-8"))
+        self.assertEqual(installed["hooks"]["Stop"][0]["hooks"], [OTHER_HOOK])
+        self.assertFalse(self.installer.preview_repair().has_changes)
+        self.installer.apply(self.installer.preview_remove())
+        remaining = json.loads(self.hooks_path.read_text(encoding="utf-8"))
+        self.assertEqual(remaining["hooks"]["Stop"][0]["hooks"], [OTHER_HOOK])
 
     def test_packaged_hook_prefers_the_qt_free_bridge_when_installed(self):
         app = self.root / "Installed App" / "WatchedKettle.exe"

@@ -43,7 +43,9 @@ class HistoryViewModel(QObject):
 
     def refresh(self, emit=True):
         entries = []
-        for record in self.usage_vm.snapshot.latest_tasks:
+        # A tool switched off keeps its saved history but is not listed.
+        codex = getattr(self.usage_vm, "enabled", True)
+        for record in self.usage_vm.snapshot.latest_tasks if codex else ():
             entries.append(
                 HistoryEntry(
                     record.completed_at,
@@ -56,6 +58,8 @@ class HistoryViewModel(QObject):
                 )
             )
         claude_code = getattr(self.usage_vm, "claude_code_snapshot", None)
+        if not getattr(self.usage_vm, "claude_code_enabled", True):
+            claude_code = None
         for record in getattr(claude_code, "latest_tasks", ()):
             entries.append(
                 HistoryEntry(

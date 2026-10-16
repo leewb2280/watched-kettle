@@ -5,6 +5,9 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
+import subprocess
+import sys
 from tempfile import TemporaryDirectory
 import time
 import unittest
@@ -20,8 +23,12 @@ from watched_kettle.integrations.claude_code_status_line import (
     status_text,
     write_layout,
 )
+from watched_kettle.integrations.claude_code_install import shell_neutral_command
 from watched_kettle.integrations.claude_code_status_line_install import (
+    STATUS_LINE_FLAG,
     ClaudeCodeStatusLineInstaller,
+    build_status_line_command,
+    is_managed_status_line,
 )
 from watched_kettle.integrations.codex_install import StaleHookPlanError
 
@@ -123,6 +130,101 @@ class StatusLineInstallTests(unittest.TestCase):
         self.assertFalse(self.installer.preview_install().can_apply)
         self.write({"disableAllHooks": True})
         self.assertEqual(self.installer.inspect().state, "disabled")
+
+
+# Writes stdin back after UTF-8 text with colour codes, as the bridge prints.
+ECHO_SCRIPT = """import json, sys
+data = sys.stdin.buffer.read().decode("utf-8")
+line = "\\x1b[32m한도 42%\\x1b[0m " + json.dumps([sys.argv[1:], data], ensure_ascii=False)
+sys.stdout.buffer.write(line.encode("utf-8"))
+"""
+
+
+def status_line_shells():
+    """Claude Code runs status lines in Git Bash, or PowerShell without it."""
+    root = Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
+    bash = root / "Git" / "bin" / "bash.exe"
+    if bash.is_file():
+        yield "Git Bash", [str(bash), "-c"]
+    system = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32"
+    powershell = system / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+    yield "Windows PowerShell", [str(powershell), "-NoProfile", "-Command"]
+    if pwsh := shutil.which("pwsh"):
+        yield "PowerShell 7", [pwsh, "-NoProfile", "-Command"]
+
+
+class StatusLineCommandTests(unittest.TestCase):
+    def test_plain_path_is_left_unquoted_for_both_shells(self):
+        command = build_status_line_command(
+            executable=Path("C:/App/WatchedKettleHookBridge.exe")
+        )
+
+        self.assertEqual(command, COMMAND.replace('"', ""))
+        self.assertTrue(is_managed_status_line({"command": command}))
+
+    def test_other_paths_fall_back_to_an_encoded_powershell_call(self):
+        command = build_status_line_command(
+            executable=Path("C:/Installed App/$cash & 한글's (%)!.exe")
+        )
+
+        self.assertTrue(command.startswith("powershell.exe -NoLogo -NoProfile"))
+        self.assertNotIn(STATUS_LINE_FLAG, command)
+        self.assertTrue(is_managed_status_line({"command": command}))
+        self.assertFalse(
+            is_managed_status_line({"command": "powershell.exe -EncodedCommand e30="})
+        )
+
+    def test_encoded_line_is_repaired_when_the_bridge_moves(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            settings = root / "settings.json"
+            settings.write_text(json.dumps({"statusLine": MINE}), encoding="utf-8")
+            old, new = (
+                ClaudeCodeStatusLineInstaller(
+                    settings,
+                    root / "sidecar.json",
+                    build_status_line_command(executable=root / name / "Bridge.exe"),
+                )
+                for name in ("Old (1)", "New (2)")
+            )
+            old.apply(old.preview_install())
+            self.assertEqual(new.inspect().state, "drifted")
+
+            new.apply(new.preview_repair())
+
+            self.assertEqual(new.inspect().state, "installed")
+            new.apply(new.preview_remove())
+            self.assertEqual(
+                json.loads(settings.read_text(encoding="utf-8")), {"statusLine": MINE}
+            )
+
+    @unittest.skipUnless(os.name == "nt", "Windows shell integration")
+    def test_both_forms_keep_stdin_and_output_bytes_in_each_shell(self):
+        payload = json.dumps({"model": {"display_name": "한글"}}).encode("utf-8")
+        with TemporaryDirectory() as directory:
+            for folder in ("plain_dir", "spaced $dir (한글's)"):
+                script = Path(directory) / folder / "echo.py"
+                script.parent.mkdir()
+                script.write_text(ECHO_SCRIPT, encoding="utf-8")
+                command = shell_neutral_command(
+                    sys.executable, script, STATUS_LINE_FLAG
+                )
+                for shell, prefix in status_line_shells():
+                    with self.subTest(folder=folder, shell=shell):
+                        process = subprocess.run(
+                            [*prefix, command],
+                            input=payload,
+                            capture_output=True,
+                            timeout=60,
+                            check=False,
+                        )
+                        self.assertEqual(process.returncode, 0, process.stderr)
+                        prefix_bytes, _, echoed = process.stdout.partition(b" ")
+                        self.assertEqual(prefix_bytes, "[32m한도".encode())
+                        self.assertEqual(
+                            json.loads(echoed.decode("utf-8").split(" ", 1)[-1]),
+                            [[STATUS_LINE_FLAG], payload.decode("utf-8")],
+                        )
 
 
 LIMITS = {

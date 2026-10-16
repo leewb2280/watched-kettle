@@ -244,12 +244,11 @@ function Trends({
   const chartDays = usage.controls.find(
     (control: Values) => control.key === "chart_days",
   );
-  // A tool whose usage switch is off is left out; with both off the page
-  // already says so and the chart explains the switch.
-  const enabledSources = TREND_SOURCES.filter(([key]) =>
+  // A switched-off tool is left out; with both off the page says so.
+  const sources = TREND_SOURCES.filter(([key]) =>
     key === "codex" ? usage.enabled : usage.claude_code_enabled,
   );
-  const sources = enabledSources.length ? enabledSources : TREND_SOURCES;
+  if (!sources.length) return null;
   // Start on a tool with data; the choice stays separate from the history tab.
   const source = sources.some(([key]) => key === provider)
     ? provider
@@ -767,12 +766,13 @@ const heroes: Record<
     tone: "ok",
     title: "Codex 작업 상태를 받을 준비가 됐어요",
   },
-  // Not connected is a choice, not a fault: neutral, and the switch below
-  // connects. Hero buttons only fix something.
+  // Codex is in use but its hook is missing: logs still give some activity,
+  // and the hero reconnects the hook.
   not_installed: {
-    tone: "off",
-    title: "Codex와 연결되지 않았어요",
-    body: "연결하면 펫이 Codex 작업의 진행과 완료를 알려 줍니다.",
+    tone: "warn",
+    title: "Codex hook이 연결되지 않았어요",
+    body: "hook 없이도 Codex 로그로 작업 상태를 일부 받습니다. 연결하면 진행과 완료를 더 정확히 알려 줍니다.",
+    action: ["repair", "hook 연결하기"],
   },
   partial: {
     tone: "warn",
@@ -816,7 +816,7 @@ function heroFor(integration: Values) {
   )
     return {
       ...heroes.not_installed,
-      body: "Codex를 찾지 못했습니다. Codex를 설치한 뒤 새로고침하거나, 연결을 미리 설정해 둘 수 있습니다.",
+      body: "Codex를 찾지 못했습니다. Codex를 설치한 뒤 새로고침하거나, hook을 미리 연결해 둘 수 있습니다.",
     };
   return heroes[install.state] || heroes.invalid;
 }
@@ -830,9 +830,10 @@ const claudeHeroes: Record<
     body: "이미 열려 있는 Claude Code 세션은 다시 시작해야 적용됩니다.",
   },
   not_installed: {
-    tone: "off",
-    title: "Claude Code와 연결되지 않았어요",
-    body: "연결하면 CLI와 VS Code의 Claude Code 작업도 펫이 알려 줍니다.",
+    tone: "warn",
+    title: "Claude Code hook이 연결되지 않았어요",
+    body: "hook을 연결해야 CLI와 VS Code의 Claude Code 작업을 펫이 알려 줍니다.",
+    action: ["repair", "hook 연결하기"],
   },
   partial: {
     tone: "warn",
@@ -1182,6 +1183,66 @@ function ProviderBlock({
     </section>
   );
 }
+// One switch per tool: on connects its hooks and usage, off removes them,
+// stops reading its files and hides it everywhere but this page.
+function ToolSwitchRow({
+  name,
+  value,
+  preview,
+}: {
+  name: string;
+  value: boolean;
+  preview: (operation: string) => void;
+}) {
+  return (
+    <div className="setting-row">
+      <div className="field-label">
+        <label>{name} 사용</label>
+        <p className="field-description">
+          {value
+            ? `끄면 이 앱의 hook을 지우고 ${name} 파일을 더 읽지 않으며, 홈·사용량·기록·트레이·위젯에서 숨깁니다. 저장된 기록은 남습니다.`
+            : `켜면 ${name} 사용자 설정에 이 앱의 hook만 추가하고 작업 상태와 사용량을 보여 줍니다.`}{" "}
+          적용 전에 바뀌는 내용을 먼저 보여 줍니다.
+        </p>
+      </div>
+      <Switch
+        label={`${name} 사용`}
+        value={value}
+        change={(next) => preview(next ? "enable" : "disable")}
+      />
+    </div>
+  );
+}
+function ToolOffSection({
+  name,
+  detected,
+  preview,
+}: {
+  name: string;
+  detected: boolean;
+  preview: (operation: string) => void;
+}) {
+  return (
+    <section className="section provider-block" aria-label={name}>
+      <div className="section-heading">
+        <h2 className={`provider-title ${SOURCE_CLASSES[name] || ""}`}>
+          {name}
+        </h2>
+      </div>
+      <div className="provider-stack">
+        <div className="card">
+          <ToolSwitchRow name={name} value={false} preview={preview} />
+          {!detected && (
+            <p className="footnote">
+              이 PC에서 {name}을(를) 찾지 못했습니다. 설치한 뒤 켜도 되고, 미리
+              켜 둘 수도 있습니다.
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
 function CodexSection({
   integration,
   hero,
@@ -1202,23 +1263,7 @@ function CodexSection({
         integration.install || {},
       )}
     >
-      <div className="setting-row">
-        <div className="field-label">
-          <label>Codex 연결</label>
-          <p className="field-description">
-            Codex 사용자 설정에 이 앱의 hook만 추가하거나 제거합니다. 적용 전에
-            바뀌는 내용을 먼저 보여 줍니다.
-          </p>
-        </div>
-        <Switch
-          label="Codex 연결"
-          value={["installed", "partial", "drifted"].includes(
-            integration.install?.state,
-          )}
-          disabled={integration.install?.state === "invalid"}
-          change={(value) => preview(value ? "install" : "remove")}
-        />
-      </div>
+      <ToolSwitchRow name="Codex" value preview={preview} />
     </ProviderBlock>
   );
 }
@@ -1243,7 +1288,6 @@ function ClaudeCodeSection({
   const statusLineOn = ["installed", "drifted"].includes(statusLine?.state);
   const state = claude.install?.state || "invalid";
   const hero = claudeHeroes[state] || claudeHeroes.invalid;
-  const connected = !["not_installed", "invalid"].includes(state);
   const minutes = (
     key: string,
     label: string,
@@ -1277,21 +1321,7 @@ function ClaudeCodeSection({
       act={preview}
       checks={claudeChecks(claude, diagnostics)}
     >
-      <div className="setting-row">
-        <div className="field-label">
-          <label>Claude Code 연결</label>
-          <p className="field-description">
-            Claude Code 사용자 설정에 이 앱의 hook만 추가하거나 제거합니다. 적용
-            전에 바뀌는 내용을 먼저 보여 줍니다.
-          </p>
-        </div>
-        <Switch
-          label="Claude Code 연결"
-          value={connected}
-          disabled={state === "invalid"}
-          change={(value) => preview(value ? "install" : "remove")}
-        />
-      </div>
+      <ToolSwitchRow name="Claude Code" value preview={preview} />
       {statusLine && (
         <div className="setting-row">
           <div className="field-label">
@@ -1821,13 +1851,15 @@ export function AssistantPages({ shell, page }: { shell: Shell; page: Page }) {
   ).flatMap((project: Values) =>
     (project.rows || []).map((row: Values) => ({ project, row })),
   );
+  // Only tools in use; a switched-off one lives on the connections page.
+  const codexActive = integration?.codex_active !== false;
+  const claudeActive = !!integration?.claude_code?.active;
   const connections: [string, Values][] = integration
     ? [
-        ["Codex", heroFor(integration)],
-        ...(integration.claude_code &&
-        (usage?.claude_code_enabled ||
-          integration.claude_code.install?.state !== "not_installed" ||
-          integration.claude_code.status_line?.state === "installed")
+        ...(codexActive
+          ? ([["Codex", heroFor(integration)]] as [string, Values][])
+          : []),
+        ...(claudeActive
           ? ([
               [
                 "Claude Code",
@@ -1921,6 +1953,12 @@ export function AssistantPages({ shell, page }: { shell: Shell; page: Page }) {
                 />
               </Section>
               <Section title="연결">
+                {!connections.length && (
+                  <p className="quiet-row">
+                    사용 중인 도구가 없습니다. 연결·진단에서 Codex나 Claude
+                    Code를 켤 수 있습니다.
+                  </p>
+                )}
                 {connections.map(([name, state]) => (
                   <button
                     className={`home-connection tone-${state.tone}`}
@@ -1945,24 +1983,6 @@ export function AssistantPages({ shell, page }: { shell: Shell; page: Page }) {
             subtitle="남은 한도와 이 기기에서 관측한 작업을 확인합니다."
           >
             <div className="heading-actions">
-              {usage &&
-                [
-                  ["enabled", "Codex", usage.enabled],
-                  [
-                    "claude_code_enabled",
-                    "Claude Code",
-                    usage.claude_code_enabled,
-                  ],
-                ].map(([key, label, enabled]) => (
-                  <span className="heading-switch" key={String(key)}>
-                    {label}
-                    <Switch
-                      label={`${label} 사용량 사용`}
-                      value={!!enabled}
-                      change={(value) => call("usage.set", { key, value })}
-                    />
-                  </span>
-                ))}
               <button
                 className="button compact"
                 disabled={!usage?.any_enabled}
@@ -2047,8 +2067,14 @@ export function AssistantPages({ shell, page }: { shell: Shell; page: Page }) {
               )}
               {!usage!.any_enabled && tab !== "settings" && (
                 <p className="paused-note">
-                  두 도구의 사용량이 꺼져 있어 한도를 확인하지 않습니다. 위의
-                  스위치로 다시 켤 수 있습니다.
+                  사용 중인 도구가 없어 한도를 확인하지 않습니다.{" "}
+                  <button
+                    className="text-button inline"
+                    onClick={() => shell.navigate("integration")}
+                  >
+                    연결·진단
+                  </button>
+                  에서 Codex나 Claude Code를 켤 수 있습니다.
                 </p>
               )}
               {tab === "overview" && (
@@ -2062,49 +2088,51 @@ export function AssistantPages({ shell, page }: { shell: Shell; page: Page }) {
                     </span>
                   </div>
                   <QuotaGroups usage={usage!} />
-                  <Section
-                    title="오늘의 기기 활동"
-                    note={
-                      u.last_sample_at
-                        ? `마지막 관측 ${time(u.last_sample_at)}`
-                        : "아직 관측 전"
-                    }
-                  >
-                    {[
-                      u.observed_today_tokens,
-                      u.unclassified_today_tokens,
-                      u.observed_today_percent_points,
-                    ].every((value) => typeof value !== "number") ? (
-                      <p className="paused-note">
-                        오늘 이 기기에서 관측한 Codex 작업이 아직 없습니다.
-                        작업을 하면 토큰과 한도 감소가 여기에 표시됩니다.
-                      </p>
-                    ) : (
-                      <div className="activity-summary">
-                        {(
-                          [
-                            ["관측한 토큰", u.observed_today_tokens, ""],
-                            ["미분류 토큰", u.unclassified_today_tokens, ""],
+                  {usage!.enabled && (
+                    <Section
+                      title="오늘의 기기 활동"
+                      note={
+                        u.last_sample_at
+                          ? `마지막 관측 ${time(u.last_sample_at)}`
+                          : "아직 관측 전"
+                      }
+                    >
+                      {[
+                        u.observed_today_tokens,
+                        u.unclassified_today_tokens,
+                        u.observed_today_percent_points,
+                      ].every((value) => typeof value !== "number") ? (
+                        <p className="paused-note">
+                          오늘 이 기기에서 관측한 Codex 작업이 아직 없습니다.
+                          작업을 하면 토큰과 한도 감소가 여기에 표시됩니다.
+                        </p>
+                      ) : (
+                        <div className="activity-summary">
+                          {(
                             [
-                              "관측한 한도 감소",
-                              u.observed_today_percent_points,
-                              "%p",
-                            ],
-                          ] as [string, any, string][]
-                        ).map(([label, value, unit]) => (
-                          <div key={label}>
-                            <span>{label}</span>
-                            <strong>
-                              {number(value)}
-                              {typeof value === "number" && unit && (
-                                <small>{unit}</small>
-                              )}
-                            </strong>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </Section>
+                              ["관측한 토큰", u.observed_today_tokens, ""],
+                              ["미분류 토큰", u.unclassified_today_tokens, ""],
+                              [
+                                "관측한 한도 감소",
+                                u.observed_today_percent_points,
+                                "%p",
+                              ],
+                            ] as [string, any, string][]
+                          ).map(([label, value, unit]) => (
+                            <div key={label}>
+                              <span>{label}</span>
+                              <strong>
+                                {number(value)}
+                                {typeof value === "number" && unit && (
+                                  <small>{unit}</small>
+                                )}
+                              </strong>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </Section>
+                  )}
                   <Trends
                     usage={usage!}
                     chart={chart}
@@ -2117,20 +2145,22 @@ export function AssistantPages({ shell, page }: { shell: Shell; page: Page }) {
                       call("usage.set", { key: "chart_days", value })
                     }
                   />
-                  <details className="explanation">
-                    <summary>한도 상세와 계정 통계</summary>
-                    {u.buckets.map((bucket: Values) => (
-                      <div className="detail-group" key={bucket.limit_id}>
-                        <h3>{bucket.limit_name || bucket.limit_id}</h3>
-                        <Details value={bucket} />
+                  {usage!.enabled && (
+                    <details className="explanation">
+                      <summary>한도 상세와 계정 통계</summary>
+                      {u.buckets.map((bucket: Values) => (
+                        <div className="detail-group" key={bucket.limit_id}>
+                          <h3>{bucket.limit_name || bucket.limit_id}</h3>
+                          <Details value={bucket} />
+                        </div>
+                      ))}
+                      <div className="detail-group">
+                        <h3>계정 통계</h3>
+                        <Details value={u.summary} />
                       </div>
-                    ))}
-                    <div className="detail-group">
-                      <h3>계정 통계</h3>
-                      <Details value={u.summary} />
-                    </div>
-                  </details>
-                  {u.device_history_message && (
+                    </details>
+                  )}
+                  {usage!.enabled && u.device_history_message && (
                     <p className="footnote">{u.device_history_message}</p>
                   )}
                 </div>
@@ -2397,55 +2427,59 @@ export function AssistantPages({ shell, page }: { shell: Shell; page: Page }) {
                     )}
                     change={(key, value) => call("usage.set", { key, value })}
                   />
-                  <Section title="데이터 관리">
-                    <div className="setting-row">
-                      <div className="field-label">
-                        <label>Codex 기기 관측 기록</label>
-                        <p className="field-description">
-                          이 Windows 사용자의 Codex 로그에서 관측한 토큰·한도
-                          변화입니다.
-                        </p>
+                  {usage!.enabled && (
+                    <Section title="데이터 관리">
+                      <div className="setting-row">
+                        <div className="field-label">
+                          <label>Codex 기기 관측 기록</label>
+                          <p className="field-description">
+                            이 Windows 사용자의 Codex 로그에서 관측한 토큰·한도
+                            변화입니다.
+                          </p>
+                        </div>
+                        <button
+                          className="button danger"
+                          onClick={() =>
+                            setConfirming({
+                              title: "기기 관측 기록 지우기",
+                              body: "이 기기의 관측 기록을 지웁니다. 되돌릴 수 없습니다.",
+                              label: "지우기",
+                              run: () =>
+                                call("usage.action", {
+                                  action: "clear_device",
+                                }),
+                            })
+                          }
+                        >
+                          지우기
+                        </button>
                       </div>
-                      <button
-                        className="button danger"
-                        onClick={() =>
-                          setConfirming({
-                            title: "기기 관측 기록 지우기",
-                            body: "이 기기의 관측 기록을 지웁니다. 되돌릴 수 없습니다.",
-                            label: "지우기",
-                            run: () =>
-                              call("usage.action", { action: "clear_device" }),
-                          })
-                        }
-                      >
-                        지우기
-                      </button>
-                    </div>
-                    <div className="setting-row">
-                      <div className="field-label">
-                        <label>Codex 현재 계정 작업 기록</label>
-                        <p className="field-description">
-                          현재 Codex 계정의 프로젝트·대화·작업 사용량입니다.
-                          Claude Code 작업 기록은 기록 탭에서 지웁니다.
-                        </p>
+                      <div className="setting-row">
+                        <div className="field-label">
+                          <label>Codex 현재 계정 작업 기록</label>
+                          <p className="field-description">
+                            현재 Codex 계정의 프로젝트·대화·작업 사용량입니다.
+                            Claude Code 작업 기록은 기록 탭에서 지웁니다.
+                          </p>
+                        </div>
+                        <button
+                          className="button danger"
+                          disabled={u.clearing_history || u.account_checking}
+                          onClick={() =>
+                            setConfirming({
+                              title: "현재 계정 기록 지우기",
+                              body: "현재 계정의 사용량 기록을 지웁니다. 되돌릴 수 없습니다.",
+                              label: "지우기",
+                              run: () =>
+                                call("usage.action", { action: "clear" }),
+                            })
+                          }
+                        >
+                          지우기
+                        </button>
                       </div>
-                      <button
-                        className="button danger"
-                        disabled={u.clearing_history || u.account_checking}
-                        onClick={() =>
-                          setConfirming({
-                            title: "현재 계정 기록 지우기",
-                            body: "현재 계정의 사용량 기록을 지웁니다. 되돌릴 수 없습니다.",
-                            label: "지우기",
-                            run: () =>
-                              call("usage.action", { action: "clear" }),
-                          })
-                        }
-                      >
-                        지우기
-                      </button>
-                    </div>
-                  </Section>
+                    </Section>
+                  )}
                 </>
               )}
             </div>
@@ -2761,12 +2795,27 @@ export function AssistantPages({ shell, page }: { shell: Shell; page: Page }) {
             <Empty>연결 상태를 확인하는 중입니다.</Empty>
           ) : (
             <>
-              <CodexSection
-                integration={integration}
-                hero={hero}
-                preview={(operation) => preview(operation, "codex")}
-              />
-              {integration.claude_code && (
+              {codexActive ? (
+                <CodexSection
+                  integration={integration}
+                  hero={hero}
+                  preview={(operation) => preview(operation, "codex")}
+                />
+              ) : (
+                <ToolOffSection
+                  name="Codex"
+                  detected={!!integration.codex_detected}
+                  preview={(operation) => preview(operation, "codex")}
+                />
+              )}
+              {integration.claude_code && !claudeActive && (
+                <ToolOffSection
+                  name="Claude Code"
+                  detected={!!integration.claude_code.install?.detected}
+                  preview={(operation) => preview(operation, "claude_code")}
+                />
+              )}
+              {claudeActive && (
                 <ClaudeCodeSection
                   claude={integration.claude_code}
                   diagnostics={integration.diagnostics.claude_code || {}}
@@ -2798,42 +2847,25 @@ export function AssistantPages({ shell, page }: { shell: Shell; page: Page }) {
                 <summary>고급 도구</summary>
                 {(
                   [
-                    ["Codex", "codex", integration.install?.state],
-                    ...(integration.claude_code
-                      ? [
-                          [
-                            "Claude Code",
-                            "claude_code",
-                            integration.claude_code.install?.state,
-                          ],
-                        ]
-                      : []),
-                  ] as [string, string, string][]
-                ).map(([name, provider, state]) => (
+                    ...(codexActive ? [["Codex", "codex"]] : []),
+                    ...(claudeActive ? [["Claude Code", "claude_code"]] : []),
+                  ] as [string, string][]
+                ).map(([name, provider]) => (
                   <div className="setting-row" key={provider}>
                     <div className="field-label">
-                      <label>{name} 연결 복구·제거</label>
+                      <label>{name} 연결 복구</label>
                       <p className="field-description">
-                        적용 전에 바뀌는 내용을 먼저 보여 줍니다.
+                        이 앱의 hook을 다시 맞춥니다. 끄려면 위의 {name} 사용
+                        스위치를 씁니다.
                       </p>
                     </div>
-                    <span className="footer-actions">
-                      <button
-                        className="button"
-                        aria-label={`${name} 복구 검토`}
-                        onClick={() => preview("repair", provider)}
-                      >
-                        복구 검토
-                      </button>
-                      <button
-                        className="button danger"
-                        aria-label={`${name} 제거 검토`}
-                        disabled={state === "not_installed"}
-                        onClick={() => preview("remove", provider)}
-                      >
-                        제거 검토
-                      </button>
-                    </span>
+                    <button
+                      className="button"
+                      aria-label={`${name} 복구 검토`}
+                      onClick={() => preview("repair", provider)}
+                    >
+                      복구 검토
+                    </button>
                   </div>
                 ))}
                 <div className="setting-row">

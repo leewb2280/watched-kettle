@@ -184,6 +184,7 @@ class SettingsWindowHost(QObject):
             self.buffer.clear()
             self.authenticated = False
             candidate.readyRead.connect(self._read)
+            candidate.bytesWritten.connect(self._read)
             candidate.disconnected.connect(self._disconnect)
             self.handshake_timer.start(5000)
 
@@ -208,6 +209,11 @@ class SettingsWindowHost(QObject):
             self._disconnect()
             return
         for _ in range(32):
+            # Large catalog replies must drain before executing another request.
+            # bytesWritten resumes buffered input without growing the outbound
+            # queue or relaxing the frame/queue limits.
+            if self.socket is None or self.socket.bytesToWrite():
+                return
             if b"\n" not in self.buffer:
                 return
             raw, _, tail = self.buffer.partition(b"\n")
@@ -522,6 +528,7 @@ class SettingsWindowHost(QObject):
         return self.visible
 
     def shutdown(self):
+        self.adapter.pet_batch.shutdown()
         self.closed = True
         self.flush_timer.stop()
         self.retire_timer.stop()

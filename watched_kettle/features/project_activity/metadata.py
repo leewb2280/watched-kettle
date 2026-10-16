@@ -703,6 +703,23 @@ class _MetadataWorker(QObject):
             self.client.close()
         QThread.currentThread().quit()
 
+    @Slot(bool)
+    def set_suspended(self, suspended):
+        """Stop reading Codex while it is off; resume with a fresh connection."""
+        if self.client is None or self.poll is None:
+            return
+        if suspended:
+            self.poll.stop()
+            self.account_verified = False
+            self.account = None
+            self.pending.clear()
+            self.stamps.clear()
+            self.control_requests.clear()
+            self.client.close()
+        elif not self.poll.isActive():
+            self.client.start()
+            self.poll.start()
+
     @Slot()
     def reconnect(self):
         if self.client is not None:
@@ -722,6 +739,7 @@ class ConversationMetadataService(QObject):
     invalidated = Signal(int)
     stop_requested = Signal()
     reconnect_requested = Signal()
+    suspend_requested = Signal(bool)
     status_changed = Signal(str)
 
     def __init__(self, activity, parent=None, client_factory=CodexAppServerClient):
@@ -745,6 +763,8 @@ class ConversationMetadataService(QObject):
             self.worker.close, Qt.ConnectionType.QueuedConnection
         )
         self.reconnect_requested.connect(self.worker.reconnect)
+        self.suspend_requested.connect(self.worker.set_suspended)
+        self.enabled = True
         self.worker.delivered.connect(self.receive)
         self.worker.relation.connect(self.receive_relation)
         self.worker.connection_changed.connect(self.connection_changed)
@@ -833,6 +853,8 @@ class ConversationMetadataService(QObject):
             self.activity.mark_latency(thread, stage, at)
 
     def refresh_active(self):
+        if not self.enabled:
+            return
         if self._generation != self.activity.generation:
             self._generation = self.activity.generation
             self._requested.clear()
@@ -887,9 +909,34 @@ class ConversationMetadataService(QObject):
         self.reconnect_requested.emit()
 
     def start(self):
+        if not self.enabled:
+            return
         self.refresh_active()
         self.refresh_timer.start()
-        self._thread.start()
+        if self._thread.isRunning():
+            self.suspend_requested.emit(False)
+        else:
+            self._thread.start()
+
+    def set_enabled(self, enabled, started=True):
+        """Codex titles and projects come from Codex; nothing runs while it is off.
+
+        ``started`` is False before the runtime starts, so turning Codex on
+        then only lets the later start() run.
+        """
+        enabled = bool(enabled)
+        if enabled == self.enabled:
+            return
+        self.enabled = enabled
+        if enabled:
+            if started:
+                self.start()
+            return
+        self.refresh_timer.stop()
+        self._requested.clear()
+        self._target_policies = {}
+        if self._thread.isRunning():
+            self.suspend_requested.emit(True)
 
     def close(self):
         self.refresh_timer.stop()

@@ -390,11 +390,15 @@ class ProjectActivityService(QObject):
         self._diagnose_current(thread, "restore")
         self.changed.emit()
 
-    def reset(self):
-        """Forget Codex account state; Claude Code sessions are not tied to it."""
+    def reset(self, source="codex"):
+        """Forget one agent's work: a Codex account change, or a tool switched off.
+
+        Claude Code sessions are not tied to the Codex account, and the Codex
+        account generation moves only when Codex state is forgotten.
+        """
 
         def kept(thread):
-            return thread_source(thread) != "codex"
+            return thread_source(thread) != source
 
         for thread in set(self.activities) | set(self.pending_completions):
             if not kept(thread):
@@ -406,13 +410,16 @@ class ProjectActivityService(QObject):
                     del mapping[item]
 
         keep_keys(self.latency)
-        self._recovery_deadlines.clear()
-        self._collection_started_at = self.wall_now()
+        if source == "codex":
+            # Log recovery belongs to Codex sessions only.
+            self._recovery_deadlines.clear()
+            self._collection_started_at = self.wall_now()
         keep_keys(self._closed_threads)
         keep_keys(self._tool_turns, lambda item: item[0])
         keep_keys(self._first_display)
         keep_keys(self._confirmed_scopes)
-        self.generation += 1
+        if source == "codex":
+            self.generation += 1
         keep_keys(self.activities)
         keep_keys(self.metadata)
         self.recent = tuple(r for r in self.recent if kept(r.thread_id))
@@ -422,8 +429,9 @@ class ProjectActivityService(QObject):
         self._completion_phase = ()
         keep_keys(self._seen, lambda item: item[0])
         keep_keys(self._retired, lambda item: item[0])
+        claude_prefixes = ("project:claude_code:", "unassigned:claude_code")
         for key in tuple(self._project_order):
-            if not key.startswith(("project:claude_code:", "unassigned:claude_code")):
+            if key.startswith(claude_prefixes) == (source == "claude_code"):
                 del self._project_order[key]
         self.changed.emit()
 

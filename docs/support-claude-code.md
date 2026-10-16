@@ -1,7 +1,7 @@
 # Claude Code 지원 범위
 
 펫+비서 구성이 Claude Code에서 무엇을 읽고 어떻게 보여 주는지, 실행 위치별로 어디까지 확인했는지 정리합니다.
-현재 공개 소스 버전은 **0.15.3(베타)**이며, 실측 자료의 기준은 **2026-10-04, 당시 앱 버전 0.14.0**입니다.
+현재 소스 버전은 **0.15.4(베타)**이며, 실측 자료의 기준은 **2026-10-04, 당시 앱 버전 0.14.0**입니다.
 과거 실측은 현재 공개 설치판의 재검증을 뜻하지 않습니다.
 확인 수준(실측·자동 검사·미확인)의 뜻과 공통 사항은 [지원 범위](support-scope.md)를 따릅니다.
 
@@ -17,31 +17,34 @@
 | 항목 | 내용 |
 |---|---|
 | 운영체제 | Windows 11 |
-| Claude Code | 2.1.286(hook·대화 기록 조사), 2.1.287(status line 실측), 2.1.288(VS Code 확장 링크 처리 확인) |
+| Claude Code | 2.1.286(hook·대화 기록 조사), 2.1.287(status line 실측), 2.1.288(VS Code 확장 링크 처리 확인), 2.1.301(Windows hook 명령 형식, 2026-10-17) |
 | 실행 위치 | 일반 터미널 CLI, VS Code 내장 터미널 CLI, VS Code 확장 패널(auto·default 모드) |
-| 그보다 낮은 버전 | 검증하지 않았다 |
+| 그보다 낮은 버전 | 검증하지 않았다. hook 등록 형식은 Claude Code 2.1.139 이상을 요구한다 |
 
 ## 연결 방법
 
 1. Claude Code를 별도로 설치·로그인하고 Watched Kettle의 `펫 + 비서` 구성을 실행합니다.
-2. 펫 우클릭 → `설정 → 연결·진단`에서 `Claude Code 연결`을 켭니다.
-   설치할 때 이미 연결했다면 상태를 확인하면 됩니다. 변경 내용은 미리 보여 주며 `변경 적용`을 눌러야 반영됩니다.
+2. 펫 우클릭 → `설정 → 연결·진단`에서 `Claude Code 사용`을 켭니다.
+   설치할 때 이미 골랐다면 상태를 확인하면 됩니다. 변경 내용은 미리 보여 주며 `변경 적용`을 눌러야 반영됩니다.
 3. 이미 열려 있던 Claude Code 세션을 다시 시작하고 새 작업을 실행한 뒤 `연결 점검`에서 이벤트 수신을 확인합니다.
-4. 한도도 보려면 `사용량`의 Claude Code 수집 스위치와 `연결·진단`의 `한도 가져오기`(기본 꺼짐)를 켭니다.
+4. 한도도 보려면 같은 곳의 `한도 가져오기`(기본 꺼짐)를 켭니다.
    지원되는 claude.ai Pro·Max 구독의 터미널 세션에서 첫 응답 이후에 갱신됩니다. VS Code 확장 패널만으로는 갱신되지 않습니다.
 
-전체 절차는 [첫 연결 확인](user-guide.md#첫-연결-확인)을 참고하세요. 연결과 사용량 수집은 별도로 켜고 끌 수 있습니다.
+전체 절차는 [첫 연결 확인](user-guide.md#첫-연결-확인)을 참고하세요. hook 연결과 사용량 수집은 `Claude Code 사용` 스위치 하나로 함께 켜고 끕니다([ADR 0006](decisions/0006-tool-activation-single-bundle.md)).
 
 | 기능 | 앱이 바꾸는 것 | 켜고 끌 때 |
 |---|---|---|
-| Claude Code 연결(작업 상태) | 사용자 설정(`~/.claude/settings.json`, `CLAUDE_CONFIG_DIR`)의 `hooks`에 이 앱 hook 14개를 추가 | 끄면 이 앱 hook만 제거한다. 다른 설정과 hook은 그대로 두고, 바꾸기 전 파일을 같은 폴더에 백업한다 |
-| Claude Code 한도 가져오기(기본 꺼짐) | 사용자 설정의 `statusLine`을 이 앱 명령으로 바꾸고, 쓰던 status line은 앱 데이터에 보관 | 끄면 보관한 설정으로 되돌린다. 그 사이 사용자가 status line을 바꿨으면 덮어쓰지 않는다 |
+| Claude Code 사용(기본 꺼짐, [ADR 0006](decisions/0006-tool-activation-single-bundle.md)) | 사용자 설정(`~/.claude/settings.json`, `CLAUDE_CONFIG_DIR`)의 `hooks`에 이 앱 hook 14개를 추가하고 작업 기록·한도 수집을 켠다 | 끄면 이 앱 hook과 이 앱 status line을 되돌리고 Claude Code 파일을 더 읽지 않으며 모든 화면에서 숨긴다. 다른 설정과 hook은 그대로 두고, 바꾸기 전 파일을 같은 폴더에 백업한다. 저장된 기록은 남는다 |
+| Claude Code 한도 가져오기(사용 중일 때만, 기본 꺼짐) | 사용자 설정의 `statusLine`을 이 앱 명령으로 바꾸고, 쓰던 status line은 앱 데이터에 보관 | 끄면 보관한 설정으로 되돌린다. 그 사이 사용자가 status line을 바꿨으면 덮어쓰지 않는다 |
 | 상태줄 항목(`세부 설정` 안) | 기본 상태줄에 보일 항목·줄·순서, 색 강조, 5시간 초기화 시각 | 쓰던 status line이 있으면 그 출력만 그대로 보여 주므로 적용되지 않는다 |
-| 사용량 수집(사용량 화면의 Claude Code 스위치) | 앱 설정만 | 끄면 작업 기록과 한도를 읽지 않는다. hook 연결과 펫 상태는 유지한다 |
 
 - 이미 열려 있는 Claude Code 세션은 다시 시작해야 hook이 적용된다. CLI와 VS Code 확장이 같은 사용자 설정을 쓴다.
-- 사용자 설정이 깨져 있으면(`invalid`) 덮어쓰지 않는다. `disableAllHooks`와 관리 정책 `allowManagedHooksOnly`가 켜져 있으면 설치하지 않고 상태만 보여 준다.
+- 사용자 설정이 깨져 있으면(`invalid`) 덮어쓰지 않는다. `disableAllHooks`와 관리 정책 `allowManagedHooksOnly`가 켜져 있으면 hook은 설치하지 않고 상태만 보여 준다. 이때도 사용 스위치는 켜지며 활동 표시가 제한된다고 안내한다.
+- 사용을 끈 동안 남은 hook이 보내는 이벤트는 앱이 버린다. 꺼진 동안에는 `~/.claude` 폴더가 있는지만 본다.
 - 앱 제거 도구(`--remove-managed-hook`)는 Codex와 Claude Code의 관리 hook·status line을 함께 되돌린다.
+- Windows에서 Claude Code는 명령 문자열을 Git Bash로, Git Bash가 없으면 PowerShell로 실행한다. 그래서 hook 14개는 셸을 거치지 않는 exec 형식(`command`에 실행 파일, `args`에 인자)으로 등록한다.
+  status line에는 이 형식이 없다. 실행 경로가 일반 문자(영숫자·한글·`/ : . _ -`)로만 이뤄지면 따옴표 없는 경로를, 아니면 `powershell.exe -EncodedCommand` 호출을 쓴다. 두 셸이 같은 명령으로 실행한다.
+  이전의 Git Bash 전용 문자열 항목은 `drifted`로 보이며 `복구`하면 새 형식으로 바뀐다.
 
 ## 실행 위치별 지원
 

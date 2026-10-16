@@ -1,15 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  ArrowDown,
-  ArrowDownToLine,
-  ArrowUp,
-  ArrowUpToLine,
   Check,
   ChevronRight,
   Download,
   Eye,
   Folder,
-  GripVertical,
   LayoutGrid,
   Monitor,
   Palette,
@@ -23,6 +18,7 @@ import type { Control, Page, Shell, UpdateState, Values } from "./types";
 import { Field, Fields, Heading, Modal, Section, Switch } from "./components";
 import { errorText, isStaleError } from "./errors";
 import { PetImportDialog } from "./PetImportDialog";
+import { PetManagerDialog } from "./PetManagerDialog";
 
 const petTabs = ["외형·표시", "동작·화면"];
 
@@ -78,7 +74,7 @@ function UpdateRow({
         다시 시도
       </button>
     );
-  } else if (state !== "installing") {
+  } else if (state !== "installing" && state !== "preparing") {
     action = (
       <button
         className="button"
@@ -109,7 +105,9 @@ function UpdateRow({
             </>
           )}
         </p>
-        {(state === "downloading" || state === "installing") && (
+        {(state === "downloading" ||
+          state === "preparing" ||
+          state === "installing") && (
           <div className="update-progress">
             <div
               className="progress-track"
@@ -346,19 +344,17 @@ type Editor = {
 export function CorePages({ shell, page }: { shell: Shell; page: Page }) {
   const { snapshot, command, notify } = shell;
   const [catalog, setCatalog] = useState<Catalog | null>(null);
-  const [catalogDraft, setCatalogDraft] = useState<Catalog | null>(null);
+  const [manager, setManager] = useState(false);
   const [petPreview, setPetPreview] = useState<PetPreview | null>(null);
   const [picker, setPicker] = useState(false);
   const [importPet, setImportPet] = useState(false);
   useEffect(() => {
-    if (!shell.visible || page !== "pet") setImportPet(false);
+    if (!shell.visible || page !== "pet") {
+      setImportPet(false);
+      setManager(false);
+    }
   }, [shell.visible, page]);
   const [pickerError, setPickerError] = useState("");
-  const [catalogError, setCatalogError] = useState<unknown>(null);
-  // The pet being dragged in the catalog manager and the gap it would drop
-  // into (0 is above the first row, rows.length below the last).
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [dropAt, setDropAt] = useState<number | null>(null);
   const [petTab, setPetTab] = useState(petTabs[0]);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -418,70 +414,7 @@ export function CorePages({ shell, page }: { shell: Shell; page: Page }) {
     setCatalog(next);
     return next as Catalog;
   };
-  const openCatalogManager = async () => {
-    try {
-      const value = await loadCatalog();
-      setCatalogError(null);
-      setCatalogDraft({
-        ...value,
-        order: [...value.order],
-        hidden: [...value.hidden],
-      });
-    } catch (error) {
-      fail(error);
-    }
-  };
-  // A user-requested refresh after a conflict: take the latest revision and
-  // entries but keep the user's choices. Nothing is sent until 적용 again.
-  const rebaseCatalogDraft = async () => {
-    if (!catalogDraft) return;
-    try {
-      const latest = await loadCatalog();
-      const known = new Set(latest.entries.map((entry) => entry.id));
-      setCatalogDraft({
-        ...latest,
-        sort: catalogDraft.sort,
-        order: catalogDraft.order.filter((id) => known.has(id)),
-        hidden: catalogDraft.hidden.filter(
-          (id) => known.has(id) && id !== latest.petId,
-        ),
-      });
-      setCatalogError(null);
-    } catch (error) {
-      setCatalogError(error);
-    }
-  };
-  const saveCatalogDraft = async () => {
-    if (!catalogDraft) return;
-    const known = new Set(catalogDraft.entries.map((entry) => entry.id));
-    const displayed = orderedCatalog(
-      catalogDraft.entries,
-      catalogDraft.sort,
-      catalogDraft.order,
-    ).map((entry) => entry.id);
-    try {
-      await command(
-        "pet.catalog.save",
-        {
-          petId: catalogDraft.petId,
-          revision: catalogDraft.revision,
-          sort: catalogDraft.sort,
-          order:
-            catalogDraft.sort === "custom"
-              ? displayed
-              : catalogDraft.order.filter((id) => known.has(id)),
-          hidden: catalogDraft.hidden.filter(
-            (id) => known.has(id) && id !== catalogDraft.petId,
-          ),
-        },
-        { inline: true },
-      );
-      setCatalogDraft(null);
-      await loadCatalog();
-    } catch (error) {
-      setCatalogError(error);
-    }
-  };
+  const openCatalogManager = () => setManager(true);
   const selectTab = (index: number) => {
     const next = (index + petTabs.length) % petTabs.length;
     setPetTab(petTabs[next]);
@@ -852,11 +785,17 @@ export function CorePages({ shell, page }: { shell: Shell; page: Page }) {
                     </span>
                     <ChevronRight size={16} />
                   </button>
-                  <button className="link-card" onClick={openCatalogManager}>
+                  <button
+                    className="link-card"
+                    aria-label="펫 관리"
+                    onClick={openCatalogManager}
+                  >
                     <LayoutGrid size={19} />
                     <span>
-                      <strong>펫 목록 관리</strong>
-                      <small>목록 순서와 표시할 펫을 정합니다.</small>
+                      <strong>펫 관리</strong>
+                      <small>
+                        펫을 추가하고 표시·순서·휴지통을 관리합니다.
+                      </small>
                     </span>
                     <ChevronRight size={16} />
                   </button>
@@ -1188,6 +1127,20 @@ export function CorePages({ shell, page }: { shell: Shell; page: Page }) {
               update={snapshot.update}
               call={call}
             />
+            <div className="setting-row">
+              <div>
+                <h3>업데이트 자동 확인</h3>
+                <p>
+                  하루에 한 번 새 버전이 있는지 확인하고, 있으면 펫이
+                  알려 줘요. 설치는 직접 누를 때만 합니다.
+                </p>
+              </div>
+              <Switch
+                label="업데이트 자동 확인"
+                value={snapshot.update.auto_check}
+                change={(value) => change("update_auto_check", value)}
+              />
+            </div>
           </Section>
         </div>
       )}
@@ -1222,227 +1175,15 @@ export function CorePages({ shell, page }: { shell: Shell; page: Page }) {
           </div>
         </Modal>
       )}
-      {catalogDraft &&
-        (() => {
-          const custom = catalogDraft.sort === "custom";
-          const rows = orderedCatalog(
-            catalogDraft.entries,
-            catalogDraft.sort,
-            catalogDraft.order,
-          );
-          const hiddenCount = rows.filter((entry) =>
-            catalogDraft.hidden.includes(entry.id),
-          ).length;
-          const move = (from: number, to: number) => {
-            const order = rows.map((entry) => entry.id);
-            const [id] = order.splice(from, 1);
-            order.splice(Math.max(0, Math.min(to, order.length)), 0, id);
-            setCatalogDraft({ ...catalogDraft, order });
-          };
-          const endDrag = () => {
-            setDragId(null);
-            setDropAt(null);
-          };
-          return (
-            <Modal
-              title="펫 목록 관리"
-              close={() => setCatalogDraft(null)}
-              error={
-                catalogError ? (
-                  <>
-                    <span>{errorText(catalogError)}</span>
-                    {isStaleError(catalogError) && (
-                      <button
-                        className="button compact"
-                        onClick={rebaseCatalogDraft}
-                      >
-                        <RotateCcw size={13} />
-                        최신 상태 다시 불러오기
-                      </button>
-                    )}
-                  </>
-                ) : undefined
-              }
-              footer={
-                <>
-                  <button
-                    className="button"
-                    onClick={() => setCatalogDraft(null)}
-                  >
-                    취소
-                  </button>
-                  <button
-                    className="button primary"
-                    disabled={!!catalogError && isStaleError(catalogError)}
-                    onClick={saveCatalogDraft}
-                  >
-                    적용
-                  </button>
-                </>
-              }
-            >
-              <Field
-                field={{
-                  key: "sort",
-                  label: "정렬 방식",
-                  kind: "select",
-                  group: "",
-                  value: catalogDraft.sort,
-                  options: [
-                    { value: "name", label: "이름순" },
-                    { value: "custom", label: "직접 정렬" },
-                  ],
-                }}
-                change={(sort) => setCatalogDraft({ ...catalogDraft, sort })}
-              />
-              <p className="catalog-status" aria-live="polite">
-                표시 {rows.length - hiddenCount}개 · 숨김 {hiddenCount}개 ·{" "}
-                {custom
-                  ? "끌어서 옮기거나 화살표로 순서를 바꿀 수 있습니다."
-                  : "이름이 바뀌거나 펫이 추가되면 자동으로 다시 정렬됩니다."}
-              </p>
-              <p className="catalog-hint">
-                체크한 펫만 선택 창과 트레이 메뉴에 표시됩니다.
-              </p>
-              {rows.map((entry, index) => {
-                const isCurrent = entry.id === snapshot.pet.pet_id;
-                const dropClass =
-                  dragId === null
-                    ? ""
-                    : dropAt === index
-                      ? " drop-before"
-                      : dropAt === index + 1 && index === rows.length - 1
-                        ? " drop-after"
-                        : "";
-                return (
-                  <div
-                    className={`catalog-row${dragId === entry.id ? " dragging" : ""}${dropClass}`}
-                    key={entry.id}
-                    onDragOver={
-                      custom && dragId !== null
-                        ? (event) => {
-                            event.preventDefault();
-                            event.dataTransfer.dropEffect = "move";
-                            const box =
-                              event.currentTarget.getBoundingClientRect();
-                            setDropAt(
-                              event.clientY < box.top + box.height / 2
-                                ? index
-                                : index + 1,
-                            );
-                          }
-                        : undefined
-                    }
-                    onDrop={
-                      custom && dragId !== null
-                        ? (event) => {
-                            event.preventDefault();
-                            const from = rows.findIndex(
-                              (row) => row.id === dragId,
-                            );
-                            if (from >= 0 && dropAt !== null)
-                              move(from, dropAt > from ? dropAt - 1 : dropAt);
-                            endDrag();
-                          }
-                        : undefined
-                    }
-                  >
-                    {custom && (
-                      // Dragging starts only from the handle so the checkbox
-                      // and label keep their clicks; the buttons cover the
-                      // keyboard.
-                      <span
-                        className="drag-handle"
-                        draggable
-                        aria-hidden="true"
-                        title="끌어서 순서 바꾸기"
-                        onDragStart={(event) => {
-                          event.dataTransfer.effectAllowed = "move";
-                          event.dataTransfer.setData("text/plain", entry.id);
-                          const row = event.currentTarget.parentElement;
-                          if (row) event.dataTransfer.setDragImage(row, 20, 20);
-                          setDragId(entry.id);
-                        }}
-                        onDragEnd={endDrag}
-                      >
-                        <GripVertical size={15} />
-                      </span>
-                    )}
-                    <img src={entry.thumbnail} alt="" />
-                    <label
-                      title={
-                        isCurrent
-                          ? "현재 사용 중인 펫은 숨길 수 없습니다."
-                          : undefined
-                      }
-                    >
-                      <input
-                        type="checkbox"
-                        aria-label={`${entry.name} 표시`}
-                        checked={!catalogDraft.hidden.includes(entry.id)}
-                        disabled={isCurrent}
-                        onChange={(event) =>
-                          setCatalogDraft({
-                            ...catalogDraft,
-                            hidden: event.target.checked
-                              ? catalogDraft.hidden.filter(
-                                  (item) => item !== entry.id,
-                                )
-                              : [...catalogDraft.hidden, entry.id],
-                          })
-                        }
-                      />
-                      {entry.name}
-                      {isCurrent && (
-                        <span className="current-badge">현재 사용 중</span>
-                      )}
-                    </label>
-                    {custom && (
-                      <>
-                        <button
-                          className="icon-button"
-                          aria-label={`${entry.name} 맨 위로`}
-                          title="맨 위로"
-                          disabled={index === 0}
-                          onClick={() => move(index, 0)}
-                        >
-                          <ArrowUpToLine size={15} />
-                        </button>
-                        <button
-                          className="icon-button"
-                          aria-label={`${entry.name} 위로`}
-                          title="위로"
-                          disabled={index === 0}
-                          onClick={() => move(index, index - 1)}
-                        >
-                          <ArrowUp size={15} />
-                        </button>
-                        <button
-                          className="icon-button"
-                          aria-label={`${entry.name} 아래로`}
-                          title="아래로"
-                          disabled={index === rows.length - 1}
-                          onClick={() => move(index, index + 1)}
-                        >
-                          <ArrowDown size={15} />
-                        </button>
-                        <button
-                          className="icon-button"
-                          aria-label={`${entry.name} 맨 아래로`}
-                          title="맨 아래로"
-                          disabled={index === rows.length - 1}
-                          onClick={() => move(index, rows.length - 1)}
-                        >
-                          <ArrowDownToLine size={15} />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </Modal>
-          );
-        })()}
+      {manager && (
+        <PetManagerDialog
+          shell={shell}
+          close={() => {
+            setManager(false);
+            loadCatalog().catch(fail);
+          }}
+        />
+      )}
       {editor && (
         <Modal
           title={`${snapshot.pet.display_name} · 말풍선 꾸미기`}

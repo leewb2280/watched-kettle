@@ -21,7 +21,7 @@ from watched_kettle.build_profiles import (  # noqa: E402
 )
 
 
-def stage_private_pets(project_root, destination):
+def stage_private_pets(project_root, destination, pet_ids=None):
     """Copy each private-beta package into ``destination/<folder>``."""
     destination = Path(destination)
     if destination.exists():
@@ -35,6 +35,14 @@ def stage_private_pets(project_root, destination):
     ]
     if not sources:
         raise ValueError("No private-beta pet packages to stage")
+    if pet_ids is not None:
+        requested = list(pet_ids)
+        if not requested or len(set(requested)) != len(requested):
+            raise ValueError("Select at least one pet, without duplicate IDs")
+        unknown = set(requested) - {source.pet_id for source in sources}
+        if unknown:
+            raise ValueError(f"Unknown private pet IDs: {sorted(unknown)}")
+        sources = [source for source in sources if source.pet_id in requested]
     for source in sources:
         folder = destination / source.directory.name
         files = [source.manifest_path, source.spritesheet_path]

@@ -8,6 +8,7 @@ from watched_kettle.application.routes import RouteId
 from watched_kettle.ui import design_tokens
 from watched_kettle.ui.bubble_models import source_mark_color
 from watched_kettle.ui.pet_controls import tray_status_text
+from watched_kettle.ui.pet_tray import update_action_text
 
 TRAY_ICON_SIZES = (16, 20, 24, 32, 48)
 # Pet states that put a colored dot on the tray icon, by design token.
@@ -66,7 +67,14 @@ def source_dot_icon(source):
 
 class AssistantSystemTray(QObject):
     def __init__(
-        self, pet_vm, usage_vm, notifications, open_route, icon_pixmap, parent=None
+        self,
+        pet_vm,
+        usage_vm,
+        notifications,
+        open_route,
+        icon_pixmap,
+        parent=None,
+        updates=None,
     ):
         super().__init__(parent)
         self.pet_vm = pet_vm
@@ -128,8 +136,12 @@ class AssistantSystemTray(QObject):
         self.visibility_action.triggered.connect(pet_vm.toggle_visibility)
         settings = self.menu.addAction("설정")
         settings.triggered.connect(lambda: open_route(RouteId.PET_SETTINGS))
-        update = self.menu.addAction("업데이트 확인")
-        update.triggered.connect(self._check_updates)
+        self.update_action = self.menu.addAction(update_action_text(updates))
+        self.update_action.triggered.connect(self._check_updates)
+        if updates is not None:
+            updates.changed.connect(
+                lambda: self.update_action.setText(update_action_text(updates))
+            )
         self.menu.addSeparator()
         quit_action = self.menu.addAction("종료")
         quit_action.triggered.connect(QApplication.quit)
@@ -334,11 +346,16 @@ class AssistantSystemTray(QObject):
             state = tray_status_text(
                 None, pet.visual_state, getattr(pet, "working_sources", ())
             )
-            usage = self.usage_vm.tray_summary() if self.usage_vm.enabled else "비활성"
+            # A tool switched off has no line at all.
+            codex = bool(self.usage_vm.enabled)
+            usage = self.usage_vm.tray_summary() if codex else ""
             active = f" · 활성 작업 {pet.active_count}개" if pet.active_count else ""
             self._set_text(self.status_action, f"현재 상태: {state}{active}")
             self._update_icon(pet.visual_state)
-            self._set_text(self.usage_status_action, f"Codex 사용량: {usage}")
+            if self.usage_status_action.isVisible() != codex:
+                self.usage_status_action.setVisible(codex)
+            if codex:
+                self._set_text(self.usage_status_action, f"Codex 사용량: {usage}")
             claude_usage = self._claude_code_usage()
             if self.claude_usage_action.isVisible() != bool(claude_usage):
                 self.claude_usage_action.setVisible(bool(claude_usage))
@@ -365,7 +382,7 @@ class AssistantSystemTray(QObject):
             tooltip = (
                 f"Watched Kettle\n{state}"
                 + (f" · 활성 작업 {pet.active_count}개" if pet.active_count else "")
-                + f"\nCodex 사용량: {usage}"
+                + (f"\nCodex 사용량: {usage}" if codex else "")
                 + (f"\nClaude Code 사용량: {claude_usage}" if claude_usage else "")
                 + (f"\n{notice}" if notice else "")
             )

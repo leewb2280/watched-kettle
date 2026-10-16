@@ -94,17 +94,54 @@ class IntegrationSetupTests(unittest.TestCase):
         self.assertEqual(claude.calls, [])
         self.assertNotIn("usage/claude_code_enabled", self.settings.values)
 
-    def test_blocked_tool_keeps_its_switch_and_reports_failure(self):
-        codex, claude = FakeInstaller(can_apply=False), FakeInstaller()
+    def test_blocked_files_still_set_the_switch_and_report_failure(self):
+        # A blocked hook only limits activity; the chosen switch still applies.
+        codex, claude = FakeInstaller(can_apply=False), FakeInstaller(can_apply=False)
 
         result = self.run_setup(
-            "--codex=on", "--claude-code=on", codex=codex, claude_code=claude
+            "--codex=on", "--claude-code=off", codex=codex, claude_code=claude
         )
 
         self.assertEqual(result, 2)
         self.assertNotIn("apply", codex.calls)
-        self.assertNotIn("usage/enabled", self.settings.values)
+        self.assertNotIn("apply", claude.calls)
+        self.assertTrue(self.settings.values["usage/enabled"])
+        self.assertFalse(self.settings.values["usage/claude_code_enabled"])
+        self.assertTrue(self.settings.synced)
+
+    def test_one_tool_failing_does_not_stop_the_other(self):
+        class Failing(FakeInstaller):
+            def apply(self, plan):
+                raise OSError("locked")
+
+        claude = FakeInstaller()
+        result = self.run_setup(
+            "--codex=on", "--claude-code=on", codex=Failing(), claude_code=claude
+        )
+
+        self.assertEqual(result, 2)
+        self.assertEqual(claude.calls, ["preview_install", "apply"])
+        self.assertTrue(self.settings.values["usage/enabled"])
         self.assertTrue(self.settings.values["usage/claude_code_enabled"])
+
+    def test_turning_claude_code_off_also_restores_the_status_line(self):
+        claude, status_line = FakeInstaller(), FakeInstaller()
+
+        self.assertEqual(
+            self.run_setup(
+                "--claude-code=off",
+                claude_code=claude,
+                claude_code_status_line=status_line,
+            ),
+            0,
+        )
+        self.assertEqual(status_line.calls, ["preview_remove", "apply"])
+        # Turning it on leaves the status line, a separate option, alone.
+        status_line.calls.clear()
+        self.run_setup(
+            "--claude-code=on", claude_code=claude, claude_code_status_line=status_line
+        )
+        self.assertEqual(status_line.calls, [])
 
     def test_real_installers_add_and_remove_only_the_managed_hooks(self):
         with TemporaryDirectory() as directory:

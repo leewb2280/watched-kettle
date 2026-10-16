@@ -22,6 +22,9 @@ from watched_kettle.app_preferences import ApplicationPreferences
 from watched_kettle.application.paths import AppPaths
 from watched_kettle.application.pet_runtime import PetRuntime
 from watched_kettle.application.runtime import ApplicationRuntime
+from watched_kettle.features.integrations.activation import (
+    ACTIVATION_MIGRATION_KEY,
+)
 from watched_kettle.features.notifications.actions import ActionTarget
 from watched_kettle.features.notifications.models import NoticeRequest
 from watched_kettle.integrations.claude_code_hooks import normalize_claude_code_hook
@@ -189,6 +192,9 @@ def main():
         os.environ["WATCHED_KETTLE_UPDATE_SOURCE"] = str(update_source)
         settings = QSettings(str(root / "settings.ini"), QSettings.Format.IniFormat)
         preferences = ApplicationPreferences(settings)
+        # The QA user already uses both tools (one switch per tool).
+        preferences.save_claude_code_usage_enabled(True)
+        settings.setValue(ACTIVATION_MIGRATION_KEY, 1)
         qa_pets_root = root / "pets"
         alternate_pet = qa_pets_root / "mori-bot-qa-alt"
         shutil.copytree(Path("pets/mori-bot"), alternate_pet)
@@ -205,9 +211,16 @@ def main():
         import_invalid = root / "invalid-pet.png"
         Image.new("RGBA", (12, 12)).save(import_invalid)
         with Image.open(spritesheet_path) as spritesheet:
-            spritesheet.transpose(Image.Transpose.FLIP_LEFT_RIGHT).save(
-                spritesheet_path
+            # Keep the first idle cell populated; flipping the entire atlas
+            # moves empty trailing cells into the thumbnail position.
+            changed = spritesheet.copy()
+            changed.paste(
+                spritesheet.crop((0, 0, 192, 208)).transpose(
+                    Image.Transpose.FLIP_LEFT_RIGHT
+                ),
+                (0, 0),
             )
+            changed.save(spritesheet_path)
         pet = DesktopPet(
             Path("pets/mori-bot"),
             settings=settings,
@@ -293,7 +306,47 @@ def main():
                 return
             data = json.loads(control_path.read_text(encoding="utf-8"))
             control_path.unlink()
-            if data["action"] == "quit":
+            if data["action"] == "batch_fixture":
+                count = min(60, max(1, int(data.get("count", 55))))
+                base = Path("pets/mori-bot")
+                manifest = json.loads((base / "pet.json").read_text(encoding="utf-8"))
+                for index in range(count):
+                    pet_id = f"batch-qa-{index:02d}"
+                    folder = qa_pets_root / pet_id
+                    folder.mkdir(exist_ok=True)
+                    (folder / "pet.json").write_text(
+                        json.dumps(
+                            {
+                                **manifest,
+                                "id": pet_id,
+                                "displayName": "일괄 QA 중복"
+                                if index < 2
+                                else f"일괄 QA {index:02d}",
+                            }
+                        ),
+                        encoding="utf-8",
+                    )
+                    atlas = folder / "spritesheet.webp"
+                    if not atlas.exists():
+                        shutil.copyfile(base / "spritesheet.webp", atlas)
+                host.adapter.revision += 1
+                host.adapter.changed.emit("settings")
+            elif data["action"] == "batch_config":
+                host.adapter.pet_batch.delay_ms = min(
+                    2000, max(0, int(data.get("delay", 0)))
+                )
+                service = host.adapter.pet_vm.packages
+                if not hasattr(service, "qa_original_move"):
+                    service.qa_original_move = service.move
+                failed_ids = set(data.get("failed", []))
+
+                def controlled_move(pet_id):
+                    if pet_id in failed_ids:
+                        raise PermissionError("isolated QA failure")
+                    return service.qa_original_move(pet_id)
+
+                service.move = controlled_move
+            elif data["action"] == "quit":
                 app.quit()
             elif data["action"] == "show":
                 host._send(

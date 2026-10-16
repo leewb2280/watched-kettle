@@ -94,6 +94,28 @@ class ApplicationPreferences:
             bool(shown),
         )
 
+    def load_update_auto_check(self):
+        return self.settings.value("updates/autoCheck", True, type=bool)
+
+    def save_update_auto_check(self, enabled):
+        self.settings.setValue("updates/autoCheck", bool(enabled))
+
+    def load_update_last_check(self):
+        """When an automatic check last got an answer, in epoch seconds."""
+        try:
+            return max(0.0, float(self.settings.value("updates/lastCheck", 0)))
+        except (TypeError, ValueError):
+            return 0.0
+
+    def save_update_last_check(self, timestamp):
+        self.settings.setValue("updates/lastCheck", float(timestamp))
+
+    def load_update_announced_version(self):
+        return str(self.settings.value("updates/announcedVersion", "") or "")
+
+    def save_update_announced_version(self, version):
+        self.settings.setValue("updates/announcedVersion", str(version))
+
     def load_claude_code_timeouts(self):
         """Return (work, waiting) inactivity minutes for Claude Code sessions."""
         return tuple(
@@ -111,9 +133,8 @@ class ApplicationPreferences:
         return self.settings.value("usage/enabled", True, type=bool)
 
     def load_claude_code_usage_enabled(self):
-        return self.settings.value(
-            "usage/claude_code_enabled", self.load_usage_enabled(), type=bool
-        )
+        # Off until chosen: Claude Code never inherits the Codex switch.
+        return self.settings.value("usage/claude_code_enabled", False, type=bool)
 
     def save_claude_code_usage_enabled(self, enabled):
         self.settings.setValue("usage/claude_code_enabled", bool(enabled))

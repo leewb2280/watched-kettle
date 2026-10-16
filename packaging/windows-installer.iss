@@ -35,6 +35,20 @@
 #ifdef UpdateTest
   #define InstallerKind InstallerKind + "-update-test"
 #endif
+; UpdateEdition (pet-only or pet-assistant) makes the app's update installer:
+; that edition's runtime only, for an installation of the same edition. New
+; installs and edition changes use the full installer (ADR 0007).
+#ifdef UpdateEdition
+  #if UpdateEdition != "pet-only" && UpdateEdition != "pet-assistant"
+    #error UpdateEdition must be pet-only or pet-assistant
+  #endif
+  #define InstallerKind InstallerKind + "-" + UpdateEdition + "-update"
+  #define WithPetOnlyRuntime UpdateEdition == "pet-only"
+  #define WithAssistantRuntime UpdateEdition == "pet-assistant"
+#else
+  #define WithPetOnlyRuntime 1
+  #define WithAssistantRuntime 1
+#endif
 ; ADR 0005: Private Beta builds used the legacy names below; upgrades migrate them.
 #define AppId "WatchedKettle"
 #define AppExe "WatchedKettle.exe"
@@ -121,16 +135,16 @@ en.CurrentAssistant=Currently installed: pet + assistant.
 en.CurrentBoth=Both editions were found. Choose the one to keep.
 en.CurrentLegacy=An earlier Codex Desktop Pets installation with the assistant was found.
 en.RemoveAssistantWarning=Switching to pet only removes the Codex and Claude Code hooks this app added. Assistant history is kept.
-en.ToolsPageCaption=Connect Your Tools
+en.ToolsPageCaption=Choose Your Tools
 en.ToolsPageDescription=Choose the coding tools the pet should watch.
-en.ToolConnected=Connected now.
-en.ToolNotConnected=Not connected now.
+en.ToolConnected=In use now.
+en.ToolNotConnected=Not in use now.
 en.ToolFound=Its settings folder was found on this PC.
 en.ToolNotFound=Its settings folder was not found on this PC.
-en.ToolsNewNote=This app adds its hooks only to the tools you choose. You can change this later on the app's connection page.
-en.ToolsUpgradeNote=Only your changes are applied. Unchecking a tool removes only the hooks this app added.
+en.ToolsNewNote=This app adds its hooks and shows usage only for the tools you choose. Tools you leave out are not read. You can change this later on the app's connections page.
+en.ToolsUpgradeNote=Only your changes are applied. Unchecking a tool removes only the hooks this app added and turns that tool off in the app.
 en.ReadyEdition=Edition:
-en.ReadyTools=Connected tools:
+en.ReadyTools=Tools in use:
 en.ReadyNoTools=None
 en.LegacyHookMigrateFailed=Could not move the Codex hook from the previous name to the new program. Repair it on the app's connection page.
 en.IntegrationsFailed=Some Codex or Claude Code connection settings could not be applied. Check the app's connection and diagnostics page.
@@ -154,6 +168,7 @@ en.ClaudeSettingsUnreadable=Could not read the Claude Code settings file: %1
 en.StartupRemoveFailed=Could not remove the app's startup entry.
 en.AppStillRunning=Watched Kettle did not close on its own. Force it to close and continue?
 en.AppRunningAbort=Watched Kettle is still running. Quit it from the tray menu, then try again.
+en.UpdateEditionMismatch=This update installer only updates an installed Watched Kettle of the same edition. Download the full installer from the release page.
 en.HookRemoveAbort=Uninstall stopped because the Codex and Claude Code hooks this app manages could not be removed.
 en.HookRemainAbort=Uninstall stopped because hooks this app manages are still present in Codex or Claude Code.
 en.DataLinkedAbort=Deleting everything stopped because the app data contains a link to another folder: %1
@@ -176,16 +191,16 @@ ko.CurrentAssistant=지금은 펫 + 비서가 설치되어 있습니다.
 ko.CurrentBoth=두 구성이 모두 발견됐습니다. 남길 구성을 고르세요.
 ko.CurrentLegacy=이전 이름(Codex Desktop Pets)의 비서 구성이 설치되어 있습니다.
 ko.RemoveAssistantWarning=펫만으로 바꾸면 이 앱이 추가한 Codex·Claude Code hook을 제거합니다. 비서 기록은 지우지 않습니다.
-ko.ToolsPageCaption=도구 연결
+ko.ToolsPageCaption=사용할 도구
 ko.ToolsPageDescription=펫이 지켜볼 코딩 도구를 고르세요.
-ko.ToolConnected=지금 연결되어 있습니다.
-ko.ToolNotConnected=지금은 연결되어 있지 않습니다.
+ko.ToolConnected=지금 사용 중입니다.
+ko.ToolNotConnected=지금은 사용하지 않습니다.
 ko.ToolFound=이 PC에서 설정 폴더를 찾았습니다.
 ko.ToolNotFound=이 PC에서 설정 폴더를 찾지 못했습니다.
-ko.ToolsNewNote=고른 도구에만 이 앱의 hook을 추가합니다. 나중에 앱의 연결 화면에서 바꿀 수 있습니다.
-ko.ToolsUpgradeNote=바꾼 항목만 적용합니다. 체크를 해제하면 이 앱이 추가한 hook만 제거합니다.
+ko.ToolsNewNote=고른 도구에만 이 앱의 hook을 추가하고 사용량을 보여 줍니다. 고르지 않은 도구는 읽지 않습니다. 나중에 앱의 연결·진단에서 바꿀 수 있습니다.
+ko.ToolsUpgradeNote=바꾼 항목만 적용합니다. 체크를 해제하면 이 앱이 추가한 hook만 제거하고 앱에서 그 도구를 끕니다.
 ko.ReadyEdition=설치 구성:
-ko.ReadyTools=연결할 도구:
+ko.ReadyTools=사용할 도구:
 ko.ReadyNoTools=없음
 ko.LegacyHookMigrateFailed=이전 이름의 Codex hook을 새 실행 파일로 옮기지 못했습니다. 앱의 연결 화면에서 hook을 복구해 주세요.
 ko.IntegrationsFailed=Codex·Claude Code 연동 설정 일부를 적용하지 못했습니다. 앱의 연결·진단 화면에서 확인해 주세요.
@@ -209,6 +224,7 @@ ko.ClaudeSettingsUnreadable=Claude Code 설정 파일을 확인하지 못했습�
 ko.StartupRemoveFailed=앱 자동 시작 등록을 해제하지 못했습니다.
 ko.AppStillRunning=Watched Kettle이 스스로 종료되지 않았습니다. 강제로 종료하고 계속할까요?
 ko.AppRunningAbort=Watched Kettle이 아직 실행 중입니다. 트레이 메뉴에서 종료한 뒤 다시 시도해 주세요.
+ko.UpdateEditionMismatch=이 업데이트 설치기는 같은 구성으로 설치된 Watched Kettle만 업데이트합니다. 배포 페이지에서 전체 설치 파일을 받아 주세요.
 ko.HookRemoveAbort=관리 중인 Codex·Claude Code hook을 해제하지 못해 제거를 중단했습니다.
 ko.HookRemainAbort=관리 중인 Codex·Claude Code hook이 남아 있어 제거를 중단했습니다.
 ko.DataLinkedAbort=앱 데이터에 연결된 외부 폴더가 있어 전체 삭제를 중단했습니다: %1
@@ -227,10 +243,18 @@ Name: "startup"; Description: "{cm:AutoStartProgram,Watched Kettle}"; GroupDescr
 
 [Files]
 Source: "{#LauncherExe}"; DestDir: "{app}"; DestName: "{#AppExe}"; Flags: ignoreversion
-Source: "{#PetOnlyBundleRoot}\*"; DestDir: "{app}\runtime\pet-only"; Flags: ignoreversion recursesubdirs createallsubdirs; Check: InstallPetOnly
-Source: "{#AssistantBundleRoot}\*"; DestDir: "{app}\runtime\pet-assistant"; Flags: ignoreversion recursesubdirs createallsubdirs; Check: InstallAssistant
+; solidbreak gives each runtime its own compressed stream, so Setup does not
+; decompress the edition it skips.
+#if WithPetOnlyRuntime
+Source: "{#PetOnlyBundleRoot}\*"; DestDir: "{app}\runtime\pet-only"; Flags: ignoreversion recursesubdirs createallsubdirs solidbreak; Check: InstallPetOnly
+#endif
+#if WithAssistantRuntime
+Source: "{#AssistantBundleRoot}\*"; DestDir: "{app}\runtime\pet-assistant"; Flags: ignoreversion recursesubdirs createallsubdirs solidbreak; Check: InstallAssistant
+#endif
+#ifndef UpdateEdition
 ; Stage the new helper only when switching an older assistant installation to pet-only.
 Source: "{#AssistantBundleRoot}\*"; DestDir: "{app}\hook-cleanup-helper"; Flags: ignoreversion recursesubdirs createallsubdirs; Check: NeedHookCleanup
+#endif
 #ifdef PrivatePetsRoot
 ; User pet folder, so a later public installer keeps them. Like other custom
 ; pets, only "delete everything" removes them.
@@ -255,6 +279,8 @@ Root: HKCU; Subkey: "Software\{#AppId}"; ValueType: string; ValueName: "Language
 
 [UninstallDelete]
 Type: files; Name: "{app}\runtime\edition"
+; Partial updates replace runtime folders outside Setup's file log (ADR 0007).
+Type: filesandordirs; Name: "{app}\runtime"
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,Watched Kettle}"; Flags: nowait postinstall skipifsilent
@@ -276,6 +302,12 @@ const
   // Polls every 250 ms: 10 s for a normal quit, 5 s after a forced one.
   QuitWaitPolls = 40;
   ForceWaitPolls = 20;
+  WM_SETREDRAW = $000B;
+  RDW_INVALIDATE = $0001;
+  RDW_ERASE = $0004;
+  RDW_ALLCHILDREN = $0080;
+  RDW_UPDATENOW = $0100;
+  RDW_FRAME = $0400;
 
 type
   TProcessIds = array of Integer;
@@ -296,6 +328,7 @@ var
   ChooseCodex: Boolean;
   ChooseClaudeCode: Boolean;
   StartupTaskShown: Boolean;
+  PageRedrawLocked: Boolean;
 
   EditionPage: TWizardPage;
   CurrentEditionLabel: TNewStaticText;
@@ -327,6 +360,8 @@ function WriteFile(Handle: THandle; const Buffer: AnsiString; BytesToWrite: DWOR
   external 'WriteFile@kernel32.dll stdcall';
 function CloseHandle(Handle: THandle): BOOL;
   external 'CloseHandle@kernel32.dll stdcall';
+function RedrawWindow(Wnd: HWND; UpdateRect, UpdateRegion: Longint; Flags: UINT): BOOL;
+  external 'RedrawWindow@user32.dll stdcall';
 
 function IsReparsePoint(const Path: String): Boolean;
 var
@@ -940,6 +975,25 @@ begin
   end;
 end;
 
+// The app's own "use this tool" switch from settings.ini, or Default. A tool
+// can be in use while its hook is blocked, so on an upgrade the switch
+// outranks the hook marker. Switches saved before the one-switch change
+// (no [internal] toolActivation) could have inherited the Codex value.
+function AppToolSwitch(const Key: String; Default: Boolean): Boolean;
+var
+  Path, Value: String;
+begin
+  Result := Default;
+  Path := UserDataRoot('{#AppId}') + '\settings.ini';
+  if GetIniString('internal', 'toolActivation', '', Path) <> '1' then
+    Exit;
+  Value := Lowercase(GetIniString('usage', Key, '', Path));
+  if Value = 'true' then
+    Result := True
+  else if Value = 'false' then
+    Result := False;
+end;
+
 function SwitchParam(const Name: String; Default: Boolean): Boolean;
 var
   Value: String;
@@ -977,9 +1031,13 @@ begin
     except
       InitialClaudeCode := False;
     end;
+    InitialCodex := AppToolSwitch('enabled', InitialCodex);
+    InitialClaudeCode := AppToolSwitch('claude_code_enabled', InitialClaudeCode);
   end else begin
     InitialCodex := DirExists(CodexHome());
-    InitialClaudeCode := DirExists(ClaudeCodeHome());
+    // Claude Code is offered when found, but a silent install without
+    // /CLAUDECODE=on leaves it off: nobody saw the choice.
+    InitialClaudeCode := DirExists(ClaudeCodeHome()) and (not WizardSilent());
   end;
   InitialStartup := OwnStartupValue('{#AppId}') or OwnStartupValue('{#LegacyAppId}');
   StartupTaskShown := False;
@@ -991,6 +1049,9 @@ begin
     ChooseAssistant := False
   else
     ChooseAssistant := HadAssistantRuntime;
+#ifdef UpdateEdition
+  ChooseAssistant := CompareText('{#UpdateEdition}', 'pet-assistant') = 0;
+#endif
   ChooseCodex := SwitchParam('CODEX', InitialCodex);
   ChooseClaudeCode := SwitchParam('CLAUDECODE', InitialClaudeCode);
 end;
@@ -1161,22 +1222,47 @@ begin
   ChooseClaudeCode := ClaudeCodeCheck.Checked;
 end;
 
+// Setup focuses the new page's first control before CurPageChanged, and the
+// styled tasks list paints itself the moment it gets focus. Without this its
+// rows flash over the previous page before the rest of the page is drawn.
+procedure LockPageRedraw();
+begin
+  if WizardSilent or PageRedrawLocked then
+    Exit;
+  SendMessage(WizardForm.Handle, WM_SETREDRAW, 0, 0);
+  PageRedrawLocked := True;
+end;
+
+procedure UnlockPageRedraw();
+begin
+  if not PageRedrawLocked then
+    Exit;
+  PageRedrawLocked := False;
+  SendMessage(WizardForm.Handle, WM_SETREDRAW, 1, 0);
+  RedrawWindow(WizardForm.Handle, 0, 0, RDW_INVALIDATE or RDW_ERASE or RDW_FRAME or
+    RDW_ALLCHILDREN or RDW_UPDATENOW);
+end;
+
 procedure CurPageChanged(CurPageID: Integer);
 begin
   // Runs before each page is painted, so the defaults never flash.
-  if CurPageID = EditionPage.ID then begin
-    DetectInstalledState();
-    ShowEditionPage();
-  end else if CurPageID = ToolsPage.ID then
-    ShowToolsPage()
-  else if (CurPageID = wpSelectTasks) and (not StartupTaskShown) then begin
-    // The app can change startup after setup, so show the current entry
-    // rather than the previous setup's choice.
-    if InitialStartup then
-      WizardSelectTasks('startup')
-    else
-      WizardSelectTasks('!startup');
-    StartupTaskShown := True;
+  try
+    if CurPageID = EditionPage.ID then begin
+      DetectInstalledState();
+      ShowEditionPage();
+    end else if CurPageID = ToolsPage.ID then
+      ShowToolsPage()
+    else if (CurPageID = wpSelectTasks) and (not StartupTaskShown) then begin
+      // The app can change startup after setup, so show the current entry
+      // rather than the previous setup's choice.
+      if InitialStartup then
+        WizardSelectTasks('startup')
+      else
+        WizardSelectTasks('!startup');
+      StartupTaskShown := True;
+    end;
+  finally
+    UnlockPageRedraw();
   end;
 end;
 
@@ -1190,6 +1276,11 @@ begin
     ChooseAssistant := AssistantOption.Checked
   else if CurPageID = ToolsPage.ID then
     ReadToolChoices();
+  // Next on these pages can end Setup or stop with a message instead of
+  // moving to another page.
+  if (CurPageID <> wpReady) and (CurPageID <> wpPreparing) and
+     (CurPageID <> wpFinished) then
+    LockPageRedraw();
 end;
 
 function BackButtonClick(CurPageID: Integer): Boolean;
@@ -1197,11 +1288,17 @@ begin
   Result := True;
   if (CurPageID = ToolsPage.ID) and (not WizardSilent) then
     ReadToolChoices();
+  LockPageRedraw();
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
   Result := (PageID = ToolsPage.ID) and (not ChooseAssistant);
+#ifdef UpdateEdition
+  // The edition is fixed; PrepareToInstall refuses any other installation.
+  if PageID = EditionPage.ID then
+    Result := True;
+#endif
 end;
 
 function EditionName(): String;
@@ -1250,8 +1347,21 @@ end;
 // Runs before Restart Manager looks at [Files], and also closes the edition
 // that ssPostInstall removes, which Restart Manager never checks.
 function PrepareToInstall(var NeedsRestart: Boolean): String;
+#ifdef UpdateEdition
+var
+  Edition: AnsiString;
+#endif
 begin
   Result := '';
+#ifdef UpdateEdition
+  // Only an installation of the same edition: this installer carries no
+  // other runtime and no hook cleanup helper.
+  if (not LoadStringFromFile(AddBackslash(WizardDirValue) + 'runtime\edition', Edition)) or
+     (CompareText(Trim(String(Edition)), '{#UpdateEdition}') <> 0) then begin
+    Result := CustomMessage('UpdateEditionMismatch');
+    Exit;
+  end;
+#endif
   if not StopRunningApp(WizardDirValue, WizardSilent) then
     Result := CustomMessage('AppRunningAbort');
 end;

@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
@@ -24,7 +25,10 @@ from watched_kettle.application.update_check import (
     installer_asset_name,
     release_url_kind,
 )
+from watched_kettle.application.update_assets import installer_name
 from watched_kettle.branding import APPLICATION_VERSION
+from watched_kettle.ui.pet_tray import update_action_text
+from tests.update_bundle_support import KIND, build_release
 
 INSTALLER_NAME = "WatchedKettle-9.9.9-public-update-test-unsigned-setup.exe"
 
@@ -265,6 +269,29 @@ class UpdateServiceTests(unittest.TestCase):
         _, update = self.check(self.serve(mode="invalid"))
         self.assertEqual((update["state"], update["retry"]), ("error", "check"))
 
+    def test_an_automatic_check_stays_quiet_on_failure_and_reports_a_find(self):
+        finished, found = [], []
+        service = self.service(self.serve(mode="invalid"))
+        service.automatic_finished.connect(finished.append)
+        service.found.connect(found.append)
+        service.set_auto_check(True)
+        self.assertEqual(service.snapshot()["message"], update_check.AUTO_IDLE_MESSAGE)
+        service.check(automatic=True)
+        update = self.wait_while(service, "checking")
+        self.assertEqual(
+            (update["state"], update["message"], update["retry"]),
+            ("idle", update_check.AUTO_IDLE_MESSAGE, ""),
+        )
+        # The same failure is shown when the user asked.
+        service.check()
+        self.assertEqual(self.wait_while(service, "checking")["state"], "error")
+        service = self.service(self.serve())
+        service.automatic_finished.connect(finished.append)
+        service.found.connect(found.append)
+        service.check(automatic=True)
+        self.assertEqual(self.wait_while(service, "checking")["state"], "available")
+        self.assertEqual((finished, found), ([False, True], ["9.9.9"]))
+
     def test_newer_release_offers_install_only_from_an_installed_runtime(self):
         source = self.serve()
         _, update = self.check(source)
@@ -374,6 +401,177 @@ class UpdateServiceTests(unittest.TestCase):
         )
 
 
+class PartialUpdateTests(unittest.TestCase):
+    """Index, delta, staging and the launcher hand-off on the local channel."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        temp = TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.root = Path(temp.name)
+        self.updates = self.root / "updates"
+        base = build_release(self.root / "build", APPLICATION_VERSION)
+        self.release = build_release(self.root / "build", "9.9.9", bases=base)
+        # An installed app of the base version: launcher, edition, runtime.
+        self.app_root = self.root / "app"
+        runtime = self.app_root / "runtime"
+        shutil.copytree(
+            self.root / "build" / f"bundle-{APPLICATION_VERSION}-pet-assistant",
+            runtime / "pet-assistant",
+        )
+        (runtime / "edition").write_text("pet-assistant", encoding="utf-8")
+        self.servers, self.services = [], []
+        patches = (
+            patch.object(
+                update_check, "installed_app_root", return_value=self.app_root
+            ),
+            patch.object(update_check, "installed_revision", return_value=1),
+            patch.object(update_check, "installer_language", return_value="en"),
+            patch.object(update_check, "INSTALL_NOTICE_MS", 50),
+        )
+        for item in patches:
+            item.start()
+            self.addCleanup(item.stop)
+
+    def tearDown(self):
+        for service in self.services:
+            service.cancel()
+        QTest.qWait(20)
+        for server in self.servers:
+            server.shutdown()
+            server.server_close()
+
+    def check(self, mode="ok"):
+        server = serve_update_test.serve(0, mode=mode, release_dir=self.release)
+        self.servers.append(server)
+        source = self.root / "UPDATE_SOURCE.json"
+        source.write_text(
+            json.dumps(serve_update_test.update_source(server.server_address[1])),
+            encoding="utf-8",
+        )
+        service = UpdateService(source, updates_dir=self.updates)
+        self.services.append(service)
+        service.check()
+        UpdateServiceTests.wait_while(self, service, "checking")
+        return service
+
+    def run_update(self, service):
+        with (
+            patch.object(
+                update_check.QProcess, "startDetached", return_value=(True, 1)
+            ) as start,
+            patch.object(update_check.QCoreApplication, "quit") as quit_app,
+        ):
+            service.download()
+            update = UpdateServiceTests.wait_while(
+                self, service, "available", "downloading", "preparing", timeout_ms=20000
+            )
+            self.assertEqual(update["state"], "installing", update["message"])
+            QTest.qWait(200)
+        quit_app.assert_called_once()
+        return start
+
+    def test_a_delta_is_staged_and_the_launcher_swaps_it_in(self):
+        service = self.check()
+        update = service.snapshot()
+        self.assertEqual(service.release["kind"], "delta")
+        self.assertTrue(update["can_install"])
+        self.assertRegex(update["message"], r"\(\d+KB\)\.$")
+        self.assertEqual(
+            [
+                update_check._size_note(dict(size=size))
+                for size in (17, 300_000, 6_050_509, 156_380_068)
+            ],
+            [" (1KB)", " (293KB)", " (5.8MB)", " (149MB)"],
+        )
+        start = self.run_update(service)
+        start.assert_called_once_with(
+            str(self.app_root / "WatchedKettle.exe"),
+            ["--apply-staged-update"],
+            str(self.app_root),
+        )
+        staged = self.app_root / "runtime" / "pet-assistant.next"
+        self.assertEqual((staged / ".ready").read_text().strip(), "9.9.9")
+        built = self.root / "build" / "bundle-9.9.9-pet-assistant"
+        for path in built.rglob("*"):
+            if path.is_file():
+                relative = path.relative_to(built)
+                self.assertEqual((staged / relative).read_bytes(), path.read_bytes())
+        # The downloaded zip is gone once staged.
+        self.assertEqual(list(self.updates.glob("*.zip")), [])
+
+    def test_a_delta_that_cannot_apply_falls_back_to_the_edition_installer(self):
+        service = self.check(mode="bad-delta")
+        self.assertEqual(service.release["kind"], "delta")
+        start = self.run_update(service)
+        installer = self.updates / installer_name("9.9.9", KIND, "pet-assistant")
+        start.assert_called_once_with(
+            str(installer),
+            ["/VERYSILENT", "/RELAUNCH=1", "/LANG=en"],
+            str(self.updates),
+        )
+        self.assertFalse((self.app_root / "runtime" / "pet-assistant.next").exists())
+
+    def test_a_changed_installed_runtime_also_falls_back(self):
+        library = (
+            self.app_root / "runtime" / "pet-assistant" / "_internal" / "shared.dll"
+        )
+        library.write_bytes(b"x" * library.stat().st_size)
+        start = self.run_update(self.check())
+        self.assertIn("-pet-assistant-update-", start.call_args.args[0])
+
+    def test_another_installer_revision_downloads_the_edition_installer(self):
+        with patch.object(update_check, "installed_revision", return_value=2):
+            service = self.check()
+        self.assertEqual(service.release["kind"], "installer")
+        self.assertEqual(
+            service.release["name"], installer_name("9.9.9", KIND, "pet-assistant")
+        )
+
+    def test_a_version_too_old_for_a_delta_downloads_the_edition_installer(self):
+        # Releases carry deltas from their last few versions only.
+        with patch.object(update_check, "APPLICATION_VERSION", "0.0.1"):
+            service = self.check()
+            self.assertEqual(service.release["kind"], "installer")
+            self.assertEqual(
+                service.release["name"], installer_name("9.9.9", KIND, "pet-assistant")
+            )
+            start = self.run_update(service)
+        self.assertIn("-pet-assistant-update-", start.call_args.args[0])
+
+    def test_start_clears_what_an_earlier_update_left_and_reports_a_failure(self):
+        runtime = self.app_root / "runtime"
+        for name in ("pet-assistant.next", "pet-assistant.old", "pet-only.old-1"):
+            (runtime / name).mkdir()
+            (runtime / name / "file").write_bytes(b"x")
+        (runtime / "update-result.txt").write_text(
+            "state=failed\nversion=9.9.9\nreason=in_use\n", encoding="utf-8"
+        )
+        service = UpdateService(self.root / "missing.json", updates_dir=self.updates)
+        self.services.append(service)
+        QTest.qWait(50)
+        waited = 0
+        while len(list(runtime.iterdir())) > 2 and waited < 5000:
+            QTest.qWait(20)
+            waited += 20
+        self.assertEqual(
+            sorted(entry.name for entry in runtime.iterdir()),
+            ["edition", "pet-assistant"],
+        )
+        self.assertIn("적용하지 못했습니다", service.snapshot()["message"])
+
+    def test_update_timings_keep_their_sizes_and_counts_in_the_log(self):
+        from watched_kettle.application.logging import _safe_event_fields
+
+        fields = dict(bytes=6_050_509, linked=268, copied=0, extracted=4)
+        self.assertEqual(
+            _safe_event_fields(dict(fields, duration_ms=1)), dict(fields, duration_ms=1)
+        )
+
+
 class ServeUpdateTestTests(unittest.TestCase):
     def test_installer_version_comes_from_the_file_name(self):
         self.assertEqual(
@@ -440,6 +638,135 @@ class ServeUpdateTestTests(unittest.TestCase):
             finally:
                 server.shutdown()
                 server.server_close()
+
+
+class FakeUpdatePreferences:
+    def __init__(self, auto_check=True, last_check=0.0, announced=""):
+        self.auto_check = auto_check
+        self.last_check = last_check
+        self.announced = announced
+
+    def load_update_announced_version(self):
+        return self.announced
+
+    def load_update_auto_check(self):
+        return self.auto_check
+
+    def load_update_last_check(self):
+        return self.last_check
+
+    def save_update_last_check(self, timestamp):
+        self.last_check = timestamp
+
+
+class UpdateCheckScheduleTests(unittest.TestCase):
+    """Once a day by the wall clock; the checks themselves are stubbed."""
+
+    DAY = update_check.AUTO_CHECK_INTERVAL_SECONDS
+    RETRY = update_check.AUTO_CHECK_RETRY_SECONDS
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.now = 1_000_000_000.0
+        self.service = UpdateService(Path("missing.json"))
+        self.checks = []
+        self.service.check = lambda automatic=False: self.checks.append(automatic)
+        self.addCleanup(self.service.deleteLater)
+
+    def schedule(self, installed=True, **preferences):
+        self.preferences = FakeUpdatePreferences(**preferences)
+        schedule = update_check.UpdateCheckSchedule(
+            self.service, self.preferences, clock=lambda: self.now
+        )
+        root = Path("app") if installed else None
+        with patch.object(update_check, "installed_app_root", return_value=root):
+            schedule.start()
+        return schedule
+
+    def test_checks_after_start_then_once_a_day(self):
+        schedule = self.schedule()
+        self.assertTrue(schedule.timer.isActive())
+        self.assertEqual(
+            schedule.timer.interval(), update_check.AUTO_CHECK_FIRST_DELAY_MS
+        )
+        self.assertEqual(
+            self.service.snapshot()["message"], update_check.AUTO_IDLE_MESSAGE
+        )
+        schedule._tick()
+        self.assertEqual(self.checks, [True])
+        self.assertEqual(schedule.timer.interval(), update_check.AUTO_CHECK_TICK_MS)
+        self.service.automatic_finished.emit(True)
+        self.assertEqual(self.preferences.last_check, self.now)
+        self.now += self.DAY - 60
+        schedule._tick()
+        self.assertEqual(self.checks, [True])
+        self.now += 60
+        schedule._tick()
+        self.assertEqual(self.checks, [True, True])
+
+    def test_a_recent_check_waits_out_its_day_across_restarts(self):
+        schedule = self.schedule(last_check=self.now - 3600)
+        schedule._tick()
+        self.assertEqual(self.checks, [])
+        self.now += self.DAY - 3600
+        schedule._tick()
+        self.assertEqual(self.checks, [True])
+
+    def test_a_version_found_before_a_restart_is_checked_again_at_start(self):
+        schedule = self.schedule(last_check=self.now - 60, announced="9.9.9")
+        schedule._tick()
+        self.assertEqual(self.checks, [True])
+        self.checks.clear()
+        schedule = self.schedule(
+            last_check=self.now - 60, announced=APPLICATION_VERSION
+        )
+        schedule._tick()
+        self.assertEqual(self.checks, [])
+
+    def test_a_failed_check_tries_again_sooner_without_saving(self):
+        schedule = self.schedule()
+        schedule._tick()
+        self.service.automatic_finished.emit(False)
+        self.assertEqual(self.preferences.last_check, 0.0)
+        self.now += self.RETRY - 1
+        schedule._tick()
+        self.assertEqual(self.checks, [True])
+        self.now += 1
+        schedule._tick()
+        self.assertEqual(self.checks, [True, True])
+
+    def test_the_tray_names_a_found_version(self):
+        self.assertEqual(update_action_text(None), "업데이트 확인")
+        self.assertEqual(update_action_text(self.service), "업데이트 확인")
+        self.service._state.update(state="available", version="9.9.9")
+        self.assertEqual(update_action_text(self.service), "새 버전 받기 (v9.9.9)")
+
+    def test_a_clock_set_back_does_not_stop_the_checks(self):
+        schedule = self.schedule(last_check=self.now + 30 * self.DAY)
+        schedule._tick()
+        self.assertEqual(self.checks, [True])
+
+    def test_off_busy_found_or_source_run_never_checks(self):
+        schedule = self.schedule(auto_check=False)
+        self.assertFalse(schedule.timer.isActive())
+        self.assertEqual(self.service.snapshot()["message"], update_check.IDLE_MESSAGE)
+        schedule._tick()
+        schedule.set_enabled(True)
+        self.service._state["state"] = "available"
+        schedule._tick()
+        self.service._state["state"] = "downloading"
+        schedule._tick()
+        self.assertEqual(self.checks, [])
+        schedule.set_enabled(False)
+        self.assertFalse(schedule.timer.isActive())
+        self.service._state["state"] = "idle"
+        source_run = self.schedule(installed=False)
+        self.assertFalse(source_run.timer.isActive())
+        source_run.set_enabled(True)
+        self.assertFalse(source_run.timer.isActive())
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
 
 from watched_kettle.pet.bubble_theme import bubble_theme_from_manifest
+from watched_kettle.pet.trash import PetTrashService, PetTrashError
 from watched_kettle.bubble_timing import BubbleDurationPolicy
 
 if TYPE_CHECKING:
@@ -62,6 +63,10 @@ class PetViewModel(QObject):
     def __init__(self, pet: DesktopPet, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self.pet = pet
+        self.packages = PetTrashService(
+            pet.user_pets_root, pet.pets_roots, pet.app_preferences
+        )
+        self.packages.recover()
         self.snapshot = self._snapshot()
         pet.controls_changed.connect(self.refresh)
 
@@ -95,6 +100,39 @@ class PetViewModel(QObject):
         preferences.save_pet_custom_order(custom_order)
         preferences.save_hidden_pet_ids(hidden_ids)
         self.refresh()
+
+    def trash_pet(self, pet_id, replacement_id=None):
+        entry = next((entry for entry in self.all_pets() if entry.id == pet_id), None)
+        if entry is None:
+            raise PetTrashError("펫 목록이 변경됐습니다. 다시 불러오세요.")
+        reason = self.packages.deletion_reason(entry)
+        if reason:
+            raise PetTrashError(reason)
+        previous_id = self.pet.pet_id
+        hidden = self.pet.app_preferences.load_hidden_pet_ids()
+        if pet_id == previous_id:
+            if not replacement_id or replacement_id == pet_id:
+                raise PetTrashError("대신 사용할 펫을 선택하세요.")
+            if replacement_id not in {entry.id for entry in self.all_pets()}:
+                raise PetTrashError("대신 사용할 펫을 찾을 수 없습니다.")
+            self.pet.app_preferences.save_hidden_pet_ids(hidden - {replacement_id})
+            if not self.change_pet(replacement_id):
+                self.pet.app_preferences.save_hidden_pet_ids(hidden)
+                raise PetTrashError(
+                    "대신 사용할 펫을 불러오지 못했습니다. 이동하지 않았습니다.",
+                    code="replacement_failed",
+                )
+        try:
+            return self.packages.move(pet_id)
+        except (OSError, PetTrashError):
+            if previous_id == pet_id and any(
+                entry.id == pet_id for entry in self.all_pets()
+            ):
+                self.change_pet(previous_id)
+                self.pet.app_preferences.save_hidden_pet_ids(hidden)
+            raise
+        finally:
+            self.refresh()
 
     @property
     def bubble_editor_state(self) -> BubbleEditorState:
@@ -224,6 +262,15 @@ class PetViewModel(QObject):
 
     def preview_bubble(self, message):
         self.pet.bubble_controller.preview(message)
+
+    def announce(self, message, duration_ms=10_000):
+        """Show an app notice once; unlike a preview it keeps to bubbles being
+        off or snoozed and to a hidden pet, and is not shown again later."""
+        controller = self.pet.bubble_controller
+        if not controller.enabled or controller.is_snoozed or not self.pet.isVisible():
+            return False
+        controller.preview(message, duration_ms=duration_ms)
+        return True
 
     def snooze_bubbles(self, milliseconds):
         self.pet.bubble_controller.snooze(milliseconds)

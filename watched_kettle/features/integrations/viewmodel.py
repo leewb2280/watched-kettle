@@ -14,8 +14,11 @@ class IntegrationsViewModel(QObject):
         project_activity=None,
         claude_code_installer=None,
         status_line_installer=None,
+        provider_active=None,
     ):
         super().__init__(parent)
+        # A switched-off tool's files are not inspected (activation.py).
+        self.provider_active = provider_active or (lambda _provider: True)
         self.codex_server = codex_server
         self.hook_installer = hook_installer
         self.claude_code_installer = claude_code_installer
@@ -30,6 +33,9 @@ class IntegrationsViewModel(QObject):
         # State and counts only: installer messages can name local paths.
         installs = {}
         for provider in self.providers:
+            if not self.provider_active(provider):
+                installs[provider] = {"state": "inactive"}
+                continue
             try:
                 status = self.install_status(provider)
             except Exception as error:

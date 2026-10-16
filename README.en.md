@@ -2,15 +2,19 @@
 
 [한국어](README.md) · [English](README.en.md)
 
+[Roadmap](ROADMAP.md) · [0.15.4 release notes](docs/release-notes/v0.15.4.md) · [Release readiness](RELEASE_READINESS.md)
+
 **A desktop pet that keeps you posted on your coding agents**
+
+<a href="https://github.com/leewb2280/watched-kettle/releases/latest">
+  <img src="https://img.shields.io/badge/Download%20latest%20for%20Windows-2563EB?style=for-the-badge" alt="Download the latest release for Windows" height="40">
+</a>
+
+Windows 10 or later · 64-bit · Korean app UI · Beta
 
 While Codex and Claude Code work, a small pet on your desktop shows their status.
 See completed tasks and requests for your attention in speech bubbles, and check your remaining usage limits in a widget.
 You can also use the pet on its own, without connecting an agent.
-
-**[Download the latest release](https://github.com/leewb2280/watched-kettle/releases/latest)** · Windows 10 or later · 64-bit · Korean app UI · Beta
-
-> A watched pot never boils — let the pet do the watching.
 
 <img src="docs/public/images/pet-bubbles.png" alt="Project speech bubbles above the pet showing active tasks and requests for attention" width="280">
 
@@ -19,6 +23,8 @@ You can also use the pet on its own, without connecting an agent.
 <img src="docs/public/images/usage-widget.png" alt="A widget beside the pet showing remaining Codex and Claude Code usage limits" width="400">
 
 *Check remaining usage limits and reset times beside the pet. The large percentages show the remaining allowance.*
+
+> A watched pot never boils — let the pet do the watching.
 
 > **Unofficial project.** Watched Kettle is not made or endorsed by, or affiliated with, OpenAI or Anthropic.
 > Codex is an OpenAI product; Claude Code is an Anthropic product.
@@ -86,7 +92,7 @@ Display timing and controls are covered in [project bubbles (Korean)](docs/user-
 ### Check remaining usage limits
 
 In Pet + assistant, the widget and `사용량` (Usage) page show remaining limits, reset times, and today's hourly activity.
-**Claude Code limit collection is off by default.** Enable `한도 가져오기` (Import limits) in `연결·진단` (Connections & diagnostics).
+**Claude Code limit collection is off by default.** In `연결·진단` (Connections & diagnostics), turn on `Claude Code 사용` (Use Claude Code) and then `한도 가져오기` (Import limits).
 It updates when you use Claude Code in a terminal; using only the VS Code extension panel does not update it.
 
 <img src="docs/public/images/settings-usage.png" alt="The Usage settings page showing remaining allowances and reset times" width="720">
@@ -105,6 +111,9 @@ It also includes a tray menu, Windows startup, and duplicate-instance prevention
 Customize bubbles with colors, shapes, borders, photos, and stickers.
 See [customization (Korean)](docs/user-guide.md#꾸미기) for settings and the
 [pet package format (Korean)](docs/pet-package-format.md) for custom packages, which can include bubble decorations and a halo.
+
+The pet manager lets you search, show or hide, and reorder pets. Move pets you added to the app's trash, restore them, or permanently delete them after confirmation.
+Multi-selection shows progress and partial failures and can stop the remaining items. Bundled pets are protected. Trash is separate from the Windows Recycle Bin and is not emptied automatically.
 
 ## Supported environments
 
@@ -136,7 +145,7 @@ Restart Claude Code sessions that were open before connecting. [First connection
 
 ### Why are Claude Code limits missing?
 
-Enable both the Claude Code collection switch on `사용량` (Usage) and `한도 가져오기` (Import limits) in `연결·진단` (Connections & diagnostics).
+In `연결·진단` (Connections & diagnostics), turn on both `Claude Code 사용` (Use Claude Code) and `한도 가져오기` (Import limits).
 Limits arrive after the first response in a terminal session with a supported claude.ai Pro or Max subscription.
 The VS Code extension panel alone does not update them. [Limit details (Korean)](docs/support-claude-code.md#한도)
 
@@ -149,7 +158,8 @@ or `펫 앱 종료` (Quit pet app) in settings. [How to quit (Korean)](docs/user
 
 In `앱 설정 → 버전과 업데이트` (App settings → Version & updates), click `업데이트 확인` (Check for updates).
 If a new release is available, click `업데이트` (Update) to download the installer, verify its SHA-256, install, and restart.
-The app does not check for updates in the background. Your settings, custom pets, and edition choice are preserved.
+With `업데이트 자동 확인` (Check for updates automatically, on by default), the app checks once a day and the pet tells you
+about a new release; it installs only when you click. Your settings, custom pets, and edition choice are preserved.
 You can also run a newer installer directly to upgrade.
 
 Uninstall through Windows Installed apps. Choose to keep data (the default), delete history only, or delete all app data.
@@ -162,7 +172,7 @@ This app has no server of its own and stores its data on this PC. Task status an
 Account and task identifiers are stored as hashes. Prompts, responses, commands, tool output, file paths, and email addresses
 are not written to the usage database or logs.
 
-The app itself connects to the internet only when you check for or install an update from GitHub.
+The app itself connects to the internet only to check for (when you click, and once a day if automatic checks are on) or install an update from GitHub.
 Codex usage information is requested from a local Codex process; that process's external communication follows Codex's own behavior.
 The installation folder is `%LOCALAPPDATA%\Programs\WatchedKettle`; settings and custom pets are in `%LOCALAPPDATA%\WatchedKettle`.
 See [privacy and storage (Korean)](docs/privacy-and-storage.md) for retention and deletion details.

@@ -147,11 +147,13 @@ class PerformanceProbeTests(unittest.TestCase):
         self.assertIn("settings_recovered_ready", events)
 
     def test_long_mixed_never_opens_after_the_last_full_cycle(self):
+        # Cycles start at 1, 2 and 3 s; a fourth would end after the 3.5 s quit.
+        # The last hide has ~0.3 s of slack, enough for a loaded CI timer.
         app, host, events = self.run_probe(
             "--scenario", "long-mixed",
-            "--duration-seconds", "0.35",
-            "--cycle-seconds", "0.1",
-            "--cycle-open-seconds", "0.02",
+            "--duration-seconds", "3.5",
+            "--cycle-seconds", "1.0",
+            "--cycle-open-seconds", "0.2",
         )  # fmt: skip
 
         self.assertEqual(events.count("settings_open_ready"), 3)

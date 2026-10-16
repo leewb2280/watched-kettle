@@ -1,6 +1,6 @@
 # 말풍선 구조와 유지 기준
 
-기준일: 2026-10-05. 커밋되지 않은 변경을 포함한 현재 작업 트리 기준이다.
+기준일: 2026-10-17. 커밋되지 않은 변경을 포함한 현재 작업 트리 기준이다.
 이 문서는 말풍선 변경 시 따라야 하는 구조 계약이다. 작업 지침은 개발 저장소의 `AGENTS.md`에 있다.
 
 - **필수 구조 규칙:** 2절의 책임 경계와 7절의 보존 규칙. 일반적인 버그 수정·외형 변경에서 함께 바꾸지 않는다.
@@ -20,7 +20,9 @@
 따라서 일반 실행의 동작 기준은 `actionable_bubbles.py`이며, 기본 제어기는 공통 설정·숨김·미리보기와 단순 말풍선 호환 경로를 제공한다.
 `speech_bubble.py`는 분리된 모듈을 다시 내보내는 공개 API다.
 펫 단독 구성의 `PetRuntime`은 기본 제어기를 유지해 디자인 미리보기만 제공한다.
-비서 상태 입력과 실사용 알림은 생성하지 않는다. 공통 표시 값 `BubbleNotice`와
+비서 상태 입력과 실사용 알림은 생성하지 않는다. 두 구성 모두 앱 자체의 안내 두 가지(업데이트 설치 직전 "곧 다시 켜집니다",
+자동 확인이 찾은 새 버전)는 `CoreSettingsAdapter`가 미리보기 경로로 짧게 보인다. 새 버전 안내는 `PetViewModel.announce`를
+거쳐 말풍선 끄기·일시 중지·펫 숨김 중에는 보이지 않고, 버전마다 한 번만 보이며 복귀 뒤 다시 재생하지 않는다(BA-07). 공통 표시 값 `BubbleNotice`와
 출처 표시 문구는 `ui/bubble_models.py`에 두어 펫 UI가 비서 상태 모듈을 import하지 않는다.
 
 ```mermaid
@@ -61,6 +63,15 @@ flowchart TD
     PI --> EH
     EA --> IMP[PetImporter: 스프라이트 검증·준비·로컬 패키지 저장]
     IMP --> CAT[사용자 펫 목록: 추가 후 기존 선택 경로로 사용]
+    EA --> VM2[PetViewModel: 현재 펫 교체·목록 저장]
+    EA --> BC[PetBatchController: 확정 대상·항목별 Qt 작업·진행·중단]
+    BC --> VM2
+    BC --> PT
+    VM2 --> PT[PetTrashService: 사용자 패키지 이동·복원·영구 삭제]
+    PT --> TR[탐색 경로 밖 pet-trash: 작업 기록·패키지]
+    TR --> REC[초기 펫 선택 전 미완료 작업 복구]
+    CP[앱 외부에서 준비한 완성된 펫 패키지] --> PF[사용자 펫 폴더]
+    PF -->|앱 재실행 뒤 기존 로더| CAT
     BP --> ER
     ER --> ACK[표시 완료 ACK]
     ACK --> EH
@@ -73,6 +84,24 @@ flowchart TD
 `ActionableBubbleController.apply()`는 기존 애니메이션 presentation의 notice를 그대로 표시하지 않고 서비스 상태로 다시 렌더링한다.
 복구 스냅샷은 `ProjectActivityService.restore_activity()`에 직접 전달한다. 일반 시작 이벤트·
 `AgentActivityService`·펫 애니메이션 경로로 재전달하지 않는다. 복구 이후 새 활동은 일반 이벤트 경로를 따른다.
+
+Codex 관리 hook의 Windows 명령은 `integrations/codex_install.py`가 명시적인
+`powershell.exe -EncodedCommand` 호출로 만든다. UTF-16LE로 인코딩한 스크립트가 경로·인자를
+단일 인용하고 호출 연산자 `&`로 실행하므로, 바깥 셸이 PowerShell 또는 cmd여도 경로의
+공백·한글·특수문자가 재해석되지 않고 원래 JSON 표준입력을 브리지에 전달한다.
+개발용 관리 스크립트와 배포본 브리지에 같은 생성 규칙을 쓰며, 일반 `command`의 관리 표식으로
+기존 설치·복구·제거 식별을 유지한다. 이벤트 정규화·중복·상태 소유권은 바뀌지 않는다
+(BA-01·BA-02·BA-08·BA-09·BA-10).
+브리지의 종료 코드 0은 전달 성공 판정이 아니다. `hook-health.json`은 실행마다 마지막 한 건으로
+덮어쓰며, 개발용 프로젝트 기록과 사용자 전역 기록을 구분해야 한다. `delivered`는 IPC 응답,
+`queued`는 대기열 저장을 뜻한다. 실제 연결 검증은 같은 대화·턴의 수신 이벤트와
+`named_pipe`·`workspace_queue` 경로를 대조하고, `codex_jsonl` 수신과 구분한다.
+IPC 응답은 출처 차단·중복·서비스 상태 반영 성공까지 보장하지 않는다.
+
+Claude Code 관리 hook은 `integrations/claude_code_install.py`가 exec 형식(`command`+`args`)으로 등록한다.
+Claude Code가 셸 없이 브리지를 실행하므로 Git Bash가 없어 PowerShell로 물러나는 환경에서도 경로가 재해석되지 않는다.
+exec 형식이 없는 status line은 일반 문자 경로면 따옴표 없는 명령을, 아니면 Codex와 같은 `-EncodedCommand` 호출을 쓴다.
+관리 표식은 `args` 또는 디코드한 스크립트에서 찾으며, 이벤트 정규화와 상태 소유권은 바뀌지 않는다(BA-01·BA-08·BA-10).
 
 Claude Code hook은 같은 hook 브리지와 `CodexHookServer`를 거쳐 source `claude_code`로 들어온다(13단계).
 `ProjectActivityService`는 Claude Code 세션도 카드로 만들되 대화 키에 `claude_code:` 접두어를 붙여
@@ -109,11 +138,16 @@ Claude Code는 중단·권한 거절·패널 닫기 때 종료 이벤트를 보�
 | 프로젝트 헤더·행·스크롤 | `ui/project_bubble_rows.py` | 상태 전이·완료 시간 |
 | 제목 측정·최대 두 줄·말줄임 | `ui/wrapped_title_button.py` | 프로젝트 집계 |
 | 공통 창·글꼴·외형·배치 계산 | `ui/speech_bubble_window.py`, `speech_bubble_paint.py`, `speech_bubble_decorations.py` | 알림 전달 정책 |
-| 테마 정규화·자산·편집 | `pet/bubble_theme.py`, `ui/bubble_elements.py`, `ui/bubble_customizer.py` | 실행 상태 변경 |
+| 테마 정규화·자산·편집 | `pet/bubble_theme.py`, `ui/bubble_elements.py`, 미리보기 `ui/bubble_theme_preview.py`, 편집 화면은 Electron `settings-ui/src/CorePages.tsx` | 실행 상태 변경 |
 | 펫 패키지의 바깥 장식 검증·등록과 그리기 | `pet/bubble_frame.py`(로더가 `pet:<id>`로 등록), `ui/speech_bubble_frame.py` | 상태·표시 기한·배치 결정 |
 | 클릭 대상 등록·검증·이동(출처별 대화 이동 방식 포함) | `features/notifications/actions.py`, Claude Code 실행 위치별 이동은 `integrations/claude_code_launcher.py` | 표시 문구에서 대상 추측 |
+| 도구별 사용 스위치(관리 hook·사용량·수신·파일 읽기를 함께 켜고 끔), 한 번의 스위치 이전 | `features/integrations/activation.py`, 적용·서비스 시작/중지는 `application/runtime.py`, 꺼진 출처 수신 차단은 `integrations/codex_ipc.py` | 화면 숨김을 근거로 활동 상태 추정 |
 | Electron 설정 명령·독립 미리보기·비서 DTO | `application/settings_ui/core.py`, `assistant.py` | 상태 전이·표시 수명 재해석 |
+| 앱 업데이트 안내(설치 직전, 자동 확인이 찾은 새 버전) | `application/settings_ui/core.py`, 새 버전 확인 주기는 `application/update_check.py`의 `UpdateCheckSchedule`, 표시 조건은 `features/pet/viewmodel.py`의 `announce` | 활동·알림 대기열에 넣거나 끄기·일시 중지를 무시 |
 | 다운로드한 펫 파일의 검증·준비·패키지 저장 | `pet/importer.py`, 공통 설정 어댑터와 Electron 파일 선택 | 비서 상태·알림 수명·웹 계정 연결 |
+| 사용자 펫 삭제·휴지통·중단 복구 | `pet/trash.py`, 전환은 `features/pet/viewmodel.py`, 시작 복구는 `app.py` | 활동·알림 생성, renderer 파일 경로 수용, 기본 제공 파일 삭제 |
+| 펫 다중 선택·일괄 작업 | `application/settings_ui/pet_batch.py`, 선택 UI는 `settings-ui/src/PetManagerDialog.tsx`·`usePetBatch.ts` | 비서 상태 생성, 전역 파일 경로 수용, 완료된 항목의 일괄 롤백 |
+| 사용자 폴더의 완성된 펫 패키지 발견과 자산 로딩 | `pet/catalog.py`, `pet/loader.py`, 장식 등록은 `pet/bubble_frame.py` | 외부 설치 과정·현재 펫 선택·활동·알림 변경 |
 | 설정창 프로세스·pipe·계정 epoch·알림 표시 ACK | `application/settings_ui/host.py`, `settings-ui/electron/` | 이동 요청 접수를 실제 표시 성공으로 간주 |
 | 설정·적용/취소·알림 상세 화면 | `settings-ui/src/` | DB·계정 파일 접근, 실제 활동 상태 생성 |
 | 표시 시간·저장 설정 | `bubble_timing.py`, `preferences/bubbles.py`, `pet/preferences.py` | 기존 표시의 기한을 임의로 다시 시작 |
@@ -127,24 +161,36 @@ UI의 `shown`·`named` 시각 보고는 관측이며 상태 전이가 아니다.
 이벤트를 재사용하지 않는다. 이름은 계정·실행 세대에 묶인 메모리에만 보관하고 계정 초기화 때 비운다.
 이는 BA-01·BA-02·BA-08·BA-09의 책임 경계를 유지하는 별도 읽기 경로다.
 
-Codex·Claude Code 사용량 수집은 각각 독립 스위치를 사용한다. `usage/enabled`는 Codex 전용으로 유지하고,
-`usage/claude_code_enabled`는 처음 실행할 때 이전 공통 스위치 값을 계승해 저장한다. 이후 한쪽을 끄거나
-다시 시작해도 다른 쪽 설정은 바뀌지 않는다. worker는 출처별 서비스에만 켜기·끄기를 전달하며,
-ViewModel은 꺼진 출처의 한도를 표시 스냅샷에서 제외한다. 사용량 스위치는 hook 설치·펫 활동 상태·
-알림 카드 수명·저장된 기록을 변경하지 않는다(BA-01·BA-07·BA-10).
+Codex와 Claude Code는 도구마다 "사용" 스위치 하나를 둔다(ADR 0006). 저장 키는 `usage/enabled`(Codex)와
+`usage/claude_code_enabled`(Claude Code)이며 서로 계승하지 않는다. Claude Code는 값이 없으면 꺼짐이다.
+켜면 `features/integrations/activation.py`가 그 도구의 관리 hook 설치와 사용량 스위치를 함께 적용한다.
+hook이 막혀도(Codex `[features].hooks = false`, Claude Code `disableAllHooks`·정책·잘못된 파일) 스위치는 켜고
+경고만 보인다. Codex는 hook 없이도 로그로 활동을 받는다. 끄면 관리 hook(Claude Code는 관리 status line 포함)을
+지우고, 파일 변경이 막혀도 스위치는 끈다. 검토 뒤 파일이 바뀌면 스위치를 저장하지 않고 다시 검토하게 한다.
+`application/runtime.py`가 결과를 받아 꺼진 출처를 `CodexHookServer.set_source_enabled`로 막는다. 이 차단은
+pipe·spool·JSONL·transcript 네 경로가 모두 지나는 `_deliver_payload` 맨 앞에서 하므로, 남은 hook의 이벤트는
+펫·카드·알림·transcript 조회에 닿지 않는다. 끌 때는 그 출처의 펫 세션과 프로젝트 카드를 지운다
+(`ProjectActivityService.reset(source)`; Codex 계정 세대는 Codex를 지울 때만 바뀐다). 이것은 말풍선 끄기·일시
+중지·미리보기와 다른 입력 경계 변경이다(BA-07). 저장된 사용량·작업 기록은 지우지 않고 기록 목록에서만 뺀다.
+Codex를 끄면 로그 tail, 계정 확인(`AccountMonitor`), 대화 메타데이터 worker, 진단의 Codex 파일 읽기, 시작 시
+"Codex 미감지" 안내, 펫 더블클릭 Codex 열기가 멈춘다. Claude Code를 끄면 사용량 서비스와 `settings.json` 상태
+확인(출처 점·사용량·연결 화면)이 멈춘다. 꺼진 도구는 폴더가 있는지만 본다. 처음 실행할 때 한 번
+(`internal/toolActivation`) Claude Code 스위치를 이 앱의 관리 hook·status line 유무로 다시 정하고 Codex 값은 둔다.
+worker는 출처별 서비스에만 켜기·끄기를 전달하며, ViewModel은 꺼진 출처의 한도를 표시 스냅샷에서 제외한다
+(BA-01·BA-07·BA-10).
 홈과 사용량 현황의 한도는 Codex와 Claude Code의 별도 영역으로 표시한다.
 reserve는 `base_model_inference` 또는 서버 한도 이름의 `reserve`로 식별하고 Codex 그룹 안에서
 일반 한도 다음 마지막 카드로 표시한다. 분류는 `usage/models.py`, DTO 전달은 `application/settings_ui/assistant.py`,
 화면 배치는 `settings-ui/src/AssistantPages.tsx`가 맡는다. 두 출처 중 하나만 켜져도 사용량 위젯을
 유지하며 해당 출처의 행만 표시한다. 두 출처가 모두 꺼지면 위젯을 숨긴다.
 
-연결·진단의 Codex 연결 스위치는 Claude Code 연결과 같은 검토·적용 경로로 해당 출처의 관리 hook만
-설치·제거한다. `IntegrationsViewModel`과 기존 installer가 파일 변경을 맡고 UI는 설치 상태로 스위치를
-표시한다. 취소하면 파일과 스위치 상태를 유지하며, 다른 출처의 hook·사용량 스위치를 변경하지 않는다.
-명시적인 Codex `[features].hooks = false` 설정과 잘못된 파일은 기존 installer의 차단 규칙을 따른다(BA-01·BA-07·BA-10).
-Windows 설치기의 Codex·Claude Code 선택은 앱을 띄우지 않는 `--configure-integrations` 모드
-(`application/integration_setup.py`)로 같은 installer와 해당 출처의 사용량 스위치만 적용한다. 지정하지 않은 출처와
-차단된 출처는 파일·스위치를 바꾸지 않는다.
+사용 스위치는 연결·진단 화면에만 있다. 켜기·끄기는 `integration.preview`의 `enable`·`disable`로 바뀌는 내용을
+먼저 보여 주고 `integration.apply`로 적용한다. 취소하면 파일과 스위치를 유지하며 다른 도구는 바꾸지 않는다.
+켜진 도구에서만 hook 복구(`repair`)와 Claude Code status line 연결·해제를 받는다. 꺼진 도구는 홈·사용량·기록·
+추세·트레이·위젯에서 숨긴다. Windows 설치기의 Codex·Claude Code 선택은 앱을 띄우지 않는
+`--configure-integrations` 모드(`application/integration_setup.py`)로 같은 스위치를 적용한다. 지정하지 않은
+도구는 그대로 둔다. 업그레이드의 처음 선택은 앱의 스위치를, 이전이 없던 설정이면 관리 hook 표식을 따른다.
+무인 새 설치는 `/CLAUDECODE=on`이 없으면 Claude Code를 끈다(BA-01·BA-07·BA-10).
 
 사용량 기록의 프로젝트 정렬·선택은 `usage/project_history.py`가 맡고, 저장소가 전체 보존 기록의
 프로젝트 요약을 먼저 집계한 뒤 프로젝트·대화·작업을 각각 100건씩 전달한다. UI는 카드 목록을
@@ -387,6 +433,47 @@ Electron 설정창은 펫에서 미리보기, 종류별 시간 초기화, 알림
 사용하며, 중복 펫이 숨겨져 있으면 사용 요청 때만 목록에서 다시 표시합니다.
 새 입력은 펫 자산이며 활동 이벤트가 아닙니다. BA-01·BA-06·BA-07·BA-10을 보존합니다.
 
+펫 관리는 즉시 저장하며 선택 창·트레이에서의 표시 여부와 현재 사용 중인 펫을 구분합니다.
+현재 펫은 숨길 수 없으며, 숨긴 펫을 사용하면 해당 항목만 표시로 되돌립니다. 사용자 펫 폴더의
+패키지만 `pet-trash`로 이동할 수 있고 기본 제공·외부 경로·중복 ID·파일 연결이 있는 패키지는
+보호합니다. 현재 펫 이동은 기존 선택 경로로 대체 펫을 불러온 뒤 수행하며 실패 시 이전 펫 복귀를
+시도합니다. 이 과정은 활동·알림 상태와 표시 기한을 생성·초기화하지 않습니다(BA-01·BA-06·BA-07).
+휴지통은 자동 만료하지 않습니다. 패키지와 작업 기록에 ID·원래 폴더·삭제 시각·표시·순서 정보를
+보존하고 개별 설정은 영구 삭제 전까지 유지합니다. 복원은 현재 펫을 자동 변경하지 않으며 같은
+ID·경로를 덮어쓰지 않습니다. 영구 삭제와 비우기는 사용자 확인 후 해당 패키지·개별 설정만
+제거합니다. 기록을 먼저 저장하고 동일 볼륨에서 폴더를 이동하며, 초기 펫 선택 전에 중단된
+이동·복원·삭제를 복구합니다. 읽을 수 없거나 모호한 데이터는 보존하고 관리 화면에 알립니다.
+가져오려는 자산이 휴지통에 있으면 복원을 제안하며 새 복제본을 만들지 않습니다.
+새 `pet.trash.*` 명령은 revision·현재 펫·계정 epoch를 검증하며 서버 발급 휴지통 ID만 받습니다.
+이 경계는 두 에디션에서 공통으로 사용하고 BA-10에 따라 문서·검사를 함께 유지합니다.
+
+다중 선택은 현재 검색·필터·휴지통 페이지의 처리 가능한 항목에만 적용합니다. 조건·페이지 변경은
+선택을 해제하며, 순서 편집과 표시 스위치의 의미를 선택 체크박스와 섞지 않습니다. 일괄 이동과
+영구 삭제는 확정한 이름·개수(영구 삭제는 용량 포함)를 확인하고 시작합니다. 대상은 명시적 ID로
+고정하여 처리 중 목록이 줄어도 새 항목이 작업에 들어오지 않습니다. 선택한 현재 펫은 가장 먼저
+대체 펫으로 전환해 이동합니다. 대체 펫 로드 실패는 전체 시작 실패이며, 파일 오류·복원 충돌은
+항목별 실패로 기록하고 나머지를 계속합니다. 성공한 이동의 실행 취소는 실제 휴지통 ID를 역순으로
+복원하며 현재 펫은 자동 변경하지 않습니다(BA-01·BA-06·BA-07).
+`PetBatchController`는 기존 파일 서비스·ViewModel을 Qt 이벤트 루프에서 한 항목씩 호출합니다.
+시작·상태·중단은 `pet.trash.batch.start/status/cancel`이며 시작에는 최대 256개 고유 ID와
+요청 키·revision·현재 펫·계정 epoch를 검증합니다. 같은 키·같은 내용의 재전송은 같은 작업을
+반환하고 변경된 내용은 거부합니다. 한 건의 활성 작업과 마지막 완료 결과만 메모리에 보존합니다.
+작업 중 충돌하는 설정 명령은 막고, 외부 문맥 변경은 다음 항목 시작 전에 남은 처리를 중단합니다.
+사용자 중단도 완료된 항목을 유지하고 미처리만 남깁니다. 창 숨김·연결 종료는 승인된 작업을
+계속 실행하며 다시 열면 진행·결과를 조회합니다. 앱 종료는 남은 대상을 자동 재개하지 않고
+이미 시작한 항목의 기존 파일 작업 기록만 복구합니다. 실패·미처리 중 현재 화면에 남은 대상만
+선택해 재시도하며 새로 나타난 항목은 선택하지 않습니다(BA-10).
+진행 중에는 이미지 목록의 반복 재조회를 생략하고 상태만 조회합니다. 썸네일 캐시는 파일
+경로·수정 시각·크기로 무효화하고 최대 256개로 제한합니다. 설정 호스트는 앞선 응답을
+소켓으로 전송한 뒤 다음 명령을 처리하여 이미지 목록의 연속 조회가 전송 큐를 넘지 않게 합니다.
+기존 프레임·큐 크기 제한과 인증 검증은 유지합니다.
+
+
+앱 외부에서 준비한 완성된 펫 패키지도 사용자 펫 폴더에서 기존 카탈로그와 로더가 읽습니다.
+이 입력은 펫 자산이며 활동 이벤트가 아닙니다. 패키지 발견·로딩 자체로 현재 펫 선택·설정·활동·
+알림을 변경하지 않습니다. 외부 배포 도구의 파일 준비·교체·복구와 앱의 로딩 책임을 구분합니다.
+이 경로도 BA-01·BA-06·BA-07·BA-10을 보존합니다.
+
 다음 규칙은 외형·성능·버그 수정 과정에서 보존해야 한다. 괄호 안 ID는 변경 보고와 회귀 검증에 사용한다.
 
 1. **BA-01 상태 소유권:** 상태 해석은 서비스에서 끝내고 UI는 해당 상태를 표시한다. 카드 문구·색·배치에서 작업 완료나 사용자 대기를 추정하지 않는다.
@@ -429,9 +516,13 @@ Electron 설정창은 펫에서 미리보기, 종류별 시간 초기화, 알림
 | BA-07 숨김·미리보기·초기화 | `test_project_completion_rows`, `test_notification_service`, `test_bubble_customization` |
 | BA-09 첫 표시·복구·조회·보관 상한 | `test_bubble_latency`, `test_project_metadata`, `test_codex_log_monitor`, `test_fork_log_identity` |
 | BA-10 문서·코드·검사 일치 | 이 절의 변경 체크와 `scripts.validate_project`의 문서 링크 검사 |
+| BA-01·BA-02·BA-08·BA-09·BA-10 Codex 관리 hook의 Windows 실행·복구·수신 | `test_codex_hook_install`, `test_codex_windows_command`, `test_codex_hook_bridge` (실측 기록: `docs/windows-hook-command-verification.md`) |
+| BA-01·BA-08·BA-10 Claude Code 관리 hook·status line의 Windows 실행·복구 | `test_claude_code_hook_install`, `test_claude_code_status_line_install` (실측 기록: `docs/windows-hook-command-verification.md`) |
+| BA-01·BA-06·BA-07·BA-10 사용자 폴더의 펫 발견·로딩·전용 장식 | `test_pet_catalog`, `test_pet_loader`, `test_bubble_frame` |
 | BA-01·BA-02·BA-04·BA-06·BA-08·BA-09 활동·조회·표시·이동 진단 | `test_bubble_diagnostics`, `test_activity_trace`, `test_diagnostics` |
 | 트레이 Codex 한도 요약·worker 연결 | `test_tray_worker_regression` |
 | BA-01·BA-07·BA-10 사용량 출처 분리·독립 스위치·reserve 순서 | `test_usage_models`, `test_widget_state`, `test_usage_companion`, `test_tray_worker_regression`, `test_settings_bridge`, `settings-ui/scripts/qa.cjs` |
+| BA-01·BA-06·BA-07·BA-10 펫 수명·휴지통·중단 복구 | `test_pet_trash`, `test_pet_batch`, `test_settings_bridge`, `test_pet_catalog`, `test_pet_preferences`, `test_bubble_architecture`, `settings-ui/scripts/qa.cjs` |
 | BA-01·BA-06·BA-07·BA-09 설정 경계·독립 미리보기·비동기 확인 | `test_settings_bridge`, `settings-ui/scripts/qa.cjs` |
 
 `test_bubble_architecture`는 핵심 서비스의 UI·펫·조립 계층 의존, 수집 계층의 기능 서비스 직접 의존,

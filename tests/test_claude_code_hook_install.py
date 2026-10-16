@@ -8,6 +8,7 @@ import unittest
 from unittest.mock import patch
 
 from watched_kettle.integrations.claude_code_install import (
+    BRIDGE_FLAG,
     MANAGED_HOOK_EVENTS,
     ClaudeCodeHookInstaller,
     build_managed_commands,
@@ -84,12 +85,20 @@ class ClaudeCodeHookInstallerTests(unittest.TestCase):
         )
         managed = settings["hooks"]["PreToolUse"][1]
         self.assertEqual(managed["matcher"], "*")
-        command = managed["hooks"][0]["command"]
-        self.assertIn("--claude-code-hook-bridge --event PreToolUse", command)
-        self.assertIn(MANAGED_MARKER, command)
-        self.assertTrue(command.startswith('"'))
-        self.assertNotIn("\\", command)
-        self.assertEqual(managed["hooks"][0]["timeout"], 5)
+        hook = managed["hooks"][0]
+        self.assertEqual(hook["command"], str(self.bridge.resolve()))
+        self.assertEqual(
+            hook["args"],
+            [
+                "--claude-code-hook-bridge",
+                "--event",
+                "PreToolUse",
+                "--managed-id",
+                MANAGED_MARKER,
+            ],
+        )
+        self.assertNotIn("shell", hook)
+        self.assertEqual(hook["timeout"], 5)
         self.assertNotIn("matcher", settings["hooks"]["Stop"][1])
         self.assertEqual(len(result.backup_paths), 1)
         self.assertEqual(
@@ -186,10 +195,50 @@ class ClaudeCodeHookInstallerTests(unittest.TestCase):
             self.installer.apply(plan)
         self.assertEqual(self.read_settings()["theme"], "light")
 
-    def test_paths_that_bash_would_expand_are_rejected(self):
-        for name in ("price$HOME", 'quote"name', "tick`name"):
-            with self.assertRaises(ValueError):
-                build_managed_commands(executable=self.root / name / "Bridge.exe")
+    def test_exec_form_passes_any_path_without_a_shell(self):
+        executable = self.root / "Installed App" / "$cash & 한글's (%)!`.exe"
+
+        commands = build_managed_commands(executable=executable)
+
+        self.assertEqual(commands["Stop"]["command"], str(executable.resolve()))
+        self.assertEqual(commands["Stop"]["args"][:3], [BRIDGE_FLAG, "--event", "Stop"])
+
+    def test_shell_string_hooks_are_repaired_to_the_exec_form(self):
+        # Before the exec form every hook was one Git Bash command string.
+        quoted = '"' + str(self.bridge).replace("\\", "/") + '"'
+        legacy = {
+            **USER_SETTINGS,
+            "hooks": {
+                **USER_SETTINGS["hooks"],
+                "Stop": [
+                    *USER_SETTINGS["hooks"]["Stop"],
+                    {
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": f"{quoted} {BRIDGE_FLAG} --event Stop "
+                                f"--managed-id {MANAGED_MARKER}",
+                                "timeout": 5,
+                            }
+                        ]
+                    },
+                ],
+            },
+        }
+        self.write_settings(legacy)
+        self.assertEqual(self.installer.inspect().state, "drifted")
+
+        self.installer.apply(self.installer.preview_repair())
+
+        settings = self.read_settings()
+        self.assertEqual(self.installer.inspect().state, "installed")
+        self.assertNotIn(quoted, self.settings_path.read_text("utf-8"))
+        self.assertEqual(
+            settings["hooks"]["Stop"][0], USER_SETTINGS["hooks"]["Stop"][0]
+        )
+        self.assertEqual(len(settings["hooks"]["Stop"]), 2)
+        self.installer.apply(self.installer.preview_remove())
+        self.assertEqual(self.read_settings(), USER_SETTINGS)
 
     def test_unbuildable_commands_block_install_but_not_remove(self):
         installer = ClaudeCodeHookInstaller(
@@ -209,10 +258,16 @@ class ClaudeCodeHookInstallerTests(unittest.TestCase):
         self.assertEqual(installer.settings_path, self.root / "alt" / "settings.json")
 
     def test_source_checkout_command_runs_the_project_bridge(self):
-        commands = build_managed_commands(project_root=self.root / "repo")
+        repo = (self.root / "repo").resolve()
 
-        self.assertIn("/repo/.venv/Scripts/python.exe", commands["Stop"])
-        self.assertIn("/repo/main_hook_bridge.py", commands["Stop"])
+        stop = build_managed_commands(project_root=repo)["Stop"]
+
+        self.assertEqual(
+            stop["command"], str(repo / ".venv" / "Scripts" / "python.exe")
+        )
+        self.assertEqual(
+            stop["args"][:2], [str(repo / "main_hook_bridge.py"), BRIDGE_FLAG]
+        )
 
 
 class RemoveManagedHookCommandTests(unittest.TestCase):

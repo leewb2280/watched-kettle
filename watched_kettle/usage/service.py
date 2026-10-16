@@ -174,18 +174,19 @@ class CodexUsageService(QObject):
             state=self.snapshot.availability.state,
         )
         self.day_timer.start()
-        if self.account_monitor is not None:
-            already_running = self.account_monitor.running
-            self.account_monitor.start()
-            if already_running and self.enabled:
-                self.account_monitor.check(suspicious=True)
-            return
         if not self.enabled:
+            # Codex is off: no account probe, no auth.json polling, no app-server.
             self._publish(
                 availability=UsageAvailability(
                     "disabled", "사용량 비서가 꺼져 있습니다."
                 )
             )
+            return
+        if self.account_monitor is not None:
+            already_running = self.account_monitor.running
+            self.account_monitor.start()
+            if already_running:
+                self.account_monitor.check(suspicious=True)
             return
         self._publish(
             availability=UsageAvailability(
@@ -224,6 +225,8 @@ class CodexUsageService(QObject):
             self.rate_timer.stop()
             self.usage_timer.stop()
             self.client.close()
+            if self.account_monitor is not None:
+                self.account_monitor.close()
             self._publish(
                 availability=UsageAvailability(
                     "disabled", "사용량 비서가 꺼져 있습니다."

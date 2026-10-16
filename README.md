@@ -2,15 +2,19 @@
 
 [한국어](README.md) · [English](README.en.md)
 
+[로드맵](ROADMAP.md) · [0.15.4 패치노트](docs/release-notes/v0.15.4.md) · [배포 준비 상태](RELEASE_READINESS.md)
+
 **코딩 에이전트의 작업 상태를 알려 주는 데스크톱 펫**
+
+<a href="https://github.com/leewb2280/watched-kettle/releases/latest">
+  <img src="https://img.shields.io/badge/Windows%EC%9A%A9%20%EC%B5%9C%EC%8B%A0%20%EB%B2%84%EC%A0%84%20%EB%B0%9B%EA%B8%B0-2563EB?style=for-the-badge" alt="Windows용 최신 버전 받기" height="40">
+</a>
+
+Windows 10 이상 · 64비트 · 한국어 UI · 베타
 
 Codex와 Claude Code가 작업하는 동안 화면 위의 작은 펫이 상태를 알려 줍니다.
 작업 완료나 확인 요청은 말풍선으로 확인하고, 남은 사용 한도는 위젯으로 살펴보세요.
 에이전트 연결 없이 펫만 사용할 수도 있습니다.
-
-**[최신 버전 내려받기](https://github.com/leewb2280/watched-kettle/releases/latest)** · Windows 10 이상 · 64비트 · 한국어 UI · 베타
-
-> A watched pot never boils — 지켜보는 주전자는 끓지 않는다.
 
 <img src="docs/public/images/pet-bubbles.png" alt="펫 위에 프로젝트별 작업 상태 말풍선이 쌓인 모습" width="280">
 
@@ -19,6 +23,8 @@ Codex와 Claude Code가 작업하는 동안 화면 위의 작은 펫이 상태�
 <img src="docs/public/images/usage-widget.png" alt="Codex와 Claude Code 남은 한도를 보여 주는 사용량 위젯" width="400">
 
 *펫 옆에서 남은 사용 한도와 초기화 시각을 확인합니다. 위젯의 큰 백분율 숫자는 남은 한도입니다.*
+
+> A watched pot never boils — 지켜보는 주전자는 끓지 않는다.
 
 > **비공식 프로젝트입니다.** Watched Kettle는 OpenAI 또는 Anthropic이 만들거나 승인한 제품이 아니며,
 > 두 회사와 관계가 없습니다. Codex는 OpenAI, Claude Code는 Anthropic의 제품입니다.
@@ -86,7 +92,7 @@ Get-Content -LiteralPath '.\WatchedKettle-<버전>-public-unsigned-setup.exe.sha
 ### 남은 한도 확인
 
 펫 옆 위젯과 설정창의 `사용량`에서 남은 한도·초기화 시각·오늘 시간대별 활동을 확인합니다(펫+비서).
-**Claude Code 한도는 기본 꺼짐**입니다. `연결·진단`에서 `한도 가져오기`를 켜야 하며,
+**Claude Code 한도는 기본 꺼짐**입니다. `연결·진단`에서 `Claude Code 사용`을 켠 뒤 `한도 가져오기`를 켜야 하며,
 터미널에서 Claude Code를 사용할 때 갱신됩니다. VS Code 확장 패널만 사용하면 갱신되지 않습니다.
 
 <img src="docs/public/images/settings-usage.png" alt="남은 한도와 초기화 시각을 보여 주는 설정창 사용량 화면" width="720">
@@ -105,6 +111,10 @@ Get-Content -LiteralPath '.\WatchedKettle-<버전>-public-unsigned-setup.exe.sha
 말풍선은 색·모양·테두리·사진·스티커로 꾸밀 수 있습니다.
 자세한 설정은 [꾸미기](docs/user-guide.md#꾸미기), 직접 만든 패키지는
 [펫 패키지 규격](docs/pet-package-format.md)을 참고하세요. 패키지에 말풍선 장식과 후광도 포함할 수 있습니다.
+
+펫 관리에서 검색·표시·순서 변경을 하고, 직접 추가한 펫을 앱 전용 휴지통으로 옮겼다가 복원할 수 있습니다.
+여러 펫을 골라 한 번에 처리하며 진행·부분 실패·남은 작업 중단도 확인합니다. 기본 제공 펫은 보호하며,
+휴지통은 자동으로 비우지 않고 영구 삭제는 확인 후 진행합니다.
 
 ## 지원 범위
 
@@ -135,7 +145,7 @@ Claude 데스크톱 앱·다른 IDE·`claude -p`의 지원은 확인하지 않�
 
 ### Claude Code 한도가 표시되지 않아요
 
-`사용량` 화면의 Claude Code 수집 스위치와 `연결·진단`의 `한도 가져오기`를 켰는지 확인하세요.
+`연결·진단`에서 `Claude Code 사용`과 `한도 가져오기`를 켰는지 확인하세요.
 한도는 지원되는 claude.ai Pro·Max 구독의 터미널 세션에서 첫 응답 이후에 들어옵니다.
 VS Code 확장 패널만으로는 갱신되지 않습니다. [한도 안내](docs/support-claude-code.md#한도)
 
@@ -147,8 +157,8 @@ VS Code 확장 패널만으로는 갱신되지 않습니다. [한도 안내](doc
 ### 업데이트하거나 삭제하면 설정과 기록은 어떻게 되나요?
 
 `앱 설정 → 버전과 업데이트`에서 `업데이트 확인`을 누릅니다. 새 버전이 있으면 `업데이트`를 눌러
-설치 파일 다운로드·SHA-256 검증·설치·재시작을 진행합니다. 백그라운드 버전 확인은 하지 않으며,
-설정·사용자 펫·구성 선택은 유지됩니다. 새 설치 파일을 직접 실행해 업그레이드해도 됩니다.
+설치 파일 다운로드·SHA-256 검증·설치·재시작을 진행합니다. `업데이트 자동 확인`을 켜 두면(기본) 하루에 한 번
+새 버전을 확인해 펫이 알려 주고, 설치는 직접 누를 때만 합니다. 설정·사용자 펫·구성 선택은 유지됩니다. 새 설치 파일을 직접 실행해 업그레이드해도 됩니다.
 
 제거는 Windows `설치된 앱`에서 합니다. 데이터 유지(기본)·기록만 삭제·모두 삭제 중에서 고르며,
 Codex·Claude Code 자체의 대화는 삭제하지 않고 이 앱의 연결 항목만 정리합니다.
@@ -160,7 +170,7 @@ Codex·Claude Code 자체의 대화는 삭제하지 않고 이 앱의 연결 항
 계정과 작업 식별자는 해시로 저장하고, 프롬프트·응답·명령·도구 출력·파일 경로·이메일은
 사용량 DB와 로그에 남기지 않습니다.
 
-앱이 직접 인터넷에 연결하는 경우는 사용자가 업데이트를 확인하거나 설치할 때 GitHub에 요청하는 경우입니다.
+앱이 직접 인터넷에 연결하는 경우는 업데이트를 확인(누를 때와 자동 확인의 하루 한 번)하거나 설치할 때 GitHub에 요청하는 경우입니다.
 Codex 사용량은 로컬 Codex 프로그램에 요청하며, 그 프로그램의 외부 통신은 Codex의 동작을 따릅니다.
 설치 위치는 `%LOCALAPPDATA%\Programs\WatchedKettle`, 설정과 사용자 펫은 `%LOCALAPPDATA%\WatchedKettle`입니다.
 보관 범위와 삭제 방법은 [개인정보와 저장소](docs/privacy-and-storage.md)를 참고하세요.

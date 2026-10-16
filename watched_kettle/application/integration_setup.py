@@ -1,8 +1,10 @@
-"""Apply the installer's Codex and Claude Code choices without starting the app.
+"""Installer-side tool switches, run without starting the app.
 
-``--configure-integrations --codex=on --claude-code=off`` installs or removes
-this app's managed hook for each named tool and sets that tool's usage switch.
-A tool that is not named keeps its hooks and settings unchanged.
+The Windows installer calls ``WatchedKettle.exe --configure-integrations
+--codex=on|off --claude-code=on|off`` after copying files. Each named tool goes
+through the same switch as the settings window (features/integrations/
+activation.py): its managed files and its usage switch change together, and a
+tool that is not named keeps both.
 """
 
 from __future__ import annotations
@@ -23,8 +25,28 @@ def parse_tool_choices(arguments):
     return choices
 
 
+def default_installers():
+    from watched_kettle.integrations.claude_code_install import (
+        ClaudeCodeHookInstaller,
+    )
+    from watched_kettle.integrations.claude_code_status_line_install import (
+        ClaudeCodeStatusLineInstaller,
+    )
+    from watched_kettle.integrations.codex_install import CodexHookInstaller
+
+    return {
+        "codex": CodexHookInstaller(),
+        "claude_code": ClaudeCodeHookInstaller(),
+        "claude_code_status_line": ClaudeCodeStatusLineInstaller(),
+    }
+
+
 def run_integration_setup(arguments, preferences=None, installers=None):
-    """Return 0 when every named tool was applied, 2 when any was blocked."""
+    """Return 0 when every named tool's files changed, 2 when any could not.
+
+    The switch is saved either way, so a blocked removal still turns the tool
+    off and the app ignores its leftover hooks.
+    """
     try:
         choices = parse_tool_choices(arguments)
     except ValueError:
@@ -35,32 +57,14 @@ def run_integration_setup(arguments, preferences=None, installers=None):
         from watched_kettle.app_preferences import ApplicationPreferences
 
         preferences = ApplicationPreferences()
-    if installers is None:
-        from watched_kettle.integrations.claude_code_install import (
-            ClaudeCodeHookInstaller,
-        )
-        from watched_kettle.integrations.codex_install import CodexHookInstaller
+    from watched_kettle.features.integrations.activation import ToolActivation
 
-        installers = {
-            "codex": CodexHookInstaller(),
-            "claude_code": ClaudeCodeHookInstaller(),
-        }
-    save_switch = {
-        # usage/enabled is the Codex-only switch (docs/bubble-architecture.md 2절).
-        "codex": preferences.save_usage_enabled,
-        "claude_code": preferences.save_claude_code_usage_enabled,
-    }
+    activation = ToolActivation(
+        preferences, installers if installers is not None else default_installers()
+    )
     exit_code = 0
     for tool, enabled in choices.items():
-        installer = installers[tool]
-        plan = installer.preview_install() if enabled else installer.preview_remove()
-        if not plan.can_apply:
-            # A blocked change (hooks disabled in config, unreadable file)
-            # keeps the user's files and switch untouched.
+        result = activation.apply(activation.preview(tool, enabled))
+        if not result.complete:
             exit_code = 2
-            continue
-        if plan.has_changes:
-            installer.apply(plan)
-        save_switch[tool](enabled)
-    preferences.settings.sync()
     return exit_code

@@ -7,6 +7,10 @@ release lists the installer and its ``.sha256`` file as assets, and asset links
 redirect to a separate download path. It listens on 127.0.0.1 unless
 ``--host`` names this PC's private network address, so another PC on the same
 network can update a bundle built with ``-UpdateTestHost`` set to that address.
+
+``--release-dir`` offers every file of a folder instead: the installers,
+update installers and partial update assets that build_installer.ps1
+-UpdateInstallers and scripts/build_update_assets.py wrote for one version.
 """
 
 import argparse
@@ -35,6 +39,8 @@ MODES = {
     "bad-hash": "a checksum that does not match the installer",
     "slow-download": "an installer download that stops halfway",
     "redirect-elsewhere": "asset links that redirect to another address",
+    "bad-delta": "with --release-dir: partial update zips that cannot be applied "
+    "(listed with matching checksums), so the app falls back to its installer",
 }
 API_PATH = "/api/releases/latest"
 RELEASES_PATH = "/releases"
@@ -54,17 +60,37 @@ def update_source(port, host=HOST):
     return {"api_url": base + API_PATH, "release_url": base + RELEASES_PATH}
 
 
+def release_dir_version(folder):
+    """The version of the one release index in ``folder``."""
+    versions = [
+        match.group(1)
+        for path in Path(folder).glob("WatchedKettle-*-update.json")
+        if (
+            match := re.fullmatch(
+                r"WatchedKettle-(\d+\.\d+\.\d+)-update\.json", path.name
+            )
+        )
+    ]
+    if len(versions) != 1:
+        raise ValueError(f"expected one release index in {folder}")
+    return versions[0]
+
+
 class ReleaseServer(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, port, installer, version, mode, host=HOST):
+    def __init__(self, port, installer, version, mode, host=HOST, release_dir=None):
         self.host = host
         self.installer = Path(installer) if installer else None
         self.version = version
         self.mode = mode
         self.asset_name = ""
         self.checksum = b""
-        if self.installer is not None:
+        # Published files: name -> Path, or bytes for rewritten ones.
+        self.files = {}
+        if release_dir is not None:
+            self._load_release_dir(Path(release_dir))
+        elif self.installer is not None:
             # Published under the announced version, so --version 9.9.9 lets an
             # installed build "upgrade" with the same installer.
             self.asset_name = re.sub(
@@ -75,7 +101,33 @@ class ReleaseServer(ThreadingHTTPServer):
             data = b"tampered" if mode == "bad-hash" else self.installer.read_bytes()
             digest = hashlib.sha256(data).hexdigest().upper()
             self.checksum = f"{digest}  {self.asset_name}\n".encode("ascii")
+            self.files = {
+                self.asset_name: self.installer,
+                self.checksum_name: self.checksum,
+            }
         super().__init__((host, port), ReleaseHandler)
+
+    def _load_release_dir(self, folder):
+        for path in sorted(folder.iterdir()):
+            if path.is_file() and path.name.startswith("WatchedKettle-"):
+                self.files[path.name] = path
+        if self.mode != "bad-delta":
+            return
+        # Zips the app cannot open, listed with their real size and checksum,
+        # so only staging fails and the app falls back to its installer.
+        index_name = f"WatchedKettle-{self.version}-update.json"
+        index = json.loads(self.files[index_name].read_text(encoding="utf-8"))
+        for edition in index["editions"].values():
+            for asset in edition.get("deltas", {}).values():
+                broken = b"not a zip archive"
+                self.files[asset["name"]] = broken
+                asset.update(
+                    size=len(broken), sha256=hashlib.sha256(broken).hexdigest()
+                )
+        payload = (json.dumps(index, indent=2) + "\n").encode("utf-8")
+        digest = hashlib.sha256(payload).hexdigest().upper()
+        self.files[index_name] = payload
+        self.files[index_name + ".sha256"] = f"{digest}  {index_name}\n".encode("ascii")
 
     def handle_error(self, request, client_address):
         # The app gives up on a slow answer and closes the connection.
@@ -94,19 +146,20 @@ class ReleaseServer(ThreadingHTTPServer):
     def checksum_name(self):
         return self.asset_name + ".sha256"
 
+    def file_bytes(self, name):
+        data = self.files[name]
+        return data if isinstance(data, bytes) else data.read_bytes()
+
     def assets(self):
-        if self.installer is None or self.mode == "no-assets":
+        if self.mode == "no-assets":
             return []
         return [
             {
                 "name": name,
-                "size": size,
+                "size": len(data) if isinstance(data, bytes) else data.stat().st_size,
                 "browser_download_url": f"{self.base_url}/download/{name}",
             }
-            for name, size in (
-                (self.asset_name, self.installer.stat().st_size),
-                (self.checksum_name, len(self.checksum)),
-            )
+            for name, data in self.files.items()
         ]
 
 
@@ -174,10 +227,10 @@ class ReleaseHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def _asset(self, name):
-        if name == self.server.checksum_name:
-            self._send(200, "application/octet-stream", self.server.checksum)
+        data = self.server.file_bytes(name)
+        if name.endswith((".sha256", ".json")):
+            self._send(200, "application/octet-stream", data)
             return
-        data = self.server.installer.read_bytes()
         self.send_response(200)
         self.send_header("Content-Type", "application/octet-stream")
         self.send_header("Content-Length", str(len(data)))
@@ -201,12 +254,17 @@ class ReleaseHandler(BaseHTTPRequestHandler):
         print(format % args)
 
 
-def serve(port, installer=None, version=None, mode="ok", host=HOST):
+def serve(port, installer=None, version=None, mode="ok", host=HOST, release_dir=None):
     """Start the server on a background thread and return it."""
+    if release_dir is not None:
+        found = release_dir_version(release_dir)
+        if version not in (None, found):
+            raise ValueError(f"{release_dir} holds v{found}, not v{version}")
+        version = found
     version = version or (
         installer_version(installer) if installer else APPLICATION_VERSION
     )
-    server = ReleaseServer(port, installer, version, mode, host)
+    server = ReleaseServer(port, installer, version, mode, host, release_dir)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server
 
@@ -218,6 +276,12 @@ def main():
         + "; ".join(f"{name} = {text}" for name, text in MODES.items()),
     )
     parser.add_argument("--installer", type=Path, help="setup.exe offered for download")
+    parser.add_argument(
+        "--release-dir",
+        type=Path,
+        help="offer every WatchedKettle-* file of this folder (one version's "
+        "installers and partial update assets)",
+    )
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument(
         "--host",
@@ -242,7 +306,21 @@ def main():
         parser.error(f"not a loopback or private network IPv4 address: {args.host}")
     if args.installer is not None and not args.installer.is_file():
         parser.error(f"installer not found: {args.installer}")
-    server = serve(args.port, args.installer, args.version, args.mode, args.host)
+    if args.release_dir is not None and args.installer is not None:
+        parser.error("give either --installer or --release-dir")
+    if args.mode == "bad-delta" and args.release_dir is None:
+        parser.error("bad-delta needs --release-dir")
+    try:
+        server = serve(
+            args.port,
+            args.installer,
+            args.version,
+            args.mode,
+            args.host,
+            args.release_dir,
+        )
+    except ValueError as error:
+        parser.error(str(error))
     port = server.server_address[1]
     print(f"Announcing v{server.version} ({args.mode}) at {server.base_url}{API_PATH}")
     if server.installer is not None:
@@ -256,6 +334,9 @@ def main():
         print(f"  {installer.stat().st_size:,} bytes, built {modified}")
         print(f"  SHA-256 {server.checksum.decode('ascii').split()[0]}")
         print(f"  offered as {server.asset_name}")
+    elif args.release_dir is not None:
+        for asset in server.assets():
+            print(f"  {asset['name']} ({asset['size']:,} bytes)")
     if args.print_source:
         source = (
             Path(tempfile.gettempdir()) / f"watched-kettle-update-source-{port}.json"

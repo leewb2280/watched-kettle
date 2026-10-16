@@ -160,6 +160,174 @@ class SettingsBridgeTests(unittest.TestCase):
         make_atlas(version).save(path)
         return self.host._execute("file.pet.prepare", dict(path=str(path)))
 
+    def install_user_pet(self, pet_id):
+        import shutil
+
+        destination = self.root / "pets" / pet_id
+        shutil.copytree(Path("pets/mori-bot"), destination)
+        path = destination / "pet.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data.update(id=pet_id, displayName="추가한 펫 " + pet_id)
+        path.write_text(json.dumps(data), encoding="utf-8")
+        return destination
+
+    def test_batch_catalog_reuses_thumbnails_and_invalidates_changed_files(self):
+        destination = self.install_user_pet("thumbnail-test")
+        entry = next(
+            entry for entry in self.vm.all_pets() if entry.id == "thumbnail-test"
+        )
+        self.core._thumbnails.clear()
+        with patch.object(
+            self.core, "_idle_cell", wraps=self.core._idle_cell
+        ) as loader:
+            first = self.core._thumbnail(entry)
+            self.assertTrue(first.startswith("data:image/png"))
+            self.assertEqual(self.core._thumbnail(entry), first)
+            self.assertEqual(loader.call_count, 1)
+        (destination / "spritesheet.webp").write_bytes(b"broken image")
+        self.assertEqual(self.core._thumbnail(entry), "")
+
+    def test_catalog_save_failure_restores_previous_preferences(self):
+        self.install_user_pet("custom")
+        previous = self.vm.catalog_preferences()
+        with patch.object(
+            self.core, "_sync", side_effect=CommandError("save_failed", "저장 실패")
+        ):
+            with self.assertRaises(CommandError):
+                self.core.execute(
+                    "pet.catalog.save",
+                    self.context(
+                        sort="custom", order=["custom", "mori-bot"], hidden=["custom"]
+                    ),
+                )
+        self.assertEqual(self.vm.catalog_preferences(), previous)
+
+    def test_trash_round_trip_through_commands_preserves_live_pet(self):
+        self.install_user_pet("custom")
+        self.settings.setValue("pets/custom/width", 224)
+        original_theme = self.pet.bubble_controller.theme
+        entry = next(
+            row for row in self.core.catalog()["entries"] if row["id"] == "custom"
+        )
+        self.assertEqual(entry["source"], "user")
+        self.assertTrue(entry["canDelete"])
+        moved = self.core.execute("pet.trash.move", self.context(id="custom"))
+        self.assertEqual(self.pet.pet_id, "mori-bot")
+        self.assertEqual(self.pet.bubble_controller.theme, original_theme)
+        listing = self.core.execute("pet.trash.list", {})
+        self.assertEqual(listing["total"], 1)
+        self.assertNotIn(str(self.root), json.dumps(listing))
+        self.assertTrue(listing["entries"][0]["thumbnail"].startswith("data:image/png"))
+        self.core.execute("pet.trash.restore", self.context(trashId=moved["trashId"]))
+        self.assertEqual(self.pet.pet_id, "mori-bot")
+        self.assertEqual(self.settings.value("pets/custom/width"), 224)
+        moved = self.core.execute("pet.trash.move", self.context(id="custom"))
+        self.core.execute("pet.trash.delete", self.context(trashId=moved["trashId"]))
+        self.assertIsNone(self.settings.value("pets/custom/width"))
+        self.assertEqual(self.core.trash_catalog()["total"], 0)
+
+    def test_trash_protects_builtin_and_rejects_stale_context_and_epoch(self):
+        self.install_user_pet("custom")
+        self.assertFalse(
+            next(
+                row for row in self.core.catalog()["entries"] if row["id"] == "mori-bot"
+            )["canDelete"]
+        )
+        with self.assertRaises(CommandError):
+            self.core.execute("pet.trash.move", self.context(id="mori-bot"))
+        for change in ({"revision": -1}, {"petId": "other"}, {"epoch": -1}):
+            args = self.context(id="custom")
+            args.update(change)
+            with self.assertRaises(CommandError):
+                self.core.execute("pet.trash.move", args)
+        self.assertTrue((self.root / "pets" / "custom").exists())
+
+    def test_current_pet_requires_successful_replacement_before_move(self):
+        self.install_user_pet("custom")
+        self.core.execute("pet.select", self.context(id="custom"))
+        with self.assertRaises(CommandError):
+            self.core.execute("pet.trash.move", self.context(id="custom"))
+        with patch.object(self.vm, "change_pet", return_value=False):
+            with self.assertRaises(CommandError):
+                self.core.execute(
+                    "pet.trash.move",
+                    self.context(id="custom", replacementId="mori-bot"),
+                )
+        self.assertEqual(self.pet.pet_id, "custom")
+        self.assertTrue((self.root / "pets" / "custom").exists())
+        self.preferences.save_hidden_pet_ids(("mori-bot",))
+        self.core.execute(
+            "pet.trash.move", self.context(id="custom", replacementId="mori-bot")
+        )
+        self.assertEqual(self.pet.pet_id, "mori-bot")
+        self.assertNotIn("mori-bot", self.preferences.load_hidden_pet_ids())
+        self.assertFalse((self.root / "pets" / "custom").exists())
+
+    def test_current_pet_move_failure_returns_to_previous_pet(self):
+        self.install_user_pet("custom")
+        self.core.execute("pet.select", self.context(id="custom"))
+        with patch.object(self.vm.packages, "move", side_effect=PermissionError()):
+            with self.assertRaises(CommandError):
+                self.core.execute(
+                    "pet.trash.move",
+                    self.context(id="custom", replacementId="mori-bot"),
+                )
+        self.assertEqual(self.pet.pet_id, "custom")
+        self.assertEqual(self.preferences.load_selected_pet_id(), "custom")
+
+    def test_select_hidden_pet_reveals_it_and_failure_restores_visibility(self):
+        destination = self.install_user_pet("custom")
+        self.preferences.save_hidden_pet_ids(("custom",))
+        with patch.object(self.vm, "change_pet", return_value=False):
+            with self.assertRaises(CommandError):
+                self.core.execute("pet.select", self.context(id="custom"))
+        self.assertIn("custom", self.preferences.load_hidden_pet_ids())
+        self.core.execute("pet.select", self.context(id="custom"))
+        self.assertNotIn("custom", self.preferences.load_hidden_pet_ids())
+        self.assertEqual(self.pet.pet_directory, destination)
+
+    def test_import_from_trash_proposes_restore_without_duplicating_or_switching(self):
+        prepared = self.prepare_import()
+        added = self.core.execute(
+            "pet.import.commit", dict(token=prepared["token"], name="복원할 펫")
+        )
+        moved = self.core.execute("pet.trash.move", self.context(id=added["id"]))
+        result = self.core.execute(
+            "pet.import.commit", dict(token=prepared["token"], name="덮어쓰면 안 됨")
+        )
+        self.assertTrue(result["restoreRequired"])
+        self.assertEqual(result["trashId"], moved["trashId"])
+        self.assertEqual(self.pet.pet_id, "mori-bot")
+        self.assertNotIn(added["id"], {entry.id for entry in self.vm.all_pets()})
+        self.core.execute("pet.trash.restore", self.context(trashId=result["trashId"]))
+        self.assertEqual(
+            next(
+                entry.display_name
+                for entry in self.vm.all_pets()
+                if entry.id == added["id"]
+            ),
+            "복원할 펫",
+        )
+
+    def test_empty_trash_retains_failed_items_and_reports_partial_result(self):
+        for pet_id in ("first", "second"):
+            self.install_user_pet(pet_id)
+            self.core.execute("pet.trash.move", self.context(id=pet_id))
+        original = self.vm.packages.delete
+        calls = []
+
+        def delete(trash_id):
+            calls.append(trash_id)
+            if len(calls) == 1:
+                raise PermissionError()
+            original(trash_id)
+
+        with patch.object(self.vm.packages, "delete", side_effect=delete):
+            result = self.core.execute("pet.trash.empty", self.context())
+        self.assertEqual(result["deleted"], 1)
+        self.assertEqual(len(result["failed"]), 1)
+        self.assertEqual(self.core.trash_catalog()["total"], 1)
+
     def test_import_registers_without_switching_and_uses_existing_selection(self):
         original_id = self.pet.pet_id
         self.pet.set_state("running")
@@ -261,7 +429,30 @@ class SettingsBridgeTests(unittest.TestCase):
             commands=build_managed_commands(executable=self.root / "Bridge.exe"),
             policy_paths=(),
         )
+        # Tool switches write hook files; never the developer's real ~/.codex.
+        from watched_kettle.integrations.codex_install import CodexHookInstaller
+
+        self.runtime.integrations_vm.hook_installer = CodexHookInstaller(
+            hooks_path=self.root / "codex" / "hooks.json",
+            config_path=self.root / "codex" / "config.toml",
+        )
         return self.runtime.center.adapter
+
+    @staticmethod
+    def switch_tool(core, tool, enabled):
+        """Turn one tool on or off the way the connections page does."""
+        plan = core.execute(
+            "integration.preview",
+            dict(
+                epoch=core.account_epoch,
+                operation="enable" if enabled else "disable",
+                provider=tool,
+            ),
+        )
+        core.execute(
+            "integration.apply", dict(epoch=core.account_epoch, token=plan["token"])
+        )
+        return plan
 
     @staticmethod
     def adapter_context(core, **args):
@@ -271,6 +462,35 @@ class SettingsBridgeTests(unittest.TestCase):
             epoch=core.account_epoch,
             **args,
         )
+
+    def test_update_auto_check_setting_and_one_notice_per_version(self):
+        self.assertTrue(self.core.snapshot()["update"]["auto_check"])
+        self.core.execute(
+            "settings.set", self.context(key="update_auto_check", value=False)
+        )
+        self.assertFalse(self.preferences.load_update_auto_check())
+        self.assertFalse(self.core.snapshot()["update"]["auto_check"])
+        with patch.object(self.vm, "announce", return_value=True) as announce:
+            self.core.updates.found.emit("9.9.9")
+            self.core.updates.found.emit("9.9.9")
+        announce.assert_called_once()
+        self.assertIn("(v9.9.9)", announce.call_args.args[0])
+        self.assertEqual(self.preferences.load_update_announced_version(), "9.9.9")
+
+    def test_an_app_notice_keeps_to_bubbles_off_snooze_and_a_hidden_pet(self):
+        controller = self.pet.bubble_controller
+        with patch.object(controller, "preview") as preview:
+            self.pet.hide()
+            self.assertFalse(self.vm.announce("새 버전"))
+            self.pet.show()
+            controller.snooze(60_000)
+            self.assertFalse(self.vm.announce("새 버전"))
+            controller.resume()
+            controller.set_enabled(False)
+            self.assertFalse(self.vm.announce("새 버전"))
+            controller.set_enabled(True)
+            self.assertTrue(self.vm.announce("새 버전"))
+        preview.assert_called_once_with("새 버전", duration_ms=10_000)
 
     def test_real_settings_round_trip_and_stale_editor(self):
         draft = self.core.editor()
@@ -407,7 +627,11 @@ class SettingsBridgeTests(unittest.TestCase):
 
         def entry(pet_id, name, path):
             return SimpleNamespace(
-                id=pet_id, display_name=name, description="", spritesheet_path=path
+                id=pet_id,
+                display_name=name,
+                description="",
+                spritesheet_path=path,
+                directory=Path("pets") / pet_id,
             )
 
         entries = (
@@ -670,24 +894,47 @@ class SettingsBridgeTests(unittest.TestCase):
         )
         self.assertEqual(integration["install"]["message"], integration["status"])
 
-    def test_usage_provider_switches_are_independent_and_type_checked(self):
+    def test_switched_off_codex_stops_its_readers_and_its_double_click(self):
+        core = self.assistant()
+        runtime = self.runtime
+        opener = self.pet.codex_opener
+        runtime.start()
+        self.assertTrue(runtime.codex_log_monitor.is_active)
+        self.switch_tool(core, "codex", False)
+        self.assertFalse(runtime.codex_log_monitor.is_active)
+        self.assertFalse(runtime.metadata_service.enabled)
+        self.assertFalse(runtime.metadata_service.refresh_timer.isActive())
+        self.assertIn("codex", runtime.codex_server.disabled_sources)
+        self.assertIsNone(self.pet.codex_opener)
+        self.switch_tool(core, "codex", True)
+        self.assertTrue(runtime.codex_log_monitor.is_active)
+        self.assertTrue(runtime.metadata_service.refresh_timer.isActive())
+        self.assertNotIn("codex", runtime.codex_server.disabled_sources)
+        self.assertIs(self.pet.codex_opener, opener)
+
+    def test_tool_switches_are_independent_and_only_on_the_connections_page(self):
         core = self.assistant()
         context = dict(epoch=core.account_epoch)
-        core.execute("usage.set", dict(**context, key="enabled", value=False))
+        # Claude Code is off until chosen; it never follows the Codex switch.
+        self.assertFalse(core.execute("usage.snapshot", {})["claude_code_enabled"])
+        self.switch_tool(core, "claude_code", True)
+        self.switch_tool(core, "codex", False)
         snapshot = core.execute("usage.snapshot", {})
         self.assertFalse(snapshot["enabled"])
         self.assertTrue(snapshot["claude_code_enabled"])
         self.assertTrue(snapshot["any_enabled"])
         self.assertEqual([g["key"] for g in snapshot["limit_groups"]], ["claude_code"])
-        core.execute(
-            "usage.set", dict(**context, key="claude_code_enabled", value=False)
-        )
+        self.switch_tool(core, "claude_code", False)
         self.assertFalse(core.execute("usage.snapshot", {})["any_enabled"])
-        core.execute("usage.set", dict(**context, key="enabled", value=True))
+        self.switch_tool(core, "codex", True)
         self.assertFalse(core.execute("usage.snapshot", {})["claude_code_enabled"])
+        for key in ("enabled", "claude_code_enabled"):
+            with self.assertRaises(CommandError):
+                core.execute("usage.set", dict(**context, key=key, value=True))
         with self.assertRaises(CommandError):
             core.execute(
-                "usage.set", dict(**context, key="claude_code_enabled", value="false")
+                "integration.preview",
+                dict(**context, operation="enable", provider="claude_code_status_line"),
             )
 
     def test_usage_trends_are_per_tool_and_follow_switches(self):
@@ -703,15 +950,14 @@ class SettingsBridgeTests(unittest.TestCase):
                 {"days", "total", "average", "peak_date"}, set(trends[tool]["daily"])
             )
         self.assertTrue(trends["codex"]["enabled"])
-        core.execute("usage.set", dict(**context, key="enabled", value=False))
+        self.assertFalse(trends["claude_code"]["enabled"])
+        self.switch_tool(core, "claude_code", True)
+        self.assertTrue(
+            core.execute("usage.snapshot", {})["trends"]["claude_code"]["enabled"]
+        )
+        self.switch_tool(core, "codex", False)
         self.assertFalse(
             core.execute("usage.snapshot", {})["trends"]["codex"]["enabled"]
-        )
-        core.execute(
-            "usage.set", dict(**context, key="claude_code_enabled", value=False)
-        )
-        self.assertFalse(
-            core.execute("usage.snapshot", {})["trends"]["claude_code"]["enabled"]
         )
         # Every offered range is kept; 14 days used to fall back to 7.
         core.execute("usage.set", dict(**context, key="chart_days", value=14))
@@ -858,6 +1104,28 @@ class SettingsBridgeTests(unittest.TestCase):
         self.host._changed("account")
         self.assertFalse(self.host.responses)
 
+    def test_large_catalog_replies_drain_before_queued_requests(self):
+        self.host._start_server()
+        client = QLocalSocket()
+        client.connectToServer(self.host.server.fullServerName())
+        self.assertTrue(wait_until(lambda: self.host.socket is not None))
+        client.write(
+            json.dumps(dict(version=1, token=self.host.token)).encode() + b"\n"
+        )
+        self.assertEqual(json.loads(read_line(client))["event"], "ready")
+        # Six individually valid replies exceed the total outbound queue cap
+        # if buffered input is handled without yielding to the socket writer.
+        reply = "x" * (MAX_FRAME_BYTES // 3)
+        commands = [dict(id=f"large-{i}", method="pet.catalog") for i in range(6)]
+        with patch.object(self.host, "_execute", return_value=reply):
+            client.write(b"".join(json.dumps(row).encode() + b"\n" for row in commands))
+            for row in commands:
+                answer = json.loads(read_line(client))
+                self.assertEqual(answer["id"], row["id"])
+                self.assertEqual(answer["result"], reply)
+                self.assertTrue(self.host.authenticated)
+        client.abort()
+
     def test_named_pipe_requires_auth_then_accepts_partial_frames(self):
         self.host._start_server()
         client = QLocalSocket()
@@ -950,13 +1218,21 @@ class SettingsBridgeTests(unittest.TestCase):
         self.runtime.integrations_vm.hook_installer = CodexHookInstaller(
             hooks_path=hooks, config_path=config
         )
-        plan = core.execute("integration.preview", {"epoch": 0, "operation": "install"})
+        self.switch_tool(core, "codex", False)
+        plan = core.execute(
+            "integration.preview",
+            {"epoch": 0, "operation": "enable", "provider": "codex"},
+        )
         self.assertFalse(hooks.exists())
+        self.assertFalse(self.runtime.usage_vm.enabled)
         hooks.write_text('{"hooks": {}}', encoding="utf-8")
         with self.assertRaises(StaleHookPlanError):
             core.execute("integration.apply", {"epoch": 0, "token": plan["token"]})
+        # A stale review changes neither the file nor the switch.
+        self.assertEqual(hooks.read_text(encoding="utf-8"), '{"hooks": {}}')
+        self.assertFalse(self.runtime.usage_vm.enabled)
 
-    def test_codex_connection_round_trip_preserves_other_hooks_and_usage_settings(self):
+    def test_codex_switch_round_trip_preserves_other_hooks_and_claude_code(self):
         from watched_kettle.integrations.codex_install import CodexHookInstaller
 
         core = self.assistant()
@@ -986,13 +1262,11 @@ class SettingsBridgeTests(unittest.TestCase):
                 "integration.apply", dict(epoch=core.account_epoch, token=plan["token"])
             )
 
-        apply(preview("install", "claude_code"))
+        apply(preview("enable", "claude_code"))
         claude_before = self.claude_settings.read_bytes()
-        core.execute(
-            "usage.set", dict(epoch=core.account_epoch, key="enabled", value=False)
-        )
-        plan = preview("install")
+        plan = preview("enable")
         self.assertTrue(plan["canApply"])
+        self.assertIn("Codex 사용을 켭니다", plan["changes"])
         self.assertEqual(json.loads(hooks.read_text(encoding="utf-8")), other_hook)
         apply(plan)
         self.assertEqual(
@@ -1000,30 +1274,37 @@ class SettingsBridgeTests(unittest.TestCase):
         )
         config_before = config.read_bytes()
         hooks_before = hooks.read_bytes()
-        preview("remove")  # No apply: the same contract used by Cancel.
+        preview("disable")  # No apply: the same contract used by Cancel.
         self.assertEqual(hooks.read_bytes(), hooks_before)
-        apply(preview("remove"))
-        self.assertEqual(
-            core.execute("integration.snapshot", {})["install"]["state"],
-            "not_installed",
-        )
+        self.assertTrue(core.execute("usage.snapshot", {})["enabled"])
+        apply(preview("disable"))
+        snapshot = core.execute("integration.snapshot", {})
+        # Off: Codex's files are not read, and its own hook is gone.
+        self.assertFalse(snapshot["codex_active"])
+        self.assertEqual(snapshot["install"]["state"], "inactive")
         self.assertEqual(json.loads(hooks.read_text(encoding="utf-8")), other_hook)
         self.assertEqual(config.read_bytes(), config_before)
         self.assertEqual(self.claude_settings.read_bytes(), claude_before)
         usage = core.execute("usage.snapshot", {})
         self.assertFalse(usage["enabled"])
         self.assertTrue(usage["claude_code_enabled"])
-        apply(preview("install"))
+        # Repairing a switched-off tool's hook is refused.
+        with self.assertRaises(CommandError):
+            preview("repair")
+        apply(preview("enable"))
         self.assertEqual(
             core.execute("integration.snapshot", {})["install"]["state"], "installed"
         )
 
-    def test_claude_code_connection_and_timeouts_round_trip(self):
+    def test_claude_code_switch_and_timeouts_round_trip(self):
         core = self.assistant()
         snapshot = core.execute("integration.snapshot", {})
         json.dumps(snapshot)
         claude = snapshot["claude_code"]
-        self.assertEqual(claude["install"]["state"], "not_installed")
+        # Off by default: nothing is read beyond whether the folder exists.
+        self.assertFalse(claude["active"])
+        self.assertEqual(claude["install"]["state"], "inactive")
+        self.assertIsNone(claude["status_line"])
         monitor = snapshot["diagnostics"]["claude_code"]["turn_end_monitor"]
         self.assertEqual(
             monitor, {"attached": True, "active_turns": 0, "detected_count": 0}
@@ -1032,14 +1313,17 @@ class SettingsBridgeTests(unittest.TestCase):
 
         plan = core.execute(
             "integration.preview",
-            {"epoch": 0, "operation": "install", "provider": "claude_code"},
+            {"epoch": 0, "operation": "enable", "provider": "claude_code"},
         )
         self.assertTrue(plan["canApply"])
         self.assertFalse(self.claude_settings.exists())
         core.execute("integration.apply", {"epoch": 0, "token": plan["token"]})
-        installed = core.execute("integration.snapshot", {})["claude_code"]["install"]
+        claude = core.execute("integration.snapshot", {})["claude_code"]
+        self.assertTrue(claude["active"])
+        installed = claude["install"]
         self.assertEqual(installed["state"], "installed")
         self.assertEqual(installed["installed_events"], len(MANAGED_HOOK_EVENTS))
+        self.assertTrue(self.runtime.usage_vm.claude_code_enabled)
 
         result = core.execute(
             "integration.set",
@@ -1059,11 +1343,14 @@ class SettingsBridgeTests(unittest.TestCase):
         ):
             with self.assertRaises(CommandError):
                 core.execute("integration.set", {"epoch": 0, **args})
-        with self.assertRaises(CommandError):
-            core.execute(
-                "integration.preview",
-                {"epoch": 0, "operation": "install", "provider": "other"},
-            )
+        for args in (
+            {"operation": "install", "provider": "other"},
+            {"operation": "enable", "provider": "other"},
+            # Claude Code's own hooks follow its switch, not install/remove.
+            {"operation": "remove", "provider": "claude_code"},
+        ):
+            with self.assertRaises(CommandError):
+                core.execute("integration.preview", {"epoch": 0, **args})
 
         # The built-in status line layout is a JSON file the hook bridge reads.
         status_line = core.execute("integration.snapshot", {})["claude_code"][

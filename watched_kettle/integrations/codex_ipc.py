@@ -90,6 +90,9 @@ class CodexHookServer(QObject):
             TRANSCRIPT_TRANSPORT: 0,
         }
         self.suppressed_duplicate_count = 0
+        # Agents switched off in the settings window; their events are dropped.
+        self.disabled_sources = set()
+        self.disabled_source_drop_count = 0
         self.last_event = ""
         self.last_transport = ""
         self.last_received_at = None
@@ -297,7 +300,18 @@ class CodexHookServer(QObject):
         socket.write(b"OK\n")
         socket.flush()
 
+    def set_source_enabled(self, source, enabled):
+        """Accept or drop one agent's events from every transport."""
+        if enabled:
+            self.disabled_sources.discard(source)
+        else:
+            self.disabled_sources.add(source)
+
     def _deliver_payload(self, payload, transport):
+        if payload.get("source") in self.disabled_sources:
+            # A hook left behind after the tool was switched off.
+            self.disabled_source_drop_count += 1
+            return False
         incoming_scope = payload.get("agent_scope", "unknown")
         known_scope = "unknown"
         if payload.get("source") == "codex":
@@ -573,9 +587,19 @@ class CodexHookServer(QObject):
         }
 
     def diagnostics(self):
-        """Expose privacy-safe connection diagnostics without raw hook data."""
-        hook_config = self.hook_config_status()
-        global_hook_config = self.hook_config_status(self.global_hook_config_path)
+        """Expose privacy-safe connection diagnostics without raw hook data.
+
+        While Codex is switched off its files are not read; the Codex facts
+        report empty states and only the receiver's own counters remain.
+        """
+        codex_off = "codex" in self.disabled_sources
+        no_config = {"exists": False, "valid": False, "event_count": 0}
+        hook_config = no_config if codex_off else self.hook_config_status()
+        global_hook_config = (
+            no_config
+            if codex_off
+            else self.hook_config_status(self.global_hook_config_path)
+        )
         log_monitor = (
             self.log_monitor.diagnostics()
             if self.log_monitor is not None
@@ -589,12 +613,17 @@ class CodexHookServer(QObject):
                 "last_error": "",
             }
         )
+        config_exists = self.codex_config_path.is_file()
         codex_environment = {
-            "detected": bool(
-                self.codex_config_path.is_file() or log_monitor["sessions_root_exists"]
-            ),
-            "config_exists": self.codex_config_path.is_file(),
+            "detected": bool(config_exists or log_monitor["sessions_root_exists"]),
+            "config_exists": config_exists,
             "sessions_root_exists": log_monitor["sessions_root_exists"],
+        }
+        empty_trust = {
+            "exists": False,
+            "valid": False,
+            "approved_count": 0,
+            "possibly_stale": False,
         }
         return {
             "pipe_listening": self.is_listening,
@@ -620,12 +649,32 @@ class CodexHookServer(QObject):
             "hook_config": hook_config,
             "global_hook_config": global_hook_config,
             "hook_health": self.hook_health_status(),
-            "hooks_feature": self.hooks_feature_status(),
-            "hook_trust": self.hook_trust_status(hook_config["event_count"]),
-            "global_hook_trust": self.hook_trust_status(
-                global_hook_config["event_count"],
-                self.global_hook_config_path,
+            "hooks_feature": (
+                {
+                    "exists": False,
+                    "valid": False,
+                    "enabled": True,
+                    "explicit": False,
+                    "deprecated_alias": False,
+                }
+                if codex_off
+                else self.hooks_feature_status()
             ),
+            "hook_trust": (
+                {**empty_trust, "expected_count": 0}
+                if codex_off
+                else self.hook_trust_status(hook_config["event_count"])
+            ),
+            "global_hook_trust": (
+                {**empty_trust, "expected_count": 0}
+                if codex_off
+                else self.hook_trust_status(
+                    global_hook_config["event_count"],
+                    self.global_hook_config_path,
+                )
+            ),
+            "codex_enabled": not codex_off,
+            "disabled_source_drop_count": self.disabled_source_drop_count,
             "codex_environment": codex_environment,
             "jsonl_monitor": log_monitor,
             "claude_code": self.claude_code_diagnostics(),

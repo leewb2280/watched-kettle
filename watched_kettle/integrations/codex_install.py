@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
@@ -111,9 +112,8 @@ def build_managed_hook(project_root=None, executable=None):
             if executable is not None
             else default_hook_executable()
         )
-        quoted_windows = _quote_windows(executable)
-        command_windows = (
-            f"{quoted_windows} --codex-hook-bridge --managed-id {MANAGED_MARKER}"
+        command_windows = _windows_command(
+            executable, "--codex-hook-bridge", "--managed-id", MANAGED_MARKER
         )
         command = (
             f"{shlex.quote(str(executable))} --codex-hook-bridge "
@@ -126,11 +126,9 @@ def build_managed_hook(project_root=None, executable=None):
         wrapper = project_root / ".codex" / "hooks" / "codex_pet_bridge.ps1"
         python = project_root / ".venv" / "bin" / "python"
         bridge = project_root / ".codex" / "hooks" / "codex_pet_bridge.py"
-        command_windows = (
-            "powershell.exe -NoLogo -NoProfile -NonInteractive "
-            "-ExecutionPolicy Bypass -File "
-            f"{_quote_windows(wrapper)} -ManagedId {MANAGED_MARKER}"
-        )
+        # The wrapper's first parameter is ManagedId. Quoted '-ManagedId' would
+        # bind as a positional value, rather than a PowerShell parameter name.
+        command_windows = _windows_command(wrapper, MANAGED_MARKER)
         command = (
             f"{shlex.quote(str(python))} {shlex.quote(str(bridge))} "
             f"--managed-id {shlex.quote(MANAGED_MARKER)}"
@@ -615,8 +613,22 @@ def _atomic_write_text(path, text):
         ) from error
 
 
-def _quote_windows(path):
-    text = str(path)
-    if '"' in text:
+def _windows_command(executable, *arguments):
+    """Keep the invocation opaque to the caller's PowerShell or cmd parser.
+
+    A quoted executable alone is a string expression in PowerShell. Encode the
+    entire call so the outer shell also cannot expand path characters such as
+    ``$`` or ``%``. The POSIX command retains the visible management marker.
+    """
+    if '"' in str(executable):
         raise ValueError("Windows 실행 경로에 따옴표를 사용할 수 없습니다.")
-    return f'"{text}"'
+    literals = (
+        "'" + str(value).replace("'", "''") + "'" for value in (executable, *arguments)
+    )
+    script = "$ErrorActionPreference = 'Stop'; & " + " ".join(literals)
+    script += "; exit $LASTEXITCODE"
+    encoded = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
+    return (
+        "powershell.exe -NoLogo -NoProfile -NonInteractive "
+        "-ExecutionPolicy Bypass -EncodedCommand " + encoded
+    )

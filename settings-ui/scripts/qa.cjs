@@ -27,10 +27,255 @@ async function until(fn, timeout = 10000) {
   throw Error("condition timed out");
 }
 
+async function testPetBatch({ page, app, connection, out, metrics }) {
+  // Multi-selection always captures explicit targets from this screen/page.
+  const bulkControl = async (data) => {
+    await fs.writeFile(connection.control, JSON.stringify(data));
+    await until(async () =>
+      fs.access(connection.control).then(
+        () => false,
+        () => true,
+      ),
+    );
+  };
+  await bulkControl({ action: "batch_fixture", count: 55 });
+  await page.getByRole("button", { name: "펫 관리", exact: true }).click();
+  const bulkManager = page.locator("dialog:has(.pet-manager)");
+  const bulkSettled = () =>
+    until(
+      async () =>
+        (await bulkManager
+          .locator(".pet-manager")
+          .getAttribute("aria-busy")) === "false",
+      30000,
+    );
+  const bulkStatus = () =>
+    page.evaluate(async () => {
+      const state = await window.settings.request("settings.snapshot");
+      return (
+        await window.settings.request("pet.trash.batch.status", {
+          epoch: state.epoch,
+        })
+      ).job;
+    });
+  const bulkDone = async () => {
+    await until(async () => {
+      const job = await bulkStatus();
+      return job && job.state !== "running";
+    }, 60000);
+    await bulkSettled();
+  };
+  await bulkSettled();
+  await bulkManager.getByRole("button", { name: "선택", exact: true }).click();
+  assert.equal(
+    await bulkManager
+      .locator('[data-pet-id="mori-bot"]')
+      .getByRole("checkbox")
+      .isDisabled(),
+    true,
+  );
+  await bulkManager
+    .locator('[data-pet-id="batch-qa-00"]')
+    .getByRole("checkbox")
+    .focus();
+  await page.keyboard.press("Space");
+  assert.equal(
+    await bulkManager
+      .getByRole("checkbox", { name: "현재 화면 전체 선택" })
+      .evaluate((node) => node.indeterminate),
+    true,
+  );
+  await bulkManager.getByLabel("펫 이름 검색").fill("일괄 QA 중복");
+  await until(
+    async () =>
+      (await bulkManager.getByText("0개 선택", { exact: true }).count()) === 1,
+  );
+  await bulkManager
+    .getByRole("checkbox", { name: "현재 화면 전체 선택" })
+    .check();
+  assert.equal(
+    await bulkManager.locator(".manager-row input:checked").count(),
+    2,
+  );
+  await page.screenshot({ path: path.join(out, "pet-batch-selection.png") });
+  await bulkManager.getByLabel("펫 이름 검색").fill("");
+  await bulkManager
+    .locator('[data-pet-id="batch-qa-00"]')
+    .getByRole("checkbox")
+    .check();
+  await bulkManager
+    .locator('[data-pet-id="batch-qa-01"]')
+    .getByRole("checkbox")
+    .check();
+  await bulkControl({
+    action: "batch_config",
+    failed: ["batch-qa-01"],
+    delay: 40,
+  });
+  await bulkManager
+    .getByRole("button", { name: "선택한 펫 이동", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "선택한 펫 이동", exact: true })
+    .getByRole("button", { name: "휴지통으로 이동", exact: true })
+    .click();
+  await bulkDone();
+  await bulkManager.getByText("1개 선택", { exact: true }).waitFor();
+  assert.equal((await bulkStatus()).failed, 1);
+  await page.screenshot({
+    path: path.join(out, "pet-batch-partial-failure.png"),
+  });
+  await bulkManager
+    .getByRole("button", { name: "실행 취소 (1개)", exact: true })
+    .click();
+  await bulkDone();
+  await bulkControl({ action: "batch_config", failed: [], delay: 200 });
+  await bulkManager.getByRole("button", { name: "선택", exact: true }).click();
+  await bulkManager
+    .getByRole("checkbox", { name: "현재 화면 전체 선택" })
+    .check();
+  await bulkManager
+    .getByRole("button", { name: "선택한 펫 이동", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "선택한 펫 이동", exact: true })
+    .getByRole("button", { name: "휴지통으로 이동", exact: true })
+    .click();
+  await until(async () => (await bulkStatus())?.processed >= 1, 30000);
+  await page.screenshot({ path: path.join(out, "pet-batch-progress.png") });
+  // Closing the settings window hides its renderer; the Python job continues.
+  await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()[0].close(),
+  );
+  await until(
+    async () =>
+      !(await app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0].isVisible(),
+      )),
+  );
+  await until(async () => (await bulkManager.count()) === 0);
+  await bulkControl({ action: "show", page: "pet" });
+  await until(
+    async () =>
+      await app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0].isVisible(),
+      ),
+  );
+  await page.getByRole("button", { name: "펫 관리", exact: true }).click();
+  await bulkManager
+    .getByRole("button", { name: "남은 작업 중단", exact: true })
+    .click();
+  await bulkDone();
+  const cancelled = await bulkStatus();
+  assert.equal(cancelled.state, "cancelled");
+  assert.ok(cancelled.processed < cancelled.total);
+  assert.ok(cancelled.succeeded > 0);
+  await bulkManager.getByRole("button", { name: /^실행 취소 \(/ }).click();
+  await bulkDone();
+  await bulkControl({ action: "batch_config", failed: [], delay: 0 });
+  await bulkManager
+    .getByRole("button", { name: "닫기", exact: true })
+    .last()
+    .click();
+  // Include a currently used pet; the replacement cannot be another target.
+  await page.evaluate(async () => {
+    const state = await window.settings.request("settings.snapshot");
+    await window.settings.request("pet.select", {
+      epoch: state.epoch,
+      petId: state.pet.pet_id,
+      revision: state.revision,
+      id: "batch-qa-00",
+    });
+  });
+  await page.getByRole("button", { name: "펫 관리", exact: true }).click();
+  await bulkSettled();
+  await bulkManager.getByLabel("펫 이름 검색").fill("일괄 QA");
+  await bulkManager.getByRole("button", { name: "선택", exact: true }).click();
+  await bulkManager
+    .getByRole("checkbox", { name: "현재 화면 전체 선택" })
+    .check();
+  await bulkManager
+    .getByRole("button", { name: "선택한 펫 이동", exact: true })
+    .click();
+  const bulkConfirm = page.getByRole("dialog", {
+    name: "선택한 펫 이동",
+    exact: true,
+  });
+  assert.equal(
+    await bulkConfirm
+      .getByLabel("대신 사용할 펫")
+      .locator('option[value^="batch-qa-"]')
+      .count(),
+    0,
+  );
+  await bulkConfirm.getByLabel("대신 사용할 펫").selectOption("mori-bot");
+  await bulkConfirm
+    .getByRole("button", { name: "휴지통으로 이동", exact: true })
+    .click();
+  await bulkDone();
+  assert.equal((await bulkStatus()).succeeded, 55);
+  await bulkManager.getByRole("button", { name: /^휴지통 / }).click();
+  await bulkSettled();
+  await bulkManager.getByRole("button", { name: "선택", exact: true }).click();
+  await bulkManager
+    .getByRole("checkbox", { name: "현재 화면 전체 선택" })
+    .check();
+  await bulkManager.getByText("50개 선택", { exact: true }).waitFor();
+  await bulkManager.getByRole("button", { name: "다음", exact: true }).click();
+  await bulkSettled();
+  await bulkManager.getByText("0개 선택", { exact: true }).waitFor();
+  await bulkManager
+    .getByRole("checkbox", { name: "현재 화면 전체 선택" })
+    .check();
+  await bulkManager.getByText("5개 선택", { exact: true }).waitFor();
+  await page.screenshot({ path: path.join(out, "pet-batch-trash-page.png") });
+  await bulkManager
+    .getByRole("button", { name: "선택한 펫 복원", exact: true })
+    .click();
+  await bulkDone();
+  assert.equal((await bulkStatus()).succeeded, 5);
+  await bulkManager.getByRole("button", { name: "선택", exact: true }).click();
+  await bulkManager
+    .getByRole("checkbox", { name: "현재 화면 전체 선택" })
+    .check();
+  await bulkManager
+    .getByRole("button", { name: "선택한 펫 영구 삭제", exact: true })
+    .click();
+  const bulkDelete = page.getByRole("dialog", {
+    name: "선택한 펫 영구 삭제",
+    exact: true,
+  });
+  await bulkDelete.getByText(/복구할 수 없어요/).waitFor();
+  await bulkDelete.getByRole("button", { name: "취소", exact: true }).click();
+  assert.equal((await bulkStatus()).action, "restore");
+  await bulkManager
+    .getByRole("button", { name: "선택한 펫 영구 삭제", exact: true })
+    .click();
+  await bulkDelete
+    .getByRole("button", { name: "영구 삭제", exact: true })
+    .click();
+  await bulkDone();
+  assert.equal((await bulkStatus()).succeeded, 50);
+  await bulkManager.getByText("휴지통이 비어 있어요.").waitFor();
+  await bulkManager
+    .getByRole("button", { name: "닫기", exact: true })
+    .last()
+    .click();
+  metrics.petBatch = {
+    status: "passed",
+    fixtures: 55,
+    partialFailure: true,
+    cancelAndReopen: true,
+    pageScopedSelection: true,
+    groupUndo: true,
+  };
+}
+
 (async () => {
   await fs.mkdir(out, { recursive: true });
   const python = spawn(
-    path.join(root, ".venv/Scripts/python.exe"),
+    process.env.SETTINGS_QA_PYTHON ||
+      path.join(root, ".venv/Scripts/python.exe"),
     ["-m", "scripts.settings_ui_qa_server", "--edition", edition],
     {
       cwd: root,
@@ -73,10 +318,12 @@ async function until(fn, timeout = 10000) {
     app = await electron.launch({
       executablePath: executable
         ? path.resolve(executable)
-        : path.join(
-            root,
-            "settings-ui/node_modules/electron/dist/electron.exe",
-          ),
+        : process.env.SETTINGS_QA_ELECTRON
+          ? path.resolve(process.env.SETTINGS_QA_ELECTRON)
+          : path.join(
+              root,
+              "settings-ui/node_modules/electron/dist/electron.exe",
+            ),
       args: executable ? [] : [path.join(root, "settings-ui")],
       env,
       timeout: 20000,
@@ -88,6 +335,37 @@ async function until(fn, timeout = 10000) {
       .getByRole("heading", { name: "펫", exact: true, level: 1 })
       .waitFor();
     metrics.coldOpenMs = Math.round(performance.now() - start);
+    if (process.env.SETTINGS_QA_FOCUS === "pet-batch") {
+      await testPetBatch({ page, app, connection, out, metrics });
+      await page.getByRole("button", { name: "앱 설정", exact: true }).click();
+      await page.getByLabel("테마", { exact: true }).selectOption("dark");
+      await page.getByRole("button", { name: "펫", exact: true }).click();
+      await app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0].setSize(720, 600),
+      );
+      await page.getByRole("button", { name: "펫 관리", exact: true }).click();
+      const manager = page.getByRole("dialog", {
+        name: "펫 관리",
+        exact: true,
+      });
+      await manager.getByRole("button", { name: "선택", exact: true }).click();
+      await manager
+        .getByRole("checkbox", { name: "현재 화면 전체 선택" })
+        .check();
+      await page.screenshot({
+        path: path.join(out, "pet-batch-narrow-dark.png"),
+      });
+      assert.equal(
+        await manager.evaluate((node) => node.scrollWidth > node.clientWidth),
+        false,
+      );
+      metrics.status = "passed";
+      console.log(
+        JSON.stringify({ edition, focus: "pet-batch", status: "passed" }),
+      );
+      return;
+    }
+
     // Only replace the OS picker result. Electron IPC, authenticated pipe,
     // image validation, storage and the Python pet remain the real instances.
     const importBefore = await page.evaluate(() =>
@@ -486,121 +764,340 @@ async function until(fn, timeout = 10000) {
     );
     await page.getByText("현재 동작: 기본", { exact: true }).waitFor();
     await page.getByRole("tab", { name: "외형·표시", exact: true }).click();
-    await page.getByRole("button", { name: "펫 목록 관리" }).click();
-    const catalogDialog = page.getByRole("dialog", { name: "펫 목록 관리" });
-    await catalogDialog.waitFor();
-    const catalogSort = catalogDialog.getByLabel("정렬 방식");
-    await catalogSort.selectOption("name");
-    assert.equal(
-      await catalogDialog
-        .getByRole("button", { name: /위로$|아래로$/ })
-        .count(),
-      0,
-    );
-    await catalogDialog
-      .getByText(/^표시 \d+개 · 숨김 \d+개 · 이름이 바뀌거나/)
-      .waitFor();
-    // Name sort shows Python's name order (catalog entries) unchanged.
-    const nameOrder = (
-      await page.evaluate(() => window.settings.request("pet.catalog"))
-    ).entries.map((entry) => entry.name);
-    const shownOrder = (
-      await catalogDialog.locator(".catalog-row label").allTextContents()
-    ).map((label) => label.replace(/현재 사용 중$/, ""));
-    assert.deepEqual(shownOrder, nameOrder);
-    await catalogDialog.getByText("현재 사용 중", { exact: true }).waitFor();
-    await catalogSort.selectOption("custom");
-    await catalogDialog
-      .getByText(/^표시 \d+개 · 숨김 \d+개 · 끌어서 옮기거나/)
-      .waitFor();
-    assert.ok(
-      (await catalogDialog
-        .getByRole("button", { name: /위로$|아래로$/ })
-        .count()) > 0,
-    );
-    // 맨 아래로 and dragging the last row back to the top both reorder.
-    const rowNames = async () =>
-      (await catalogDialog.locator(".catalog-row label").allTextContents()).map(
-        (label) => label.replace(/현재 사용 중$/, ""),
-      );
-    const customStart = await rowNames();
-    if (customStart.length >= 2) {
-      await catalogDialog
-        .getByRole("button", { name: `${customStart[0]} 맨 아래로` })
-        .click();
-      assert.deepEqual(await rowNames(), [
-        ...customStart.slice(1),
-        customStart[0],
-      ]);
-      const rows = catalogDialog.locator(".catalog-row");
-      await rows
-        .last()
-        .locator(".drag-handle")
-        .dragTo(rows.first(), { targetPosition: { x: 40, y: 4 } });
-      assert.deepEqual(await rowNames(), customStart);
-      await catalogDialog
-        .getByRole("button", { name: `${customStart[1]} 맨 위로` })
-        .click();
-      assert.equal((await rowNames())[0], customStart[1]);
-      await catalogDialog
-        .getByRole("button", { name: `${customStart[0]} 맨 위로` })
-        .click();
-      assert.deepEqual(await rowNames(), customStart);
-    }
-    // Conflict path: a change elsewhere bumps the revision behind the dialog.
-    await page.evaluate(async () => {
-      const s = await window.settings.request("settings.snapshot");
-      await window.settings.request("settings.set", {
-        petId: s.pet.pet_id,
-        revision: s.revision,
-        epoch: s.epoch,
-        key: "idle",
-        value: !s.pet.idle_activities_enabled,
-      });
+    await page.getByRole("button", { name: "펫 관리", exact: true }).click();
+    const catalogDialog = page.getByRole("dialog", {
+      name: "펫 관리",
+      exact: true,
     });
-    await catalogDialog
-      .getByRole("button", { name: "적용", exact: true })
-      .click();
-    const catalogAlert = catalogDialog.getByRole("alert");
-    await catalogAlert.waitFor();
-    const alertText = await catalogAlert.textContent();
-    assert.ok(alertText.includes("다른 곳에서 설정이 변경됐습니다"));
-    const bodyText = await page.evaluate(() => document.body.innerText);
-    assert.ok(!bodyText.includes("Error invoking"));
-    assert.ok(!bodyText.includes("conflict:"));
-    assert.equal(await page.locator(".toast").count(), 0);
+    const settled = () =>
+      until(
+        async () =>
+          (await page
+            .locator("dialog:has(.pet-manager) .pet-manager")
+            .getAttribute("aria-busy")) === "false",
+      );
+    const rowFor = (id) => catalogDialog.locator(`[data-pet-id="${id}"]`);
+    const menuAction = async (id, label) => {
+      const row = rowFor(id);
+      await row.locator("summary").click();
+      await row.getByRole("button", { name: label, exact: true }).click();
+    };
+    const managerCatalog = await page.evaluate(() =>
+      window.settings.request("pet.catalog"),
+    );
+    const currentRow = rowFor(managerCatalog.petId);
+    assert.equal(await currentRow.getByRole("switch").isDisabled(), true);
+    assert.equal(await catalogDialog.locator(".drag-handle").count(), 0);
     assert.equal(
       await catalogDialog
         .getByRole("button", { name: "적용", exact: true })
+        .count(),
+      0,
+    );
+    await currentRow.locator("summary").click();
+    assert.equal(
+      await currentRow
+        .getByRole("button", { name: "휴지통으로 이동", exact: true })
+        .count(),
+      0,
+    );
+    await page.keyboard.press("Escape");
+    assert.equal(
+      await currentRow.locator("details").getAttribute("open"),
+      null,
+    );
+    assert.equal(
+      await currentRow
+        .locator("summary")
+        .evaluate((node) => node === document.activeElement),
+      true,
+    );
+    await rowFor(imported.id).getByRole("switch").click();
+    await until(async () =>
+      (
+        await page.evaluate(() => window.settings.request("pet.catalog"))
+      ).hidden.includes(imported.id),
+    );
+    await settled();
+    await catalogDialog.getByRole("button", { name: /^숨김 / }).click();
+    await until(
+      async () => (await catalogDialog.locator(".manager-row").count()) === 1,
+    );
+
+    await catalogDialog.getByLabel("펫 이름 검색").fill("없는 펫 이름");
+    await catalogDialog.getByText("검색 조건에 맞는 펫이 없어요.").waitFor();
+    await catalogDialog
+      .getByRole("button", { name: "검색·필터 초기화" })
+      .click();
+    await catalogDialog.getByLabel("펫 이름 검색").fill(imported.name);
+    await until(
+      async () => (await catalogDialog.locator(".manager-row").count()) === 1,
+    );
+    assert.equal(
+      await catalogDialog
+        .getByRole("button", { name: "순서 편집", exact: true })
         .isDisabled(),
       true,
     );
-    await page.screenshot({ path: path.join(out, "catalog-conflict.png") });
-    await catalogDialog
-      .getByRole("button", { name: "최신 상태 다시 불러오기", exact: true })
-      .click();
-    await until(async () => (await catalogAlert.count()) === 0);
-    assert.equal(await catalogSort.inputValue(), "custom");
-    await catalogDialog
-      .getByRole("button", { name: "적용", exact: true })
-      .click();
-    await until(async () => (await catalogDialog.count()) === 0);
+    await catalogDialog.getByLabel("펫 이름 검색").fill("");
+    await menuAction(imported.id, "이 펫 사용하기");
     await until(
       async () =>
-        (await page.evaluate(() => window.settings.request("pet.catalog")))
-          .sort === "custom",
+        (
+          await page.evaluate(() =>
+            window.settings.request("settings.snapshot"),
+          )
+        ).pet.pet_id === imported.id,
     );
-    // Restore the defaults the remaining steps rely on.
-    await page.evaluate(async (idle) => {
-      const s = await window.settings.request("settings.snapshot");
-      await window.settings.request("settings.set", {
-        petId: s.pet.pet_id,
-        revision: s.revision,
-        epoch: s.epoch,
-        key: "idle",
-        value: idle,
+    await settled();
+    assert.equal(
+      (
+        await page.evaluate(() => window.settings.request("pet.catalog"))
+      ).hidden.includes(imported.id),
+      false,
+    );
+    await menuAction(imported.id, "휴지통으로 이동");
+    const replacementDialog = page.getByRole("dialog", {
+      name: "사용 중인 펫 이동",
+      exact: true,
+    });
+    await replacementDialog
+      .getByLabel("대신 사용할 펫")
+      .selectOption(managerCatalog.petId);
+    await page.screenshot({
+      path: path.join(out, "pet-manager-current-delete.png"),
+    });
+    await replacementDialog
+      .getByRole("button", { name: "변경 후 휴지통으로 이동", exact: true })
+      .click();
+    await until(
+      async () =>
+        (await page.evaluate(() => window.settings.request("pet.trash.list")))
+          .total === 1,
+    );
+    await settled();
+    assert.equal(
+      (await page.evaluate(() => window.settings.request("settings.snapshot")))
+        .pet.pet_id,
+      managerCatalog.petId,
+    );
+    await catalogDialog
+      .getByRole("button", { name: "실행 취소", exact: true })
+      .click();
+    await until(
+      async () =>
+        (await page.evaluate(() => window.settings.request("pet.trash.list")))
+          .total === 0,
+    );
+    await settled();
+    // Immediate order editing still supports both keyboard buttons and dragging.
+    await catalogDialog.getByLabel("정렬 방식").selectOption("name");
+    await settled();
+    const rowIds = () =>
+      catalogDialog
+        .locator(".manager-row")
+        .evaluateAll((nodes) => nodes.map((node) => node.dataset.petId));
+    const startOrder = await rowIds();
+    await catalogDialog
+      .getByRole("button", { name: "순서 편집", exact: true })
+      .click();
+    await rowFor(startOrder[0])
+      .getByRole("button", { name: / 아래로$/ })
+      .click();
+    await until(async () => (await rowIds())[1] === startOrder[0]);
+    await settled();
+    for (
+      let attempt = 0;
+      attempt < 3 && (await rowIds())[0] !== startOrder[0];
+      attempt++
+    ) {
+      await settled();
+      await until(
+        async () =>
+          (await rowFor(startOrder[0])
+            .locator(".drag-handle")
+            .getAttribute("draggable")) === "true",
+      );
+      await rowFor(startOrder[0])
+        .locator(".drag-handle")
+        .dragTo(rowFor(startOrder[1]), { targetPosition: { x: 40, y: 4 } });
+      await settled();
+    }
+    await until(async () => (await rowIds())[0] === startOrder[0]);
+    await settled();
+    await rowFor(startOrder[0]).locator("summary").click();
+    await rowFor(startOrder[0])
+      .getByRole("button", { name: "맨 아래로", exact: true })
+      .click();
+    await until(async () => (await rowIds()).at(-1) === startOrder[0]);
+    await settled();
+    await catalogDialog
+      .getByRole("button", { name: "순서 편집 마치기" })
+      .click();
+    await page.screenshot({ path: path.join(out, "pet-manager.png") });
+    // Re-importing a trashed asset offers restore instead of making a duplicate.
+    await menuAction(imported.id, "휴지통으로 이동");
+    await until(
+      async () =>
+        (await page.evaluate(() => window.settings.request("pet.trash.list")))
+          .total === 1,
+    );
+    await settled();
+    await pickerResult(connection.petImportSource);
+    await catalogDialog
+      .getByRole("button", { name: "펫 추가", exact: true })
+      .click();
+    importDialog = page.getByRole("dialog", {
+      name: "펫 가져오기",
+      exact: true,
+    });
+    await importDialog
+      .getByRole("button", { name: "파일 선택", exact: true })
+      .click();
+    await importDialog
+      .getByRole("button", { name: "추가", exact: true })
+      .click();
+    await importDialog
+      .getByRole("button", { name: "휴지통에서 복원", exact: true })
+      .click();
+    await importDialog
+      .getByRole("button", { name: "이 펫 사용", exact: true })
+      .waitFor();
+    await importDialog
+      .getByRole("button", { name: "닫기", exact: true })
+      .last()
+      .click();
+    await settled();
+    await app.evaluate(({ dialog }) => {
+      dialog.showOpenDialog = globalThis.qaOriginalPicker;
+    });
+    await menuAction(imported.id, "휴지통으로 이동");
+    await until(
+      async () =>
+        (await page.evaluate(() => window.settings.request("pet.trash.list")))
+          .total === 1,
+    );
+    await settled();
+    await catalogDialog.getByRole("button", { name: /^휴지통 / }).click();
+    const trashDialog = page.getByRole("dialog", {
+      name: "펫 휴지통",
+      exact: true,
+    });
+    await trashDialog
+      .getByRole("button", { name: "복원", exact: true })
+      .waitFor();
+    await page.screenshot({ path: path.join(out, "pet-trash.png") });
+    await trashDialog
+      .getByRole("button", { name: "복원", exact: true })
+      .click();
+    await until(
+      async () =>
+        (await page.evaluate(() => window.settings.request("pet.trash.list")))
+          .total === 0,
+    );
+    await trashDialog.getByText("휴지통이 비어 있어요.").waitFor();
+    await settled();
+    await trashDialog
+      .getByRole("button", { name: "펫 목록", exact: true })
+      .click();
+    await catalogDialog.waitFor();
+    await menuAction(imported.id, "휴지통으로 이동");
+    await until(
+      async () =>
+        (await page.evaluate(() => window.settings.request("pet.trash.list")))
+          .total === 1,
+    );
+    await settled();
+    await catalogDialog.getByRole("button", { name: /^휴지통 / }).click();
+    await trashDialog
+      .getByRole("button", { name: "영구 삭제", exact: true })
+      .click();
+    const deleteDialog = page.getByRole("dialog", {
+      name: "펫 영구 삭제",
+      exact: true,
+    });
+    await deleteDialog.getByText(/삭제 후에는 복원할 수 없어요/).waitFor();
+    await deleteDialog
+      .getByRole("button", { name: "취소", exact: true })
+      .click();
+    assert.equal(
+      (await page.evaluate(() => window.settings.request("pet.trash.list")))
+        .total,
+      1,
+    );
+    await trashDialog
+      .getByRole("button", { name: "영구 삭제", exact: true })
+      .click();
+    await deleteDialog
+      .getByRole("button", { name: "영구 삭제", exact: true })
+      .click();
+    await trashDialog.getByText("휴지통이 비어 있어요.").waitFor();
+    // The late invalidate after a change reloads the lists. View navigation
+    // must stay enabled through it, or an immediate click is swallowed.
+    await page.evaluate(() => {
+      window.__navDisabled = 0;
+      window.__navObserver = new MutationObserver((records) => {
+        for (const record of records)
+          if (
+            record.oldValue === null &&
+            record.target.textContent?.includes("펫 목록")
+          )
+            window.__navDisabled++;
       });
-    }, originalSnapshot.pet.idle_activities_enabled);
+      window.__navObserver.observe(document.body, {
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["disabled"],
+        attributeOldValue: true,
+      });
+    });
+    await pause(1500);
+    assert.equal(
+      await page.evaluate(() => {
+        window.__navObserver.disconnect();
+        return window.__navDisabled;
+      }),
+      0,
+      "pet list navigation was disabled by a background reload",
+    );
+    await trashDialog
+      .getByRole("button", { name: "펫 목록", exact: true })
+      .click();
+    await catalogDialog.waitFor();
+    const remaining = await page.evaluate(() =>
+      window.settings.request("pet.catalog"),
+    );
+    const alternate = remaining.entries.find(
+      (entry) => entry.canDelete && entry.id !== remaining.petId,
+    );
+    assert.ok(alternate);
+    await menuAction(alternate.id, "휴지통으로 이동");
+    await until(
+      async () =>
+        (await page.evaluate(() => window.settings.request("pet.trash.list")))
+          .total === 1,
+    );
+    await settled();
+    await catalogDialog.getByRole("button", { name: /^휴지통 / }).click();
+    await trashDialog
+      .getByRole("button", { name: "휴지통 비우기", exact: true })
+      .click();
+    await page
+      .getByRole("dialog", { name: "휴지통 비우기", exact: true })
+      .getByRole("button", { name: "모두 영구 삭제", exact: true })
+      .click();
+    await trashDialog.getByText("휴지통이 비어 있어요.").waitFor();
+    await trashDialog
+      .getByRole("button", { name: "닫기", exact: true })
+      .last()
+      .click();
+    await testPetBatch({ page, app, connection, out, metrics });
+    metrics.petManager = {
+      status: "passed",
+      isolatedData: true,
+      immediateSave: true,
+      lifecycle: "move, undo, import restore, restore, delete, empty",
+    };
     await page.getByRole("button", { name: "말풍선", exact: true }).click();
     const bubbleIntro = page.locator(".bubble-intro");
     assert.equal(
@@ -1096,15 +1593,30 @@ async function until(fn, timeout = 10000) {
       }, theme);
       await trendButton("추이 도구", "Codex").click();
       await trendButton("추이 그래프 종류", "오늘 토큰").click();
-      const codexUsageSwitch = page.getByRole("switch", {
-        name: "Codex 사용량 사용",
-        exact: true,
-      });
-      const claudeUsageSwitch = page.getByRole("switch", {
-        name: "Claude Code 사용량 사용",
-        exact: true,
-      });
-      await codexUsageSwitch.click();
+      // Each tool's one switch lives on the connections page; here the
+      // bridge flips it so the usage page can be checked in place.
+      const switchTool = (provider, enabled) =>
+        page.evaluate(
+          async ([provider, enabled]) => {
+            const { epoch } = await window.settings.request("usage.snapshot");
+            const plan = await window.settings.request("integration.preview", {
+              epoch,
+              operation: enabled ? "enable" : "disable",
+              provider,
+            });
+            await window.settings.request("integration.apply", {
+              epoch,
+              token: plan.token,
+            });
+          },
+          [provider, enabled],
+        );
+      // No per-tool switch on the usage page any more.
+      assert.equal(
+        await page.getByRole("switch", { name: /사용량 사용$/ }).count(),
+        0,
+      );
+      await switchTool("codex", false);
       await until(
         async () =>
           (await page
@@ -1112,8 +1624,9 @@ async function until(fn, timeout = 10000) {
             .count()) === 0,
       );
       assert.equal(
-        await claudeUsageSwitch.getAttribute("aria-checked"),
-        "true",
+        (await page.evaluate(() => window.settings.request("usage.snapshot")))
+          .claude_code_enabled,
+        true,
       );
       assert.equal(
         await page.locator('[data-provider="claude_code"] .quota-card').count(),
@@ -1129,8 +1642,13 @@ async function until(fn, timeout = 10000) {
         await page.getByRole("group", { name: "추이 도구" }).count(),
         0,
       );
+      // Codex-only sections go with it.
+      assert.equal(
+        await page.getByRole("heading", { name: "오늘의 기기 활동" }).count(),
+        0,
+      );
       await page.screenshot({ path: path.join(out, "usage-claude-only.png") });
-      await codexUsageSwitch.click();
+      await switchTool("codex", true);
       await fs.writeFile(
         connection.control,
         JSON.stringify({ action: "codex_limits" }),
@@ -1139,14 +1657,18 @@ async function until(fn, timeout = 10000) {
         .locator('[data-provider="codex"] .quota-card')
         .first()
         .waitFor();
-      await claudeUsageSwitch.click();
+      await switchTool("claude_code", false);
       await until(
         async () =>
           (await page
             .locator('[data-provider="claude_code"] .quota-card')
             .count()) === 0,
       );
-      assert.equal(await codexUsageSwitch.getAttribute("aria-checked"), "true");
+      assert.equal(
+        (await page.evaluate(() => window.settings.request("usage.snapshot")))
+          .enabled,
+        true,
+      );
       assert.equal(
         await page.locator('[data-provider="codex"] .quota-card').count(),
         3,
@@ -1156,7 +1678,7 @@ async function until(fn, timeout = 10000) {
         0,
       );
       await page.screenshot({ path: path.join(out, "usage-codex-only.png") });
-      await claudeUsageSwitch.click();
+      await switchTool("claude_code", true);
       await fs.writeFile(
         connection.control,
         JSON.stringify({ action: "claude_code_limits" }),
@@ -1343,27 +1865,35 @@ async function until(fn, timeout = 10000) {
         2,
       );
       const codexConnectionSwitch = page.getByRole("switch", {
-        name: "Codex 연결",
+        name: "Codex 사용",
         exact: true,
       });
       assert.equal(
         await codexConnectionSwitch.getAttribute("aria-checked"),
-        "false",
+        "true",
       );
-      // Not connected is neutral and the switch connects; hero buttons only
-      // appear when something needs fixing.
-      assert.equal(await page.locator(".status-hero .button").count(), 0);
-      assert.equal(await page.locator(".status-hero.tone-off").count(), 2);
-      await codexConnectionSwitch.click();
-      await page.getByRole("dialog", { name: "연결 변경 검토" }).waitFor();
-      await page.getByRole("button", { name: "취소", exact: true }).click();
+      // Turning Codex back on above installed its hook. Without the hook,
+      // Codex stays in use and the hero offers to connect it again.
+      await fs.rm(
+        path.join(path.dirname(connection.control), "codex", "hooks.json"),
+      );
+      await page.getByRole("button", { name: "새로고침", exact: true }).click();
+      const codexHook = page.getByRole("button", {
+        name: "hook 연결하기",
+        exact: true,
+      });
+      await until(async () => (await codexHook.count()) === 1);
       assert.equal(
         await codexConnectionSwitch.getAttribute("aria-checked"),
-        "false",
+        "true",
       );
+      await codexHook.click();
+      await page.getByRole("dialog", { name: "연결 변경 검토" }).waitFor();
+      await page.getByRole("button", { name: "취소", exact: true }).click();
+      assert.equal(await codexHook.count(), 1);
       await page.screenshot({ path: path.join(out, "integration.png") });
       // Applying writes only the isolated QA hook files.
-      await codexConnectionSwitch.click();
+      await codexHook.click();
       await page
         .getByRole("button", { name: "변경 적용", exact: true })
         .click();
@@ -1379,21 +1909,12 @@ async function until(fn, timeout = 10000) {
       await page.screenshot({
         path: path.join(out, "integration-applied.png"),
       });
-      // Claude Code's switch installs into the isolated QA settings.json only.
+      // Claude Code was turned back on above, which installed its hooks
+      // into the isolated QA settings.json only.
       const claudeSwitch = page.getByRole("switch", {
-        name: "Claude Code 연결",
+        name: "Claude Code 사용",
       });
-      assert.equal(await claudeSwitch.getAttribute("aria-checked"), "false");
-      await claudeSwitch.click();
-      await page.getByRole("dialog", { name: "연결 변경 검토" }).waitFor();
-      await page
-        .getByRole("button", { name: "변경 적용", exact: true })
-        .click();
-      await page.getByText("연결 설정을 적용했습니다.").waitFor();
-      await until(
-        async () =>
-          (await claudeSwitch.getAttribute("aria-checked")) === "true",
-      );
+      assert.equal(await claudeSwitch.getAttribute("aria-checked"), "true");
       await page
         .getByRole("heading", {
           name: "Claude Code 작업 상태를 받을 준비가 됐어요",
@@ -1437,8 +1958,12 @@ async function until(fn, timeout = 10000) {
       // App-wide rows and per-tool repair/removal at the bottom, light and dark.
       await page.locator("details.advanced > summary").click();
       await page
-        .getByRole("button", { name: "Claude Code 제거 검토", exact: true })
+        .getByRole("button", { name: "Claude Code 복구 검토", exact: true })
         .scrollIntoViewIfNeeded();
+      assert.equal(
+        await page.getByRole("button", { name: /제거 검토$/ }).count(),
+        0,
+      );
       await page.screenshot({
         path: path.join(out, "integration-bottom.png"),
       });
@@ -1456,7 +1981,8 @@ async function until(fn, timeout = 10000) {
         document.documentElement.dataset.theme = value;
       }, integrationTheme);
       await page.locator("details.advanced > summary").click();
-      // Codex removal and cancellation leave Claude and usage switches alone.
+      // Turning Codex off removes its hook and its usage together, and
+      // leaves Claude Code alone; cancelling changes nothing.
       await codexConnectionSwitch.click();
       await page.getByRole("dialog", { name: "연결 변경 검토" }).waitFor();
       await page.getByRole("button", { name: "취소", exact: true }).click();
@@ -1478,8 +2004,15 @@ async function until(fn, timeout = 10000) {
       const usageAfterDisconnect = await page.evaluate(() =>
         window.settings.request("usage.snapshot"),
       );
-      assert.equal(usageAfterDisconnect.enabled, true);
+      assert.equal(usageAfterDisconnect.enabled, false);
       assert.equal(usageAfterDisconnect.claude_code_enabled, true);
+      // A switched-off tool keeps only its switch on this page.
+      assert.equal(
+        await page
+          .locator('.provider-block[aria-label="Codex"] .check-heading')
+          .count(),
+        0,
+      );
       await page.screenshot({
         path: path.join(out, "integration-codex-off.png"),
       });
@@ -1668,6 +2201,36 @@ async function until(fn, timeout = 10000) {
     );
     await page.getByRole("tab", { name: "외형·표시", exact: true }).click();
     await page.screenshot({ path: path.join(out, "pet-narrow.png") });
+    await page.getByRole("button", { name: "펫 관리", exact: true }).click();
+    await page
+      .getByRole("dialog", { name: "펫 관리", exact: true })
+      .locator(".manager-row")
+      .first()
+      .waitFor();
+    await page.screenshot({
+      path: path.join(out, "pet-manager-narrow-dark.png"),
+    });
+    await page
+      .getByRole("dialog", { name: "펫 관리", exact: true })
+      .getByRole("button", { name: "선택", exact: true })
+      .click();
+    await page.getByRole("checkbox", { name: "현재 화면 전체 선택" }).check();
+    await page.screenshot({
+      path: path.join(out, "pet-batch-narrow-dark.png"),
+    });
+
+    assert.equal(
+      await page
+        .getByRole("dialog", { name: "펫 관리", exact: true })
+        .evaluate((node) => node.scrollWidth > node.clientWidth),
+      false,
+    );
+    await page
+      .getByRole("dialog", { name: "펫 관리", exact: true })
+      .getByRole("button", { name: "닫기", exact: true })
+      .last()
+      .click();
+
     await page.screenshot({ path: path.join(out, "narrow.png") });
     await page.locator(".pet-size-control").scrollIntoViewIfNeeded();
     await page.screenshot({

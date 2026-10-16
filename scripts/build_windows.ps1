@@ -118,6 +118,9 @@ if ($buildEdition -eq "pet-assistant") {
 if ($LASTEXITCODE -ne 0) { throw "The settings UI package failed." }
 
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+# Partial updates are made only between bundles of one installer revision.
+$installerRevision = [int](Get-Content -Raw -LiteralPath (Join-Path $projectRoot "packaging\installer-revision.json") | ConvertFrom-Json).revision
+if ($installerRevision -lt 1) { throw "packaging/installer-revision.json has no valid revision." }
 [IO.File]::WriteAllLines(
     (Join-Path $bundle "BUILD_PROFILE.txt"),
     [string[]]@(
@@ -125,6 +128,7 @@ $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
         "profile=$buildProfile"
         "edition=$buildEdition"
         "update_channel=$updateChannel"
+        "installer_revision=$installerRevision"
     ),
     $utf8NoBom
 )

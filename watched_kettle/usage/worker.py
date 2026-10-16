@@ -285,8 +285,6 @@ class UsageWorkerService(QObject):
         self.preferences = preferences
         self.enabled = preferences.load_usage_enabled()
         self.claude_code_enabled = preferences.load_claude_code_usage_enabled()
-        # Freeze the old shared setting's initial value before either toggle changes.
-        preferences.save_claude_code_usage_enabled(self.claude_code_enabled)
         self.quiet_summary_enabled = preferences.load_usage_quiet_summary_enabled()
         self.snapshot = UsageSnapshot()
         self.claude_code_snapshot = ClaudeCodeUsageSnapshot()

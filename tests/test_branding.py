@@ -17,6 +17,15 @@ class BrandingTests(unittest.TestCase):
     def test_application_version_is_release_ready(self):
         self.assertRegex(APPLICATION_VERSION, r"^\d+\.\d+\.\d+$")
 
+    def test_installer_app_guid_matches_the_installer_script(self):
+        # The app updates the installer's uninstall entry after a partial update.
+        from watched_kettle.branding import INSTALLER_APP_GUID, PROJECT_ROOT
+
+        script = (PROJECT_ROOT / "packaging" / "windows-installer.iss").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(f"AppId={{{{{INSTALLER_APP_GUID}}}", script)
+
 
 if __name__ == "__main__":
     unittest.main()

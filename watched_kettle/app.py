@@ -187,6 +187,14 @@ def main(
 
     requested_pet_directory = Path(sys.argv[1]) if len(sys.argv) >= 2 else None
     preferences = ApplicationPreferences()
+    # Finish durable package operations before choosing the startup pet.
+    from watched_kettle.pet.trash import PetTrashService
+
+    PetTrashService(
+        paths.user_pets,
+        (paths.user_pets, DEFAULT_PETS_ROOT, DEFAULT_PRIVATE_PETS_ROOT),
+        preferences,
+    ).recover()
     startup_result, requested_pet_directory = create_pet_with_recovery(
         requested_pet_directory,
         preferences,
@@ -233,7 +241,11 @@ def main(
     runtime = runtime_factory(app, pet, preferences, paths=paths)
     runtime.start()
     codex_notice = None
-    if getattr(runtime, "codex_server", None) is not None:
+    tool_enabled = getattr(runtime, "tool_enabled", None)
+    # No Codex notice while Codex is switched off in the settings window.
+    if getattr(runtime, "codex_server", None) is not None and (
+        tool_enabled is None or tool_enabled("codex")
+    ):
         codex_notice = prepare_codex_detection_notice(
             preferences,
             runtime.codex_server.diagnostics()["codex_environment"]["detected"],

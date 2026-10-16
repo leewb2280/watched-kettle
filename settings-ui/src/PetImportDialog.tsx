@@ -10,7 +10,13 @@ type Preparation = {
   thumbnail: string;
   spriteVersion: number;
 };
-type Registration = { id: string; name: string; alreadyExists: boolean };
+type Registration = {
+  id: string;
+  name: string;
+  alreadyExists: boolean;
+  restoreRequired?: boolean;
+  trashId?: string;
+};
 
 export function PetImportDialog({
   shell,
@@ -81,6 +87,23 @@ export function PetImportDialog({
       setBusy(false);
     }
   };
+  const restore = async () => {
+    if (!registered?.trashId) return;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await shell.command(
+        "pet.trash.restore",
+        { trashId: registered.trashId },
+        { inline: true },
+      );
+      setRegistered({ id: result.id, name: result.name, alreadyExists: false });
+    } catch (failure) {
+      setError(errorText(failure));
+    } finally {
+      setBusy(false);
+    }
+  };
   const use = async () => {
     if (!registered) return;
     setBusy(true);
@@ -123,8 +146,12 @@ export function PetImportDialog({
             {registered ? "닫기" : "취소"}
           </button>
           {registered ? (
-            <button className="button primary" disabled={busy} onClick={use}>
-              이 펫 사용
+            <button
+              className="button primary"
+              disabled={busy}
+              onClick={registered.restoreRequired ? restore : use}
+            >
+              {registered.restoreRequired ? "휴지통에서 복원" : "이 펫 사용"}
             </button>
           ) : (
             <button
@@ -155,9 +182,11 @@ export function PetImportDialog({
           {registered ? (
             <p role="status">
               <strong>{registered.name}</strong>
-              {registered.alreadyExists
-                ? "은(는) 이미 등록되어 있습니다. 기존 이름과 설정을 유지합니다."
-                : "을(를) 펫 목록에 추가했습니다."}
+              {registered.restoreRequired
+                ? "은(는) 휴지통에 있어요. 이전 이름과 설정을 그대로 복원할 수 있어요."
+                : registered.alreadyExists
+                  ? "은(는) 이미 등록되어 있습니다. 기존 이름과 설정을 유지합니다."
+                  : "을(를) 펫 목록에 추가했습니다."}
             </p>
           ) : (
             <label className="pet-import-name">

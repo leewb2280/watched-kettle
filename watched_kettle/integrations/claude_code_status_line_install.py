@@ -10,17 +10,19 @@ graphical panel does not (measured 2026-10-03).
 
 from __future__ import annotations
 
+import base64
+import binascii
 from copy import deepcopy
 from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
-import sys
 
 from watched_kettle.integrations.claude_code_install import (
     ClaudeCodeHookInstaller,
-    _bash_quote,
     _dump_settings,
+    bridge_invocation,
+    shell_neutral_command,
 )
 from watched_kettle.integrations.claude_code_transcript import claude_config_dir
 from watched_kettle.integrations.codex_install import (
@@ -33,7 +35,6 @@ from watched_kettle.integrations.codex_install import (
     _backup,
     _fingerprint,
     _read_utf8,
-    default_hook_executable,
 )
 from watched_kettle.integrations.codex_spool import DEFAULT_USER_RUNTIME_ROOT
 
@@ -55,23 +56,29 @@ class ClaudeCodeStatusLineStatus:
 
 
 def build_status_line_command(project_root=None, executable=None):
-    if executable is not None or getattr(sys, "frozen", False):
-        executable = (
-            Path(executable).resolve()
-            if executable is not None
-            else default_hook_executable()
-        )
-        prefix = _bash_quote(executable)
-    else:
-        root = Path(project_root or Path(__file__).resolve().parents[2]).resolve()
-        python = root / ".venv" / "Scripts" / "python.exe"
-        prefix = f"{_bash_quote(python)} {_bash_quote(root / 'main_hook_bridge.py')}"
-    return f"{prefix} {STATUS_LINE_FLAG} --managed-id {MANAGED_MARKER}"
+    """Status lines have no exec form, so the string must suit either shell."""
+    command, prefix = bridge_invocation(project_root, executable)
+    return shell_neutral_command(
+        command, *prefix, STATUS_LINE_FLAG, "--managed-id", MANAGED_MARKER
+    )
 
 
 def is_managed_status_line(value):
     command = value.get("command") if isinstance(value, dict) else None
-    return isinstance(command, str) and STATUS_LINE_FLAG in command
+    return isinstance(command, str) and (
+        STATUS_LINE_FLAG in command or STATUS_LINE_FLAG in _encoded_script(command)
+    )
+
+
+def _encoded_script(command):
+    """Return the script of a ``-EncodedCommand`` call, which hides the flag."""
+    words = command.split()
+    if len(words) < 2 or words[-2].lower() != "-encodedcommand":
+        return ""
+    try:
+        return base64.b64decode(words[-1], validate=True).decode("utf-16-le")
+    except (binascii.Error, UnicodeDecodeError):
+        return ""
 
 
 class ClaudeCodeStatusLineInstaller:

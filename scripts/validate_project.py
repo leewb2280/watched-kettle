@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import subprocess
@@ -24,6 +25,13 @@ MARKDOWN_LINK = re.compile(r"(?<!!)\[[^]]*]\(([^)]+)\)")
 ROADMAP_STAGE = re.compile(r"^#{2,3}\s+(\d+(?:\.\d+)?)\.\s", re.MULTILINE)
 VERSION_ASSIGNMENT = re.compile(
     r'^APPLICATION_VERSION\s*=\s*["\']([^"\']+)["\']', re.MULTILINE
+)
+# Partial updates replace only runtime folders, so a release whose installer
+# or launcher changed must ship as a full installer (docs/decisions/0007).
+INSTALLER_REVISION_FILE = Path("packaging") / "installer-revision.json"
+INSTALLER_SOURCES = (
+    "packaging/windows-installer.iss",
+    "packaging/launcher/WatchedKettleLauncher.cs",
 )
 
 
@@ -193,14 +201,46 @@ def validate_workspace_tracking() -> list[str]:
     return [f"pet-workspaces: generated files are tracked: {preview}{suffix}"]
 
 
+def installer_source_digest() -> str:
+    """SHA-256 of the installer and launcher sources, line endings normalized."""
+    digest = hashlib.sha256()
+    for name in INSTALLER_SOURCES:
+        text = (PROJECT_ROOT / name).read_bytes().replace(b"\r\n", b"\n")
+        digest.update(name.encode("ascii") + b"\0" + text + b"\0")
+    return digest.hexdigest()
+
+
+def validate_installer_revision() -> list[str]:
+    """The revision must move whenever the installer or launcher source moves."""
+    path = PROJECT_ROOT / INSTALLER_REVISION_FILE
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+        revision, recorded = record["revision"], record["sha256"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return [f"{INSTALLER_REVISION_FILE.as_posix()}: missing or invalid"]
+    if not isinstance(revision, int) or revision < 1:
+        return [f"{INSTALLER_REVISION_FILE.as_posix()}: revision must be 1 or more"]
+    current = installer_source_digest()
+    if recorded != current:
+        return [
+            f"{INSTALLER_REVISION_FILE.as_posix()}: the installer or launcher changed. "
+            f"Raise revision to {revision + 1} and set sha256 to {current}"
+        ]
+    return []
+
+
 def main() -> int:
     """Run every repository invariant and return a process exit code."""
+    if sys.argv[1:] == ["--installer-digest"]:
+        print(installer_source_digest())
+        return 0
     errors = [
         *validate_markdown_links(),
         *validate_roadmap_stages(),
         *validate_version_source(),
         *validate_pet_manifests(),
         *validate_workspace_tracking(),
+        *validate_installer_revision(),
     ]
     if errors:
         for error in errors:

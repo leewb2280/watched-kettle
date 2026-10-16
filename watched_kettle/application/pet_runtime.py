@@ -39,6 +39,7 @@ class PetRuntime(QObject):
                 lambda: self.settings.open_route("app_startup"),
                 pet.frames["idle"][0],
                 parent=self,
+                updates=self.settings_vm.updates,
             )
             if require_tray or QSystemTrayIcon.isSystemTrayAvailable()
             else None

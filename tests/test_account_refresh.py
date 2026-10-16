@@ -422,7 +422,10 @@ class AccountRefreshTests(unittest.TestCase):
         self.service.set_enabled(False)
         self.assertEqual(self.service.snapshot.refresh.state, "cancelled")
         self.assertFalse(self.service.refresh(force=True))
-        self.assertTrue(self.monitor.periodic.isActive())
+        # Codex switched off: no auth.json polling and no account probe.
+        self.assertFalse(self.monitor.periodic.isActive())
+        self.assertFalse(self.monitor.file_timer.isActive())
+        self.assertIsNone(self.monitor.client)
 
     def test_same_account_recovers_from_offline_with_fresh_connection(self):
         self.ready()
@@ -689,7 +692,9 @@ class AccountRefreshTests(unittest.TestCase):
         )
         timeout.timeout.connect(loop.quit)
         poll.start(10)
-        timeout.start(3000)
+        # The loop exits as soon as the worker is ready; the cap only bounds a
+        # slow CI start under coverage, where 3 s was not always enough.
+        timeout.start(15000)
         loop.exec()
         poll.stop()
         timeout.stop()

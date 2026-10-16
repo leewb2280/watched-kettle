@@ -31,6 +31,10 @@ from watched_kettle.ui.usage_widget.backdrop import acrylic_available
 from watched_kettle.ui.project_bubble_rows import _badge_presentation
 
 
+# Plan key for a tool switch; hook repairs are keyed by their provider.
+TOOL_PLAN = "tool"
+
+
 class AssistantSettingsAdapter:
     def __init__(self, core, runtime):
         self.core, self.runtime = core, runtime
@@ -207,7 +211,10 @@ class AssistantSettingsAdapter:
             claude_code=dict(
                 data=wire(claude_code),
                 # Limit cards explain when the status line is not connected.
-                status_line=(self._status_line_snapshot() or {}).get("state"),
+                # Claude Code's settings file is not read while it is off.
+                status_line=(self._status_line_snapshot() or {}).get("state")
+                if vm.claude_code_enabled
+                else None,
             )
             if claude_code is not None
             else None,
@@ -300,17 +307,25 @@ class AssistantSettingsAdapter:
                 ],
             )
         if method == "integration.snapshot":
-            install = self.runtime.integrations_vm.install_status()
+            codex = self.usage.enabled
+            # Codex's hook files are not read while it is off.
+            install = self.runtime.integrations_vm.install_status() if codex else None
             return dict(
                 diagnostics=_safe_snapshot(
                     self.runtime.integrations_vm.refresh_requested()
                 ),
-                status=install.message,
+                codex_active=codex,
+                codex_detected=self.runtime.codex_detected(),
+                status=install.message if install else "",
                 install=dict(
                     state=install.state,
                     message=install.message,
                     installed_events=install.installed_events,
                     expected_events=install.expected_events,
+                )
+                if install
+                else dict(
+                    state="inactive", message="", installed_events=0, expected_events=0
                 ),
                 storage=wire(self.runtime.database.availability),
                 claude_code=self._claude_code_snapshot(),
@@ -323,9 +338,8 @@ class AssistantSettingsAdapter:
         vm = self.usage
         if method == "usage.set":
             key, value = text(args.get("key")), args.get("value")
+            # Each tool's own switch lives on the connections page.
             bools = {
-                "enabled": vm.set_enabled,
-                "claude_code_enabled": vm.set_claude_code_enabled,
                 "quiet_summary": vm.set_quiet_summary_enabled,
                 "widget_visible": vm.set_widget_visible,
                 "widget_tasks": vm.set_widget_tasks_visible,
@@ -447,10 +461,32 @@ class AssistantSettingsAdapter:
                 "expired",
             )
             return dict(opened=self.runtime.action_router.open(token))
+        elif method == "integration.preview" and args.get("operation") in (
+            "enable",
+            "disable",
+        ):
+            tool = choice(args.get("provider"), self.runtime.tools)
+            plan = self.runtime.preview_tool(tool, args["operation"] == "enable")
+            self.plans.clear()
+            token = uuid4().hex
+            self.plans[token] = (TOOL_PLAN, plan)
+            return dict(
+                token=token,
+                canApply=plan.can_apply,
+                changes=list(plan.changes),
+                warnings=list(plan.warnings),
+            )
         elif method == "integration.preview":
             operation = choice(args.get("operation"), ("install", "repair", "remove"))
             provider = choice(
-                args.get("provider", "codex"), self.runtime.integrations_vm.providers
+                args.get("provider", "codex"), self.runtime.active_providers()
+            )
+            # Tool hooks follow the tool's switch; only the status line, an
+            # option of Claude Code, connects and disconnects on its own.
+            require(
+                operation == "repair" or provider == "claude_code_status_line",
+                "도구 사용 스위치로 연결을 켜고 끕니다.",
+                "unsupported",
             )
             fn = {
                 "install": self.runtime.integrations_vm.preview_install,
@@ -475,7 +511,12 @@ class AssistantSettingsAdapter:
                 "expired",
             )
             provider, plan = entry
-            self.runtime.integrations_vm.apply_plan(plan, provider)
+            if provider == TOOL_PLAN:
+                self.runtime.apply_tool(plan)
+            elif provider in self.runtime.active_providers():
+                self.runtime.integrations_vm.apply_plan(plan, provider)
+            else:
+                raise CommandError("expired", "도구가 꺼져 변경을 적용하지 않았습니다.")
         elif method == "integration.set" and args.get("key") == "status_line_layout":
             value = args.get("value")
             require(isinstance(value, dict) and isinstance(value.get("lines"), list))
@@ -512,9 +553,25 @@ class AssistantSettingsAdapter:
         vm = self.runtime.integrations_vm
         if "claude_code" not in vm.providers:
             return None
-        install = vm.install_status("claude_code")
         work, waiting = self.runtime.preferences.load_claude_code_timeouts()
+        if not self.usage.claude_code_enabled:
+            # Off: only whether Claude Code is on this PC, from its folder.
+            return dict(
+                active=False,
+                install=dict(
+                    state="inactive",
+                    message="",
+                    installed_events=0,
+                    expected_events=0,
+                    detected=self.runtime.claude_code_detected(),
+                ),
+                work_minutes=work,
+                waiting_minutes=waiting,
+                status_line=None,
+            )
+        install = vm.install_status("claude_code")
         return dict(
+            active=True,
             install=dict(
                 state=install.state,
                 message=install.message,

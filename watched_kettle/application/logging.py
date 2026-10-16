@@ -36,6 +36,11 @@ _EVENT_FIELDS = frozenset(
         "refresh_id",
         "queue_size",
         "result",
+        # Update download size and partial update file counts (numbers only).
+        "bytes",
+        "linked",
+        "copied",
+        "extracted",
         # Activity trace (WATCHED_KETTLE_TRACE_ACTIVITY): hashes and enums only.
         "source",
         "scope",

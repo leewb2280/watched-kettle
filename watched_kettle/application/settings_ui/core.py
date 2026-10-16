@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import OrderedDict
 import base64
 from dataclasses import asdict
 from io import BytesIO
@@ -30,11 +31,15 @@ from watched_kettle.application.settings_ui.contracts import (
     text,
     wire,
 )
+from watched_kettle.application.logging import log_event
+from watched_kettle.application.settings_ui.pet_batch import PetBatchController
 from watched_kettle.application.update_check import (
+    FOUND_MESSAGE,
     INSTALLING_MESSAGE,
+    UpdateCheckSchedule,
     release_url_kind,
 )
-from watched_kettle.branding import APPLICATION_VERSION
+from watched_kettle.branding import APPLICATION_VERSION, PROJECT_ROOT
 from watched_kettle.config import (
     CODEX_MAX_PET_WIDTH,
     DEFAULT_PET_WIDTH,
@@ -53,6 +58,7 @@ from watched_kettle.pet.importer import (
     PetImportError,
     PetImporter,
 )
+from watched_kettle.pet.trash import PetTrashError
 from watched_kettle.ui.bubble_elements import BubbleElementError
 from watched_kettle.ui.bubble_theme_preview import BubbleThemePreview
 from watched_kettle.ui.pet_controls import ACTION_TEST_STATES, size_label
@@ -107,6 +113,8 @@ class CoreSettingsAdapter(QObject):
         self.revision = 0
         self.account_epoch = 0
         self.assistant = None
+        self.pet_batch = PetBatchController(self)
+        self._thumbnails = OrderedDict()
         self.pet_importer = PetImporter(self.pet_vm.pet.user_pets_root)
         self.import_timer = QTimer(self)
         self.import_timer.setSingleShot(True)
@@ -116,6 +124,11 @@ class CoreSettingsAdapter(QObject):
         self.pet_vm.snapshot_changed.connect(self._pet_changed)
         self.updates = self.settings_vm.updates
         self.updates.changed.connect(self._update_changed)
+        self.updates.found.connect(self._update_found)
+        self.update_schedule = UpdateCheckSchedule(
+            self.updates, preferences, parent=self
+        )
+        self.update_schedule.start()
 
     def _update_changed(self):
         if self.updates.state == "installing":
@@ -123,6 +136,14 @@ class CoreSettingsAdapter(QObject):
             # be back, as the settings window may be closed.
             self.pet_vm.preview_bubble(INSTALLING_MESSAGE)
         self.changed.emit("settings")
+
+    def _update_found(self, version):
+        """Tell about each version an automatic check finds only once."""
+        if self.preferences.load_update_announced_version() == version:
+            return
+        self.preferences.save_update_announced_version(version)
+        shown = self.pet_vm.announce(FOUND_MESSAGE.format(version=version))
+        log_event("application.update", "announced", version=version, shown=shown)
 
     @staticmethod
     def _signature(snapshot):
@@ -393,20 +414,37 @@ class CoreSettingsAdapter(QObject):
             animations=[
                 dict(label=label, value=value) for label, value in ACTION_TEST_STATES
             ],
-            update=self.updates.snapshot(),
+            update=dict(
+                self.updates.snapshot(),
+                auto_check=self.preferences.load_update_auto_check(),
+            ),
         )
 
     def catalog(self):
         sort, order, hidden = self.pet_vm.catalog_preferences()
         entries = []
+        duplicate_ids = self.pet_vm.packages.duplicate_ids()
         # Name order is the renderer's base order for both sort modes.
         for entry in order_pet_entries(self.pet_vm.all_pets(), "name"):
+            reason = self.pet_vm.packages.deletion_reason(entry, duplicate_ids)
             entries.append(
                 dict(
                     id=entry.id,
                     name=entry.display_name,
                     description=entry.description,
                     thumbnail=self._thumbnail(entry),
+                    source="user"
+                    if entry.directory.absolute().parent
+                    == self.pet_vm.packages.user_root
+                    else "bundled"
+                    if entry.directory.resolve().parent
+                    in {
+                        (PROJECT_ROOT / "pets").resolve(),
+                        (PROJECT_ROOT / "private-pets").resolve(),
+                    }
+                    else "external",
+                    canDelete=not reason,
+                    deletionReason=reason,
                 )
             )
         require(len(entries) <= 256, "펫 목록이 너무 큽니다.")
@@ -415,6 +453,38 @@ class CoreSettingsAdapter(QObject):
             order=list(order),
             hidden=list(hidden),
             sort=sort,
+            petId=self.pet_vm.snapshot.pet_id,
+            revision=self.revision,
+        )
+
+    def trash_catalog(self, offset=0):
+        service = self.pet_vm.packages
+        issues = (
+            list(service.issues)
+            if self.pet_batch.running
+            else service.recover(retry_deletes=False)
+        )
+        rows = service.records()
+        entries = []
+        for record in rows[offset : offset + 50]:
+            entry = service.entry(record)
+            entries.append(
+                dict(
+                    trashId=record["trashId"],
+                    id=record["petId"],
+                    name=record["name"],
+                    deletedAt=record["deletedAt"],
+                    bytes=service.size(record),
+                    state=record["state"],
+                    thumbnail=self._thumbnail(entry) if entry else "",
+                )
+            )
+        return dict(
+            entries=entries,
+            total=len(rows),
+            offset=offset,
+            totalBytes=sum(service.size(row) for row in rows),
+            issues=list(dict.fromkeys(issues)),
             petId=self.pet_vm.snapshot.pet_id,
             revision=self.revision,
         )
@@ -435,17 +505,26 @@ class CoreSettingsAdapter(QObject):
         )
         return frame.crop(crop_bounds), content_bounds, crop_bounds
 
-    @classmethod
-    def _thumbnail(cls, entry):
+    def _thumbnail(self, entry):
         """Encode a 2x picker thumbnail; a broken package keeps an empty tile."""
         try:
-            image, _, _ = cls._idle_cell(entry)
+            path = entry.spritesheet_path
+            stat = path.stat()
+            key = (str(path.resolve()), stat.st_mtime_ns, stat.st_size)
+            if key in self._thumbnails:
+                self._thumbnails.move_to_end(key)
+                return self._thumbnails[key]
+            image, _, _ = self._idle_cell(entry)
         except (OSError, ValueError):
             return ""
         image.thumbnail(CATALOG_THUMBNAIL_SIZE, Image.Resampling.LANCZOS)
         encoded = BytesIO()
         image.save(encoded, format="PNG", optimize=True)
-        return png_bytes_data(encoded.getvalue())
+        result = png_bytes_data(encoded.getvalue())
+        self._thumbnails[key] = result
+        if len(self._thumbnails) > 256:
+            self._thumbnails.popitem(last=False)
+        return result
 
     def pet_preview(self, pet_id):
         pet_id = text(pet_id, 200)
@@ -556,6 +635,11 @@ class CoreSettingsAdapter(QObject):
 
     def _context(self, args):
         require(
+            args.get("epoch", self.account_epoch) == self.account_epoch,
+            "계정이 변경됐습니다. 다시 불러오세요.",
+            "stale_context",
+        )
+        require(
             args.get("petId") == self.pet_vm.snapshot.pet_id,
             "펫이 변경됐습니다. 다시 불러오세요.",
             "stale_context",
@@ -568,10 +652,47 @@ class CoreSettingsAdapter(QObject):
 
     def execute(self, method, args):
         require(isinstance(args, dict))
+        if method == "pet.trash.batch.start":
+            return self.pet_batch.start(args)
+        if method == "pet.trash.batch.status":
+            return self.pet_batch.status(args)
+        if method == "pet.trash.batch.cancel":
+            return self.pet_batch.cancel(args)
+        if self.pet_batch.running and (
+            method
+            in {
+                "settings.set",
+                "pet.select",
+                "pet.import.commit",
+                "pet.catalog.save",
+                "pet.action",
+                "bubble.save",
+                "bubble.reset",
+                "element.delete",
+                "pet.trash.move",
+                "pet.trash.restore",
+                "pet.trash.delete",
+                "pet.trash.empty",
+            }
+        ):
+            raise CommandError(
+                "batch_busy",
+                "일괄 작업이 진행 중입니다. 완료하거나 남은 작업을 중단하세요.",
+            )
         if method == "settings.snapshot":
             return self.snapshot()
         if method == "pet.catalog":
             return self.catalog()
+        if method == "pet.trash.list":
+            try:
+                return self.trash_catalog(integer(args.get("offset", 0), 0, 1000000))
+            except (PetTrashError, OSError) as error:
+                raise CommandError(
+                    "pet_trash_failed",
+                    str(error)
+                    if isinstance(error, PetTrashError)
+                    else "휴지통을 읽지 못했습니다. 다시 시도하세요.",
+                ) from error
         if method == "pet.preview":
             return self.pet_preview(args.get("petId"))
         if method == "pet.import.cancel":
@@ -585,6 +706,24 @@ class CoreSettingsAdapter(QObject):
                     len(ids) < 256 or (prepared and prepared.pet_id in ids),
                     "펫은 최대 256개까지 등록할 수 있습니다.",
                 )
+                if prepared:
+                    trashed = next(
+                        (
+                            row
+                            for row in self.pet_vm.packages.records()
+                            if row["petId"] == prepared.pet_id
+                        ),
+                        None,
+                    )
+                    if trashed:
+                        return dict(
+                            saved=False,
+                            restoreRequired=True,
+                            trashId=trashed["trashId"],
+                            id=trashed["petId"],
+                            name=trashed["name"],
+                            snapshot=self.snapshot(),
+                        )
                 result = self.pet_importer.commit(
                     text(args.get("token"), 80), args.get("name")
                 )
@@ -673,6 +812,9 @@ class CoreSettingsAdapter(QObject):
                 self.preferences.settings.setValue(
                     "settingsUI/appearance", json.dumps(appearance)
                 )
+            elif key == "update_auto_check":
+                self.preferences.save_update_auto_check(boolean(value))
+                self.update_schedule.set_enabled(boolean(value))
             elif key == "startup":
                 result = self.settings_vm.set_startup_enabled(boolean(value))
                 require(
@@ -684,12 +826,66 @@ class CoreSettingsAdapter(QObject):
                 raise CommandError(
                     "unsupported", "이 구성에서 제공하지 않는 설정입니다."
                 )
+        elif method in {
+            "pet.trash.move",
+            "pet.trash.restore",
+            "pet.trash.delete",
+            "pet.trash.empty",
+        }:
+            self._context(args)
+            require(
+                args.get("epoch") == self.account_epoch,
+                "계정이 변경됐습니다. 다시 불러오세요.",
+                "stale_context",
+            )
+            service = self.pet_vm.packages
+            result = {}
+            try:
+                if method == "pet.trash.move":
+                    record = self.pet_vm.trash_pet(
+                        text(args.get("id"), 200),
+                        text(args.get("replacementId", ""), 200),
+                    )
+                    result = dict(trashId=record["trashId"], name=record["name"])
+                elif method == "pet.trash.restore":
+                    record = service.restore(text(args.get("trashId"), 32))
+                    result = dict(id=record["petId"], name=record["name"])
+                elif method == "pet.trash.delete":
+                    service.delete(text(args.get("trashId"), 32))
+                else:
+                    deleted, failed = 0, []
+                    for record in service.records():
+                        try:
+                            service.delete(record["trashId"])
+                            deleted += 1
+                        except (PetTrashError, OSError):
+                            failed.append(record["trashId"])
+                    result = dict(deleted=deleted, failed=failed)
+            except (PetTrashError, OSError) as error:
+                self.revision += 1
+                self.changed.emit("settings")
+                raise CommandError(
+                    "pet_trash_failed",
+                    str(error)
+                    if isinstance(error, PetTrashError)
+                    else "펫 파일에 접근하지 못했습니다. 저장 공간과 폴더 권한을 확인한 후 다시 시도하세요.",
+                ) from error
+            self.revision += 1
+            self.changed.emit("settings")
+            self._sync()
+            return dict(saved=True, snapshot=self.snapshot(), **result)
         elif method == "pet.select":
             self._context(args)
             pet_id = text(args.get("id"))
             require(pet_id in {entry.id for entry in self.pet_vm.all_pets()})
+            sort, order, hidden = self.pet_vm.catalog_preferences()
+            if pet_id in hidden:
+                self.pet_vm.save_catalog_preferences(sort, order, hidden - {pet_id})
+            changed = self.pet_vm.change_pet(pet_id)
+            if not changed and pet_id in hidden:
+                self.pet_vm.save_catalog_preferences(sort, order, hidden)
             require(
-                self.pet_vm.change_pet(pet_id),
+                changed,
                 "펫을 불러오지 못했습니다.",
                 "pet_failed",
             )
@@ -710,9 +906,24 @@ class CoreSettingsAdapter(QObject):
                 len(set(order)) == len(order)
                 and self.pet_vm.snapshot.pet_id not in hidden
             )
-            self.pet_vm.save_catalog_preferences(
-                choice(args.get("sort"), ("name", "custom")), order, hidden
-            )
+            previous = self.pet_vm.catalog_preferences()
+            try:
+                self.pet_vm.save_catalog_preferences(
+                    choice(args.get("sort"), ("name", "custom")), order, hidden
+                )
+                self._sync()
+            except CommandError:
+                self.pet_vm.save_catalog_preferences(*previous)
+                try:
+                    self._sync()
+                except CommandError:
+                    pass
+                self.revision += 1
+                self.changed.emit("settings")
+                raise
+            self.revision += 1
+            self.changed.emit("settings")
+            return dict(saved=True, snapshot=self.snapshot())
         elif method == "bubble.save":
             self._context(args)
             self.pet_vm.save_custom_bubble_theme(self._theme(args.get("theme")))
@@ -793,6 +1004,7 @@ class CoreSettingsAdapter(QObject):
             self.import_timer.stop()
 
     def prepare_pet_import(self, path):
+        require(not self.pet_batch.running, "일괄 작업이 진행 중입니다.", "batch_busy")
         self.cancel_pet_import()
         try:
             prepared = self.pet_importer.prepare(path)

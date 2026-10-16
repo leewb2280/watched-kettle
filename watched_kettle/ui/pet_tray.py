@@ -5,8 +5,24 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 
+def update_action_text(updates):
+    """The tray's update entry names a version a check already found."""
+    update = updates.snapshot() if updates is not None else {}
+    if update.get("state") == "available" and update.get("version"):
+        return f"새 버전 받기 (v{update['version']})"
+    return "업데이트 확인"
+
+
 class PetSystemTray(QObject):
-    def __init__(self, pet_vm, open_settings, check_updates, icon_pixmap, parent=None):
+    def __init__(
+        self,
+        pet_vm,
+        open_settings,
+        check_updates,
+        icon_pixmap,
+        parent=None,
+        updates=None,
+    ):
         super().__init__(parent)
         self.pet_vm = pet_vm
         self.tray = QSystemTrayIcon(QIcon(icon_pixmap), self)
@@ -16,8 +32,13 @@ class PetSystemTray(QObject):
         self.visibility_action.triggered.connect(pet_vm.toggle_visibility)
         settings = self.menu.addAction("펫 설정")
         settings.triggered.connect(open_settings)
-        update = self.menu.addAction("업데이트 확인")
-        update.triggered.connect(check_updates)
+        self.updates = updates
+        self.update_action = self.menu.addAction(update_action_text(updates))
+        self.update_action.triggered.connect(check_updates)
+        if updates is not None:
+            updates.changed.connect(
+                lambda: self.update_action.setText(update_action_text(updates))
+            )
         self.menu.addSeparator()
         quit_action = self.menu.addAction("종료")
         quit_action.triggered.connect(QApplication.quit)

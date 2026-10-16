@@ -2,7 +2,9 @@
 
 Claude Code keeps hooks inside ``settings.json`` next to every other user
 setting, so only entries carrying the managed marker are added, repaired or
-removed. Commands run under Git Bash on Windows (docs/support-claude-code.md).
+removed. On Windows Claude Code runs command strings under Git Bash, or under
+PowerShell when Git Bash is missing, so hooks use the exec form and the status
+line a form both shells read alike (docs/support-claude-code.md).
 """
 
 from __future__ import annotations
@@ -12,6 +14,7 @@ from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
+import re
 import sys
 
 from watched_kettle.integrations.claude_code_hooks import CLAUDE_CODE_HOOK_EVENTS
@@ -26,6 +29,7 @@ from watched_kettle.integrations.codex_install import (
     _backup,
     _fingerprint,
     _read_utf8,
+    _windows_command,
     default_hook_executable,
 )
 
@@ -44,7 +48,8 @@ MANAGED_POLICY_PATHS = tuple(
         os.environ.get("ProgramData") or r"C:\ProgramData",
     )
 )
-_UNSAFE_PATH_CHARACTERS = ('"', "$", "`")
+# Unquoted, these characters form one plain word in Git Bash and PowerShell.
+_SHELL_NEUTRAL_WORD = re.compile(r"[\w/:.\-]+")
 
 
 @dataclass(frozen=True)
@@ -59,22 +64,53 @@ class ClaudeCodeHookStatus:
 
 
 def build_managed_commands(project_root=None, executable=None):
-    """Return the managed command for each hook event, keyed by event name."""
+    """Return the exec-form ``command`` and ``args`` for each hook event.
+
+    Claude Code 2.1.139+ spawns an exec-form hook directly, with no shell to
+    reinterpret the path, whichever shell it would otherwise use.
+    """
+    command, prefix = bridge_invocation(project_root, executable)
+    return {
+        event: {
+            "command": command,
+            "args": [
+                *prefix,
+                BRIDGE_FLAG,
+                "--event",
+                event,
+                "--managed-id",
+                MANAGED_MARKER,
+            ],
+        }
+        for event in MANAGED_HOOK_EVENTS
+    }
+
+
+def bridge_invocation(project_root=None, executable=None):
+    """Return the bridge executable and the arguments that precede its flags."""
     if executable is not None or getattr(sys, "frozen", False):
         executable = (
             Path(executable).resolve()
             if executable is not None
             else default_hook_executable()
         )
-        prefix = _bash_quote(executable)
-    else:
-        root = Path(project_root or Path(__file__).resolve().parents[2]).resolve()
-        python = root / ".venv" / "Scripts" / "python.exe"
-        prefix = f"{_bash_quote(python)} {_bash_quote(root / 'main_hook_bridge.py')}"
-    return {
-        event: f"{prefix} {BRIDGE_FLAG} --event {event} --managed-id {MANAGED_MARKER}"
-        for event in MANAGED_HOOK_EVENTS
-    }
+        return str(executable), []
+    root = Path(project_root or Path(__file__).resolve().parents[2]).resolve()
+    python = root / ".venv" / "Scripts" / "python.exe"
+    return str(python), [str(root / "main_hook_bridge.py")]
+
+
+def shell_neutral_command(executable, *arguments):
+    """Return a command string Git Bash and PowerShell both run unchanged.
+
+    An unquoted path of plain characters is an invocation in either shell.
+    Other paths need quoting that the shells disagree on, so they fall back to
+    an explicit PowerShell call that hides them from the outer shell.
+    """
+    words = [str(value).replace("\\", "/") for value in (executable, *arguments)]
+    if all(_SHELL_NEUTRAL_WORD.fullmatch(word) for word in words):
+        return " ".join(words)
+    return _windows_command(executable, *arguments)
 
 
 class ClaudeCodeHookInstaller:
@@ -271,7 +307,7 @@ class ClaudeCodeHookInstaller:
     def _managed_hook(self, event):
         return {
             "type": "command",
-            "command": self.commands[event],
+            **self.commands[event],
             "timeout": HOOK_TIMEOUT_SECONDS,
         }
 
@@ -358,18 +394,13 @@ def _validate_settings(payload):
 
 
 def _is_managed_hook(hook):
-    command = hook.get("command") if isinstance(hook, dict) else None
-    return isinstance(command, str) and MANAGED_MARKER in command
+    """Exec-form entries carry the marker in ``args``; earlier ones in ``command``."""
+    if not isinstance(hook, dict):
+        return False
+    args = hook.get("args")
+    values = [hook.get("command"), *(args if isinstance(args, list) else ())]
+    return any(isinstance(value, str) and MANAGED_MARKER in value for value in values)
 
 
 def _dump_settings(payload):
     return json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
-
-
-def _bash_quote(path):
-    text = str(path).replace("\\", "/")
-    if any(character in text for character in _UNSAFE_PATH_CHARACTERS):
-        raise ValueError(
-            '실행 경로에 Claude Code hook에서 쓸 수 없는 문자(", $, `)가 있습니다.'
-        )
-    return f'"{text}"'
