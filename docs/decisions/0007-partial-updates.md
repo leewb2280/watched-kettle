@@ -11,13 +11,13 @@
 
 ## 결정
 
-Release마다 통합 설치기와 함께 다음을 올린다. 이름의 `<kind>`는 공개판 `public`, 시험 채널 `public-update-test`다.
+Release마다 통합 설치기와 함께 다음을 만든다. 이름의 `<kind>`는 공개판 `public`, 시험 채널 `public-update-test`다.
 
 | 파일 | 내용 |
 |---|---|
 | `WatchedKettle-<v>-<kind>-unsigned-setup.exe` | 새 설치·구성 전환용 통합 설치기. 0.15.x 클라이언트도 이것을 받는다 |
 | `WatchedKettle-<v>-<kind>-<edition>-update-unsigned-setup.exe` | 구성별 업데이트 설치기. 같은 구성 설치판만 업데이트한다 |
-| `WatchedKettle-<v>-<kind>-<edition>-files.json` | 번들의 `PACKAGE_MANIFEST.sha256.json`. 다음 릴리스의 변경분 기준 |
+| `WatchedKettle-<v>-<kind>-<edition>-files.json` | 번들의 `PACKAGE_MANIFEST.sha256.json`. 다음 릴리스의 변경분 기준이며 앱은 받지 않는다. 0.15.4부터 Release에 올리지 않고 빌드 쪽에 보관한다 |
 | `WatchedKettle-<v>-<kind>-<edition>-from-<u>.zip` | 직전 최대 3개 버전 `<u>` 대비 바뀌거나 새로 생긴 파일과 새 manifest |
 | `WatchedKettle-<v>-update.json` + `.sha256` | 위 파일들의 이름·크기·SHA-256과 설치기 개정 번호를 담은 색인 |
 
