@@ -674,8 +674,8 @@ class CodexLocalIpcTests(unittest.TestCase):
                     directory,
                 )
             )
-            # Pick by content: on Python 3.12 both names can get the same
-            # coarse time_ns() prefix, so name order is random.
+            # Pick by content: both names can share a coarse time_ns() prefix,
+            # so filename ordering is not an event-identity guarantee.
             stale_path = next(
                 path
                 for path in Path(directory).glob("*.json")

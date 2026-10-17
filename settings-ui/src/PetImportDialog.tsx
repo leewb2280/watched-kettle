@@ -1,22 +1,15 @@
-import { useEffect, useRef, useState } from "react";
 import { Folder, Plus } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Modal } from "./components";
 import { errorText } from "./errors";
 import type { Shell } from "./types";
 
-type Preparation = {
-  token: string;
-  name: string;
-  thumbnail: string;
-  spriteVersion: number;
-};
-type Registration = {
-  id: string;
-  name: string;
-  alreadyExists: boolean;
-  restoreRequired?: boolean;
-  trashId?: string;
-};
+import type { PetRegistration, PetPreparation as Preparation } from "./types";
+
+type Registration = Pick<
+  PetRegistration,
+  "id" | "name" | "alreadyExists" | "restoreRequired" | "trashId"
+>;
 
 export function PetImportDialog({
   shell,
@@ -56,10 +49,10 @@ export function PetImportDialog({
     try {
       const result = await window.settings!.file("pet");
       if (!mounted.current) {
-        cancel(result.token);
+        if ("token" in result) cancel(result.token);
         return;
       }
-      if (!result.cancelled) {
+      if (!("cancelled" in result)) {
         token.current = result.token;
         setPrepared(result);
         setName(result.name);
@@ -94,7 +87,7 @@ export function PetImportDialog({
     try {
       const result = await shell.command(
         "pet.trash.restore",
-        { trashId: registered.trashId },
+        { trashId: registered.trashId! },
         { inline: true },
       );
       setRegistered({ id: result.id, name: result.name, alreadyExists: false });

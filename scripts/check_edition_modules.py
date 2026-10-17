@@ -11,6 +11,7 @@ PET_FORBIDDEN = (
     "watched_kettle.application.settings_ui.assistant",
     "watched_kettle.application.runtime",
     "watched_kettle.features.tasks",
+    "watched_kettle.features.integrations",
     "watched_kettle.features.project_activity",
     "watched_kettle.features.notifications",
     "watched_kettle.features.settings.viewmodel",

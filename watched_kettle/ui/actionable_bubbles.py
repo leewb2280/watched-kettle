@@ -72,7 +72,7 @@ class ActionableBubbleWindow(SpeechBubbleWindow):
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
         self.project_rows = ProjectBubbleRows(
             router,
-            projects.dismiss_completions if projects is not None else lambda _ids: None,
+            projects.dismiss_rows if projects is not None else lambda _ids: None,
             self,
         )
         self.project_rows.hide()

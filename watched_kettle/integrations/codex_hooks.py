@@ -43,6 +43,7 @@ ALLOWED_PET_EVENTS = frozenset(CODEX_HOOK_EVENTS.values()) | {
     "question_resolved",
     "cancelled",
     "failed",
+    "ended",
     "heartbeat",
     "tool_failed",
     "permission_resolved",
@@ -174,6 +175,8 @@ def sanitize_pet_event(payload):
         return _rate_limit_event(payload)
     if event not in ALLOWED_PET_EVENTS:
         return None
+    if event == "ended" and source != "codex":
+        return None
     if event in {"question_wait", "question_resolved"} and not payload.get("event_id"):
         return None
 
@@ -184,6 +187,10 @@ def sanitize_pet_event(payload):
     }
     if "agent_scope" in payload:
         sanitized["agent_scope"] = normalize_agent_scope(payload["agent_scope"])
+    if source == "codex" and event in {"ended", "failed", "cancelled"}:
+        from watched_kettle.state.event_names import outcome_reason
+
+        sanitized["outcome_reason"] = outcome_reason(payload.get("outcome_reason"))
     if event == "review" and payload.get("compaction_phase") in ("start", "end"):
         sanitized["compaction_phase"] = payload["compaction_phase"]
     collected_at = payload.get("collected_at")

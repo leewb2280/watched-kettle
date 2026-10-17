@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowLeft,
@@ -10,19 +9,21 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Modal, Switch } from "./components";
 import { errorText } from "./errors";
 import { PetImportDialog } from "./PetImportDialog";
-import { usePetBatch } from "./usePetBatch";
 import type {
+  Args,
   PetBatchAction,
   PetCatalog,
   PetCatalogEntry,
   PetTrashCatalog,
   PetTrashEntry,
+  RendererCommand,
   Shell,
-  Values,
 } from "./types";
+import { usePetBatch } from "./usePetBatch";
 
 function ordered(catalog: PetCatalog) {
   if (catalog.sort === "name") return catalog.entries;
@@ -110,8 +111,8 @@ export function PetManagerDialog({
           setOffset(Math.max(0, offset - 50));
       }
       return {
-        catalog: nextCatalog as PetCatalog,
-        trash: nextTrash as PetTrashCatalog,
+        catalog: nextCatalog,
+        trash: nextTrash,
       };
     } finally {
       if (seq === sequence.current) setLoading(false);
@@ -142,7 +143,21 @@ export function PetManagerDialog({
     setBatchUndo([]);
   }, [shell.snapshot.epoch]);
 
-  const run = async (method: string, args: Values, message: string) => {
+  const run = async <
+    M extends Extract<
+      RendererCommand,
+      | "pet.trash.move"
+      | "pet.trash.restore"
+      | "pet.trash.delete"
+      | "pet.trash.empty"
+      | "pet.catalog.save"
+      | "pet.select"
+    >,
+  >(
+    method: M,
+    args: Args<M>,
+    message: string,
+  ) => {
     if (lock.current || loading || contextChanged || !catalog) return null;
     lock.current = true;
     setBusy(true);
@@ -158,11 +173,11 @@ export function PetManagerDialog({
       setNotice(message);
       setConfirmation(null);
       setUndo(
-        method === "pet.trash.move"
-          ? { trashId: result.trashId, name: result.name }
+        method === "pet.trash.move" && "trashId" in result && "name" in result
+          ? { trashId: result.trashId!, name: result.name! }
           : null,
       );
-      if (result.failed?.length)
+      if ("failed" in result && result.failed?.length)
         setError(
           `${result.deleted}개를 삭제했고 ${result.failed.length}개는 삭제하지 못했어요. 남은 항목을 다시 시도하세요.`,
         );

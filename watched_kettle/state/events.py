@@ -53,6 +53,8 @@ class PetDecision:
     agent_scope: str = "main"
     event_id: str = ""
     approval_actor: str = "unknown"
+    turn_id: str = ""
+    parent_session_id: str = ""
 
 
 def build_decision(payload):
@@ -83,11 +85,16 @@ def build_decision(payload):
         or payload.get("call_id")
         or ""
     )
+    parent = payload.get("parent_session_id")
     decision = replace(
         decision,
         agent_scope=scope,
         event_id=str(event_id)[:160],
         approval_actor=approval_actor(payload),
+        turn_id=str(payload.get("turn_id") or "")[:160],
+        parent_session_id=(
+            _pick_session_id({"session_id": parent}, decision.source) if parent else ""
+        ),
     )
     # Agent tool returns and compaction are still part of an active task.
     # Keep the review sprite available to manual and ambient animations.
@@ -205,6 +212,11 @@ def _build_decision(payload):
             duration_ms=2_600,
             message=_pick_message(payload, _default_message(source, "jumping")),
             terminal=True,
+        )
+
+    if event == "ended" and source == "codex":
+        return PetDecision(
+            source=source, event=event, session_id=session_id, terminal=True
         )
 
     if event == "cancelled":

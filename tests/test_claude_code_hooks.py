@@ -515,6 +515,46 @@ class ClaudeCodeSessionStateTests(_ControllerCase):
         self.clock.advance(24 * 60 * 60 * 1_000)
         self.assertEqual(self.controller.expire_stale_sessions(), ())
 
+    def test_subagent_work_keeps_the_parent_session(self):
+        child = {"agent_id": "agent-1", "agent_type": "Explore"}
+        self.apply("UserPromptSubmit")
+        self.apply("PreToolUse", tool_use_id="toolu_agent")
+        self.apply("PostToolUse", tool_use_id="toolu_agent")
+        self.apply("SubagentStart", **child)
+        for minute in range(12):
+            self.clock.advance(60_000)
+            self.assertEqual(self.controller.expire_stale_sessions(), ())
+            self.apply("PreToolUse", tool_use_id=f"toolu_child_{minute}", **child)
+            self.apply("PostToolUse", tool_use_id=f"toolu_child_{minute}", **child)
+        self.apply("SubagentStop", **child)
+
+        self.assertEqual(self.controller.aggregate_state.state, "running")
+        self.assertEqual(
+            [s.session_id for s in self.controller.session_manager.list_sessions()],
+            ["claude_code:" + SESSION],
+        )
+
+    def test_open_tool_uses_the_waiting_limit(self):
+        self.apply("UserPromptSubmit")
+        self.apply("PreToolUse", tool_use_id="toolu_build")
+        self.clock.advance(CLAUDE_CODE_INACTIVITY_LIMIT.work_ms)
+        self.assertEqual(self.controller.expire_stale_sessions(), ())
+        self.assertEqual(self.controller.aggregate_state.state, "running")
+
+        self.clock.advance(
+            CLAUDE_CODE_INACTIVITY_LIMIT.waiting_ms
+            - CLAUDE_CODE_INACTIVITY_LIMIT.work_ms
+        )
+        self.assertEqual(len(self.controller.expire_stale_sessions()), 1)
+
+    def test_ended_tool_returns_to_the_work_limit(self):
+        self.apply("UserPromptSubmit")
+        self.apply("PreToolUse", tool_use_id="toolu_read")
+        self.apply("PostToolUse", tool_use_id="toolu_read")
+        self.clock.advance(CLAUDE_CODE_INACTIVITY_LIMIT.work_ms)
+
+        self.assertEqual(len(self.controller.expire_stale_sessions()), 1)
+
     def test_messages_name_claude_code(self):
         result = self.apply("UserPromptSubmit")
 
@@ -593,6 +633,93 @@ class MixedAgentSourceTests(_ControllerCase):
 
         self.assertNotIn("failed", self.displayed)
         self.assertEqual(len(self.sessions()), 2)
+
+
+class ProjectRootTests(unittest.TestCase):
+    """Worktrees and subfolders of one repository share its card."""
+
+    def setUp(self):
+        directory = TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.root = Path(directory.name)
+        self.main = self.root / "kettle"
+        (self.main / ".git" / "worktrees" / "feature").mkdir(parents=True)
+        (self.main / "docs").mkdir()
+        self.worktree = self.main / ".claude" / "worktrees" / "feature"
+        self.worktree.mkdir(parents=True)
+        (self.worktree / ".git").write_text(
+            f"gitdir: {(self.main / '.git' / 'worktrees' / 'feature').as_posix()}\n",
+            encoding="utf-8",
+        )
+        (self.main / ".git" / "worktrees" / "feature" / "commondir").write_text(
+            "../..\n", encoding="utf-8"
+        )
+
+    def identity(self, path):
+        return project_identity(str(path))
+
+    def test_worktrees_and_subfolders_are_the_main_repository(self):
+        main = self.identity(self.main)
+        self.assertEqual(main["project_label"], "kettle")
+        for folder in (self.main / "docs", self.worktree, self.worktree / "src"):
+            with self.subTest(folder=folder.name):
+                self.assertEqual(self.identity(folder), main)
+
+    def test_relative_and_msys_gitdirs_are_followed(self):
+        main = self.identity(self.main)
+        relative = self.root / "elsewhere"
+        relative.mkdir()
+        gitdir = self.main / ".git" / "worktrees" / "feature"
+        (relative / ".git").write_text(
+            "gitdir: " + os.path.relpath(gitdir, relative), encoding="utf-8"
+        )
+        self.assertEqual(self.identity(relative), main)
+        drive, rest = os.path.splitdrive(gitdir.as_posix())
+        (relative / ".git").write_text(
+            f"gitdir: /{drive[0].lower()}{rest}", encoding="utf-8"
+        )
+        self.assertEqual(self.identity(relative), main)
+
+    def test_submodule_keeps_its_own_folder(self):
+        module = self.main / "vendor" / "lib"
+        module.mkdir(parents=True)
+        modules = self.main / ".git" / "modules" / "lib"
+        modules.mkdir(parents=True)
+        (module / ".git").write_text(f"gitdir: {modules}", encoding="utf-8")
+        self.assertEqual(self.identity(module)["project_label"], "lib")
+
+    def test_bare_repository_worktree_drops_the_suffix(self):
+        bare = self.root / "tools.git"
+        (bare / "worktrees" / "main").mkdir(parents=True)
+        (bare / "worktrees" / "main" / "commondir").write_text("../..", "utf-8")
+        checkout = self.root / "tools-main"
+        checkout.mkdir()
+        (checkout / ".git").write_text(
+            f"gitdir: {bare / 'worktrees' / 'main'}", encoding="utf-8"
+        )
+        self.assertEqual(self.identity(checkout)["project_label"], "tools")
+
+    def test_folders_outside_a_repository_and_broken_files_keep_the_folder(self):
+        plain = self.root / "notes"
+        plain.mkdir()
+        self.assertEqual(self.identity(plain)["project_label"], "notes")
+        broken = self.root / "broken"
+        broken.mkdir()
+        (broken / ".git").write_text("not a git file", encoding="utf-8")
+        self.assertEqual(self.identity(broken)["project_label"], "broken")
+        (broken / ".git").write_bytes(b"gitdir: \xff\xfe")
+        self.assertEqual(self.identity(broken)["project_label"], "broken")
+
+    def test_a_home_folder_repository_does_not_take_in_its_subfolders(self):
+        (self.root / ".git").mkdir()
+        project = self.root / "notes"
+        project.mkdir()
+        with patch.dict(os.environ, {"USERPROFILE": str(self.root)}):
+            self.assertEqual(self.identity(project)["project_label"], "notes")
+            self.assertEqual(self.identity(self.root)["project_label"], self.root.name)
+        # Elsewhere the outer repository owns the folder.
+        with patch.dict(os.environ, {"USERPROFILE": str(self.main)}):
+            self.assertEqual(self.identity(project)["project_label"], self.root.name)
 
 
 if __name__ == "__main__":

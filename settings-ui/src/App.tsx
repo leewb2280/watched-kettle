@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { AssistantPages } from "@assistant";
 import {
   ChartNoAxesCombined,
   Check,
   ChevronRight,
+  CircleHelp,
   Gauge,
   House,
-  CircleHelp,
   Info,
   Layers,
   MessageCircle,
@@ -15,18 +15,20 @@ import {
   Settings2,
   X,
 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Empty, Modal } from "./components";
+import { CorePages } from "./CorePages";
+import { errorText } from "./errors";
 import type {
+  Args,
+  CommandCall,
   CommandOptions,
   Page,
+  RendererCommand,
   Route,
   SettingsSnapshot,
-  Values,
   Shell,
 } from "./types";
-import { CorePages } from "./CorePages";
-import { AssistantPages } from "@assistant";
-import { Empty, Modal } from "./components";
-import { errorText } from "./errors";
 
 const labels: Record<Page, string> = {
   home: "홈",
@@ -74,10 +76,10 @@ export function App() {
   const reportError = useCallback((e: unknown) => setError(errorText(e)), []);
   const command = useCallback(
     (
-      method: string,
-      args: Values = {},
+      method: RendererCommand,
+      args: Args<RendererCommand> = {},
       options: CommandOptions = {},
-    ): Promise<any> =>
+    ): Promise<unknown> =>
       new Promise((resolve, reject) => {
         const origin = snapshot;
         queue.current = queue.current.then(async () => {
@@ -104,13 +106,15 @@ export function App() {
               epoch: context.epoch,
               ...args,
             });
-            if (result?.snapshot) {
+            if ("snapshot" in result) {
               ++refreshSequence.current;
               accept(result.snapshot);
             } else await refresh();
             setEventVersion((count) => count + 1);
             if (!options.quiet)
-              setStatus(result?.saved ? "저장됨" : "요청 처리됨");
+              setStatus(
+                "saved" in result && result.saved ? "저장됨" : "요청 처리됨",
+              );
             resolve(result);
           } catch (e) {
             if (!options.inline) setError(errorText(e));
@@ -125,7 +129,7 @@ export function App() {
         });
       }),
     [refresh, snapshot?.epoch, snapshot?.pet.pet_id],
-  );
+  ) as CommandCall;
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
       if (
@@ -215,7 +219,7 @@ export function App() {
                   usage: ["usage"],
                   widget: ["usage"],
                   activity: ["activity"],
-                } as Record<string, string[]>
+                } as Record<string, ("usage" | "activity")[]>
               )[page] || []),
             ]
           : [],

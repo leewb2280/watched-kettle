@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import OrderedDict
+from typing import cast
 import base64
 from dataclasses import asdict
 from io import BytesIO
@@ -22,6 +23,7 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import QDesktopServices
 
+from watched_kettle import settings_protocol as wire_types
 from watched_kettle.application.settings_ui.contracts import (
     CommandError,
     boolean,
@@ -91,7 +93,7 @@ def png_data(pixmap):
     buffer.open(QIODevice.OpenModeFlag.WriteOnly)
     require(pixmap.save(buffer, "PNG"), "미리보기 이미지를 만들지 못했습니다.")
     require(data.size() <= 512 * 1024, code="response_limit")
-    return "data:image/png;base64," + bytes(data.toBase64()).decode("ascii")
+    return "data:image/png;base64," + bytes(data.toBase64().data()).decode("ascii")
 
 
 def png_bytes_data(data):
@@ -208,7 +210,7 @@ class CoreSettingsAdapter(QObject):
         integer(value["darkOpacity"], 0, 100)
         boolean(value["reduceMotion"])
 
-    def snapshot(self):
+    def snapshot(self) -> wire_types.SettingsSnapshot:
         s = self.pet_vm.refresh()
         screens = [
             {"value": "current", "label": "펫이 있는 화면"},
@@ -414,15 +416,18 @@ class CoreSettingsAdapter(QObject):
             animations=[
                 dict(label=label, value=value) for label, value in ACTION_TEST_STATES
             ],
-            update=dict(
-                self.updates.snapshot(),
-                auto_check=self.preferences.load_update_auto_check(),
+            update=cast(
+                wire_types.UpdateState,
+                dict(
+                    self.updates.snapshot(),
+                    auto_check=self.preferences.load_update_auto_check(),
+                ),
             ),
         )
 
-    def catalog(self):
+    def catalog(self) -> wire_types.PetCatalog:
         sort, order, hidden = self.pet_vm.catalog_preferences()
-        entries = []
+        entries: list[wire_types.PetCatalogEntry] = []
         duplicate_ids = self.pet_vm.packages.duplicate_ids()
         # Name order is the renderer's base order for both sort modes.
         for entry in order_pet_entries(self.pet_vm.all_pets(), "name"):
@@ -457,7 +462,7 @@ class CoreSettingsAdapter(QObject):
             revision=self.revision,
         )
 
-    def trash_catalog(self, offset=0):
+    def trash_catalog(self, offset=0) -> wire_types.PetTrashCatalog:
         service = self.pet_vm.packages
         issues = (
             list(service.issues)
@@ -465,7 +470,7 @@ class CoreSettingsAdapter(QObject):
             else service.recover(retry_deletes=False)
         )
         rows = service.records()
-        entries = []
+        entries: list[wire_types.PetTrashEntry] = []
         for record in rows[offset : offset + 50]:
             entry = service.entry(record)
             entries.append(
@@ -526,7 +531,7 @@ class CoreSettingsAdapter(QObject):
             self._thumbnails.popitem(last=False)
         return result
 
-    def pet_preview(self, pet_id):
+    def pet_preview(self, pet_id) -> wire_types.PetPreview:
         pet_id = text(pet_id, 200)
         entry = next(
             (
@@ -536,7 +541,8 @@ class CoreSettingsAdapter(QObject):
             ),
             None,
         )
-        require(entry is not None, "펫을 찾을 수 없습니다.", "pet_missing")
+        if entry is None:
+            raise CommandError("pet_missing", "펫을 찾을 수 없습니다.")
         try:
             cropped, content_bounds, crop_bounds = self._idle_cell(entry)
         except (OSError, ValueError) as error:
@@ -566,7 +572,7 @@ class CoreSettingsAdapter(QObject):
             ),
         )
 
-    def editor(self):
+    def editor(self) -> wire_types.BubbleEditor:
         state = self.pet_vm.bubble_editor_state
         # "standard" plus the frame this pet package ships, if any.
         frame_styles = ["standard"]
@@ -577,8 +583,10 @@ class CoreSettingsAdapter(QObject):
             if style not in frame_styles and registered_frame(style) is not None:
                 frame_styles.append(style)
         return dict(
-            theme=asdict(state.theme),
-            packageTheme=asdict(state.package_theme),
+            theme=cast(wire_types.SpeechBubbleTheme, asdict(state.theme)),
+            packageTheme=cast(
+                wire_types.SpeechBubbleTheme, asdict(state.package_theme)
+            ),
             revision=self.revision,
             petId=self.pet_vm.snapshot.pet_id,
             elements=[
@@ -658,23 +666,20 @@ class CoreSettingsAdapter(QObject):
             return self.pet_batch.status(args)
         if method == "pet.trash.batch.cancel":
             return self.pet_batch.cancel(args)
-        if self.pet_batch.running and (
-            method
-            in {
-                "settings.set",
-                "pet.select",
-                "pet.import.commit",
-                "pet.catalog.save",
-                "pet.action",
-                "bubble.save",
-                "bubble.reset",
-                "element.delete",
-                "pet.trash.move",
-                "pet.trash.restore",
-                "pet.trash.delete",
-                "pet.trash.empty",
-            }
-        ):
+        if self.pet_batch.running and method in {
+            "settings.set",
+            "pet.select",
+            "pet.import.commit",
+            "pet.catalog.save",
+            "pet.action",
+            "bubble.save",
+            "bubble.reset",
+            "element.delete",
+            "pet.trash.move",
+            "pet.trash.restore",
+            "pet.trash.delete",
+            "pet.trash.empty",
+        }:
             raise CommandError(
                 "batch_busy",
                 "일괄 작업이 진행 중입니다. 완료하거나 남은 작업을 중단하세요.",
@@ -699,231 +704,24 @@ class CoreSettingsAdapter(QObject):
             self.cancel_pet_import(text(args.get("token"), 80))
             return dict(cancelled=True)
         if method == "pet.import.commit":
-            try:
-                prepared = self.pet_importer.prepared
-                ids = {entry.id for entry in self.pet_vm.all_pets()}
-                require(
-                    len(ids) < 256 or (prepared and prepared.pet_id in ids),
-                    "펫은 최대 256개까지 등록할 수 있습니다.",
-                )
-                if prepared:
-                    trashed = next(
-                        (
-                            row
-                            for row in self.pet_vm.packages.records()
-                            if row["petId"] == prepared.pet_id
-                        ),
-                        None,
-                    )
-                    if trashed:
-                        return dict(
-                            saved=False,
-                            restoreRequired=True,
-                            trashId=trashed["trashId"],
-                            id=trashed["petId"],
-                            name=trashed["name"],
-                            snapshot=self.snapshot(),
-                        )
-                result = self.pet_importer.commit(
-                    text(args.get("token"), 80), args.get("name")
-                )
-            except PetImportError as error:
-                raise CommandError("pet_import_invalid", str(error)) from error
-            if not result.already_exists:
-                self.revision += 1
-                self.changed.emit("settings")
-            return dict(
-                id=result.id,
-                name=result.name,
-                alreadyExists=result.already_exists,
-                saved=True,
-                snapshot=self.snapshot(),
-            )
+            return self._commit_pet_import(args)
         if method == "bubble.editor":
             return self.editor()
         if method == "bubble.render":
-            theme = self._theme(args.get("theme"))
-            preview = BubbleThemePreview(
-                self.pet_vm.bubble_editor_state.registry,
-                sample=choice(args.get("sample", "notice"), ("notice", "project")),
-            )
-            try:
-                preview.resize(600, 260)
-                preview.set_theme(theme)
-                return dict(image=png_data(preview.grab()), theme=asdict(theme))
-            finally:
-                preview.deleteLater()
+            return self._render_bubble(args)
         if method == "settings.set":
-            self._context(args)
-            key, value = text(args.get("key")), args.get("value")
-            actions = {
-                "always_on_top": self.pet_vm.set_always_on_top,
-                "activity_labels": self.pet_vm.set_activity_labels_enabled,
-                "shadow": self.pet_vm.set_shadow,
-                "fade": self.pet_vm.set_fade,
-                "idle": self.pet_vm.set_idle_activities_enabled,
-                "movement": self.pet_vm.set_auto_movement_enabled,
-            }
-            if self.assistant:
-                actions["bubbles"] = self.pet_vm.set_bubbles_enabled
-            if key in actions:
-                actions[key](boolean(value))
-            elif key == "opacity":
-                self.pet_vm.set_opacity(integer(value, 50, 100))
-            elif key == "width":
-                self.pet_vm.set_width(choice(value, PET_WIDTH_OPTIONS))
-            elif key == "look":
-                self.pet_vm.set_look_range(
-                    integer(value, LOOK_RANGE_MIN, LOOK_RANGE_MAX)
-                )
-            elif key == "screen":
-                allowed = [
-                    row["value"]
-                    for row in next(
-                        c for c in self.snapshot()["controls"] if c["key"] == "screen"
-                    )["options"]
-                ]
-                choice(value, allowed)
-                self.pet_vm.set_auto_movement_screen(
-                    "specific", value[9:]
-                ) if value.startswith(
-                    "specific:"
-                ) else self.pet_vm.set_auto_movement_screen(value)
-            elif key == "bubble_theme":
-                self.pet_vm.set_bubble_theme(choice(value, themes.BUBBLE_THEME_MODES))
-            elif key == "bubble_scale" and self.assistant:
-                self.pet_vm.set_bubble_scale(integer(value, 80, 140))
-            elif key == "bubble_duration" and self.assistant:
-                self.pet_vm.set_bubble_duration(integer(value, 5, 60))
-            elif key.startswith("duration:") and self.assistant:
-                choice(key[9:], ("result", "general", "schedule", "completion"))
-                self.pet_vm.set_bubble_duration_override(
-                    key[9:], None if value is None else integer(value, 5, 60)
-                )
-            elif key == "appearance":
-                self.validate_appearance(value)
-                self.preferences.settings.setValue(
-                    "settingsUI/appearance", json.dumps(value)
-                )
-            elif key.startswith("appearance:"):
-                field = choice(key[11:], self.appearance())
-                appearance = {**self.appearance(), field: value}
-                self.validate_appearance(appearance)
-                self.preferences.settings.setValue(
-                    "settingsUI/appearance", json.dumps(appearance)
-                )
-            elif key == "update_auto_check":
-                self.preferences.save_update_auto_check(boolean(value))
-                self.update_schedule.set_enabled(boolean(value))
-            elif key == "startup":
-                result = self.settings_vm.set_startup_enabled(boolean(value))
-                require(
-                    result.enabled == value,
-                    "자동 시작 등록을 변경하지 못했습니다.",
-                    "startup_failed",
-                )
-            else:
-                raise CommandError(
-                    "unsupported", "이 구성에서 제공하지 않는 설정입니다."
-                )
+            self._set_setting(args)
         elif method in {
             "pet.trash.move",
             "pet.trash.restore",
             "pet.trash.delete",
             "pet.trash.empty",
         }:
-            self._context(args)
-            require(
-                args.get("epoch") == self.account_epoch,
-                "계정이 변경됐습니다. 다시 불러오세요.",
-                "stale_context",
-            )
-            service = self.pet_vm.packages
-            result = {}
-            try:
-                if method == "pet.trash.move":
-                    record = self.pet_vm.trash_pet(
-                        text(args.get("id"), 200),
-                        text(args.get("replacementId", ""), 200),
-                    )
-                    result = dict(trashId=record["trashId"], name=record["name"])
-                elif method == "pet.trash.restore":
-                    record = service.restore(text(args.get("trashId"), 32))
-                    result = dict(id=record["petId"], name=record["name"])
-                elif method == "pet.trash.delete":
-                    service.delete(text(args.get("trashId"), 32))
-                else:
-                    deleted, failed = 0, []
-                    for record in service.records():
-                        try:
-                            service.delete(record["trashId"])
-                            deleted += 1
-                        except (PetTrashError, OSError):
-                            failed.append(record["trashId"])
-                    result = dict(deleted=deleted, failed=failed)
-            except (PetTrashError, OSError) as error:
-                self.revision += 1
-                self.changed.emit("settings")
-                raise CommandError(
-                    "pet_trash_failed",
-                    str(error)
-                    if isinstance(error, PetTrashError)
-                    else "펫 파일에 접근하지 못했습니다. 저장 공간과 폴더 권한을 확인한 후 다시 시도하세요.",
-                ) from error
-            self.revision += 1
-            self.changed.emit("settings")
-            self._sync()
-            return dict(saved=True, snapshot=self.snapshot(), **result)
+            return self._change_pet_trash(method, args)
         elif method == "pet.select":
-            self._context(args)
-            pet_id = text(args.get("id"))
-            require(pet_id in {entry.id for entry in self.pet_vm.all_pets()})
-            sort, order, hidden = self.pet_vm.catalog_preferences()
-            if pet_id in hidden:
-                self.pet_vm.save_catalog_preferences(sort, order, hidden - {pet_id})
-            changed = self.pet_vm.change_pet(pet_id)
-            if not changed and pet_id in hidden:
-                self.pet_vm.save_catalog_preferences(sort, order, hidden)
-            require(
-                changed,
-                "펫을 불러오지 못했습니다.",
-                "pet_failed",
-            )
+            self._select_pet(args)
         elif method == "pet.catalog.save":
-            self._context(args)
-            ids = {entry.id for entry in self.pet_vm.all_pets()}
-            order, hidden = args.get("order"), args.get("hidden")
-            require(
-                isinstance(order, list)
-                and isinstance(hidden, list)
-                and len(order) <= 256
-                and len(hidden) <= 256
-            )
-            require(
-                all(isinstance(item, str) and item in ids for item in order + hidden)
-            )
-            require(
-                len(set(order)) == len(order)
-                and self.pet_vm.snapshot.pet_id not in hidden
-            )
-            previous = self.pet_vm.catalog_preferences()
-            try:
-                self.pet_vm.save_catalog_preferences(
-                    choice(args.get("sort"), ("name", "custom")), order, hidden
-                )
-                self._sync()
-            except CommandError:
-                self.pet_vm.save_catalog_preferences(*previous)
-                try:
-                    self._sync()
-                except CommandError:
-                    pass
-                self.revision += 1
-                self.changed.emit("settings")
-                raise
-            self.revision += 1
-            self.changed.emit("settings")
-            return dict(saved=True, snapshot=self.snapshot())
+            return self._save_pet_catalog(args)
         elif method == "bubble.save":
             self._context(args)
             self.pet_vm.save_custom_bubble_theme(self._theme(args.get("theme")))
@@ -931,36 +729,7 @@ class CoreSettingsAdapter(QObject):
             self._context(args)
             self.pet_vm.reset_custom_bubble_theme()
         elif method == "pet.action":
-            action = text(args.get("action"))
-            actions = {
-                "recenter": self.pet_vm.recenter,
-                "recall": self.pet_vm.move_to_auto_movement_screen,
-                "movement_test": self.pet_vm.test_movement,
-                "visibility": self.pet_vm.toggle_visibility,
-                "restore": self.pet_vm.restore_agent_display,
-                "folder": self.pet_vm.open_pet_folder,
-                "resume": self.pet_vm.resume_bubbles,
-                "durations_reset": self.pet_vm.reset_bubble_durations,
-            }
-            if self.assistant:
-                actions["duration_overrides_reset"] = (
-                    self.pet_vm.clear_bubble_duration_overrides
-                )
-            if action == "animation":
-                self.pet_vm.test_animation(
-                    choice(
-                        args.get("state"), {value for _, value in ACTION_TEST_STATES}
-                    )
-                )
-            elif action == "preview":
-                self.pet_vm.preview_bubble("새로운 말풍선 디자인을 미리 확인해 보세요")
-            elif action == "snooze" and self.assistant:
-                self.pet_vm.snooze_bubbles(
-                    choice(args.get("minutes"), (15, 30, 60)) * 60000
-                )
-            else:
-                require(action in actions)
-                actions[action]()
+            self._pet_action(args)
         elif method == "update.check":
             self.updates.check()
             return dict(pending=True)
@@ -997,6 +766,250 @@ class CoreSettingsAdapter(QObject):
         self.changed.emit("settings")
         self._sync()
         return dict(saved=True, snapshot=self.snapshot())
+
+    def _commit_pet_import(self, args):
+        try:
+            prepared = self.pet_importer.prepared
+            ids = {entry.id for entry in self.pet_vm.all_pets()}
+            require(
+                len(ids) < 256 or (prepared and prepared.pet_id in ids),
+                "펫은 최대 256개까지 등록할 수 있습니다.",
+            )
+            if prepared:
+                trashed = next(
+                    (
+                        row
+                        for row in self.pet_vm.packages.records()
+                        if row["petId"] == prepared.pet_id
+                    ),
+                    None,
+                )
+                if trashed:
+                    return dict(
+                        saved=False,
+                        restoreRequired=True,
+                        trashId=trashed["trashId"],
+                        id=trashed["petId"],
+                        name=trashed["name"],
+                        snapshot=self.snapshot(),
+                    )
+            result = self.pet_importer.commit(
+                text(args.get("token"), 80), args.get("name")
+            )
+        except PetImportError as error:
+            raise CommandError("pet_import_invalid", str(error)) from error
+        if not result.already_exists:
+            self.revision += 1
+            self.changed.emit("settings")
+        return dict(
+            id=result.id,
+            name=result.name,
+            alreadyExists=result.already_exists,
+            saved=True,
+            snapshot=self.snapshot(),
+        )
+
+    def _render_bubble(self, args):
+        theme = self._theme(args.get("theme"))
+        preview = BubbleThemePreview(
+            self.pet_vm.bubble_editor_state.registry,
+            sample=choice(args.get("sample", "notice"), ("notice", "project")),
+        )
+        try:
+            preview.resize(600, 260)
+            preview.set_theme(theme)
+            return dict(image=png_data(preview.grab()), theme=asdict(theme))
+        finally:
+            preview.deleteLater()
+
+    def _set_setting(self, args):
+        self._context(args)
+        key, value = (text(args.get("key")), args.get("value"))
+        actions = {
+            "always_on_top": self.pet_vm.set_always_on_top,
+            "activity_labels": self.pet_vm.set_activity_labels_enabled,
+            "shadow": self.pet_vm.set_shadow,
+            "fade": self.pet_vm.set_fade,
+            "idle": self.pet_vm.set_idle_activities_enabled,
+            "movement": self.pet_vm.set_auto_movement_enabled,
+        }
+        if self.assistant:
+            actions["bubbles"] = self.pet_vm.set_bubbles_enabled
+        if key in actions:
+            actions[key](boolean(value))
+        elif key == "opacity":
+            self.pet_vm.set_opacity(integer(value, 50, 100))
+        elif key == "width":
+            self.pet_vm.set_width(choice(value, PET_WIDTH_OPTIONS))
+        elif key == "look":
+            self.pet_vm.set_look_range(integer(value, LOOK_RANGE_MIN, LOOK_RANGE_MAX))
+        elif key == "screen":
+            allowed = [
+                row["value"]
+                for row in next(
+                    (c for c in self.snapshot()["controls"] if c["key"] == "screen")
+                )["options"]
+            ]
+            choice(value, allowed)
+            self.pet_vm.set_auto_movement_screen(
+                "specific", value[9:]
+            ) if value.startswith(
+                "specific:"
+            ) else self.pet_vm.set_auto_movement_screen(value)
+        elif key == "bubble_theme":
+            self.pet_vm.set_bubble_theme(choice(value, themes.BUBBLE_THEME_MODES))
+        elif key == "bubble_scale" and self.assistant:
+            self.pet_vm.set_bubble_scale(integer(value, 80, 140))
+        elif key == "bubble_duration" and self.assistant:
+            self.pet_vm.set_bubble_duration(integer(value, 5, 60))
+        elif key.startswith("duration:") and self.assistant:
+            choice(key[9:], ("result", "general", "schedule", "completion"))
+            self.pet_vm.set_bubble_duration_override(
+                key[9:], None if value is None else integer(value, 5, 60)
+            )
+        elif key == "appearance":
+            self.validate_appearance(value)
+            self.preferences.settings.setValue(
+                "settingsUI/appearance", json.dumps(value)
+            )
+        elif key.startswith("appearance:"):
+            field = choice(key[11:], self.appearance())
+            appearance = {**self.appearance(), field: value}
+            self.validate_appearance(appearance)
+            self.preferences.settings.setValue(
+                "settingsUI/appearance", json.dumps(appearance)
+            )
+        elif key == "update_auto_check":
+            self.preferences.save_update_auto_check(boolean(value))
+            self.update_schedule.set_enabled(boolean(value))
+        elif key == "startup":
+            result = self.settings_vm.set_startup_enabled(boolean(value))
+            require(
+                result.enabled == value,
+                "자동 시작 등록을 변경하지 못했습니다.",
+                "startup_failed",
+            )
+        else:
+            raise CommandError("unsupported", "이 구성에서 제공하지 않는 설정입니다.")
+
+    def _change_pet_trash(self, method, args):
+        self._context(args)
+        require(
+            args.get("epoch") == self.account_epoch,
+            "계정이 변경됐습니다. 다시 불러오세요.",
+            "stale_context",
+        )
+        service = self.pet_vm.packages
+        result = {}
+        try:
+            if method == "pet.trash.move":
+                record = self.pet_vm.trash_pet(
+                    text(args.get("id"), 200),
+                    text(args.get("replacementId", ""), 200),
+                )
+                result = dict(trashId=record["trashId"], name=record["name"])
+            elif method == "pet.trash.restore":
+                record = service.restore(text(args.get("trashId"), 32))
+                result = dict(id=record["petId"], name=record["name"])
+            elif method == "pet.trash.delete":
+                service.delete(text(args.get("trashId"), 32))
+            else:
+                deleted, failed = (0, [])
+                for record in service.records():
+                    try:
+                        service.delete(record["trashId"])
+                        deleted += 1
+                    except (PetTrashError, OSError):
+                        failed.append(record["trashId"])
+                result = dict(deleted=deleted, failed=failed)
+        except (PetTrashError, OSError) as error:
+            self.revision += 1
+            self.changed.emit("settings")
+            raise CommandError(
+                "pet_trash_failed",
+                str(error)
+                if isinstance(error, PetTrashError)
+                else "펫 파일에 접근하지 못했습니다. 저장 공간과 폴더 권한을 확인한 후 다시 시도하세요.",
+            ) from error
+        self.revision += 1
+        self.changed.emit("settings")
+        self._sync()
+        return dict(saved=True, snapshot=self.snapshot(), **result)
+
+    def _save_pet_catalog(self, args):
+        self._context(args)
+        ids = {entry.id for entry in self.pet_vm.all_pets()}
+        order, hidden = (args.get("order"), args.get("hidden"))
+        require(
+            isinstance(order, list)
+            and isinstance(hidden, list)
+            and (len(order) <= 256)
+            and (len(hidden) <= 256)
+        )
+        require(all((isinstance(item, str) and item in ids for item in order + hidden)))
+        require(
+            len(set(order)) == len(order) and self.pet_vm.snapshot.pet_id not in hidden
+        )
+        previous = self.pet_vm.catalog_preferences()
+        try:
+            self.pet_vm.save_catalog_preferences(
+                choice(args.get("sort"), ("name", "custom")), order, hidden
+            )
+            self._sync()
+        except CommandError:
+            self.pet_vm.save_catalog_preferences(*previous)
+            try:
+                self._sync()
+            except CommandError:
+                pass
+            self.revision += 1
+            self.changed.emit("settings")
+            raise
+        self.revision += 1
+        self.changed.emit("settings")
+        return dict(saved=True, snapshot=self.snapshot())
+
+    def _pet_action(self, args):
+        action = text(args.get("action"))
+        actions = {
+            "recenter": self.pet_vm.recenter,
+            "recall": self.pet_vm.move_to_auto_movement_screen,
+            "movement_test": self.pet_vm.test_movement,
+            "visibility": self.pet_vm.toggle_visibility,
+            "restore": self.pet_vm.restore_agent_display,
+            "folder": self.pet_vm.open_pet_folder,
+            "resume": self.pet_vm.resume_bubbles,
+            "durations_reset": self.pet_vm.reset_bubble_durations,
+        }
+        if self.assistant:
+            actions["duration_overrides_reset"] = (
+                self.pet_vm.clear_bubble_duration_overrides
+            )
+        if action == "animation":
+            self.pet_vm.test_animation(
+                choice(args.get("state"), {value for _, value in ACTION_TEST_STATES})
+            )
+        elif action == "preview":
+            self.pet_vm.preview_bubble("새로운 말풍선 디자인을 미리 확인해 보세요")
+        elif action == "snooze" and self.assistant:
+            self.pet_vm.snooze_bubbles(
+                choice(args.get("minutes"), (15, 30, 60)) * 60000
+            )
+        else:
+            require(action in actions)
+            actions[action]()
+
+    def _select_pet(self, args):
+        self._context(args)
+        pet_id = text(args.get("id"))
+        require(pet_id in {entry.id for entry in self.pet_vm.all_pets()})
+        sort, order, hidden = self.pet_vm.catalog_preferences()
+        if pet_id in hidden:
+            self.pet_vm.save_catalog_preferences(sort, order, hidden - {pet_id})
+        changed = self.pet_vm.change_pet(pet_id)
+        if not changed and pet_id in hidden:
+            self.pet_vm.save_catalog_preferences(sort, order, hidden)
+        require(changed, "펫을 불러오지 못했습니다.", "pet_failed")
 
     def cancel_pet_import(self, token=None):
         self.pet_importer.cancel(token)

@@ -26,7 +26,11 @@ from watched_kettle.application.update_check import (
     release_url_kind,
 )
 from watched_kettle.application.update_assets import installer_name
-from watched_kettle.branding import APPLICATION_VERSION
+from watched_kettle.branding import (
+    APPLICATION_VERSION,
+    RELEASE_REPOSITORY,
+    UPDATE_REPOSITORY,
+)
 from watched_kettle.ui.pet_tray import update_action_text
 from tests.update_bundle_support import KIND, build_release
 
@@ -53,6 +57,22 @@ class AddressRuleTests(unittest.TestCase):
             self.assertEqual(
                 release_url_kind(f"http://{host}:8765/releases"), "local-test", host
             )
+
+    def test_update_files_and_release_notes_come_from_two_repositories(self):
+        # The addresses scripts/build_windows.ps1 writes into Public bundles.
+        self.assertNotEqual(UPDATE_REPOSITORY, RELEASE_REPOSITORY)
+        for repository in (UPDATE_REPOSITORY, RELEASE_REPOSITORY):
+            self.assertEqual(
+                release_url_kind(f"https://github.com/{repository}/releases"),
+                "official",
+            )
+        self.assertEqual(
+            release_url_kind(
+                f"https://api.github.com/repos/{UPDATE_REPOSITORY}/releases/latest",
+                api=True,
+            ),
+            "official",
+        )
 
     def test_rejected_addresses(self):
         for url, api in (
@@ -254,6 +274,27 @@ class UpdateServiceTests(unittest.TestCase):
                 "api_url": "http://192.168.0.10:8765/api/releases/latest",
                 "release_url": "http://192.168.0.10:8766/releases",
             },
+            # The release notes page follows the same rules.
+            {
+                "api_url": "https://api.github.com/repos/org/updates/releases/latest",
+                "release_url": "",
+                "notes_url": "https://github.com/org/repo/releases",
+            },
+            {
+                "api_url": "https://api.github.com/repos/org/updates/releases/latest",
+                "release_url": "https://github.com/org/updates/releases",
+                "notes_url": "https://example.com/org/repo/releases",
+            },
+            {
+                "api_url": "https://api.github.com/repos/org/updates/releases/latest",
+                "release_url": "https://github.com/org/updates/releases",
+                "notes_url": "http://127.0.0.1:8765/releases",
+            },
+            {
+                "api_url": "http://127.0.0.1:8765/api/releases/latest",
+                "release_url": "http://127.0.0.1:8765/releases",
+                "notes_url": "http://127.0.0.1:8766/releases",
+            },
         ):
             _, update = self.check(self.write_source(source))
             self.assertIn("올바르지", update["message"])
@@ -299,13 +340,35 @@ class UpdateServiceTests(unittest.TestCase):
         self.assertEqual(update["version"], "9.9.9")
         self.assertFalse(update["can_install"])
         self.assertIn("설치판에서만", update["message"])
-        self.assertTrue(update["page_url"].endswith("/releases/tag/v9.9.9"))
+        # Without notes_url (sources written before ADR 0008) the page is
+        # the release that carries the update files.
+        port = self.servers[-1].server_address[1]
+        self.assertEqual(
+            update["page_url"], f"http://127.0.0.1:{port}/releases/tag/v9.9.9"
+        )
         with self.installed():
             _, update = self.check(source)
             self.assertTrue(update["can_install"])
             _, update = self.check(self.serve(mode="no-assets"))
             self.assertFalse(update["can_install"])
             self.assertIn("배포 페이지", update["message"])
+
+    def test_the_page_link_opens_the_release_notes_of_another_repository(self):
+        source = self.serve()
+        row = json.loads(source.read_text(encoding="utf-8"))
+        port = self.servers[-1].server_address[1]
+        row["notes_url"] = f"http://127.0.0.1:{port}/notes/"
+        with self.installed():
+            service, update = self.check(self.write_source(row))
+        self.assertEqual(update["state"], "available")
+        # Without an index in the release, the full installer is offered.
+        self.assertEqual(
+            (service.release["kind"], service.release["name"]),
+            ("installer", INSTALLER_NAME),
+        )
+        self.assertEqual(
+            update["page_url"], f"http://127.0.0.1:{port}/notes/tag/v9.9.9"
+        )
 
     def test_verified_download_starts_the_installer_and_quits(self):
         with (
@@ -514,6 +577,27 @@ class PartialUpdateTests(unittest.TestCase):
             str(self.updates),
         )
         self.assertFalse((self.app_root / "runtime" / "pet-assistant.next").exists())
+
+    def add_full_installer(self):
+        """The full installer and its checksum, as every Release carries."""
+        installer = self.release / INSTALLER_NAME
+        installer.write_bytes(b"full setup 9.9.9" * 1000)
+        digest = hashlib.sha256(installer.read_bytes()).hexdigest().upper()
+        (self.release / (INSTALLER_NAME + ".sha256")).write_text(
+            f"{digest}  {INSTALLER_NAME}\n", encoding="ascii"
+        )
+
+    def test_deltas_without_edition_installers_fall_back_to_the_full_installer(self):
+        # The release repository's 0.15.5 carries only the index, the deltas
+        # from 0.15.4 and the full installer (ADR 0008).
+        self.add_full_installer()
+        for edition in ("pet-only", "pet-assistant"):
+            (self.release / installer_name("9.9.9", KIND, edition)).unlink()
+        service = self.check()
+        self.assertEqual(service.release["kind"], "delta")
+        self.assertEqual(service.release["fallback"]["name"], INSTALLER_NAME)
+        start = self.run_update(self.check(mode="bad-delta"))
+        self.assertEqual(start.call_args.args[0], str(self.updates / INSTALLER_NAME))
 
     def test_a_changed_installed_runtime_also_falls_back(self):
         library = (

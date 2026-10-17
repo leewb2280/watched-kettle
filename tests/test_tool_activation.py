@@ -149,6 +149,36 @@ class ToolActivationTests(unittest.TestCase):
         self.assertEqual(self.status_line.calls, ["preview_remove", "apply"])
         self.assertFalse(self.preferences.load_claude_code_usage_enabled())
 
+    def test_turning_claude_code_on_also_brings_the_limits(self):
+        plan = self.activation.preview("claude_code", True)
+        self.assertEqual(
+            [step.provider for step in plan.steps],
+            ["claude_code", "claude_code_status_line"],
+        )
+
+        result = self.activation.apply(plan)
+
+        self.assertTrue(result.complete)
+        # The hooks step wrote settings.json, so the status line plans again.
+        self.assertEqual(
+            self.status_line.calls, ["preview_install", "preview_install", "apply"]
+        )
+        self.assertTrue(self.preferences.load_claude_code_usage_enabled())
+
+    def test_blocked_status_line_still_turns_claude_code_on(self):
+        self.status_line.plan.can_apply = False
+        plan = self.activation.preview("claude_code", True)
+        self.assertTrue(
+            any("한도를 받을 수 없습니다" in line for line in plan.warnings)
+        )
+
+        result = self.activation.apply(plan)
+
+        self.assertFalse(result.complete)
+        self.assertNotIn("apply", self.status_line.calls)
+        self.assertEqual(self.claude.calls, ["preview_install", "apply"])
+        self.assertTrue(self.preferences.load_claude_code_usage_enabled())
+
     def test_file_changed_after_review_keeps_the_switch(self):
         self.codex.error = StaleHookPlanError("changed")
         with self.assertRaises(StaleHookPlanError):

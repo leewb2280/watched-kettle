@@ -2,6 +2,7 @@
 
 - 상태: 승인 — 2026-10-16, 0.15.3 첫 공개 직후
 - 관련: 릴리스 계획 4절 사용자 요청 업데이트, [ADR 0006](0006-tool-activation-single-bundle.md)
+- 후속: 0.15.5부터 아래 파일은 별도 공개 저장소의 Release에 올리고, 본 저장소 Release에는 통합 설치기와 `.sha256`만 둔다([ADR 0008](0008-update-repository.md))
 
 ## 배경
 

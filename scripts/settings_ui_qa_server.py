@@ -37,6 +37,7 @@ from watched_kettle.integrations.codex_install import CodexHookInstaller
 from watched_kettle.integrations.codex_ipc import CodexHookServer
 from watched_kettle.integrations.windows_startup import StartupRegistrationStatus
 from watched_kettle.pet.window import DesktopPet
+from watched_kettle.ui.fonts import configure_application_font
 from watched_kettle.usage.models import (
     DailyUsageBucket,
     RateLimitBucket,
@@ -174,6 +175,7 @@ def main():
     )
     args = parser.parse_args()
     app = QApplication([])
+    configure_application_font(app)
     app.setQuitOnLastWindowClosed(False)
     with tempfile.TemporaryDirectory(prefix="watched-kettle-settings-qa-") as folder:
         root = Path(folder)
@@ -269,6 +271,11 @@ def main():
             runtime.integrations_vm.status_line_installer = (
                 runtime.claude_code_status_line_installer
             )
+            # Both tools are on without their isolated hooks, so the connection
+            # watch would post reconnect notices into the empty-history checks.
+            runtime.connection_watch.announce_ready.disconnect(
+                runtime._announce_connection
+            )
             host = runtime.center
         runtime.settings_vm.startup_registration = IsolatedStartup()
         host._start_server()
@@ -304,8 +311,13 @@ def main():
                 return
             if not control_path.exists():
                 return
-            data = json.loads(control_path.read_text(encoding="utf-8"))
-            control_path.unlink()
+            try:
+                data = json.loads(control_path.read_text(encoding="utf-8"))
+                control_path.unlink()
+            except (OSError, json.JSONDecodeError):
+                # The runner may still be writing; consume a complete command
+                # on the next tick instead of logging a transient callback error.
+                return
             if data["action"] == "batch_fixture":
                 count = min(60, max(1, int(data.get("count", 55))))
                 base = Path("pets/mori-bot")

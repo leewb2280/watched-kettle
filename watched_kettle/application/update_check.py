@@ -350,6 +350,7 @@ class UpdateService(QObject):
         self.timer.timeout.connect(self._timeout)
         self.reply = None
         self.release_url = ""
+        self.notes_url = ""
         self.release = None
         self._kind = None
         self._host = ""
@@ -448,22 +449,30 @@ class UpdateService(QObject):
             source = json.loads(self.source_path.read_text(encoding="utf-8"))
             api_url = str(source["api_url"])
             release_url = str(source["release_url"])
+            # Optional: the human-facing Releases whose tag page "변경 사항 보기"
+            # opens when update files live in another repository (ADR 0008).
+            notes_url = str(source.get("notes_url") or "")
         except (OSError, ValueError, KeyError, TypeError):
             self._settle("idle", "공식 업데이트 주소가 아직 설정되지 않았습니다.")
             return
         kind = release_url_kind(api_url, api=True)
-        api, page = QUrl(api_url), QUrl(release_url)
+        api = QUrl(api_url)
         if (
             kind is None
-            or kind != release_url_kind(release_url)
-            or (
-                kind == "local-test"
-                and (api.host(), api.port()) != (page.host(), page.port())
+            or not release_url
+            or any(
+                release_url_kind(url) != kind
+                or (
+                    kind == "local-test"
+                    and (api.host(), api.port()) != (QUrl(url).host(), QUrl(url).port())
+                )
+                for url in filter(None, (release_url, notes_url))
             )
         ):
             self._settle("idle", "업데이트 주소 설정이 올바르지 않습니다.")
             return
         self.release_url = release_url
+        self.notes_url = notes_url
         self._kind = kind
         self._host = api.host()
         self._port = api.port()
@@ -548,6 +557,9 @@ class UpdateService(QObject):
             self._settle("current", "최신 버전을 사용 중입니다.")
             return
         version = tag.removeprefix("v")
+        if self.notes_url:
+            # Both repositories tag a version as v<version>.
+            page = f"{self.notes_url.rstrip('/')}/tag/v{version}"
         self.release = self._release_assets(row.get("assets"), version)
         index = index_name(version)
         if (

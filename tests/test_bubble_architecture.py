@@ -15,6 +15,17 @@ UI_DEPENDENCIES = (
     "PySide6.QtGui",
 )
 BOUNDARIES = {
+    "watched_kettle.settings_protocol": (
+        "PySide6",
+        "watched_kettle.application",
+        "watched_kettle.features",
+        "watched_kettle.integrations",
+        "watched_kettle.pet",
+        "watched_kettle.state",
+        "watched_kettle.storage",
+        "watched_kettle.ui",
+        "watched_kettle.usage",
+    ),
     "watched_kettle.application.settings_ui.pet_batch": (
         "watched_kettle.features.project_activity",
         "watched_kettle.features.notifications",
@@ -59,6 +70,8 @@ BOUNDARIES = {
             "watched_kettle.integrations.activity_recovery",
             "watched_kettle.integrations.codex_log",
             "watched_kettle.integrations.codex_log_worker",
+            "watched_kettle.integrations.codex_turn_status",
+            "watched_kettle.state.codex_activity",
             "watched_kettle.integrations.log_lifecycle",
             "watched_kettle.integrations.codex_hooks",
             "watched_kettle.integrations.claude_code_launcher",

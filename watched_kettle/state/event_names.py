@@ -40,6 +40,7 @@ URGENCY_ALIASES = {
 }
 
 EVENT_ALIASES = {
+    "ended": "ended",
     "sessionstart": "session_start",
     "subagentstart": "task_start",
     "start": "task_start",
@@ -82,6 +83,37 @@ EVENT_ALIASES = {
     "postcompact": "review",
     "idle": "idle",
 }
+
+OUTCOME_REASONS = frozenset(
+    {
+        "usage_limit",
+        "rate_limit",
+        "budget_limit",
+        "context_limit",
+        "provider_error",
+        "unknown",
+    }
+)
+
+
+def outcome_reason(value):
+    """Classify structured codes only, never error prose; safe for the hook bridge."""
+    if isinstance(value, dict):
+        value = next(iter(value), "")
+    if not isinstance(value, str):
+        return "unknown"
+    if value in OUTCOME_REASONS:
+        return value
+    return {
+        "usagelimitexceeded": "usage_limit",
+        "ratelimitexceeded": "rate_limit",
+        "sessionbudgetexceeded": "budget_limit",
+        "contextwindowexceeded": "context_limit",
+        "serveroverloaded": "provider_error",
+        "internalservererror": "provider_error",
+        "responsestreamdisconnected": "provider_error",
+        "responsetoomanyfailedattempts": "provider_error",
+    }.get(value.replace("_", "").lower(), "unknown")
 
 
 def normalize_agent_source(value):

@@ -84,6 +84,12 @@ class AgentSession:
     pending_wait_ids: frozenset[str] = frozenset()
     pending_question_ids: frozenset[str] = frozenset()
     unidentified_wait: bool = False
+    turn_id: str = ""
+    uncertain: bool = False
+    agent_scope: str = "main"
+    activity_version: int = 0
+    # Tool calls started but not yet ended; a long tool reports nothing.
+    open_tool_ids: frozenset[str] = frozenset()
 
 
 class AgentSessionManager:
@@ -132,7 +138,17 @@ class AgentSessionManager:
                 pending_wait_ids=wait_ids,
                 pending_question_ids=question_ids,
                 unidentified_wait=unidentified,
+                turn_id=decision.turn_id,
+                agent_scope=decision.agent_scope,
+                open_tool_ids=self._open_tools(decision, existing),
             )
+        if decision.source == "claude_code" and decision.parent_session_id:
+            # A parent reports nothing while its subagent works; the
+            # subagent's events keep the parent from going silent.
+            parent = self._sessions.get(decision.parent_session_id)
+            if parent is not None:
+                parent.updated_at = updated_at
+                parent.updated_at_ms = at_ms
 
         aggregate = self.get_aggregate()
         quiet_lifecycle = (
@@ -146,6 +162,8 @@ class AgentSessionManager:
                 "cancelled",
             }
         ) or decision.event == "background_wait"
+        if decision.source == "codex" and decision.agent_scope == "internal":
+            quiet_lifecycle = True
         quiet_tool_failure = (
             decision.source in AGENT_SOURCES and decision.event == "tool_failed"
         )
@@ -235,9 +253,22 @@ class AgentSessionManager:
             unidentified,
         )
 
+    @staticmethod
+    def _open_tools(decision, existing):
+        tools = set(existing.open_tool_ids) if existing else set()
+        if decision.event in {"prompt", "background_wait"}:
+            tools.clear()
+        elif decision.event == "tool_start" and decision.event_id:
+            tools.add(decision.event_id)
+        elif decision.event in {"tool_end", "tool_failed"}:
+            tools.discard(decision.event_id)
+        return frozenset(tools)
+
     def get_aggregate(self):
         active = [
-            session for session in self._sessions.values() if session.state != "idle"
+            session
+            for session in self._sessions.values()
+            if session.state != "idle" and counted_session(session)
         ]
         if not active:
             return AggregateState()
@@ -276,7 +307,8 @@ class AgentSessionManager:
         """Remove inactive work states while preserving actionable waits.
 
         ``inactivity_limits`` maps a source to an ``InactivityLimit`` that
-        replaces the general rule for that source's sessions, waits included.
+        replaces the general rule for that source's sessions, waits and open
+        tool calls included.
         """
         max_age_ms = max(0, int(max_age_ms))
         now_ms = int(self._now_ms())
@@ -287,8 +319,11 @@ class AgentSessionManager:
             age_ms = now_ms - session.updated_at_ms
             limit = inactivity_limits.get(session.source)
             if limit is not None:
+                # An open tool call may run long without events, like a wait.
                 limit_ms = (
-                    limit.waiting_ms if session.state == "waiting" else limit.work_ms
+                    limit.waiting_ms
+                    if session.state == "waiting" or session.open_tool_ids
+                    else limit.work_ms
                 )
                 return limit_ms > 0 and age_ms >= limit_ms
             return (
@@ -313,3 +348,61 @@ class AgentSessionManager:
                 if session.source == source:
                     del self._sessions[key]
         return self.get_aggregate()
+
+    def project_codex_observations(self, observations):
+        """Project service confidence onto existing animation sessions only."""
+        by_id = {"codex:" + o.thread_id: o for o in observations}
+        changed = False
+        for key, session in tuple(self._sessions.items()):
+            if session.source != "codex":
+                continue
+            observed = by_id.get(key)
+            if observed is None:
+                del self._sessions[key]
+                changed = True
+                continue
+            if (
+                session.turn_id
+                and observed.turn_id
+                and session.turn_id != observed.turn_id
+            ):
+                continue
+            if observed.version < session.activity_version:
+                continue
+            state = "waiting" if observed.state == "waiting" else "running"
+            stamp = int(observed.last_confirmed_at * 1000)
+            values = (
+                observed.turn_id,
+                observed.uncertain,
+                observed.scope,
+                state,
+                stamp,
+                observed.version,
+            )
+            previous = (
+                session.turn_id,
+                session.uncertain,
+                session.agent_scope,
+                session.state,
+                session.updated_at_ms,
+                session.activity_version,
+            )
+            if values != previous:
+                (
+                    session.turn_id,
+                    session.uncertain,
+                    session.agent_scope,
+                    session.state,
+                    session.updated_at_ms,
+                    session.activity_version,
+                ) = values
+                changed = True
+        return changed
+
+
+def counted_session(session):
+    return session.source != "codex" or (
+        not getattr(session, "uncertain", False)
+        and getattr(session, "agent_scope", "main") != "internal"
+        and session.state != "idle"
+    )

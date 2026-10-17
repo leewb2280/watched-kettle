@@ -10,6 +10,9 @@ from watched_kettle.application.integration_setup import (
     run_integration_setup,
 )
 from watched_kettle.integrations.claude_code_install import ClaudeCodeHookInstaller
+from watched_kettle.integrations.claude_code_status_line_install import (
+    ClaudeCodeStatusLineInstaller,
+)
 from watched_kettle.integrations.codex_install import (
     CodexHookInstaller,
     build_managed_hook,
@@ -124,7 +127,7 @@ class IntegrationSetupTests(unittest.TestCase):
         self.assertTrue(self.settings.values["usage/enabled"])
         self.assertTrue(self.settings.values["usage/claude_code_enabled"])
 
-    def test_turning_claude_code_off_also_restores_the_status_line(self):
+    def test_claude_code_switch_also_changes_the_status_line(self):
         claude, status_line = FakeInstaller(), FakeInstaller()
 
         self.assertEqual(
@@ -135,13 +138,18 @@ class IntegrationSetupTests(unittest.TestCase):
             ),
             0,
         )
-        self.assertEqual(status_line.calls, ["preview_remove", "apply"])
-        # Turning it on leaves the status line, a separate option, alone.
+        # The hooks step wrote settings.json, so the status line plans again.
+        self.assertEqual(
+            status_line.calls, ["preview_remove", "preview_remove", "apply"]
+        )
+        # Turning it on also brings the limits.
         status_line.calls.clear()
         self.run_setup(
             "--claude-code=on", claude_code=claude, claude_code_status_line=status_line
         )
-        self.assertEqual(status_line.calls, [])
+        self.assertEqual(
+            status_line.calls, ["preview_install", "preview_install", "apply"]
+        )
 
     def test_real_installers_add_and_remove_only_the_managed_hooks(self):
         with TemporaryDirectory() as directory:
@@ -162,19 +170,31 @@ class IntegrationSetupTests(unittest.TestCase):
                 claude_code=ClaudeCodeHookInstaller(
                     settings_path=claude_settings, policy_paths=()
                 ),
+                claude_code_status_line=ClaudeCodeStatusLineInstaller(
+                    settings_path=claude_settings,
+                    sidecar_path=root / "status-line.json",
+                    command="WatchedKettle.exe --claude-code-status-line",
+                ),
             )
+            installers["claude_code_status_line"]._hooks.policy_paths = ()
 
             self.assertEqual(
                 self.run_setup("--codex=on", "--claude-code=on", **installers), 0
             )
             self.assertTrue(fully_installed(installers["codex"]))
             self.assertTrue(fully_installed(installers["claude_code"]))
+            # Both changes land in the one settings.json.
+            self.assertEqual(
+                installers["claude_code_status_line"].inspect().state, "installed"
+            )
 
             self.assertEqual(self.run_setup("--claude-code=off", **installers), 0)
             self.assertTrue(fully_installed(installers["codex"]))
             self.assertEqual(installers["claude_code"].inspect().installed_events, 0)
             saved = json.loads(claude_settings.read_text(encoding="utf-8"))
             self.assertEqual(saved["theme"], "dark")
+            self.assertNotIn("statusLine", saved)
+            self.assertFalse(self.settings.values["usage/claude_code_enabled"])
 
 
 if __name__ == "__main__":

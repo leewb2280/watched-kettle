@@ -145,9 +145,10 @@ class TrayLifetimeTests(unittest.TestCase):
             self.tray.refresh()
             self.flush()
             if i % 1000 == 999:
-                # 25 fixed actions include the hidden Claude Code usage line
-                # and the separators around the home and usage entries.
-                self.assertEqual(self.counts(), (7, 25, 0, 0))
+                # 26 fixed actions include the hidden connection and Claude
+                # Code usage lines and the separators around the home and
+                # usage entries.
+                self.assertEqual(self.counts(), (7, 26, 0, 0))
             if i == 4999:
                 warm = _resources().get("private_bytes")
         final = _resources().get("private_bytes")

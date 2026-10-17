@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, Info, X } from "lucide-react";
-import type { Control } from "./types";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { Control, NumberControl, OptionalControl, Scalar } from "./types";
 
 export function Section({
   title,
@@ -102,8 +102,8 @@ export function Range({
   field,
   change,
 }: {
-  field: Control;
-  change: (value: any) => void;
+  field: NumberControl;
+  change: (value: Scalar | undefined) => void;
 }) {
   const [value, setValue] = useState(field.value ?? field.min ?? 0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -168,7 +168,7 @@ export function PetSize({
   field,
   change,
 }: {
-  field: Control;
+  field: NumberControl;
   change: (value: number) => void;
 }) {
   const [value, setValue] = useState<number>(field.value);
@@ -249,9 +249,9 @@ export function PetSize({
           <button
             className="button compact"
             type="button"
-            key={preset.value}
+            key={String(preset.value)}
             aria-pressed={value === preset.value}
-            onClick={() => selectPreset(preset.value)}
+            onClick={() => selectPreset(Number(preset.value))}
           >
             {preset.label}
           </button>
@@ -265,7 +265,7 @@ export function OptionalNumber({
   field,
   change,
 }: {
-  field: Control;
+  field: OptionalControl;
   change: (value: number | null) => void;
 }) {
   const initial = field.value ?? field.effectiveValue ?? field.min ?? 0;
@@ -434,7 +434,7 @@ export function Field({
   extra,
 }: {
   field: Control;
-  change: (value: any) => void;
+  change: (value: Scalar | undefined) => void;
   extra?: ReactNode;
 }) {
   return (
@@ -516,7 +516,7 @@ export function Fields({
   groupRows,
 }: {
   controls: Control[];
-  change: (key: string, value: any) => void;
+  change: (key: string, value: Scalar | undefined) => void;
   groupFooters?: Record<string, ReactNode>;
   hideTitles?: boolean;
   fieldExtras?: Record<string, ReactNode>;

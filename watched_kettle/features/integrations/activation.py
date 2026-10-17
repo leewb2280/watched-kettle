@@ -1,10 +1,11 @@
 """One "use this tool" switch per agent: its managed files and its usage switch.
 
-Turning a tool on installs its managed hooks and turns its usage on; a hook
-that Codex or Claude Code blocks only limits activity, so the tool still turns
-on. Turning a tool off removes its managed hooks (and the Claude Code status
-line) and always turns it off, even when a file cannot be changed: the app
-then drops that tool's events (docs/bubble-architecture.md 2절).
+Turning a tool on installs its managed hooks (and the Claude Code status line
+that brings its limits) and turns its usage on; a hook that Codex or Claude
+Code blocks only limits activity, so the tool still turns on. Turning a tool
+off removes its managed hooks (and the Claude Code status line) and always
+turns it off, even when a file cannot be changed: the app then drops that
+tool's events (docs/bubble-architecture.md 2절).
 """
 
 from __future__ import annotations
@@ -69,6 +70,8 @@ class ActivationResult:
 
 def _blocked_message(tool, enabled, provider):
     if provider == "claude_code_status_line":
+        if enabled:
+            return "Claude Code status line을 바꾸지 못해 한도를 받을 수 없습니다."
         return (
             "Claude Code status line을 되돌리지 못했습니다. 설정 파일을 확인해 주세요."
         )
@@ -83,10 +86,8 @@ def tool_providers(tool, enabled):
     if tool == "codex":
         return ("codex",)
     if tool == "claude_code":
-        # The status line stays a separate opt-in while Claude Code is on.
-        return (
-            ("claude_code",) if enabled else ("claude_code", "claude_code_status_line")
-        )
+        # The status line brings the limits; it can still be turned off alone.
+        return ("claude_code", "claude_code_status_line")
     raise KeyError(tool)
 
 
@@ -135,15 +136,28 @@ class ToolActivation:
         from watched_kettle.integrations.codex_install import StaleHookPlanError
 
         complete = True
+        wrote = False
         for step in plan.steps:
             if step.error or step.plan is None or not step.plan.can_apply:
                 complete = False
                 continue
-            if not step.plan.has_changes:
+            change = step.plan
+            if wrote:
+                # Claude Code's hooks and status line share settings.json, so
+                # a step after a write plans again over the file it left.
+                change = self._replan(step.provider, plan.enabled)
+                if change is None or not change.can_apply:
+                    complete = False
+                    continue
+            if not change.has_changes:
                 continue
             try:
-                self.installer(step.provider).apply(step.plan)
+                self.installer(step.provider).apply(change)
+                wrote = True
             except StaleHookPlanError:
+                if wrote:
+                    complete = False
+                    continue
                 raise
             except Exception:
                 complete = False
@@ -152,6 +166,15 @@ class ToolActivation:
         if sync is not None:
             sync()
         return ActivationResult(plan.tool, plan.enabled, complete)
+
+    def _replan(self, provider, enabled):
+        installer = self.installer(provider)
+        try:
+            return (
+                installer.preview_install() if enabled else installer.preview_remove()
+            )
+        except Exception:
+            return None
 
 
 def migrate_tool_activation(preferences, claude_code_installer, status_line_installer):

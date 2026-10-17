@@ -11,6 +11,20 @@ from watched_kettle.ui.pet_controls import tray_status_text
 from watched_kettle.ui.pet_tray import update_action_text
 
 TRAY_ICON_SIZES = (16, 20, 24, 32, 48)
+
+
+def connection_action_text(alerts):
+    """One tray line for the connection watch (features/integrations/watch.py)."""
+    broken = [a.label for a in alerts if a.kind == "broken"]
+    found = [a.label for a in alerts if a.kind == "found"]
+    parts = []
+    if broken:
+        parts.append(f"{'·'.join(broken)} 다시 연결 필요")
+    if found:
+        parts.append(f"{'·'.join(found)} 연결 가능")
+    return " · ".join(parts)
+
+
 # Pet states that put a colored dot on the tray icon, by design token.
 BADGE_TOKENS = {
     "running": "status-running",
@@ -75,9 +89,11 @@ class AssistantSystemTray(QObject):
         icon_pixmap,
         parent=None,
         updates=None,
+        connections=None,
     ):
         super().__init__(parent)
         self.pet_vm = pet_vm
+        self.connections = connections
         self.usage_vm = usage_vm
         self.notifications = notifications
         self.open_route = open_route
@@ -97,6 +113,12 @@ class AssistantSystemTray(QObject):
         self._icon_state = None
         # Agent source dots on project entries; on when both are in use.
         self.source_marks_shown = False
+        # Stays while the watch reports a tool to (re)connect.
+        self.connection_action = self.menu.addAction("")
+        self.connection_action.setVisible(False)
+        self.connection_action.triggered.connect(
+            lambda: open_route(RouteId.INTEGRATIONS)
+        )
         self.status_action = self.menu.addAction("현재 상태: 대기 중")
         self.status_action.setEnabled(False)
         self.usage_status_action = self.menu.addAction("Codex 사용량: 확인 불가")
@@ -149,6 +171,8 @@ class AssistantSystemTray(QObject):
         self.menu.aboutToHide.connect(self._closing)
         self.tray.activated.connect(self._activated)
         self.tray.setContextMenu(self.menu)
+        if connections is not None:
+            connections.changed.connect(self.request_refresh)
         self.refresh()
         self.tray.show()
 
@@ -173,7 +197,11 @@ class AssistantSystemTray(QObject):
             action.setText(text)
 
     def _desired(self):
-        from watched_kettle.features.project_activity.service import LABELS
+        from watched_kettle.features.project_activity.service import (
+            row_status_label,
+            state_label,
+            thread_source,
+        )
 
         projects = getattr(self.notifications, "projects", None)
         router = getattr(self.notifications, "router", None)
@@ -196,7 +224,7 @@ class AssistantSystemTray(QObject):
                 rows = [
                     row(
                         ("thread", key, r.thread_id),
-                        f"{r.title} · {LABELS.get(r.state, r.state)} · {router.label('thread', r.thread_id)}",
+                        f"{r.title} · {row_status_label(r)} · {router.label('thread', r.thread_id)}",
                         "thread",
                         r.thread_id,
                     )
@@ -226,7 +254,7 @@ class AssistantSystemTray(QObject):
                     row(
                         ("event", record.thread_id, record.state, record.occurred_at),
                         f"{self._conversation_title(projects, record.thread_id)}"
-                        f" · {LABELS.get(record.state, record.state)}",
+                        f" · {state_label(record.state, thread_source(record.thread_id))}",
                         "thread",
                         record.thread_id,
                     )
@@ -366,6 +394,13 @@ class AssistantSystemTray(QObject):
             self._set_text(
                 self.visibility_action, "펫 숨기기" if pet.visible else "펫 표시"
             )
+            connection = connection_action_text(
+                self.connections.snapshot if self.connections is not None else ()
+            )
+            if self.connection_action.isVisible() != bool(connection):
+                self.connection_action.setVisible(bool(connection))
+            if connection:
+                self._set_text(self.connection_action, connection)
             groups, categories, bindings = self._desired()
             if self._menu_open:
                 for cache in self._rows.values():
@@ -381,6 +416,7 @@ class AssistantSystemTray(QObject):
             notice = self.notifications.snapshot.last_message
             tooltip = (
                 f"Watched Kettle\n{state}"
+                + (f"\n{connection}" if connection else "")
                 + (f" · 활성 작업 {pet.active_count}개" if pet.active_count else "")
                 + (f"\nCodex 사용량: {usage}" if codex else "")
                 + (f"\nClaude Code 사용량: {claude_usage}" if claude_usage else "")

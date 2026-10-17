@@ -6,7 +6,11 @@ from dataclasses import dataclass
 import time
 
 from watched_kettle.state.events import source_display_label
-from watched_kettle.state.session_manager import AggregateState, ApplyResult
+from watched_kettle.state.session_manager import (
+    AggregateState,
+    ApplyResult,
+    counted_session,
+)
 from watched_kettle.ui.bubble_models import BubbleNotice
 
 
@@ -59,6 +63,8 @@ def working_sources(sessions):
     """Distinct sources of working sessions, most important session first."""
     sources = []
     for session in sessions:
+        if not counted_session(session):
+            continue
         if session.state in {"running", "review"} and session.source not in sources:
             sources.append(session.source)
     return tuple(sources)
@@ -89,7 +95,7 @@ class ActivityPresentationPolicy:
             source=display.source,
             event=display.event,
             session_id=display.session_id,
-            active_count=len(result.sessions),
+            active_count=sum(counted_session(s) for s in result.sessions),
             notice=notice,
             persistent_notice=persistent,
             persistent_notices=persistent_notices,
@@ -103,7 +109,7 @@ class ActivityPresentationPolicy:
             message=aggregate.message,
             source=aggregate.source or "",
             session_id=aggregate.session_id or "",
-            active_count=len(sessions),
+            active_count=sum(counted_session(s) for s in sessions),
             persistent_notice=(persistent_notices[0] if persistent_notices else None),
             persistent_notices=persistent_notices,
             working_sources=working_sources(sessions),
@@ -118,9 +124,10 @@ class ActivityPresentationPolicy:
         if event == "waiting":
             duration_ms = 0
         else:
-            duration_ms = TIMED_NOTICE_DURATIONS_MS.get(event)
-            if duration_ms is None:
+            event_duration = TIMED_NOTICE_DURATIONS_MS.get(event)
+            if event_duration is None:
                 return None
+            duration_ms = event_duration
 
         message = str(display.message or "").strip()[:120]
         if not message:

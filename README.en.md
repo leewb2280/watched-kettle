@@ -2,7 +2,7 @@
 
 [한국어](README.md) · [English](README.en.md)
 
-[Roadmap](ROADMAP.md) · [0.15.4 release notes](docs/release-notes/v0.15.4.md) · [Release readiness](RELEASE_READINESS.md)
+[Roadmap](ROADMAP.md) · [0.15.5 release notes](docs/release-notes/v0.15.5.md) · [Release readiness](RELEASE_READINESS.md)
 
 **A desktop pet that keeps you posted on your coding agents**
 
@@ -184,11 +184,11 @@ See [SECURITY.md (Korean)](SECURITY.md) for issue reporting and private security
 <details>
 <summary>Show prerequisites and build commands</summary>
 
-Requirements: Windows, Python 3.12–3.14, Node.js 22 and pnpm. For the installer, Inno Setup 6.7 or later and
+Requirements: Windows x64, standard CPython 3.14.x (baseline 3.14.8), Node.js 22 and pnpm. For the installer, Inno Setup 6.7 or later and
 the .NET Framework 4.x included with Windows (to compile the launcher).
 
 ```powershell
-py -m venv .venv
+py -3.14 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 pnpm --dir settings-ui install --frozen-lockfile --ignore-scripts
 node settings-ui/node_modules/electron/install.js

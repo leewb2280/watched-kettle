@@ -2,39 +2,86 @@ name: public-source-quality
 
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      full:
+        description: Run coverage gates and dependency audit too
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && 'manual' || 'automatic' }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+
+env:
+  PYTHONUTF8: "1"
+  PYTHONUNBUFFERED: "1"
+  QT_QPA_PLATFORM: offscreen
+
 jobs:
   windows:
+    name: windows (3.14)
     runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.12", "3.13", "3.14"]
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.14.8"
           cache: pip
-      - name: Install dependencies
-        run: python -m pip install -r requirements-dev.txt
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - name: Install settings UI dependencies
-        run: |
-          npm install --global pnpm@11.25.0
-          pnpm --dir settings-ui install --frozen-lockfile --ignore-scripts
       - name: Check public boundary
         shell: pwsh
         run: |
           foreach ($path in @('private-pets', 'private-assets')) {
             if (Test-Path -LiteralPath $path) { throw "Private source in public snapshot: $path" }
           }
-      - name: Required checks
+      - name: Classify complete event diff
+        id: changes
+        run: python -m scripts.ci_changes
+      - name: Documentation and structure checks
+        if: steps.changes.outputs.docs_only == 'true'
+        timeout-minutes: 5
         shell: pwsh
-        run: ./scripts/check.ps1
+        run: .\scripts\check.ps1 -DocsOnly
+      - name: Create project virtual environment
+        if: steps.changes.outputs.docs_only != 'true'
+        shell: pwsh
+        run: |
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+      - uses: actions/setup-node@v4
+        if: steps.changes.outputs.docs_only != 'true'
+        with:
+          node-version: '22'
+      - name: Install settings UI dependencies
+        if: steps.changes.outputs.docs_only != 'true'
+        run: |
+          npm install --global pnpm@11.25.0
+          pnpm --dir settings-ui install --frozen-lockfile --ignore-scripts
+      - name: Required checks
+        if: steps.changes.outputs.docs_only != 'true'
+        shell: pwsh
+        env:
+          RUN_QUALITY: ${{ steps.changes.outputs.run_quality }}
+        run: |
+          if ($env:RUN_QUALITY -eq 'true') {
+            .\scripts\check.ps1 -Quality
+          } else {
+            .\scripts\check.ps1
+          }
+      - uses: actions/upload-artifact@v7
+        if: ${{ always() && steps.changes.outputs.run_quality == 'true' }}
+        with:
+          name: quality-reports
+          path: |
+            build/quality/coverage.*
+            build/quality/mypy-advisory*.txt
+          if-no-files-found: ignore

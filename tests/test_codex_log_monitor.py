@@ -24,7 +24,7 @@ from watched_kettle.integrations.codex_log import (
 class CodexLogRecordTests(unittest.TestCase):
     def test_maps_privacy_safe_task_and_tool_metadata(self):
         cases = (
-            ("event_msg", "task_complete", "done"),
+            ("event_msg", "task_complete", "ended"),
             ("event_msg", "context_compacted", "review"),
             ("response_item", "compaction", "review"),
             ("response_item", "function_call", "tool_start"),
@@ -329,7 +329,7 @@ class CodexLogMonitorTests(unittest.TestCase):
                         + "\n"
                     )
                 monitor.poll_now()
-                self.assertEqual([event["event"] for event in received], ["done"])
+                self.assertEqual([event["event"] for event in received], ["ended"])
                 self.assertEqual(
                     received[0]["session_id"],
                     "11111111-1111-1111-1111-111111111111",

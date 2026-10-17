@@ -18,6 +18,7 @@ class _LogWorker(QObject):
         self.kwargs = kwargs
         self.reader = None
         self.generation = 0
+        self.recovery_allowed = True
 
     @Slot()
     def start(self):
@@ -31,7 +32,8 @@ class _LogWorker(QObject):
 
     @Slot(object)
     def deliver_recovery(self, snapshot):
-        self.recovery.emit(replace(snapshot, generation=self.generation))
+        if self.recovery_allowed:
+            self.recovery.emit(replace(snapshot, generation=self.generation))
 
     @Slot(object)
     def deliver_usage(self, records):
@@ -63,12 +65,25 @@ class _LogWorker(QObject):
         if self.reader is not None:
             self.reader.clear_pending_questions()
 
+    @Slot(int)
+    def reset_account(self, generation):
+        # The main thread fences queued old outputs before this slot runs.
+        self.generation = generation
+        self.recovery_allowed = False
+        if self.reader is not None:
+            self.reader.close()
+            self.reader.start()
+            self.reader._recovery.clear()
+            self.reader._recovery_confirmed.clear()
+            self.publish()
+
 
 class ThreadedCodexLogMonitor(QObject):
     payload_detected = Signal(dict)
     usage_detected = Signal(object)
     stop_requested = Signal()
     reset_questions_requested = Signal()
+    reset_account_requested = Signal(int)
     recovery_detected = Signal(object)
 
     def __init__(self, parent=None, **kwargs):
@@ -104,7 +119,11 @@ class ThreadedCodexLogMonitor(QObject):
         self.reset_questions_requested.connect(
             self._worker.clear_pending_questions, Qt.ConnectionType.QueuedConnection
         )
+        self.reset_account_requested.connect(
+            self._worker.reset_account, Qt.ConnectionType.QueuedConnection
+        )
         self._worker.generation = self._generation
+        self._worker.recovery_allowed = self._recovery_allowed
 
     @Slot(object)
     def _receive_recovery(self, snapshot):
@@ -119,7 +138,10 @@ class ThreadedCodexLogMonitor(QObject):
     def account_changed(self, changed):
         if changed:
             self._recovery_allowed = False
-            self.reset_questions_requested.emit()
+            self._generation += 1
+            self._scopes.clear()
+            self._state = {**self._state, "tracked_files": 0, "last_event": ""}
+            self.reset_account_requested.emit(self._generation)
 
     @Slot(object)
     def _receive_usage(self, batch):

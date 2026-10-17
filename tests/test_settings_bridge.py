@@ -42,6 +42,9 @@ from watched_kettle.integrations.claude_code_install import (
     ClaudeCodeHookInstaller,
     build_managed_commands,
 )
+from watched_kettle.integrations.claude_code_status_line_install import (
+    ClaudeCodeStatusLineInstaller,
+)
 from watched_kettle.integrations.windows_startup import StartupRegistrationStatus
 
 
@@ -64,14 +67,20 @@ class ElectronCommandAllowlistTests(unittest.TestCase):
     """The Electron main process forwards only the commands it lists."""
 
     def test_every_command_the_renderer_sends_is_forwarded(self):
-        main = Path("settings-ui/electron/main.cjs").read_text(encoding="utf-8")
-        block = re.search(r"const allowed = new Set\(\[(.*?)\]\);", main, re.S)
-        allowed = set(re.findall(r'"([^"]+)"', block.group(1)))
+        exposure = Path("settings-ui/electron/commands.generated.cjs").read_text(
+            encoding="utf-8"
+        )
+        allowed = set(
+            json.loads(exposure.split("module.exports = ", 1)[1].rstrip(";\n"))[
+                "renderer"
+            ]
+        )
         namespaces = "|".join(sorted({name.split(".")[0] for name in allowed}))
         literal = re.compile(rf'"((?:{namespaces})\.[a-z_.]+)"')
         sent = {
             name: source.name
-            for source in Path("settings-ui/src").glob("*.ts*")
+            for source in Path("settings-ui/src").rglob("*.ts*")
+            if not source.name.endswith((".generated.ts", ".type-test.ts"))
             for name in literal.findall(source.read_text(encoding="utf-8"))
         }
         # A missing entry fails in the window as "허용되지 않은 명령입니다."
@@ -187,12 +196,37 @@ class SettingsBridgeTests(unittest.TestCase):
         (destination / "spritesheet.webp").write_bytes(b"broken image")
         self.assertEqual(self.core._thumbnail(entry), "")
 
+    def test_catalog_read_and_save_keep_distinct_side_effects(self):
+        self.install_user_pet("custom")
+        before = self.core.revision
+        changes = []
+        self.core.changed.connect(changes.append)
+        with patch.object(self.core, "_sync", wraps=self.core._sync) as sync:
+            self.core.execute("pet.catalog", {})
+            self.assertEqual(self.core.revision, before)
+            self.assertEqual(changes, [])
+            sync.assert_not_called()
+            result = self.core.execute(
+                "pet.catalog.save",
+                self.context(
+                    sort="custom", order=["custom", "mori-bot"], hidden=["custom"]
+                ),
+            )
+            sync.assert_called_once_with()
+        self.assertTrue(result["saved"])
+        self.assertEqual(self.core.revision, before + 1)
+        self.assertEqual(result["snapshot"]["revision"], before + 1)
+        self.assertEqual(changes, ["settings"])
+
     def test_catalog_save_failure_restores_previous_preferences(self):
         self.install_user_pet("custom")
         previous = self.vm.catalog_preferences()
+        before = self.core.revision
+        changes = []
+        self.core.changed.connect(changes.append)
         with patch.object(
             self.core, "_sync", side_effect=CommandError("save_failed", "저장 실패")
-        ):
+        ) as sync:
             with self.assertRaises(CommandError):
                 self.core.execute(
                     "pet.catalog.save",
@@ -200,7 +234,10 @@ class SettingsBridgeTests(unittest.TestCase):
                         sort="custom", order=["custom", "mori-bot"], hidden=["custom"]
                     ),
                 )
+            self.assertEqual(sync.call_count, 2)
         self.assertEqual(self.vm.catalog_preferences(), previous)
+        self.assertEqual(self.core.revision, before + 1)
+        self.assertEqual(changes, ["settings"])
 
     def test_trash_round_trip_through_commands_preserves_live_pet(self):
         self.install_user_pet("custom")
@@ -407,9 +444,13 @@ class SettingsBridgeTests(unittest.TestCase):
         self.assertEqual(self.pet.pet_id, original_id)
 
     def test_raw_import_path_is_not_a_renderer_command(self):
-        main = Path("settings-ui/electron/main.cjs").read_text(encoding="utf-8")
-        block = re.search(r"const allowed = new Set\(\[(.*?)\]\);", main, re.S).group(1)
-        self.assertNotIn('"file.pet.prepare"', block)
+        exposure = Path("settings-ui/electron/commands.generated.cjs").read_text(
+            encoding="utf-8"
+        )
+        allowed = json.loads(exposure.split("module.exports = ", 1)[1].rstrip(";\n"))[
+            "renderer"
+        ]
+        self.assertNotIn("file.pet.prepare", allowed)
         with self.assertRaises(CommandError):
             self.core.execute("file.pet.prepare", dict(path="C:/private.png"))
 
@@ -429,6 +470,14 @@ class SettingsBridgeTests(unittest.TestCase):
             commands=build_managed_commands(executable=self.root / "Bridge.exe"),
             policy_paths=(),
         )
+        # Turning Claude Code on also writes its status line; keep it per test.
+        status_line = ClaudeCodeStatusLineInstaller(
+            settings_path=self.claude_settings,
+            sidecar_path=self.root / "claude-code-status-line.json",
+        )
+        status_line._hooks.policy_paths = ()
+        self.runtime.claude_code_status_line_installer = status_line
+        self.runtime.integrations_vm.status_line_installer = status_line
         # Tool switches write hook files; never the developer's real ~/.codex.
         from watched_kettle.integrations.codex_install import CodexHookInstaller
 
@@ -893,6 +942,17 @@ class SettingsBridgeTests(unittest.TestCase):
             {"installed", "not_installed", "partial", "drifted", "disabled", "invalid"},
         )
         self.assertEqual(integration["install"]["message"], integration["status"])
+
+        from watched_kettle.features.integrations.watch import ConnectionAlert
+
+        watch = self.runtime.connection_watch
+        # The snapshot's own refresh would check the isolated tools again.
+        self.runtime.integrations_vm.snapshot_changed.disconnect(watch.check)
+        watch.snapshot = (ConnectionAlert("claude_code", "found"),)
+        self.assertEqual(
+            core.execute("integration.snapshot", {})["connection_alerts"],
+            [{"tool": "claude_code", "kind": "found"}],
+        )
 
     def test_switched_off_codex_stops_its_readers_and_its_double_click(self):
         core = self.assistant()

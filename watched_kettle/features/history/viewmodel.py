@@ -102,7 +102,7 @@ class HistoryViewModel(QObject):
         if projects is not None:
             from watched_kettle.features.project_activity.service import (
                 DEFAULT_TITLES,
-                LABELS,
+                state_label,
                 thread_source,
             )
             from watched_kettle.state.events import source_display_label
@@ -123,7 +123,7 @@ class HistoryViewModel(QObject):
                     HistoryEntry(
                         datetime.fromtimestamp(record.occurred_at, timezone.utc),
                         "프로젝트 이벤트",
-                        LABELS.get(record.state, record.state),
+                        state_label(record.state, thread_source(record.thread_id)),
                         title,
                         self.router.register("thread", record.thread_id),
                         source,

@@ -34,51 +34,9 @@ let appearance = {
 };
 let windowTimer, latestRoute;
 const pending = new Map();
-const allowed = new Set([
-  "settings.snapshot",
-  "settings.set",
-  "pet.catalog",
-  "pet.preview",
-  "pet.select",
-  "pet.import.commit",
-  "pet.import.cancel",
-  "pet.catalog.save",
-  "pet.trash.list",
-  "pet.trash.move",
-  "pet.trash.restore",
-  "pet.trash.delete",
-  "pet.trash.empty",
-  "pet.trash.batch.start",
-  "pet.trash.batch.status",
-  "pet.trash.batch.cancel",
-  "pet.action",
-  "bubble.editor",
-  "bubble.render",
-  "bubble.save",
-  "bubble.reset",
-  "element.delete",
-  "update.check",
-  "update.download",
-  "update.cancel",
-  "update.open",
-  "app.quit",
-  "usage.snapshot",
-  "usage.set",
-  "usage.query",
-  "usage.select",
-  "usage.move",
-  "usage.action",
-  "usage.widget_preview",
-  "activity.snapshot",
-  "activity.clear",
-  "activity.open",
-  "integration.snapshot",
-  "integration.preview",
-  "integration.apply",
-  "integration.set",
-  "navigation.ack",
-  "window.subscribe",
-]);
+const commandExposure = require("./commands.generated.cjs");
+const allowed = new Set(commandExposure.renderer);
+const assistantCommands = new Set(commandExposure.assistant);
 const documentURL = pathToFileURL(join(__dirname, "../dist/index.html")).href;
 
 function sendEvent(event, data) {
@@ -156,8 +114,7 @@ ipcMain.handle("settings:request", async (event, method, args) => {
   validSender(event);
   if (
     !allowed.has(method) ||
-    (ready?.edition !== "pet-assistant" &&
-      /^(usage|activity|integration)\./.test(method)) ||
+    (ready?.edition !== "pet-assistant" && assistantCommands.has(method)) ||
     !args ||
     typeof args !== "object" ||
     Array.isArray(args)
@@ -253,6 +210,7 @@ async function createWindow() {
     minHeight: 460,
     show: false,
     title: "Watched Kettle · 설정",
+    icon: process.env.WATCHED_KETTLE_SETTINGS_ICON || undefined,
     backgroundColor: "#00000000",
     backgroundMaterial: "acrylic",
     titleBarStyle: "hidden",

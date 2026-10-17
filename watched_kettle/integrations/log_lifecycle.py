@@ -3,6 +3,7 @@
 import json
 
 from watched_kettle.integrations.codex_hooks import sanitize_pet_event
+from watched_kettle.state.event_names import outcome_reason
 from datetime import datetime, timezone
 
 MAX_TRACKED_ASYNC_QUESTIONS = 4096
@@ -33,12 +34,20 @@ def normalize_codex_log_record(
 
     if record_type == "event_msg":
         event = {
-            "task_complete": "done",
+            "task_complete": "ended",
             "context_compacted": "review",
-        }.get(payload_type)
+        }.get(payload_type if isinstance(payload_type, str) else "")
         if payload_type == "turn_aborted":
             reason = str(payload.get("reason") or "").strip().lower()
             event = "cancelled" if reason == "interrupted" else "failed"
+            detail = payload.get("error")
+            code = (
+                detail.get("codex_error_info", detail.get("codexErrorInfo"))
+                if isinstance(detail, dict)
+                else payload.get("codex_error_info")
+            )
+            if outcome_reason(code) != "unknown":
+                event = "failed"
     elif record_type == "response_item":
         if payload_type == "compaction":
             event = "review"
@@ -115,6 +124,8 @@ def normalize_codex_log_record(
         "session_id": session_id,
         "agent_scope": agent_scope,
     }
+    if payload_type == "turn_aborted":
+        normalized["outcome_reason"] = outcome_reason(code)
     if event == "review" and payload_type in {"context_compacted", "compaction"}:
         normalized["compaction_phase"] = "end"
     if event in {

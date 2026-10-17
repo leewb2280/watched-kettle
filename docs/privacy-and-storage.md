@@ -113,7 +113,10 @@ v7 이전에는 일관된 DB 백업을 만든다. 미실행 대기 작업은 원
 기록은 보내지 않는다. 자동 확인은 마지막으로 답을 받은 시각과 알린 버전만 설정(`[updates]`)에 남기고, 새 버전을 찾아도
 알리기만 하며 내려받지 않는다. 일반 HTTPS 요청처럼 GitHub은 접속 IP 주소를 받는다. 응답에서는 최신 버전 태그와 Release 페이지 주소만
 확인하고 저장하지 않는다. Release가 아직 없으면 GitHub이 404를 돌려주고 그 사실만 안내한다. `변경 사항 보기`를 누르면
-브라우저로 Release 페이지를 연다.
+브라우저로 Release 페이지를 연다. 0.15.5부터 확인하는 곳은 업데이트 파일만 올리는 공개 저장소
+`leewb2280/watched-kettle-updates`의 Release이고, `변경 사항 보기`는 본 저장소 `leewb2280/watched-kettle`의 같은 버전 Release를
+연다([ADR 0008](decisions/0008-update-repository.md)). 0.15.4까지의 설치판은 본 저장소의 Release를 확인한다. 두 저장소 모두 같은
+GitHub 주소를 쓰므로 보내는 정보와 연결하는 서버는 같다.
 
 새 버전이 있을 때 `업데이트`를 누르면 그때만 같은 Release의 설치 파일과 확인용 `.sha256` 파일을 `github.com`과 GitHub 첨부
 파일 서버(`objects.githubusercontent.com`, `release-assets.githubusercontent.com`)에서 같은 `User-Agent`로 내려받는다. 다른

@@ -9,6 +9,7 @@ $uiRoot = Join-Path $projectRoot "settings-ui"
 $target = [IO.Path]::GetFullPath($Destination)
 $pnpm = (Get-Command pnpm.cmd -ErrorAction Stop).Source
 $node = (Get-Command node.exe -ErrorAction Stop).Source
+$python = Join-Path $projectRoot ".venv\Scripts\python.exe"
 $previousEdition = $env:WATCHED_KETTLE_EDITION
 Push-Location $uiRoot
 try {
@@ -20,6 +21,9 @@ try {
     New-Item -ItemType Directory -Path $target -Force | Out-Null
     Get-ChildItem -LiteralPath "node_modules/electron/dist" | Copy-Item -Destination $target -Recurse -Force
     Rename-Item -LiteralPath (Join-Path $target "electron.exe") -NewName "WatchedKettleSettings.exe"
+    # Renaming keeps Electron's embedded icon, which the taskbar and window show.
+    & $python (Join-Path $PSScriptRoot "set_exe_icon.py") (Join-Path $target "WatchedKettleSettings.exe") (Join-Path $projectRoot "assets\app_icon.ico")
+    if ($LASTEXITCODE -ne 0) { throw "Settings executable icon replacement failed." }
     # The UI is Korean-only; Chromium falls back to en-US for other system
     # languages. The other 53 packs added ~48 MiB (stage 12 size target).
     $keptLocales = @("ko.pak", "en-US.pak")

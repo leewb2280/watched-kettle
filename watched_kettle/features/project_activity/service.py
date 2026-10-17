@@ -21,6 +21,12 @@ from watched_kettle.activity_diagnostics import (
 
 from watched_kettle.state.events import approval_actor, build_decision
 from watched_kettle.state.session_manager import DEFAULT_INACTIVITY_LIMITS
+from watched_kettle.state.codex_activity import (
+    CodexActivityObservation,
+    CodexTurnOutcome,
+    CodexTurnTarget,
+)
+from watched_kettle.state.event_names import outcome_reason
 
 
 PRIORITY = {
@@ -31,10 +37,12 @@ PRIORITY = {
     "review": 2,
     "done": 1,
     "cancelled": 1,
+    "ended": 1,
     "background": 1,
 }
 # Presentation order must not change parent/child activity aggregation.
 ROW_PRIORITY = {
+    "ended": 2,
     "permission": 1,
     "done": 4,
     "waiting": 3,
@@ -55,6 +63,7 @@ CLAUDE_CODE_THREAD_PREFIX = "claude_code:"
 DEFAULT_TITLES = {"codex": "Codex 대화", "claude_code": "Claude Code 대화"}
 DEFAULT_PROJECT_LABELS = {"codex": "Codex 작업", "claude_code": "Claude Code 작업"}
 LABELS = {
+    "ended": "종료됨",
     "permission": "권한 처리 중",
     "waiting": "확인 필요",
     "failed": "실패",
@@ -64,6 +73,22 @@ LABELS = {
     "cancelled": "중단",
     "background": "백그라운드 대기",
 }
+# Claude Code waits only on permission dialogs. Approving one sends no hook
+# until the tool ends, so the label must stay true after approval.
+SOURCE_STATE_LABELS = {("claude_code", "waiting"): "권한 요청"}
+
+
+def state_label(state, source="codex"):
+    """The user-facing name of an activity state for one agent source."""
+    return SOURCE_STATE_LABELS.get((source, state)) or LABELS.get(state, state)
+
+
+def is_compaction(payload):
+    return (
+        payload.get("source") in {"codex", "claude_code"}
+        and payload.get("event") == "review"
+        and payload.get("compaction_phase") in ("start", "end")
+    )
 
 
 def safe_label(value, fallback):
@@ -152,6 +177,13 @@ class Activity:
     source: str = "codex"
     # Claude Code background tasks the turn waits for (state "background").
     background_count: int = 0
+    revision: int = 0
+    last_confirmed_at: float = 0
+    outcome_reason: str = "unknown"
+    terminal_at: float | None = None
+    recovered: bool = False
+    hidden_uncertain: bool = False
+    suppressed_by_parent: bool = False
 
 
 @dataclass(frozen=True)
@@ -168,6 +200,25 @@ class ConversationRow:
     compacting: bool = False
     source: str = "codex"
     background_count: int = 0
+    last_confirmed_at: float = 0
+    dismiss_id: str = ""
+    outcome_reason: str = "unknown"
+
+
+def row_status_label(row):
+    """One status label for the bubble and tray; no lifecycle inference."""
+    if getattr(row, "uncertain", False):
+        return "상태 확인 중"
+    if getattr(row, "compacting", False):
+        return "컨텍스트 압축 중"
+    if getattr(row, "source", "codex") == "codex" and row.state == "failed":
+        return {
+            "usage_limit": "사용량 제한으로 중단",
+            "rate_limit": "요청 제한으로 중단",
+            "budget_limit": "예산 제한으로 중단",
+            "context_limit": "컨텍스트 제한으로 중단",
+        }.get(getattr(row, "outcome_reason", "unknown"), LABELS["failed"])
+    return state_label(row.state, getattr(row, "source", "codex"))
 
 
 @dataclass(frozen=True)
@@ -204,7 +255,7 @@ class ProjectCard:
             f"{label} {count}개"
             for label, count in (
                 ("완료", self.done),
-                ("확인 필요", self.waiting),
+                (state_label("waiting", self.source), self.waiting),
                 (
                     "권한 처리 중",
                     sum(
@@ -287,6 +338,7 @@ class ProjectActivityService(QObject):
         self._seen: OrderedDict[tuple, float] = OrderedDict()
         self._retired: OrderedDict[tuple, None] = OrderedDict()
         self._sequence = 0
+        self._revision = 0
         self._project_order: dict[str, int] = {}
         self.stale_expired_count = 0
         self.uncertain_recovered_count = 0
@@ -371,7 +423,10 @@ class ProjectActivityService(QObject):
             state_changed_at=at,
             uncertain=True,
             started_wall_at=snapshot.started_at,
+            last_confirmed_at=snapshot.last_activity_at,
+            recovered=True,
         )
+        self._revise(self.activities[thread])
         self.metadata.setdefault(
             thread, ThreadMetadata(thread, parent_thread_id=snapshot.parent_thread_id)
         )
@@ -513,9 +568,16 @@ class ProjectActivityService(QObject):
         accepted = self._observe_traced(payload)
         self._diagnose_payload(payload)
         # Claude Code has a single hook channel whose pet states are verified
-        # on their own. Its card never decides whether the pet sees an event.
+        # on their own. Its card never decides whether the pet sees an event,
+        # except compaction: /compact between turns sends no Stop, so it may
+        # only extend a turn the card has open, not one waiting for background
+        # work.
         if isinstance(payload, dict) and payload.get("source") == "claude_code":
-            return True
+            if not is_compaction(payload):
+                return True
+            thread = CLAUDE_CODE_THREAD_PREFIX + str(payload.get("session_id") or "")
+            activity = self.activities.get(thread)
+            return accepted and activity is not None and activity.state != "background"
         return accepted
 
     @diagnostic_guard
@@ -643,11 +705,7 @@ class ProjectActivityService(QObject):
         if not isinstance(payload, dict):
             return True
         payload = self._source_payload(payload)
-        if (
-            payload.get("source") in {"codex", "claude_code"}
-            and payload.get("event") == "review"
-            and payload.get("compaction_phase") in ("start", "end")
-        ):
+        if is_compaction(payload):
             return self._observe_compaction(payload)
         if payload.get("source") == "codex" and payload.get("event") == "heartbeat":
             return self._observe_heartbeat(payload)
@@ -667,6 +725,17 @@ class ProjectActivityService(QObject):
             return self._reject_event("missing_question_id")
         if stamp and stamp < self._collection_started_at:
             return self._reject_event("old_collection")
+        if (
+            decision.source == "codex"
+            and current is not None
+            and current.state == "ended"
+            and turn
+            and turn == current.turn_id
+            and decision.terminal
+            and event != "ended"
+        ):
+            self._enrich_ended(current, event, payload)
+            return False
         unconfirmed = self._unconfirmed_completions.get(thread)
         if (
             unconfirmed is not None
@@ -773,6 +842,14 @@ class ProjectActivityService(QObject):
             and decision.source == "codex"
         ):
             return False
+        if (
+            current is not None
+            and decision.source == "codex"
+            and decision.terminal
+            and (current.hidden_uncertain or current.suppressed_by_parent)
+        ):
+            self._drop_terminal_activity(current)
+            return False
         if starts and active and current is not None:
             # A hook start followed by its identified log confirmation is one run.
             if not current.turn_id and turn:
@@ -834,6 +911,11 @@ class ProjectActivityService(QObject):
                     self._claude_code_clients.move_to_end(key)
             while len(self._claude_code_clients) > 512:
                 self._claude_code_clients.popitem(last=False)
+            # A parent reports nothing while its subagent works; the
+            # subagent's events keep the parent's turn from going silent.
+            parent_activity = self.activities.get(parent) if parent else None
+            if parent_activity is not None and not parent_activity.expires:
+                parent_activity.last_seen_at = at
         else:
             self.metadata_requested.emit(thread)
         if decision.terminal and event in {"idle", "session_end"}:
@@ -861,6 +943,9 @@ class ProjectActivityService(QObject):
             current.started_wall_at = self._valid_stamp(stamp) or self.wall_now()
             current.state_changed_at = at
         current.last_seen_at = at
+        current.last_confirmed_at = self.wall_now()
+        current.recovered = False
+        self._revise(current)
         if decision.agent_scope != "unknown":
             current.scope = decision.agent_scope
             self._confirmed_scopes[thread] = current.scope
@@ -886,6 +971,8 @@ class ProjectActivityService(QObject):
         if resumes:
             current.compaction_since = None
             current.compaction_turn_id = ""
+            current.hidden_uncertain = False
+            current.suppressed_by_parent = False
         if current.uncertain and (resumes or current.compaction_since is None):
             self.uncertain_recovered_count += 1
             current.uncertain = False
@@ -952,6 +1039,8 @@ class ProjectActivityService(QObject):
                 if event == "failed"
                 else "cancelled"
                 if event == "cancelled"
+                else "ended"
+                if event == "ended"
                 else "done"
             )
             current.waits.clear()
@@ -960,6 +1049,10 @@ class ProjectActivityService(QObject):
             current.permission_actors.clear()
             current.active_tools.clear()
             current.expires = at + self.duration
+            current.terminal_at = at
+            if decision.source == "codex":
+                current.outcome_reason = outcome_reason(payload.get("outcome_reason"))
+                self._suppress_stale_children(thread)
             if current.turn_id:
                 self._retire(thread, current.turn_id)
             if (
@@ -1040,6 +1133,181 @@ class ProjectActivityService(QObject):
         self.pending_completions[record.thread_id] = record
         self.completions = (*self.completions, record)[-100:]
 
+    def _revise(self, item):
+        self._revision += 1
+        item.revision = self._revision
+
+    def _enrich_ended(self, current, event, payload):
+        if current.expires <= self.now() or current.recovered:
+            return
+        if event not in {"done", "failed", "cancelled"}:
+            return
+        if payload.get("agent_scope") in {"main", "subagent", "internal"}:
+            current.scope = payload["agent_scope"]
+        parent = payload.get("parent_thread_id") or payload.get("parent_session_id")
+        if parent:
+            old = self.metadata.get(
+                current.thread_id, ThreadMetadata(current.thread_id)
+            )
+            self.metadata[current.thread_id] = replace(
+                old, parent_thread_id=str(parent)
+            )
+        current.state = event
+        current.outcome_reason = outcome_reason(payload.get("outcome_reason"))
+        self._revise(current)
+        at = current.terminal_at if current.terminal_at is not None else self.now()
+        if (
+            event == "done"
+            and current.scope == "main"
+            and not self.metadata.get(
+                current.thread_id, ThreadMetadata(current.thread_id)
+            ).parent_thread_id
+        ):
+            self._completion_sequence += 1
+            self._publish_completion(
+                CompletionRecord(
+                    f"completion:{self.generation}:{self._completion_sequence}",
+                    current.thread_id,
+                    current.turn_id,
+                    current.last_confirmed_at,
+                    at + self.completion_duration,
+                    at + COMPLETION_RETENTION_SECONDS,
+                    completed_at=at,
+                )
+            )
+        self.recent = (
+            *self.recent,
+            ActivityRecord(current.thread_id, event, current.last_confirmed_at),
+        )[-20:]
+        self.changed.emit()
+
+    def _drop_terminal_activity(self, current):
+        self.activities.pop(current.thread_id, None)
+        self._recovery_deadlines.pop(current.thread_id, None)
+        self._remember_closed(current.thread_id)
+        self._retire(current.thread_id, current.turn_id)
+        self.changed.emit()
+
+    def _suppress_stale_children(self, root):
+        for item in self.activities.values():
+            if item.source != "codex" or not item.uncertain or item.thread_id == root:
+                continue
+            thread, visited = item.thread_id, set()
+            while thread in self.metadata and thread not in visited:
+                visited.add(thread)
+                thread = self.metadata[thread].parent_thread_id
+                if thread == root:
+                    item.suppressed_by_parent = True
+                    break
+
+    def codex_observations(self):
+        return tuple(
+            CodexActivityObservation(
+                item.thread_id,
+                item.turn_id,
+                item.revision,
+                item.state,
+                item.uncertain,
+                item.last_confirmed_at,
+                item.scope,
+            )
+            for item in self.activities.values()
+            if item.source == "codex" and not item.expires
+        )
+
+    def codex_turn_targets(self):
+        now = self.now()
+        targets = []
+        for item in self.activities.values():
+            if item.source != "codex" or not item.turn_id or item.scope == "internal":
+                continue
+            ended = item.state == "ended" and item.expires > now
+            silence = now - (
+                item.compaction_since
+                if item.compaction_since is not None
+                else item.last_seen_at
+            )
+            threshold = (
+                COMPACTION_GRACE_SECONDS
+                if item.compaction_since is not None
+                else self.tool_stale_seconds
+                if item.active_tools and item.state != "waiting"
+                else self.running_stale_seconds
+            )
+            if ended or item.recovered or (not item.expires and silence >= threshold):
+                targets.append(
+                    CodexTurnTarget(
+                        item.thread_id,
+                        item.turn_id,
+                        item.revision,
+                        self.generation,
+                        ended,
+                    )
+                )
+        return tuple(sorted(targets, key=lambda t: not t.ended))
+
+    def apply_turn_outcome(self, outcome: CodexTurnOutcome):
+        target = outcome.target
+        current = self.activities.get(target.thread_id)
+        if (
+            target.generation != self.generation
+            or current is None
+            or current.source != "codex"
+            or current.turn_id != target.turn_id
+            or current.revision != target.version
+            or (current.expires and current.expires <= self.now())
+            or outcome.state not in {"done", "failed", "cancelled"}
+        ):
+            return None
+        if (
+            current.recovered
+            or current.hidden_uncertain
+            or current.suppressed_by_parent
+        ):
+            self._drop_terminal_activity(current)
+            return None
+        payload = dict(
+            source="codex",
+            session_id=target.thread_id,
+            turn_id=target.turn_id,
+            event=outcome.state,
+            agent_scope=current.scope,
+            outcome_reason=outcome.reason,
+        )
+        if current.state == "ended":
+            self._enrich_ended(current, outcome.state, payload)
+            return None
+        return payload if self.observe(payload) else None
+
+    def dismiss_rows(self, identifiers):
+        self.dismiss_completions(identifiers)
+        identifiers = set(identifiers)
+        roots = {
+            row.thread_id
+            for card in self.cards
+            for row in card.rows
+            if row.dismiss_id and row.dismiss_id in identifiers
+        }
+        changed = False
+        for item in self.activities.values():
+            if item.source != "codex" or not item.uncertain:
+                continue
+            thread, visited = item.thread_id, set()
+            while thread and thread not in visited:
+                if thread in roots:
+                    item.hidden_uncertain = True
+                    changed = True
+                    break
+                visited.add(thread)
+                thread = self.metadata.get(
+                    thread, ThreadMetadata(thread)
+                ).parent_thread_id
+        if changed:
+            self.changed.emit()
+
+    def _dismiss_id(self, item):
+        return f"uncertain:{self.generation}:{item.thread_id}:{item.revision}"
+
     def _reject_event(self, reason):
         self.rejected_events[reason] = self.rejected_events.get(reason, 0) + 1
         return False
@@ -1109,6 +1377,11 @@ class ProjectActivityService(QObject):
         current.compaction_last_stamp = stamp or self.wall_now()
         self._recovery_deadlines.pop(thread, None)
         current.last_seen_at = self.now()
+        current.last_confirmed_at = self.wall_now()
+        current.recovered = False
+        self._revise(current)
+        current.hidden_uncertain = False
+        current.suppressed_by_parent = False
         self.changed.emit()
         return True
 
@@ -1122,10 +1395,15 @@ class ProjectActivityService(QObject):
             return False
         self._recovery_deadlines.pop(thread, None)
         current.last_seen_at = self.now()
+        current.last_confirmed_at = self.wall_now()
+        current.recovered = False
+        self._revise(current)
+        current.hidden_uncertain = False
+        current.suppressed_by_parent = False
         if current.uncertain and current.compaction_since is None:
             current.uncertain = False
             self.uncertain_recovered_count += 1
-            self.changed.emit()
+        self.changed.emit()
         return True
 
     @property
@@ -1289,10 +1567,11 @@ class ProjectActivityService(QObject):
         limit = self.inactivity_limits.get(item.source)
         if limit is None or not item.last_seen_at:
             return False
-        # Background work may run long; it waits like a confirmation does.
+        # Background work and an open tool call may run long without events;
+        # they wait like a confirmation does.
         limit_ms = (
             limit.waiting_ms
-            if item.state in {"waiting", "background"}
+            if item.state in {"waiting", "background"} or item.active_tools
             else limit.work_ms
         )
         return limit_ms > 0 and (now - item.last_seen_at) * 1000 >= limit_ms
@@ -1329,6 +1608,10 @@ class ProjectActivityService(QObject):
         roots: dict[str, list[Activity]] = {}
         for item in self.activities.values():
             if item.state == "done":
+                continue
+            if item.source == "codex" and (
+                item.hidden_uncertain or item.suppressed_by_parent
+            ):
                 continue
             metadata = self.metadata.get(item.thread_id, ThreadMetadata(item.thread_id))
             root = metadata.parent_thread_id or item.thread_id
@@ -1380,6 +1663,11 @@ class ProjectActivityService(QObject):
                         and state in {"running", "review"}
                     ),
                     source=metadata.source,
+                    last_confirmed_at=max(m.last_confirmed_at for m in members),
+                    dismiss_id=self._dismiss_id(selected)
+                    if selected.source == "codex" and selected.uncertain
+                    else "",
+                    outcome_reason=selected.outcome_reason,
                 )
             )
             labels[key] = metadata.label

@@ -30,7 +30,7 @@
 
 비서 번들은 하나로 둔다. 도구(Codex, Claude Code)마다 **사용 스위치 하나**를 둔다.
 
-- 켜면 그 도구의 관리 hook 설치와 사용량 수집을 함께 켠다. hook이 막혀도 스위치는 켜고 경고만 보인다. Codex는 hook 없이도 로그로 활동을 받는다.
+- 켜면 그 도구의 관리 hook 설치와 사용량 수집을 함께 켠다. Claude Code는 한도를 받는 관리 status line(`한도 가져오기`)도 함께 켠다. 이 status line은 따로 끌 수 있다(설치기에서 Claude Code를 골라도 한도가 꺼진 채 남던 문제를 고친 결정). hook이 막혀도 스위치는 켜고 경고만 보인다. Codex는 hook 없이도 로그로 활동을 받는다.
 - 끄면 관리 hook과 Claude Code 관리 status line을 지운다. 파일 변경이 막혀도 스위치는 끈다. 그 도구의 파일 읽기·프로세스 실행·이벤트 수신을 멈추고, 펫 세션과 프로젝트 카드를 지운다. 홈·사용량·기록·추세·트레이·위젯에서 숨긴다. 저장된 기록은 지우지 않는다.
 - 스위치는 연결·진단 화면에만 둔다. 꺼진 도구는 스위치와 짧은 설명만 보인다.
 - 저장 키는 기존 `usage/enabled`(Codex)와 `usage/claude_code_enabled`(Claude Code)를 그대로 쓴다. Claude Code는 값이 없으면 꺼짐이다.

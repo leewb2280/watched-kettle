@@ -1383,6 +1383,30 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       .allTextContents();
     assert.equal(ornamentOptions[0], "없음");
     assert.ok(ornamentOptions.every((label) => !/^[a-z-]+$/.test(label)));
+    // Host navigation and hide/reopen keep the mounted editor's unsaved draft.
+    await fs.writeFile(
+      connection.control,
+      JSON.stringify({ action: "show", page: "app" }),
+    );
+    await page.getByRole("heading", { name: "앱 설정", exact: true }).waitFor();
+    assert.equal(await radius.inputValue(), "24");
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0].close(),
+    );
+    await until(
+      async () =>
+        !(await app.evaluate(({ BrowserWindow }) =>
+          BrowserWindow.getAllWindows()[0].isVisible(),
+        )),
+    );
+    await fs.writeFile(
+      connection.control,
+      JSON.stringify({ action: "show", page: "bubble" }),
+    );
+    await page.getByRole("heading", { name: "말풍선", exact: true }).waitFor();
+    await radius.waitFor();
+    assert.equal(await radius.inputValue(), "24");
+    metrics.editorDraftSurvivesNavigationAndHide = true;
     // Conflict keeps the draft; a user-requested rebase re-enables 적용.
     await page.evaluate(async () => {
       const s = await window.settings.request("settings.snapshot");
@@ -1703,6 +1727,18 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       await page
         .locator(".project-name strong", { hasText: "qa-folder" })
         .waitFor();
+      await page.getByLabel("사용량 기록 검색").fill("qa-folder");
+      await page.getByLabel("사용량 기록 검색").press("Enter");
+      await page.getByLabel("프로젝트 정렬").selectOption("name");
+      await until(async () => {
+        const snapshot = await page.evaluate(() =>
+          window.settings.request("usage.snapshot"),
+        );
+        return (
+          snapshot.claude_code.data.project_search === "qa-folder" &&
+          snapshot.claude_code.data.project_order === "name"
+        );
+      });
       await page
         .locator(".project-name strong", { hasText: "QA 대화 제목" })
         .click();
@@ -1710,10 +1746,50 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       await page
         .locator(".task-list .record-row", { hasText: "완료" })
         .waitFor();
+      await fs.writeFile(
+        connection.control,
+        JSON.stringify({ action: "show", page: "widget" }),
+      );
+      await page.locator("h1", { hasText: /^위젯$/ }).waitFor();
+      await fs.writeFile(
+        connection.control,
+        JSON.stringify({ action: "show", page: "usage" }),
+      );
+      await page.getByLabel("사용량 기록 검색").waitFor();
+      await page.getByRole("dialog", { name: "QA 대화 제목" }).waitFor();
+      assert.equal(
+        await page.locator('[role="tab"][aria-selected="true"]').textContent(),
+        "기록",
+      );
+      assert.equal(
+        await page.getByLabel("사용량 기록 검색").inputValue(),
+        "qa-folder",
+      );
+      assert.equal(await page.getByLabel("프로젝트 정렬").inputValue(), "name");
+      assert.equal(
+        await page
+          .locator('.project-main[aria-current="true"]', {
+            hasText: "qa-folder",
+          })
+          .count(),
+        1,
+      );
+      assert.equal(
+        await page
+          .locator('.project-main[aria-current="true"]', {
+            hasText: "QA 대화 제목",
+          })
+          .count(),
+        1,
+      );
+      metrics.historyStateSurvivesNavigation = true;
       await page.screenshot({
         path: path.join(out, "usage-claude-history.png"),
       });
       await page.keyboard.press("Escape");
+      await page.getByLabel("사용량 기록 검색").fill("");
+      await page.getByLabel("사용량 기록 검색").press("Enter");
+      await page.getByLabel("프로젝트 정렬").selectOption("recent");
       await sourceGroup
         .getByRole("button", { name: "Codex", exact: true })
         .click();
@@ -1861,7 +1937,9 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
         ["Codex", "Claude Code"],
       );
       assert.equal(
-        await page.locator(".provider-block .check-heading").count(),
+        await page
+          .locator(".provider-block .check-heading", { hasText: "연결 점검" })
+          .count(),
         2,
       );
       const codexConnectionSwitch = page.getByRole("switch", {
@@ -1932,19 +2010,24 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
             )
           ).claude_code.work_minutes === 5,
       );
-      // The status line switch is separate and writes only the QA settings.
+      // Turning Claude Code on also brought the limits; the status line
+      // switch still turns off alone and writes only the QA settings.
       const limitSwitch = page.getByRole("switch", {
         name: "Claude Code 한도 가져오기",
       });
-      assert.equal(await limitSwitch.getAttribute("aria-checked"), "false");
-      await limitSwitch.click();
-      await page.getByRole("dialog", { name: "연결 변경 검토" }).waitFor();
-      await page
-        .getByRole("button", { name: "변경 적용", exact: true })
-        .click();
-      await until(
-        async () => (await limitSwitch.getAttribute("aria-checked")) === "true",
-      );
+      assert.equal(await limitSwitch.getAttribute("aria-checked"), "true");
+      for (const expected of ["false", "true"]) {
+        await limitSwitch.click();
+        await page.getByRole("dialog", { name: "연결 변경 검토" }).waitFor();
+        await page
+          .getByRole("button", { name: "변경 적용", exact: true })
+          .click();
+        await until(
+          async () =>
+            (await limitSwitch.getAttribute("aria-checked")) === expected,
+        );
+      }
+      assert.equal(await claudeSwitch.getAttribute("aria-checked"), "true");
       await until(
         async () =>
           (

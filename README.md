@@ -2,7 +2,7 @@
 
 [한국어](README.md) · [English](README.en.md)
 
-[로드맵](ROADMAP.md) · [0.15.4 패치노트](docs/release-notes/v0.15.4.md) · [배포 준비 상태](RELEASE_READINESS.md)
+[로드맵](ROADMAP.md) · [0.15.5 패치노트](docs/release-notes/v0.15.5.md) · [배포 준비 상태](RELEASE_READINESS.md)
 
 **코딩 에이전트의 작업 상태를 알려 주는 데스크톱 펫**
 
@@ -182,10 +182,10 @@ Codex 사용량은 로컬 Codex 프로그램에 요청하며, 그 프로그램�
 <details>
 <summary>개발 환경과 빌드 명령 보기</summary>
 
-필요한 것: Windows, Python 3.12~3.14, Node.js 22와 pnpm, (설치기) Inno Setup 6.7 이상과 Windows에 포함된 .NET Framework 4.x(실행기 컴파일).
+필요한 것: Windows x64, 일반 CPython 3.14.x(기준 3.14.8), Node.js 22와 pnpm, (설치기) Inno Setup 6.7 이상과 Windows에 포함된 .NET Framework 4.x(실행기 컴파일).
 
 ```powershell
-py -m venv .venv
+py -3.14 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 pnpm --dir settings-ui install --frozen-lockfile --ignore-scripts
 node settings-ui/node_modules/electron/install.js
@@ -195,6 +195,9 @@ node settings-ui/node_modules/electron/install.js
 
 # 포맷·린트·문서·설정창 빌드·타입·회귀 테스트
 .\scripts\check.ps1
+
+# 위 검사에 커버리지 게이트·의존성 감사까지 포함 (전체 테스트 1회)
+.\scripts\check.ps1 -Quality
 
 # 두 구성 번들과 설치기
 .\scripts\build_windows.ps1 -Profile Public -Edition PetOnly

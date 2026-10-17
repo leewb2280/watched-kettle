@@ -77,7 +77,8 @@ class PetAgentController(QObject):
         result = self.session_manager.apply(decision)
         if result.aggregate.state == "waiting" or (
             decision.session_id == self.transient_session_id
-            and decision.event in {"prompt", "cancelled", "session_end", "idle"}
+            and decision.event
+            in {"prompt", "cancelled", "session_end", "idle", "ended"}
         ):
             # Suppressed animations are discarded, never replayed after a wait.
             self._clear_transient()
@@ -120,6 +121,11 @@ class PetAgentController(QObject):
     def restore_display(self):
         self.on_display_state(self.desired_state)
         if self.transient_state is None:
+            self._publish_restore()
+
+    def project_codex_observations(self, observations):
+        if self.session_manager.project_codex_observations(observations):
+            self.on_display_state(self.desired_state)
             self._publish_restore()
 
     def clear(self, source=None):

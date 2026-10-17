@@ -177,7 +177,7 @@ class AgentCompletionScopeTests(unittest.TestCase):
         self.assertEqual(self.controller.desired_state, "running")
         self.assertEqual(self.controller.aggregate_state.session_id, "codex:second")
 
-    def test_main_log_completion_announces_after_restart_without_replay(self):
+    def test_main_log_end_is_neutral_after_restart_without_replay(self):
         for source in ("vscode", "cli", "exec"):
             with self.subTest(source=source):
                 self.monitor.close()
@@ -189,7 +189,8 @@ class AgentCompletionScopeTests(unittest.TestCase):
                     path, "event_msg", {"type": "task_complete", "turn_id": "new"}
                 )
                 self.monitor.poll_now()
-                self.assertEqual(self.presentations[-1].notice.event, "done")
+                self.assertIsNone(self.presentations[-1].notice)
+                self.assertEqual(self.presentations[-1].event, "ended")
 
     def test_unknown_completion_is_quiet_but_does_not_hide_known_main_completion(self):
         self.hook("UserPromptSubmit")

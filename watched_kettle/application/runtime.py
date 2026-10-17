@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import os
 
-from PySide6.QtCore import QObject
+from PySide6.QtCore import QObject, QTimer
 from PySide6.QtWidgets import QSystemTrayIcon
 
 from watched_kettle.activity_diagnostics import diagnostic_guard
@@ -20,9 +20,11 @@ from watched_kettle.features.integrations.activation import (
     migrate_tool_activation,
 )
 from watched_kettle.features.integrations.viewmodel import IntegrationsViewModel
+from watched_kettle.features.integrations.watch import ConnectionWatch
 from watched_kettle.features.history.viewmodel import HistoryViewModel
 from watched_kettle.features.notifications.service import NotificationService
 from watched_kettle.features.notifications.actions import NotificationActionRouter
+from watched_kettle.features.notifications.models import NoticeRequest
 from watched_kettle.features.project_activity.service import ProjectActivityService
 from watched_kettle.features.project_activity.metadata import (
     ConversationMetadataService,
@@ -45,6 +47,7 @@ from watched_kettle.integrations.codex_ipc import CodexHookServer
 from watched_kettle.integrations.codex_install import CodexHookInstaller
 from watched_kettle.integrations.codex_log_worker import ThreadedCodexLogMonitor
 from watched_kettle.integrations.codex_paths import codex_home
+from watched_kettle.integrations.codex_turn_status import CodexTurnStatusMonitor
 from watched_kettle.integrations.windows_startup import WindowsStartupRegistration
 from watched_kettle.state.session_manager import InactivityLimit
 from watched_kettle.storage.database import (
@@ -173,6 +176,24 @@ class ApplicationRuntime(QObject):
             self.activity_service = AgentActivityService(
                 pet, parent=self, projects=self.projects
             )
+            self.turn_status_monitor = CodexTurnStatusMonitor(
+                parent=self, **usage_options
+            )
+            self.turn_status_monitor.outcome_detected.connect(
+                self.activity_service.observe_turn_outcome
+            )
+            self.turn_status_monitor.diagnostic_event.connect(
+                lambda event, fields: log_event(
+                    "integrations.codex_turn_status", event, **fields
+                )
+            )
+            self.usage_service.account_changed.connect(
+                self.turn_status_monitor.account_changed
+            )
+            self.turn_status_timer = QTimer(self)
+            self.turn_status_timer.setInterval(1000)
+            self.turn_status_timer.timeout.connect(self._sync_turn_status)
+            self.projects.changed.connect(self._sync_turn_status)
             self.pet_vm = PetViewModel(pet, parent=self)
             self.usage_vm = UsageViewModel(self.usage_service, preferences, parent=self)
             self.integrations_vm = IntegrationsViewModel(
@@ -193,6 +214,16 @@ class ApplicationRuntime(QObject):
                     "claude_code": self.usage_vm.set_claude_code_enabled,
                 },
             )
+            self.connection_watch = ConnectionWatch(
+                preferences.settings,
+                self.tool_enabled,
+                lambda tool: self.integrations_vm.install_status(tool),
+                self.tool_detected,
+                parent=self,
+            )
+            self.connection_watch.announce_ready.connect(self._announce_connection)
+            # A switch or repair is checked again at once.
+            self.integrations_vm.snapshot_changed.connect(self.connection_watch.check)
             self._codex_opener = getattr(pet, "codex_opener", None)
             self.settings_vm = SettingsViewModel(
                 self.pet_vm,
@@ -240,6 +271,7 @@ class ApplicationRuntime(QObject):
                     pet.frames["idle"][0],
                     parent=self,
                     updates=self.settings_vm.updates,
+                    connections=self.connection_watch,
                 )
                 if require_tray or QSystemTrayIcon.isSystemTrayAvailable()
                 else _NullTray()
@@ -281,6 +313,7 @@ class ApplicationRuntime(QObject):
             ("codex_server", self.codex_server),
             ("usage_service", self.usage_service),
             ("conversation_metadata", self.metadata_service),
+            ("turn_status_monitor", self.turn_status_monitor),
         ):
             if component is None:
                 continue
@@ -301,6 +334,13 @@ class ApplicationRuntime(QObject):
                     operation=name,
                     error_code=type(error).__name__,
                 )
+        self.turn_status_timer.start()
+        self._sync_turn_status()
+        self.connection_watch.start()
+
+    def _sync_turn_status(self):
+        if self._started and self.tool_enabled("codex"):
+            self.turn_status_monitor.sync_targets(self.projects.codex_turn_targets())
 
     @diagnostic_guard
     def _enable_activity_diagnostics(self):
@@ -430,6 +470,31 @@ class ApplicationRuntime(QObject):
         except (OSError, KeyError, AttributeError):
             return False
 
+    def tool_detected(self, tool):
+        if tool == "codex":
+            return self.codex_detected()
+        return self.claude_code_detected()
+
+    def _announce_connection(self, alert):
+        """A connection alert is a system notice; its card opens the connections page."""
+        self.notification_service.submit(
+            NoticeRequest(
+                source="system",
+                message=alert.message,
+                urgency="high" if alert.kind == "broken" else "normal",
+                category="system",
+                action_token=self.action_router.register("diagnostics"),
+                replacement_key=f"connection:{alert.tool}",
+            )
+        )
+        log_event(
+            "application.integrations",
+            "connection_alert",
+            operation=alert.tool,
+            state=alert.kind,
+            phase=alert.state,
+        )
+
     def preview_tool(self, tool, enabled):
         return self.tool_activation.preview(tool, enabled)
 
@@ -450,6 +515,7 @@ class ApplicationRuntime(QObject):
         """Start or stop everything that reads one tool, and drop its work."""
         self.codex_server.set_source_enabled(tool, enabled)
         if tool == "codex":
+            self.turn_status_monitor.set_enabled(enabled)
             self.metadata_service.set_enabled(enabled, started=self._started)
             # Double-clicking the pet opens Codex only while Codex is in use.
             self.pet.codex_opener = self._codex_opener if enabled else None
@@ -503,12 +569,17 @@ class ApplicationRuntime(QObject):
         if self._closed:
             return
         self._closed = True
+        timer = getattr(self, "turn_status_timer", None)
+        if timer is not None:
+            timer.stop()
         log_event("application.runtime", "closing")
         for name, method in (
+            ("connection_watch", "close"),
             ("tray", "close"),
             ("usage_companion", "close"),
             ("center", "shutdown"),
             ("bubbles", "close"),
+            ("turn_status_monitor", "close"),
             ("conversation_metadata", "close"),
             ("usage_service", "close"),
             ("codex_server", "close"),

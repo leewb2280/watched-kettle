@@ -9,6 +9,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 
+from watched_kettle.features.agent_activity.service import AgentActivityService
 from watched_kettle.features.history.viewmodel import HistoryViewModel
 from watched_kettle.features.notifications.actions import (
     ActionTarget,
@@ -17,15 +18,18 @@ from watched_kettle.features.notifications.actions import (
 from watched_kettle.features.notifications.service import NotificationService
 from watched_kettle.features.project_activity.service import (
     ProjectActivityService,
+    state_label,
     thread_source,
 )
 from watched_kettle.integrations.claude_code_hooks import normalize_claude_code_hook
+from watched_kettle.state.controller import PetAgentController
 from watched_kettle.state.presentation import working_sources
 from watched_kettle.state.events import build_decision
 from watched_kettle.state.session_manager import AgentSessionManager, InactivityLimit
 from watched_kettle.ui.activity_caption import activity_message
 from watched_kettle.ui import design_tokens
 from watched_kettle.ui.bubble_models import source_mark_color, source_marked_text
+from watched_kettle.ui.project_bubble_rows import _badge_presentation
 
 
 SESSION = "8d4f034a-0000-4000-8000-000000000001"
@@ -284,6 +288,99 @@ class ClaudeCodeCardTests(unittest.TestCase):
         self.assertEqual(len(card.rows), 1)
         self.assertEqual(card.rows[0].thread_id, "claude_code:" + SESSION)
 
+    def compaction(self):
+        return [
+            self.projects.observe(claude("PreCompact", trigger="manual")),
+            self.projects.observe(claude("SessionStart", source="compact")),
+            self.projects.observe(claude("PostCompact", trigger="manual")),
+        ]
+
+    def test_compaction_reaches_the_pet_only_inside_an_open_turn(self):
+        self.observe(claude("UserPromptSubmit"))
+        self.assertEqual(self.compaction(), [True, True, True])
+
+        # /compact between turns sends no Stop; the pet must not start work.
+        self.observe(claude("Stop", background_tasks=[]))
+        self.assertEqual(self.compaction(), [False, False, False])
+        self.assertEqual(self.card().rows[0].state, "done")
+
+    def test_compaction_during_a_background_wait_does_not_reach_the_pet(self):
+        self.observe(claude("UserPromptSubmit"))
+        self.observe(claude("Stop", background_tasks=[{"type": "shell"}]))
+
+        self.assertEqual(self.compaction(), [False, False, False])
+        self.assertEqual(self.card().rows[0].state, "background")
+
+    def test_subagent_work_keeps_the_parent_turn_until_its_completion(self):
+        self.observe(claude("UserPromptSubmit"))
+        self.observe(claude("PreToolUse", tool_use_id="toolu_agent"))
+        self.observe(claude("SubagentStart", agent_id="agent-1", agent_type="Explore"))
+        for minute in range(12):
+            self.clock.value += 60
+            self.projects.expire()
+            for name in ("PreToolUse", "PostToolUse"):
+                self.observe(
+                    claude(
+                        name,
+                        tool_use_id=f"toolu_child_{minute}",
+                        agent_id="agent-1",
+                        agent_type="Explore",
+                    )
+                )
+        self.observe(claude("SubagentStop", agent_id="agent-1", agent_type="Explore"))
+        self.observe(claude("PostToolUse", tool_use_id="toolu_agent"))
+        self.observe(claude("Stop", background_tasks=[]))
+
+        row = self.card().rows[0]
+        self.assertEqual(row.thread_id, "claude_code:" + SESSION)
+        self.assertEqual(row.state, "done")
+        self.assertEqual(len(self.projects.visible_completions), 1)
+
+    def test_an_open_tool_uses_the_confirmation_inactivity_limit(self):
+        self.observe(claude("UserPromptSubmit"))
+        self.observe(claude("PreToolUse", tool_use_id="toolu_build"))
+        self.clock.value += 29 * 60
+        self.projects.expire()
+        self.assertEqual(self.card().rows[0].state, "running")
+        self.clock.value += 60
+        self.projects.expire()
+        self.assertEqual(self.projects.bubble_cards, ())
+
+    def test_a_finished_tool_returns_to_the_work_limit(self):
+        self.observe(claude("UserPromptSubmit"))
+        self.observe(claude("PreToolUse", tool_use_id="toolu_read"))
+        self.observe(claude("PostToolUse", tool_use_id="toolu_read"))
+        self.clock.value += 10 * 60
+        self.projects.expire()
+        self.assertEqual(self.projects.bubble_cards, ())
+
+    def test_claude_code_wait_is_named_a_permission_request(self):
+        theme = SimpleNamespace(text="#000000")
+        self.observe(claude("UserPromptSubmit"))
+        self.observe(claude("PreToolUse", tool_use_id="toolu_1"))
+        self.observe(claude("PermissionRequest", tool_name="Bash"))
+
+        card = self.card()
+        label, tooltip, _foreground, background = _badge_presentation(
+            card.rows[0], theme
+        )
+        self.assertEqual(card.summary, "권한 요청 1개")
+        self.assertEqual(label, "권한 요청")
+        self.assertIn("승인한 뒤에도", tooltip)
+        self.assertEqual(background, "#fff0b5")
+        self.assertEqual(state_label("waiting", "claude_code"), "권한 요청")
+
+        codex_turn = {"source": "codex", "session_id": "c", "turn_id": "t"}
+        self.projects.observe({**codex_turn, "event": "prompt"})
+        self.projects.observe(
+            {**codex_turn, "event": "PermissionRequest", "approval_actor": "user"}
+        )
+        codex = next(c for c in self.projects.cards if c.source == "codex")
+        self.assertEqual(codex.summary, "확인 필요 1개")
+        self.assertEqual(
+            _badge_presentation(codex.rows[0], theme)[:2], ("확인 필요", "")
+        )
+
 
 class ClaudeCodePresentationTests(unittest.TestCase):
     @classmethod
@@ -303,6 +400,30 @@ class ClaudeCodePresentationTests(unittest.TestCase):
 
         self.assertEqual(aggregate.source, "claude_code")
         self.assertEqual([s.source for s in manager.list_sessions()], ["claude_code"])
+
+    def test_compaction_between_turns_leaves_the_pet_idle(self):
+        clock = Clock()
+        controller = PetAgentController(
+            lambda _state: None,
+            session_manager=AgentSessionManager(now_ms=lambda: int(clock() * 1000)),
+        )
+        surface = SimpleNamespace(
+            agent_controller=controller,
+            apply_agent_payload=controller.apply_payload,
+            current_state="idle",
+        )
+        service = AgentActivityService(
+            surface, projects=ProjectActivityService(now=clock)
+        )
+        service.observe(claude("UserPromptSubmit"))
+        service.observe(claude("Stop", background_tasks=[]))
+        service.observe(claude("PreCompact", trigger="manual"))
+        service.observe(claude("SessionStart", source="compact"))
+        service.observe(claude("PostCompact", trigger="manual"))
+
+        self.assertEqual(controller.aggregate_state.state, "idle")
+        self.assertEqual(controller.current_presentation.working_sources, ())
+        controller.deleteLater()
 
     def test_only_agent_sources_get_a_dot_and_a_spoken_name(self):
         self.assertEqual(

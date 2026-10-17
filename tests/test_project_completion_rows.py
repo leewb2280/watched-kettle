@@ -114,7 +114,7 @@ class CompletionTests(unittest.TestCase):
         for key, row in rows.items():
             self.assertIs(window.project_rows.rows[key], row)
             self.assertEqual(row.badge.text(), "상태 확인 중")
-            self.assertTrue(row.close_button.isHidden())
+            self.assertFalse(row.close_button.isHidden())
         self.event("b", "heartbeat")
         self.assertIs(self.window(), window)
         self.assertEqual(rows["b"].badge.text(), "작업 중")

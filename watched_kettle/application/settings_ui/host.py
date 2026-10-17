@@ -24,6 +24,7 @@ from watched_kettle.application.settings_ui.contracts import (
     text,
     wire,
 )
+from watched_kettle.branding import APP_ICON_PATH
 from watched_kettle.integrations.windows_zorder import allow_foreground
 
 
@@ -165,6 +166,9 @@ class SettingsWindowHost(QObject):
             "WATCHED_KETTLE_SETTINGS_PROFILE",
             str(self.adapter.preferences.settings.fileName()) + ".electron",
         )
+        # Source runs use node_modules' electron.exe, which carries Electron's icon.
+        if APP_ICON_PATH.is_file():
+            environment.insert("WATCHED_KETTLE_SETTINGS_ICON", str(APP_ICON_PATH))
         self.process.setProcessEnvironment(environment)
         self.process.setWorkingDirectory(str(root))
         self.process.setProcessChannelMode(

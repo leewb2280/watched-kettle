@@ -23,6 +23,7 @@ from PySide6.QtCore import QObject, QTimer, Signal
 
 from watched_kettle.integrations.codex_hooks import sanitize_pet_event
 from watched_kettle.state.agent_scope import scope_from_session_source
+from watched_kettle.state.event_names import outcome_reason
 
 
 DEFAULT_CODEX_SESSIONS_ROOT = codex_home() / "sessions"
@@ -150,6 +151,10 @@ class CodexLogMonitor(QObject):
         self._active_turns = {}
         self._tool_turns = OrderedDict()
         self._last_heartbeats = {}
+        self._turn_started_at = {}
+        self._retired_turns = OrderedDict()
+        self._pending_errors = {}
+        self._file_errors = OrderedDict()
         self._replay_cutoff = None
         self._round_robin = 0
         self.budget_yields = 0
@@ -159,6 +164,7 @@ class CodexLogMonitor(QObject):
         self._discovery = None
         self._recovery = OrderedDict()
         self._recovery_confirmed = set()
+        self._recovery_confirmation_turns = {}
         self._last_usage_poll = float("-inf")
         self._started_at = 0.0
         self.event_count = 0
@@ -195,6 +201,7 @@ class CodexLogMonitor(QObject):
         self._discovery = None
         self._recovery.clear()
         self._recovery_confirmed.clear()
+        self._recovery_confirmation_turns.clear()
         self._last_usage_poll = float("-inf")
         self._positions.clear()
         self._usage_cursors.clear()
@@ -217,6 +224,10 @@ class CodexLogMonitor(QObject):
         self._active_turns.clear()
         self._tool_turns.clear()
         self._last_heartbeats.clear()
+        self._turn_started_at.clear()
+        self._retired_turns.clear()
+        self._pending_errors.clear()
+        self._file_errors.clear()
         self._replay_cutoff = None
 
     def clear_pending_questions(self):
@@ -234,8 +245,18 @@ class CodexLogMonitor(QObject):
             self._budget_records = 200
             self._deadline = monotonic() + 0.020
             for path in paths:
-                self._read_new_records(path)
-                self._round_robin += 1
+                try:
+                    self._read_new_records(path)
+                    self._file_errors.pop(path, None)
+                except OSError as error:
+                    self._file_errors[path] = type(error).__name__
+                    self._file_errors.move_to_end(path)
+                    if isinstance(error, FileNotFoundError):
+                        self._forget(path)
+                    while len(self._file_errors) > MAX_TRACKED_FILES:
+                        self._file_errors.popitem(last=False)
+                finally:
+                    self._round_robin += 1
                 if (
                     self._budget_bytes <= 0
                     or self._budget_records <= 0
@@ -245,13 +266,13 @@ class CodexLogMonitor(QObject):
                     break
             self._poll_recovery()
             self._poll_usage()
-            self.last_error = ""
+            self.last_error = next(iter(self._file_errors.values()), "")
         except OSError as error:
             self.last_error = type(error).__name__
 
     def _poll_usage(self):
         usage_batch = []
-        usage_paths = ()
+        usage_paths: tuple[Path, ...] = ()
         if monotonic() - self._last_usage_poll >= USAGE_POLL_SECONDS:
             self._last_usage_poll = monotonic()
             usage_paths = tuple(self._usage_positions)
@@ -264,9 +285,16 @@ class CodexLogMonitor(QObject):
         usage_bytes = 1024 * 1024
         usage_records = 200
         for path in usage_paths:
-            found, consumed_bytes, consumed_records = self._read_usage_records(
-                path, usage_bytes, usage_records, usage_deadline
-            )
+            try:
+                found, consumed_bytes, consumed_records = self._read_usage_records(
+                    path, usage_bytes, usage_records, usage_deadline
+                )
+            except OSError as error:
+                self._file_errors[path] = type(error).__name__
+                if isinstance(error, FileNotFoundError):
+                    self._forget(path)
+                self._usage_round_robin += 1
+                continue
             usage_batch.extend(found)
             usage_bytes -= consumed_bytes
             usage_records -= consumed_records
@@ -311,8 +339,12 @@ class CodexLogMonitor(QObject):
                 self._recovery.pop(path, None)
                 confirmed = path in self._recovery_confirmed
                 self._recovery_confirmed.discard(path)
+                confirmation_turns = self._recovery_confirmation_turns.pop(path, set())
                 snapshot = scan.snapshot(self._started_at, self._now().timestamp())
-                if snapshot is not None:
+                if (
+                    snapshot is not None
+                    and (path, snapshot.turn_id) not in self._retired_turns
+                ):
                     self._active_turns[path] = snapshot.turn_id
                     for call in snapshot.active_tools:
                         self._tool_turns[(path, call)] = snapshot.turn_id
@@ -320,7 +352,10 @@ class CodexLogMonitor(QObject):
                             self._tool_turns.popitem(last=False)
                     self._last_heartbeats.pop(path, None)
                     self.recovery_detected.emit(snapshot)
-                    if confirmed:
+                    if confirmed and (
+                        "" in confirmation_turns
+                        or snapshot.turn_id in confirmation_turns
+                    ):
                         self._emit_heartbeat(path)
             except OSError:
                 self._recovery.pop(path, None)
@@ -578,15 +613,28 @@ class CodexLogMonitor(QObject):
 
         payload = record.get("payload")
         record_type = record.get("type")
-        payload_type = payload.get("type") if isinstance(payload, dict) else None
+        if not isinstance(payload, dict):
+            return
+        payload_type = payload.get("type")
         if record_type == "event_msg" and payload_type == "task_started":
             turn_id = str(payload.get("turn_id") or "")
             if turn_id:
+                if (path, turn_id) in self._retired_turns:
+                    return
                 if (
                     recorded_at is not None
                     and recorded_at.timestamp() < self._started_at
                 ):
                     return
+                stamp = (
+                    recorded_at.timestamp() if recorded_at else self._now().timestamp()
+                )
+                if stamp < self._turn_started_at.get(path, 0):
+                    return
+                previous = self._active_turns.get(path)
+                if previous and previous != turn_id:
+                    self._retire_turn(path, previous)
+                self._turn_started_at[path] = stamp
                 self._recovery.pop(path, None)
                 self._recovery_confirmed.discard(path)
                 self._pending_async_questions.setdefault(path, {}).clear()
@@ -609,7 +657,41 @@ class CodexLogMonitor(QObject):
                 self._last_heartbeats[path] = self._now().timestamp()
             return
 
-        if _confirms_turn_activity(record):
+        metadata = (
+            payload.get("internal_chat_message_metadata_passthrough")
+            if isinstance(payload, dict)
+            else None
+        )
+        record_turn = str(
+            (payload.get("turn_id") if isinstance(payload, dict) else "")
+            or (metadata.get("turn_id") if isinstance(metadata, dict) else "")
+            or ""
+        )
+        call_id = str(payload.get("call_id") or "") if isinstance(payload, dict) else ""
+        is_return = payload_type in {"function_call_output", "custom_tool_call_output"}
+        if is_return and not record_turn:
+            record_turn = self._tool_turns.get((path, call_id), "")
+        active_turn = self._active_turns.get(path, "")
+        belongs = bool(active_turn) and (
+            record_turn == active_turn or (not record_turn and not is_return)
+        )
+        if record_type == "event_msg" and payload_type == "error":
+            if belongs:
+                self._pending_errors[path] = (
+                    active_turn,
+                    outcome_reason(payload.get("codex_error_info")),
+                )
+            return
+        if (
+            not active_turn
+            and path in self._recovery
+            and _confirms_turn_activity(record)
+        ):
+            self._recovery_confirmed.add(path)
+            turns = self._recovery_confirmation_turns.setdefault(path, set())
+            if len(turns) < 32:
+                turns.add(record_turn)
+        if belongs and _confirms_turn_activity(record):
             if path in self._recovery:
                 self._recovery_confirmed.add(path)
             self._emit_heartbeat(path)
@@ -617,14 +699,18 @@ class CodexLogMonitor(QObject):
         event = normalize_codex_log_record(
             record,
             self._session_ids.get(path, rollout_session_id(path)),
-            self._pending_user_calls.setdefault(path, set()),
+            self._pending_user_calls.setdefault(path, set()) if belongs else set(),
             self._agent_scopes.get(path, "unknown"),
-            self._pending_async_questions.setdefault(path, {}),
-            self._active_turns.get(path, ""),
+            self._pending_async_questions.setdefault(path, {}) if belongs else {},
+            active_turn if belongs else "",
         )
         if event is None:
             return
-        if event["event"] in {
+        if event["event"] == "ended":
+            pending = self._pending_errors.get(path)
+            if pending and pending[0] == record_turn:
+                event["outcome_reason"] = pending[1]
+        if belongs and event["event"] in {
             "prompt",
             "tool_start",
             "waiting",
@@ -632,6 +718,7 @@ class CodexLogMonitor(QObject):
             "done",
             "cancelled",
             "failed",
+            "ended",
         }:
             self._recovery.pop(path, None)
             self._recovery_confirmed.discard(path)
@@ -651,10 +738,22 @@ class CodexLogMonitor(QObject):
             if turn and not event.get("turn_id"):
                 event["turn_id"] = turn
         self._emit(event)
-        if event["event"] in {"done", "cancelled", "failed"}:
+        if event["event"] in {"done", "cancelled", "failed", "ended"} and record_turn:
+            self._retire_turn(path, record_turn)
+        if (
+            event["event"] in {"done", "cancelled", "failed", "ended"}
+            and record_turn
+            and record_turn == active_turn
+        ):
             self._active_turns.pop(path, None)
             self._pending_async_questions.setdefault(path, {}).clear()
             self._last_heartbeats.pop(path, None)
+            self._pending_errors.pop(path, None)
+
+    def _retire_turn(self, path, turn):
+        self._retired_turns[(path, turn)] = None
+        while len(self._retired_turns) > 4096:
+            self._retired_turns.popitem(last=False)
 
     def _emit_heartbeat(self, path):
         turn_id = self._active_turns.get(path)
@@ -703,6 +802,12 @@ class CodexLogMonitor(QObject):
             return 0
 
     def _clear_lifecycle(self, path):
+        self._recovery_confirmation_turns.pop(path, None)
+        self._turn_started_at.pop(path, None)
+        self._pending_errors.pop(path, None)
+        for key in tuple(self._retired_turns):
+            if key[0] == path:
+                del self._retired_turns[key]
         self._recovery.pop(path, None)
         self._recovery_confirmed.discard(path)
         for key in tuple(self._tool_turns):

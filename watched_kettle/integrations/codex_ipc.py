@@ -344,6 +344,7 @@ class CodexHookServer(QObject):
             payload.get("agent_scope", ""),
         )
         signature = (
+            payload.get("outcome_reason", ""),
             payload.get("approval_actor", "unknown"),
             payload.get("compaction_phase", ""),
             payload.get("tool_status", ""),

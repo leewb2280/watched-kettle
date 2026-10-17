@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import ntpath
+import os
 import time
 
 from watched_kettle.integrations.codex_hooks import (
@@ -38,6 +39,9 @@ CLAUDE_CODE_HOOK_EVENTS = {
 # minimal event would show a false wait or a false subagent completion.
 _PAYLOAD_REQUIRED = frozenset({"Notification", "SubagentStart", "SubagentStop"})
 MAX_BACKGROUND_COUNT = 99
+# project_root: folders climbed looking for .git, and bytes read of a git file.
+GIT_SEARCH_DEPTH = 32
+GIT_FILE_LIMIT = 4096
 _ENDED_BACKGROUND_STATUSES = frozenset({"completed", "failed", "killed", "paused"})
 _TIMESTAMPED = frozenset(
     {"UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure"}
@@ -154,21 +158,96 @@ def normalize_claude_code_hook(payload, hook_name=None, session_id=None, client=
 
 
 def project_identity(cwd):
-    """Return the working folder's name and path hash; never the path itself.
+    """Return the project folder's name and path hash; never the path itself.
 
-    The app groups a session's card by the hash and shows the folder name.
+    The app groups a session's card by the hash and shows the folder name. A
+    folder inside a git repository counts as the repository's main folder, so
+    its worktrees and subfolders share one card (``project_root``).
     """
     if not isinstance(cwd, str) or not cwd.strip():
         return {}
-    path = ntpath.normpath(cwd.strip())
+    path = project_root(ntpath.normpath(cwd.strip()))
     key = ntpath.normcase(path).rstrip("\\") or ntpath.normcase(path)
     identity = {
         "project_ref": hashlib.sha256(key.encode("utf-8", "replace")).hexdigest()[:16]
     }
-    label = safe_project_label(ntpath.basename(path.rstrip("\\")))
+    name = ntpath.basename(path.rstrip("\\"))
+    if name.lower().endswith(".git") and len(name) > 4:
+        # A bare repository's folder.
+        name = name[:-4]
+    label = safe_project_label(name)
     if label:
         identity["project_label"] = label
     return identity
+
+
+def project_root(path):
+    """Return the main folder of the git repository holding ``path``, or ``path``.
+
+    A linked worktree's ``.git`` file names a gitdir with a ``commondir``;
+    the main repository owns it. A submodule's gitdir has none, so it keeps
+    its own folder. A repository at the home folder or a drive root (dotfiles)
+    does not take in the folders below it. Anything unreadable keeps ``path``.
+    The hook bridge runs this on every tool call: a few stats, two small reads.
+    """
+    current = path
+    for _ in range(GIT_SEARCH_DEPTH):
+        marker = ntpath.join(current, ".git")
+        try:
+            if os.path.lexists(marker):
+                if current != path and _broad_folder(current):
+                    return path
+                return _repository_root(current, marker) or path
+        except (OSError, ValueError, UnicodeError):
+            return path
+        parent = ntpath.dirname(current)
+        if parent == current:
+            break
+        current = parent
+    return path
+
+
+def _broad_folder(folder):
+    if ntpath.dirname(folder) == folder:
+        return True
+    home = os.environ.get("USERPROFILE") or os.path.expanduser("~")
+    return bool(home) and ntpath.normcase(ntpath.normpath(home)) == ntpath.normcase(
+        folder
+    )
+
+
+def _repository_root(folder, marker):
+    if os.path.isdir(marker):
+        return folder
+    text = _read_small(marker)
+    if not text or not text.startswith("gitdir:"):
+        return None
+    gitdir = ntpath.normpath(ntpath.join(folder, _windows_path(text[7:].strip())))
+    common = _read_small(ntpath.join(gitdir, "commondir"))
+    if common is None:
+        return folder
+    common = ntpath.normpath(ntpath.join(gitdir, _windows_path(common.strip())))
+    if ntpath.basename(common).lower() == ".git":
+        return ntpath.dirname(common)
+    return common
+
+
+def _read_small(path):
+    """The first line of a small git file, or None when it is missing."""
+    try:
+        with open(path, "rb") as handle:
+            data = handle.read(GIT_FILE_LIMIT)
+    except FileNotFoundError:
+        return None
+    lines = data.decode("utf-8").splitlines()
+    return lines[0] if lines else ""
+
+
+def _windows_path(value):
+    # Git for Windows may write an MSYS path such as /c/Users/...
+    if len(value) > 2 and value[0] == "/" and value[2] == "/" and value[1].isalpha():
+        return value[1] + ":" + value[2:]
+    return value
 
 
 def _waking_background_count(value):

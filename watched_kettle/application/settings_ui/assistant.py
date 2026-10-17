@@ -5,7 +5,9 @@ from __future__ import annotations
 from datetime import datetime
 import re
 from uuid import uuid4
+from typing import cast
 
+from watched_kettle import settings_protocol as wire_types
 from watched_kettle.integrations.claude_code_status_line import (
     LAYOUT_FILE_NAME,
     read_layout,
@@ -46,6 +48,10 @@ class AssistantSettingsAdapter:
             lambda _s: core.changed.emit("activity")
         )
         runtime.projects.changed.connect(lambda: core.changed.emit("activity"))
+        watch = getattr(runtime, "connection_watch", None)
+        if watch is not None:
+            # Home lists the connection alerts and follows the activity topic.
+            watch.changed.connect(lambda _s: core.changed.emit("activity"))
         runtime.usage_service.account_changed.connect(self._account_changed)
 
     def _account_changed(self, _value):
@@ -53,7 +59,7 @@ class AssistantSettingsAdapter:
         self.plans.clear()
         self.core.changed.emit("account")
 
-    def usage_snapshot(self):
+    def usage_snapshot(self) -> wire_types.UsageResponse:
         vm = self.usage
         hidden = not vm.widget_visible
         # Acrylic follows the app theme; a custom color or opacity does not apply.
@@ -253,83 +259,11 @@ class AssistantSettingsAdapter:
         if method == "usage.snapshot":
             return self.usage_snapshot()
         if method == "usage.widget_preview":
-            companion = getattr(self.runtime, "usage_companion", None)
-            require(companion is not None, "위젯 미리보기를 준비하지 못했습니다.")
-            image, sample = companion.preview(
-                sample=args.get("sample") is True,
-                expanded=args.get("expanded") is True,
-            )
-            # Logical size, so a 150% Windows display does not show it larger.
-            ratio = image.devicePixelRatio() or 1
-            return dict(
-                image=png_data(image),
-                sample=sample,
-                width=round(image.width() / ratio),
-                height=round(image.height() / ratio),
-            )
+            return self._widget_preview(args)
         if method == "activity.snapshot":
-            return dict(
-                epoch=self.core.account_epoch,
-                entries=wire(self.runtime.history_vm.refresh(emit=False).entries),
-                projects=[
-                    dict(
-                        key=card.key,
-                        label=card.label,
-                        source=source_display_label(card.source),
-                        summary=card.summary,
-                        rows=[
-                            dict(
-                                title=row.title,
-                                state=row.state,
-                                label=_badge_presentation(
-                                    row, self.runtime.pet.bubble_controller.theme
-                                )[0],
-                                action_token=self.runtime.action_router.register(
-                                    "thread", row.thread_id
-                                ),
-                            )
-                            for row in card.rows
-                        ],
-                    )
-                    for card in self.runtime.projects.cards
-                ],
-                notices=[
-                    dict(
-                        wire(record),
-                        # Same target the history entry registers, so opening
-                        # from either list confirms the notice the same way.
-                        action_token=self.runtime.action_router.register(
-                            "usage" if record.category == "usage" else "notice",
-                            record.record_id,
-                        ),
-                    )
-                    for record in self.runtime.notification_service.snapshot.recent
-                ],
-            )
+            return self._activity_snapshot(args)
         if method == "integration.snapshot":
-            codex = self.usage.enabled
-            # Codex's hook files are not read while it is off.
-            install = self.runtime.integrations_vm.install_status() if codex else None
-            return dict(
-                diagnostics=_safe_snapshot(
-                    self.runtime.integrations_vm.refresh_requested()
-                ),
-                codex_active=codex,
-                codex_detected=self.runtime.codex_detected(),
-                status=install.message if install else "",
-                install=dict(
-                    state=install.state,
-                    message=install.message,
-                    installed_events=install.installed_events,
-                    expected_events=install.expected_events,
-                )
-                if install
-                else dict(
-                    state="inactive", message="", installed_events=0, expected_events=0
-                ),
-                storage=wire(self.runtime.database.availability),
-                claude_code=self._claude_code_snapshot(),
-            )
+            return self._integration_snapshot(args)
         require(
             args.get("epoch") == self.core.account_epoch,
             "계정 상태가 변경됐습니다. 다시 불러오세요.",
@@ -337,100 +271,11 @@ class AssistantSettingsAdapter:
         )
         vm = self.usage
         if method == "usage.set":
-            key, value = text(args.get("key")), args.get("value")
-            # Each tool's own switch lives on the connections page.
-            bools = {
-                "quiet_summary": vm.set_quiet_summary_enabled,
-                "widget_visible": vm.set_widget_visible,
-                "widget_tasks": vm.set_widget_tasks_visible,
-                "widget_today": vm.set_widget_today_visible,
-            }
-            if key in bools:
-                bools[key](boolean(value))
-            elif key == "widget_shape":
-                vm.set_widget_shape(choice(value, ("rings", "bars", "chips")))
-            elif key == "widget_emphasis":
-                vm.set_widget_emphasis(
-                    choice(value, ("auto", "five_hour", "seven_day"))
-                )
-            elif key == "widget_material":
-                vm.set_widget_material(choice(value, ("opaque", "acrylic")))
-            elif key == "widget_theme":
-                vm.set_widget_theme_mode(choice(value, ("app", "custom")))
-            elif key == "widget_color":
-                require(
-                    isinstance(value, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", value)
-                )
-                vm.set_widget_background_color(value)
-            elif key == "widget_opacity":
-                vm.set_widget_background_opacity(integer(value, 0, 100))
-            elif key == "widget_scale":
-                vm.set_widget_scale_percent(integer(value, 70, 130))
-            elif key == "chart_days":
-                vm.set_chart_days(choice(value, USAGE_CHART_DAYS))
-            elif key == "widget_hours":
-                require(isinstance(value, list) and len(value) == 2)
-                start, end = integer(value[0], 0, 23), integer(value[1], 1, 24)
-                require(start < end)
-                vm.set_widget_hour_range(start, end)
-            else:
-                raise CommandError("unsupported", "지원하지 않는 사용량 설정입니다.")
-            self.core._sync()
+            self._set_usage(args)
         elif method == "usage.query":
-            kind = choice(args.get("kind"), ("projects", "conversations", "tasks"))
-            search = text(args.get("search", ""), 200)
-            claude = self._provider(args) == "claude_code"
-            orders = {
-                "projects": ("recent", "name")
-                if claude
-                else ("recent", "name", "custom"),
-                "conversations": ("recent", "top"),
-                "tasks": ORDERS,
-            }
-            order = choice(args.get("order", "recent"), orders[kind])
-            offset = integer(args.get("offset", 0), 0, 10000000)
-            if claude:
-                if kind == "tasks":
-                    vm.claude_code(
-                        "set_task_query",
-                        search,
-                        order,
-                        integer(args.get("limit", 100), 100, 10000),
-                    )
-                else:
-                    vm.claude_code(
-                        "set_project_query"
-                        if kind == "projects"
-                        else "set_conversation_query",
-                        search,
-                        order,
-                        offset,
-                    )
-            elif kind == "projects":
-                vm.set_project_query(search, order, offset)
-            elif kind == "conversations":
-                vm.set_conversation_query(search, order, offset)
-            else:
-                vm.set_task_query(
-                    search,
-                    order,
-                    integer(args.get("limit", 100), 100, 10000),
-                    vm.snapshot.selected_thread_hash or None,
-                )
+            self._query_usage(args)
         elif method == "usage.select":
-            kind = choice(args.get("kind"), ("project", "conversation"))
-            key = text(args.get("key"), 2048)
-            if self._provider(args) == "claude_code":
-                vm.claude_code(
-                    "select_usage_project"
-                    if kind == "project"
-                    else "select_usage_conversation",
-                    key,
-                )
-            elif kind == "project":
-                vm.select_usage_project(key)
-            else:
-                vm.select_usage_conversation(key)
+            self._select_usage(args)
         elif method == "usage.move":
             vm.move_usage_project(
                 text(args.get("key"), 2048), choice(args.get("direction"), (-1, 1))
@@ -439,18 +284,7 @@ class AssistantSettingsAdapter:
             choice(args.get("action"), ("clear",))
             vm.claude_code("clear_history")
         elif method == "usage.action":
-            actions = {
-                "refresh": vm.refresh_requested,
-                "clear": vm.clear_requested,
-                "clear_device": vm.clear_device_requested,
-                "reset_widget": vm.reset_widget_settings,
-                "reset_style": vm.reset_widget_style,
-                "reset_scale": vm.reset_widget_scale,
-                "reset_hours": vm.reset_widget_hour_range,
-                "reset_position": vm.reset_widget_position,
-            }
-            actions[choice(args.get("action"), actions)]()
-            self.core._sync()
+            self._usage_action(args)
         elif method == "activity.clear":
             self.runtime.notification_service.clear_history()
         elif method == "activity.open":
@@ -477,46 +311,9 @@ class AssistantSettingsAdapter:
                 warnings=list(plan.warnings),
             )
         elif method == "integration.preview":
-            operation = choice(args.get("operation"), ("install", "repair", "remove"))
-            provider = choice(
-                args.get("provider", "codex"), self.runtime.active_providers()
-            )
-            # Tool hooks follow the tool's switch; only the status line, an
-            # option of Claude Code, connects and disconnects on its own.
-            require(
-                operation == "repair" or provider == "claude_code_status_line",
-                "도구 사용 스위치로 연결을 켜고 끕니다.",
-                "unsupported",
-            )
-            fn = {
-                "install": self.runtime.integrations_vm.preview_install,
-                "repair": self.runtime.integrations_vm.preview_repair,
-                "remove": self.runtime.integrations_vm.preview_remove,
-            }[operation]
-            plan = fn(provider)
-            self.plans.clear()
-            token = uuid4().hex
-            self.plans[token] = (provider, plan)
-            return dict(
-                token=token,
-                canApply=plan.can_apply,
-                changes=list(plan.changes),
-                warnings=list(plan.warnings),
-            )
+            return self._preview_integration(args)
         elif method == "integration.apply":
-            entry = self.plans.pop(text(args.get("token"), 64), None)
-            require(
-                entry is not None,
-                "변경 계획이 만료됐습니다. 다시 검토해 주세요.",
-                "expired",
-            )
-            provider, plan = entry
-            if provider == TOOL_PLAN:
-                self.runtime.apply_tool(plan)
-            elif provider in self.runtime.active_providers():
-                self.runtime.integrations_vm.apply_plan(plan, provider)
-            else:
-                raise CommandError("expired", "도구가 꺼져 변경을 적용하지 않았습니다.")
+            self._apply_integration(args)
         elif method == "integration.set" and args.get("key") == "status_line_layout":
             value = args.get("value")
             require(isinstance(value, dict) and isinstance(value.get("lines"), list))
@@ -542,6 +339,256 @@ class AssistantSettingsAdapter:
             saved=method in {"usage.set", "integration.set"},
             epoch=self.core.account_epoch,
         )
+
+    def _widget_preview(self, args) -> wire_types.WidgetPreview:
+        companion = getattr(self.runtime, "usage_companion", None)
+        if companion is None:
+            raise CommandError(
+                "invalid_argument", "위젯 미리보기를 준비하지 못했습니다."
+            )
+        image, sample = companion.preview(
+            sample=args.get("sample") is True,
+            expanded=args.get("expanded") is True,
+        )
+        # Logical size, so a 150% Windows display does not show it larger.
+        ratio = image.devicePixelRatio() or 1
+        return dict(
+            image=png_data(image),
+            sample=sample,
+            width=round(image.width() / ratio),
+            height=round(image.height() / ratio),
+        )
+
+    def _activity_snapshot(self, args) -> wire_types.ActivityResponse:
+        return dict(
+            epoch=self.core.account_epoch,
+            entries=wire(self.runtime.history_vm.refresh(emit=False).entries),
+            projects=[
+                dict(
+                    key=card.key,
+                    label=card.label,
+                    source=source_display_label(card.source),
+                    summary=card.summary,
+                    rows=[
+                        dict(
+                            title=row.title,
+                            state=row.state,
+                            label=_badge_presentation(
+                                row, self.runtime.pet.bubble_controller.theme
+                            )[0],
+                            action_token=self.runtime.action_router.register(
+                                "thread", row.thread_id
+                            ),
+                        )
+                        for row in card.rows
+                    ],
+                )
+                for card in self.runtime.projects.cards
+            ],
+            notices=[
+                cast(
+                    wire_types.NoticeRecord,
+                    dict(
+                        wire(record),
+                        # Same target the history entry registers, so opening
+                        # from either list confirms the notice the same way.
+                        action_token=self.runtime.action_router.register(
+                            "usage" if record.category == "usage" else "notice",
+                            record.record_id,
+                        ),
+                    ),
+                )
+                for record in self.runtime.notification_service.snapshot.recent
+            ],
+        )
+
+    def _integration_snapshot(self, args) -> wire_types.IntegrationResponse:
+        codex = self.usage.enabled
+        # Codex's hook files are not read while it is off.
+        install = self.runtime.integrations_vm.install_status() if codex else None
+        return dict(
+            diagnostics=cast(
+                wire_types.Diagnostics,
+                _safe_snapshot(self.runtime.integrations_vm.refresh_requested()),
+            ),
+            codex_active=codex,
+            codex_detected=self.runtime.codex_detected(),
+            status=install.message if install else "",
+            install=dict(
+                state=install.state,
+                message=install.message,
+                installed_events=install.installed_events,
+                expected_events=install.expected_events,
+            )
+            if install
+            else dict(
+                state="inactive", message="", installed_events=0, expected_events=0
+            ),
+            storage=wire(self.runtime.database.availability),
+            claude_code=self._claude_code_snapshot(),
+            connection_alerts=[
+                cast(
+                    wire_types.ConnectionAlert,
+                    dict(tool=alert.tool, kind=alert.kind),
+                )
+                for alert in getattr(
+                    getattr(self.runtime, "connection_watch", None), "snapshot", ()
+                )
+            ],
+        )
+
+    def _set_usage(self, args):
+        vm = self.usage
+        key, value = text(args.get("key")), args.get("value")
+        # Each tool's own switch lives on the connections page.
+        bools = {
+            "quiet_summary": vm.set_quiet_summary_enabled,
+            "widget_visible": vm.set_widget_visible,
+            "widget_tasks": vm.set_widget_tasks_visible,
+            "widget_today": vm.set_widget_today_visible,
+        }
+        if key in bools:
+            bools[key](boolean(value))
+        elif key == "widget_shape":
+            vm.set_widget_shape(choice(value, ("rings", "bars", "chips")))
+        elif key == "widget_emphasis":
+            vm.set_widget_emphasis(choice(value, ("auto", "five_hour", "seven_day")))
+        elif key == "widget_material":
+            vm.set_widget_material(choice(value, ("opaque", "acrylic")))
+        elif key == "widget_theme":
+            vm.set_widget_theme_mode(choice(value, ("app", "custom")))
+        elif key == "widget_color":
+            require(isinstance(value, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", value))
+            vm.set_widget_background_color(value)
+        elif key == "widget_opacity":
+            vm.set_widget_background_opacity(integer(value, 0, 100))
+        elif key == "widget_scale":
+            vm.set_widget_scale_percent(integer(value, 70, 130))
+        elif key == "chart_days":
+            vm.set_chart_days(choice(value, USAGE_CHART_DAYS))
+        elif key == "widget_hours":
+            require(isinstance(value, list) and len(value) == 2)
+            start, end = integer(value[0], 0, 23), integer(value[1], 1, 24)
+            require(start < end)
+            vm.set_widget_hour_range(start, end)
+        else:
+            raise CommandError("unsupported", "지원하지 않는 사용량 설정입니다.")
+        self.core._sync()
+
+    def _query_usage(self, args):
+        vm = self.usage
+        kind = choice(args.get("kind"), ("projects", "conversations", "tasks"))
+        search = text(args.get("search", ""), 200)
+        claude = self._provider(args) == "claude_code"
+        orders = {
+            "projects": ("recent", "name") if claude else ("recent", "name", "custom"),
+            "conversations": ("recent", "top"),
+            "tasks": ORDERS,
+        }
+        order = choice(args.get("order", "recent"), orders[kind])
+        offset = integer(args.get("offset", 0), 0, 10000000)
+        if claude:
+            if kind == "tasks":
+                vm.claude_code(
+                    "set_task_query",
+                    search,
+                    order,
+                    integer(args.get("limit", 100), 100, 10000),
+                )
+            else:
+                vm.claude_code(
+                    "set_project_query"
+                    if kind == "projects"
+                    else "set_conversation_query",
+                    search,
+                    order,
+                    offset,
+                )
+        elif kind == "projects":
+            vm.set_project_query(search, order, offset)
+        elif kind == "conversations":
+            vm.set_conversation_query(search, order, offset)
+        else:
+            vm.set_task_query(
+                search,
+                order,
+                integer(args.get("limit", 100), 100, 10000),
+                vm.snapshot.selected_thread_hash or None,
+            )
+
+    def _select_usage(self, args):
+        vm = self.usage
+        kind = choice(args.get("kind"), ("project", "conversation"))
+        key = text(args.get("key"), 2048)
+        if self._provider(args) == "claude_code":
+            vm.claude_code(
+                "select_usage_project"
+                if kind == "project"
+                else "select_usage_conversation",
+                key,
+            )
+        elif kind == "project":
+            vm.select_usage_project(key)
+        else:
+            vm.select_usage_conversation(key)
+
+    def _usage_action(self, args):
+        vm = self.usage
+        actions = {
+            "refresh": vm.refresh_requested,
+            "clear": vm.clear_requested,
+            "clear_device": vm.clear_device_requested,
+            "reset_widget": vm.reset_widget_settings,
+            "reset_style": vm.reset_widget_style,
+            "reset_scale": vm.reset_widget_scale,
+            "reset_hours": vm.reset_widget_hour_range,
+            "reset_position": vm.reset_widget_position,
+        }
+        actions[choice(args.get("action"), actions)]()
+        self.core._sync()
+
+    def _preview_integration(self, args):
+        operation = choice(args.get("operation"), ("install", "repair", "remove"))
+        provider = choice(
+            args.get("provider", "codex"), self.runtime.active_providers()
+        )
+        # Tool hooks follow the tool's switch; only the status line, an
+        # option of Claude Code, connects and disconnects on its own.
+        require(
+            operation == "repair" or provider == "claude_code_status_line",
+            "도구 사용 스위치로 연결을 켜고 끕니다.",
+            "unsupported",
+        )
+        fn = {
+            "install": self.runtime.integrations_vm.preview_install,
+            "repair": self.runtime.integrations_vm.preview_repair,
+            "remove": self.runtime.integrations_vm.preview_remove,
+        }[operation]
+        plan = fn(provider)
+        self.plans.clear()
+        token = uuid4().hex
+        self.plans[token] = (provider, plan)
+        return dict(
+            token=token,
+            canApply=plan.can_apply,
+            changes=list(plan.changes),
+            warnings=list(plan.warnings),
+        )
+
+    def _apply_integration(self, args):
+        entry = self.plans.pop(text(args.get("token"), 64), None)
+        require(
+            entry is not None,
+            "변경 계획이 만료됐습니다. 다시 검토해 주세요.",
+            "expired",
+        )
+        provider, plan = entry
+        if provider == TOOL_PLAN:
+            self.runtime.apply_tool(plan)
+        elif provider in self.runtime.active_providers():
+            self.runtime.integrations_vm.apply_plan(plan, provider)
+        else:
+            raise CommandError("expired", "도구가 꺼져 변경을 적용하지 않았습니다.")
 
     def _provider(self, args):
         providers = ("codex",) + (

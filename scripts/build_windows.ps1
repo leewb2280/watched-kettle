@@ -37,6 +37,9 @@ if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
     throw "Project virtual-environment Python was not found: $python"
 }
 
+& $python (Join-Path $PSScriptRoot "python_version.py")
+if ($LASTEXITCODE -ne 0) { throw "Select the supported Python environment before building." }
+
 $applicationVersion = (
     & $python -c (
         "from watched_kettle.branding import APPLICATION_VERSION; " +
@@ -48,6 +51,7 @@ if (-not $applicationVersion) {
 }
 $updateApiUrl = ""
 $updatePageUrl = ""
+$updateNotesUrl = ""
 if ($UpdateTestPort) {
     & $python -c (
         "import sys; from watched_kettle.application.update_check import local_test_host; " +
@@ -61,14 +65,20 @@ if ($UpdateTestPort) {
     $updatePageUrl = "http://${UpdateTestHost}:$UpdateTestPort/releases"
 } elseif ($buildProfile -eq "public") {
     $updateChannel = "official"
-    $updateRepository = (
-        & $python -c "from watched_kettle.branding import UPDATE_REPOSITORY; print(UPDATE_REPOSITORY)"
-    ).Trim()
-    if ($updateRepository -notmatch '^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$') {
-        throw "The update repository could not be read."
+    # Update files and the installer people download live in two repositories (ADR 0008).
+    $repositories = @(
+        & $python -c "from watched_kettle.branding import UPDATE_REPOSITORY as u, RELEASE_REPOSITORY as r; print(u); print(r)"
+    )
+    $updateRepository = "$($repositories[0])".Trim()
+    $releaseRepository = "$($repositories[1])".Trim()
+    foreach ($repository in @($updateRepository, $releaseRepository)) {
+        if ($repository -notmatch '^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$') {
+            throw "The update repositories could not be read."
+        }
     }
     $updateApiUrl = "https://api.github.com/repos/$updateRepository/releases/latest"
     $updatePageUrl = "https://github.com/$updateRepository/releases"
+    $updateNotesUrl = "https://github.com/$releaseRepository/releases"
 } else {
     $updateChannel = "none"
 }
@@ -143,8 +153,9 @@ Copy-Item `
 if ($updateApiUrl) {
     # Read by watched_kettle/application/update_check.py, which applies the
     # same official / 127.0.0.1 address rules.
-    $updateSource = [ordered]@{ api_url = $updateApiUrl; release_url = $updatePageUrl } |
-        ConvertTo-Json -Compress
+    $updateSource = [ordered]@{ api_url = $updateApiUrl; release_url = $updatePageUrl }
+    if ($updateNotesUrl) { $updateSource.notes_url = $updateNotesUrl }
+    $updateSource = $updateSource | ConvertTo-Json -Compress
     [IO.File]::WriteAllText((Join-Path $bundle "UPDATE_SOURCE.json"), $updateSource, $utf8NoBom)
 }
 if ($buildProfile -eq "private-beta") {

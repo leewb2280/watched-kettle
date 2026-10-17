@@ -136,6 +136,27 @@ class BuildAndStageTests(unittest.TestCase):
         checksum = (self.new / (index_name("1.0.1") + ".sha256")).read_text()
         self.assertTrue(checksum.strip().endswith(index_name("1.0.1")))
 
+    def test_a_moved_update_address_travels_in_the_delta(self):
+        # 0.15.4 installs reach the update repository of ADR 0008 this way.
+        def files(version, repository):
+            content = release_files(version)
+            content["UPDATE_SOURCE.json"] = json.dumps(
+                {
+                    "api_url": f"https://api.github.com/repos/{repository}/releases/latest",
+                    "release_url": f"https://github.com/{repository}/releases",
+                }
+            ).encode()
+            return content
+
+        root = self.root / "moved"
+        old = build_release(root, "1.0.0", files=files("1.0.0", "o/app"))
+        new = build_release(
+            root, "1.0.1", bases=old, files=files("1.0.1", "o/app-updates")
+        )
+        delta = self.index("1.0.1", new).editions["pet-only"].deltas["1.0.0"]
+        with zipfile.ZipFile(new / delta.name) as archive:
+            self.assertIn("app-updates", archive.read("UPDATE_SOURCE.json").decode())
+
     def test_a_different_installer_revision_gets_no_delta(self):
         newer = build_release(self.root / "r2", "1.0.2", bases=self.new, revision=2)
         self.assertEqual(self.index("1.0.2", newer).editions["pet-only"].deltas, {})

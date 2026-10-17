@@ -112,6 +112,25 @@ class FilePassTests(unittest.TestCase):
         self.assertEqual(first.turn_hash, hash_identifier("p1"))
         self.assertEqual(self.parse(idle=True)[1][-1].outcome, "cancelled")
 
+    def test_a_worktree_session_counts_for_the_main_repository(self):
+        root = Path(self.directory.name)
+        main, worktree = root / "kettle", root / "kettle" / "wt" / "feature"
+        gitdir = main / ".git" / "worktrees" / "feature"
+        gitdir.mkdir(parents=True)
+        (gitdir / "commondir").write_text("../..", encoding="utf-8")
+        worktree.mkdir(parents=True)
+        (worktree / ".git").write_text(f"gitdir: {gitdir}", encoding="utf-8")
+        self.path.unlink()
+        write(self.path, [user("p1", 3, cwd=str(main))])
+        expected = self.parse()[0].project_hash
+        self.path.unlink()
+        write(self.path, [user("p1", 3, cwd=str(worktree))])
+
+        current = self.parse()[0]
+
+        self.assertEqual(current.project_hash, expected)
+        self.assertEqual(current.project_label, "kettle")
+
     def test_resume_starts_at_the_last_turn(self):
         current, _parts = self.parse()
         write(self.path, [assistant("m5", 0, 9, stop="end_turn", request="r5")])

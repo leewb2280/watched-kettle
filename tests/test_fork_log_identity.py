@@ -116,7 +116,7 @@ class ForkLogTests(unittest.TestCase):
         self.assertFalse(self.monitor._recovery_confirmed)
         self.assertFalse(self.monitor._tool_turns)
         self.feed(records[boundary:])
-        self.assertEqual([e["event"] for e in self.events], ["prompt", "done"])
+        self.assertEqual([e["event"] for e in self.events], ["prompt", "ended"])
         self.assertTrue(all(e["session_id"] == "child" for e in self.events))
         self.assertTrue(all(e["agent_scope"] == "subagent" for e in self.events))
 
@@ -132,7 +132,7 @@ class ForkLogTests(unittest.TestCase):
             self.read(records=1, byte_budget=37)
             if self.monitor._positions[self.path] == len(data):
                 break
-        self.assertEqual([e["event"] for e in self.events], ["prompt", "done"])
+        self.assertEqual([e["event"] for e in self.events], ["prompt", "ended"])
         self.assertTrue(all(e["session_id"] == "child" for e in self.events))
 
     def test_existing_fork_does_not_replay_and_new_turn_keeps_owner(self):
@@ -152,7 +152,7 @@ class ForkLogTests(unittest.TestCase):
                 )
             )
         self.read()
-        self.assertEqual([e["event"] for e in self.events], ["prompt", "done"])
+        self.assertEqual([e["event"] for e in self.events], ["prompt", "ended"])
         self.assertTrue(all(e["session_id"] == "child" for e in self.events))
         self.assertEqual(self.monitor.session_scope("child"), "subagent")
 
@@ -167,7 +167,7 @@ class ForkLogTests(unittest.TestCase):
         with self.path.open("ab") as stream:
             stream.write(suffix[11:])
         self.read()
-        self.assertEqual([e["event"] for e in self.events], ["prompt", "done"])
+        self.assertEqual([e["event"] for e in self.events], ["prompt", "ended"])
         self.assertTrue(all(e["turn_id"] == "child-turn" for e in self.events))
 
     def test_no_boundary_legacy_fork_still_keeps_child_identity(self):
@@ -204,7 +204,7 @@ class ForkLogTests(unittest.TestCase):
                         lifecycle("task_complete", "t"),
                     ]
                 )
-                self.assertEqual([e["event"] for e in self.events], ["prompt", "done"])
+                self.assertEqual([e["event"] for e in self.events], ["prompt", "ended"])
 
     def test_discarded_large_line_and_invalid_json_do_not_shift_ordinals(self):
         records = fork_records()
@@ -215,7 +215,7 @@ class ForkLogTests(unittest.TestCase):
         with patch("watched_kettle.integrations.codex_log.MAX_LOG_LINE_BYTES", 1024):
             for _ in range(10):
                 self.read(records=2)
-        self.assertEqual([e["event"] for e in self.events], ["prompt", "done"])
+        self.assertEqual([e["event"] for e in self.events], ["prompt", "ended"])
         self.assertTrue(all(e["turn_id"] == "child-turn" for e in self.events))
 
     def test_file_replacement_and_truncation_reset_owner_and_turn_correlations(self):

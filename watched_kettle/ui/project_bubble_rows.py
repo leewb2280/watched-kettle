@@ -1,6 +1,7 @@
 """Reusable project rows with status badges and a two-row scroll viewport."""
 
 from html import escape
+from datetime import datetime
 import re
 
 from PySide6.QtCore import Qt
@@ -17,16 +18,21 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from watched_kettle.features.project_activity.service import LABELS
+from watched_kettle.features.project_activity.service import row_status_label
 from watched_kettle.ui.wrapped_title_button import WrappedTitleButton, title_text_width
 
 
 def _badge_presentation(row, theme):
     """Resolve presentation only; activity state remains owned by the service."""
     if row.uncertain:
+        tooltip = "최근 활동을 받지 못했습니다. 작업 종료는 확인되지 않았습니다."
+        if row.source == "codex" and row.last_confirmed_at:
+            tooltip += "\n마지막 확인: " + datetime.fromtimestamp(
+                row.last_confirmed_at
+            ).astimezone().strftime("%Y-%m-%d %H:%M:%S")
         return (
             "상태 확인 중",
-            "최근 활동을 받지 못했습니다. 작업 종료는 확인되지 않았습니다.",
+            tooltip,
             theme.text,
             "transparent",
         )
@@ -46,7 +52,14 @@ def _badge_presentation(row, theme):
         "failed": ("#922f35", "#f9dddd"),
     }
     foreground, background = colors.get(row.state, (theme.text, "transparent"))
-    return LABELS.get(row.state, row.state), "", foreground, background
+    source = getattr(row, "source", "codex")
+    tooltip = (
+        "Claude Code가 도구 사용 권한을 물었습니다. "
+        "승인한 뒤에도 그 도구가 끝날 때까지 이 표시가 남습니다."
+        if source == "claude_code" and row.state == "waiting"
+        else ""
+    )
+    return row_status_label(row), tooltip, foreground, background
 
 
 class ProjectConversationRow(QFrame):
@@ -81,8 +94,10 @@ class ProjectConversationRow(QFrame):
         self.line.addWidget(self.close_button)
 
     def _dismiss(self):
-        if self.row is not None and self.row.completion_id:
-            self.dismiss((self.row.completion_id,))
+        if self.row is not None:
+            identifier = self.row.completion_id or self.row.dismiss_id
+            if identifier:
+                self.dismiss((identifier,))
 
     def configure(self, row, token, font, theme, scaled):
         self.row = row
@@ -104,7 +119,10 @@ class ProjectConversationRow(QFrame):
         self.badge.setMaximumSize(16_777_215, 16_777_215)
         self.badge.setFixedSize(self.badge.sizeHint())
         self.close_button.setFixedSize(scaled(20), scaled(22))
-        self.close_button.setVisible(row.state == "done")
+        self.close_button.setVisible(row.state == "done" or bool(row.dismiss_id))
+        self.close_button.setToolTip(
+            "완료 닫기" if row.completion_id else "미확인 작업 숨기기"
+        )
         self.close_button.setStyleSheet(
             f"QToolButton {{ color: {theme.text}; border: none; background: transparent; }} QToolButton:hover {{ background: rgba(100,140,180,30); }}"
         )
@@ -124,7 +142,7 @@ class ProjectConversationRow(QFrame):
             + self.line.spacing()
             + (
                 self.close_button.width() + self.line.spacing()
-                if self.row.state == "done"
+                if self.row.state == "done" or self.row.dismiss_id
                 else 0
             )
         )
@@ -138,7 +156,9 @@ class ProjectConversationRow(QFrame):
             max(
                 self.title.height(),
                 self.badge.height(),
-                self.close_button.height() if self.row.state == "done" else 0,
+                self.close_button.height()
+                if self.row.state == "done" or self.row.dismiss_id
+                else 0,
             )
         )
 

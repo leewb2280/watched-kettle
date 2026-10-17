@@ -54,6 +54,25 @@ class ApplicationRuntimeTests(unittest.TestCase):
             self.assertEqual(center.route["page"], "pet")
         self.assertEqual(launch.call_count, 2)
 
+    def test_connection_alert_becomes_a_notice_that_opens_connections(self):
+        from watched_kettle.features.integrations.watch import ConnectionAlert
+
+        self.runtime.connection_watch.announce_ready.emit(
+            ConnectionAlert("codex", "broken", "drifted")
+        )
+
+        record = self.runtime.notification_service.snapshot.recent[0]
+        self.assertEqual(record.category, "system")
+        self.assertIn("Codex 연결이 풀렸어요", record.message)
+        target = self.runtime.action_router.targets[record.action_token]
+        self.assertEqual(target.kind, "diagnostics")
+        # A later alert for the same tool replaces the earlier one.
+        self.runtime.connection_watch.announce_ready.emit(
+            ConnectionAlert("codex", "broken", "not_installed")
+        )
+        recent = self.runtime.notification_service.snapshot.recent
+        self.assertEqual([r.message[:5] for r in recent], ["Codex"])
+
     def test_runtime_start_and_close_are_idempotent(self):
         self.runtime.codex_log_monitor.start = Mock()
         self.runtime.codex_server.start = Mock()

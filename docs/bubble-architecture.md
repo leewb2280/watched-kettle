@@ -33,6 +33,9 @@ flowchart TD
     I --> C[AppCoordinator]
     C --> A[AgentActivityService]
     A --> P[ProjectActivityService: 턴·요청·부모 관계와 상태]
+    P -->|Codex 종료·무응답·복구 대상| TS[CodexTurnStatusMonitor: 별도 worker의 읽기 전용 턴 조회]
+    TS -->|식별자·버전·계정·연결 세대가 일치하는 종료 근거| A
+    P -->|Codex 관측 상태: 기존 세션에만 투영| A
     M[ConversationMetadataService: 제목·프로젝트 관계] --> P
     CM[UsageConversationCatalog: 읽기 전용 제목·프로젝트 조회] --> UH[사용량 기록: 프로젝트·대화별 탐색]
     PS[저장소: 전체 프로젝트 집계] --> PH[ProjectHistory: 정렬·선택·페이지]
@@ -56,7 +59,10 @@ flowchart TD
     O -.전달 결과 · 실패 요약.-> D
     ER[Electron 설정 renderer] --> EM[Electron main: 허용된 명령과 네이티브 파일 선택]
     EM --> EH
-    EH --> EA[Core/AssistantSettingsAdapter: DTO·revision·계정 epoch 검증]
+    EH --> EA[Core/AssistantSettingsAdapter: 명령 선택·revision·계정 epoch 검증]
+    PC[settings_protocol: Qt 독립 DTO·명령 노출 명세] -.생성.-> CG[generate_settings_protocol]
+    CG -.TS 타입.-> ER
+    CG -.renderer 허용 목록.-> EM
     EA --> VM[기존 ViewModel: 적용·저장]
     EA --> BP[독립 BubbleThemePreview: 공통 painter PNG]
     EM --> PI[펫 파일 선택: 경로는 main과 Python만 사용]
@@ -107,13 +113,17 @@ Claude Code hook은 같은 hook 브리지와 `CodexHookServer`를 거쳐 source 
 `ProjectActivityService`는 Claude Code 세션도 카드로 만들되 대화 키에 `claude_code:` 접두어를 붙여
 같은 원본 ID의 Codex 대화와 섞지 않는다. Claude Code 이벤트에 대해서는 항상 수용을 반환해, 카드의 거부·중복
 판정이 이미 검증된 펫 상태 반영을 막지 않는다(Codex는 기존처럼 카드 판정이 펫 전달을 거른다).
+예외는 압축 이벤트다. 턴 사이의 수동 `/compact`에는 `Stop`이 오지 않으므로, 카드가 열린 턴에 붙인 압축만 펫에 넘기고
+턴이 끝났거나 백그라운드 대기 중인 세션의 압축은 펫에 넘기지 않는다.
 Claude Code는 중단·권한 거절·패널 닫기 때 종료 이벤트를 보내지 않는다. 중단·거절은
 `integrations/claude_code_transcript.py`가 작업 중인 세션의 대화 기록에 hook 없는 사용자 텍스트 줄이
 추가된 것을 확인해 `cancelled` 이벤트(전송 경로 `claude_code_transcript`)로 `CodexHookServer`에 넘긴다.
 백그라운드 명령 결과를 읽으려고 Claude Code가 스스로 쓰는 사용자 줄(`promptSource: system`, `turnOrigin: task_notification`)은 중단·거절로 보지 않는다. 그 턴은 `UserPromptSubmit` 없이 새 `prompt_id`로 시작하므로, 이미 대체된 턴이 아닌 처음 보는 턴의 주 세션 `Stop`·`StopFailure`는 열린 턴의 완료로 받는다. 대체된 턴의 늦은 이벤트는 그 앞에서 거부되므로 새 턴을 끝내지 않는다(BA-02, 14단계). 이 턴의 도구 이벤트도 같은 규칙으로 열린 턴에 속한다.
 깨울 백그라운드 작업(명령·하위 에이전트·종류 미상)이 남은 `Stop`은 브리지가 `background_wait`(작업 개수만)로 바꿔 보낸다. 감시용 작업(`monitor`, MCP 작업)과 끝난 작업은 세지 않는다. 카드는 `background` 상태로 `백그라운드 N개`를 보이고, 펫 세션은 `idle`로 남아 작업 중 집계에서 빠지며 알림을 내지 않는다. 완료 기록은 결과를 읽는 턴의 `Stop`에서 한 번만 만든다.
 줄 종류와 세션 제목만 읽고 그 밖의 내용은 보관하지 않는다. 남은 경우는 출처별 무활동 만료(작업 중 10분, 확인 대기 30분,
-설정창에서 변경)로 해제한다. 같은 `InactivityLimit`을 `state/session_manager.py`(펫)와
+설정창에서 변경)로 해제한다. 끝나지 않은 도구 호출이 있는 동안은 긴 도구가 이벤트 없이 돌 수 있으므로 확인 대기 시간을 쓴다.
+부모 세션은 하위 에이전트가 일하는 동안 이벤트를 보내지 않으므로 하위 에이전트 이벤트가 부모의 마지막 활동 시각도 갱신한다.
+같은 `InactivityLimit`과 두 규칙을 `state/session_manager.py`(펫)와
 `ProjectActivityService`(카드 행)가 각각 적용한다. 이 만료는 완료·결과·알림의 표시 기한과 별개다(BA-04).
 
 ## 2. 책임과 수정 위치
@@ -127,29 +137,34 @@ Claude Code는 중단·권한 거절·패널 닫기 때 종료 이벤트를 보�
 | 훅·로그 해석, 비동기 질문과 후속 사용자 메시지의 요청 ID 연결, 전달 중복 판정 | `integrations/codex_hooks.py`, `claude_code_hooks.py`, `claude_code_transcript.py`, `log_lifecycle.py`, `codex_log.py`, `codex_ipc.py` | 실제 카드나 펫 상태 직접 변경 |
 | 복구할 미종료 턴의 근거 수집 | `integrations/activity_recovery.py`, `codex_log.py` | 복구를 현재 작업 중으로 확정하거나 완료 효과 재생 |
 | 복구 스냅샷 전달·감시 세대/계정 경계 | `integrations/codex_log_worker.py` | 복구 행의 표시·만료 결정 |
+| Codex 저장된 턴의 종료 근거 조회·본문 생략·조회 상한·계정/연결 세대 | `integrations/codex_turn_status.py`, 값 계약 `state/codex_activity.py` | 대화 재개·실행·구독, 미종료 상태를 현재 활동으로 추정 |
+| Codex 관측 상태를 기존 펫 세션에 투영 | `features/agent_activity/service.py`, `state/session_manager.py` | 복구 행을 새 펫 세션으로 생성, 다른 출처의 상태 규칙 변경 |
 | 턴 수명, 승인·동기 입력·비동기 질문의 대기 요청, 부모·자식 집계, 완료 기록, 출처별 대화 키·Claude Code 폴더 카드·무활동 해제 | `features/project_activity/service.py` | 글꼴·줄바꿈 |
+| Claude Code 프로젝트 이름·해시(git 주 저장소 기준, 워크트리·하위 폴더 통합) | `integrations/claude_code_hooks.py`의 `project_identity`·`project_root`(hook 브리지와 대화 기록 공통) | 카드 수명·정렬 |
 | 복구 근거 수용·현재 상태 전환·임시 행 만료 | `features/project_activity/service.py` | 원본 로그 스캔·과거 이벤트 재전송 |
 | 제목과 프로젝트 관계 보강 | `features/project_activity/metadata.py` | 수신 지연을 근거로 작업 완료 추정 |
 | 사용량 기록의 제목·프로젝트 표시 | `usage/conversation_catalog.py`, `application/settings_ui/assistant.py` | 활동 상태 변경·과거 이벤트 재전송 |
 | Claude Code 작업 기록(대화 기록 파일의 턴별 토큰) | `usage/claude_code_transcripts.py`, `usage/claude_code_service.py`, `storage/claude_code_repository.py` | 말풍선 활동 상태 변경 |
 | 사용량 프로젝트 집계·정렬·페이지 | `storage/usage_repository.py`, `usage/project_history.py` | Codex 또는 말풍선 프로젝트 순서 변경 |
 | 알림 중복 제거·교체·대기열·표시 기한 | `features/notifications/service.py` | 프로젝트 작업 상태 |
+| 도구 연결 감시(켜 둔 도구의 hook 풀림, 나중에 생긴 도구) | `features/integrations/watch.py`, 알림 제출은 `application/runtime.py` | 파일 복구·스위치 변경 |
 | 카드 조립·선택·공간 축소·창 수명 | `ui/actionable_bubbles.py` | 이벤트의 의미 재해석 |
 | 프로젝트 헤더·행·스크롤 | `ui/project_bubble_rows.py` | 상태 전이·완료 시간 |
 | 제목 측정·최대 두 줄·말줄임 | `ui/wrapped_title_button.py` | 프로젝트 집계 |
 | 공통 창·글꼴·외형·배치 계산 | `ui/speech_bubble_window.py`, `speech_bubble_paint.py`, `speech_bubble_decorations.py` | 알림 전달 정책 |
-| 테마 정규화·자산·편집 | `pet/bubble_theme.py`, `ui/bubble_elements.py`, 미리보기 `ui/bubble_theme_preview.py`, 편집 화면은 Electron `settings-ui/src/CorePages.tsx` | 실행 상태 변경 |
+| 테마 정규화·자산·편집 | `pet/bubble_theme.py`, `ui/bubble_elements.py`, 미리보기 `ui/bubble_theme_preview.py`, 초안·미리보기 세대는 `settings-ui/src/core/useBubbleEditor.ts`, 표시는 `core/BubbleEditorDialog.tsx` | 실행 상태 변경 |
 | 펫 패키지의 바깥 장식 검증·등록과 그리기 | `pet/bubble_frame.py`(로더가 `pet:<id>`로 등록), `ui/speech_bubble_frame.py` | 상태·표시 기한·배치 결정 |
 | 클릭 대상 등록·검증·이동(출처별 대화 이동 방식 포함) | `features/notifications/actions.py`, Claude Code 실행 위치별 이동은 `integrations/claude_code_launcher.py` | 표시 문구에서 대상 추측 |
 | 도구별 사용 스위치(관리 hook·사용량·수신·파일 읽기를 함께 켜고 끔), 한 번의 스위치 이전 | `features/integrations/activation.py`, 적용·서비스 시작/중지는 `application/runtime.py`, 꺼진 출처 수신 차단은 `integrations/codex_ipc.py` | 화면 숨김을 근거로 활동 상태 추정 |
-| Electron 설정 명령·독립 미리보기·비서 DTO | `application/settings_ui/core.py`, `assistant.py` | 상태 전이·표시 수명 재해석 |
+| Electron 설정 명령·독립 미리보기·비서 응답 | `application/settings_ui/core.py`, `assistant.py`의 공통 진입점과 기능별 비공개 처리 메서드 | 상태 전이·표시 수명 재해석 |
+| 설정 wire DTO·명령별 요청/응답·노출 구분 | Qt 독립 `settings_protocol.py`, `scripts/generate_settings_protocol.py`, TS·Electron 생성물 | 명령 실행·저장·계정 상태 소유 |
 | 앱 업데이트 안내(설치 직전, 자동 확인이 찾은 새 버전) | `application/settings_ui/core.py`, 새 버전 확인 주기는 `application/update_check.py`의 `UpdateCheckSchedule`, 표시 조건은 `features/pet/viewmodel.py`의 `announce` | 활동·알림 대기열에 넣거나 끄기·일시 중지를 무시 |
 | 다운로드한 펫 파일의 검증·준비·패키지 저장 | `pet/importer.py`, 공통 설정 어댑터와 Electron 파일 선택 | 비서 상태·알림 수명·웹 계정 연결 |
 | 사용자 펫 삭제·휴지통·중단 복구 | `pet/trash.py`, 전환은 `features/pet/viewmodel.py`, 시작 복구는 `app.py` | 활동·알림 생성, renderer 파일 경로 수용, 기본 제공 파일 삭제 |
 | 펫 다중 선택·일괄 작업 | `application/settings_ui/pet_batch.py`, 선택 UI는 `settings-ui/src/PetManagerDialog.tsx`·`usePetBatch.ts` | 비서 상태 생성, 전역 파일 경로 수용, 완료된 항목의 일괄 롤백 |
 | 사용자 폴더의 완성된 펫 패키지 발견과 자산 로딩 | `pet/catalog.py`, `pet/loader.py`, 장식 등록은 `pet/bubble_frame.py` | 외부 설치 과정·현재 펫 선택·활동·알림 변경 |
 | 설정창 프로세스·pipe·계정 epoch·알림 표시 ACK | `application/settings_ui/host.py`, `settings-ui/electron/` | 이동 요청 접수를 실제 표시 성공으로 간주 |
-| 설정·적용/취소·알림 상세 화면 | `settings-ui/src/` | DB·계정 파일 접근, 실제 활동 상태 생성 |
+| 설정·적용/취소·알림 상세 화면 | `settings-ui/src/core/`, `assistant/`의 훅과 표시 컴포넌트. App이 공통 snapshot·명령 큐, `assistant/useNavigationAck.ts`가 표시 후 ACK 전송을 소유 | DB·계정 파일 접근, 실제 활동 상태 생성 |
 | 표시 시간·저장 설정 | `bubble_timing.py`, `preferences/bubbles.py`, `pet/preferences.py` | 기존 표시의 기한을 임의로 다시 시작 |
 | 활동·조회·표시·이동 진단 | `activity_diagnostics.py`의 공통 해시·실패 격리·변경 억제, 각 계층의 관측 콜백, `application/runtime.py`의 로거 연결·이동 실패 요약 | 진단 결과로 활동 상태·표시 기한 변경, 원문·제목·경로 기록 |
 
@@ -191,6 +206,17 @@ reserve는 `base_model_inference` 또는 서버 한도 이름의 `reserve`로 �
 `--configure-integrations` 모드(`application/integration_setup.py`)로 같은 스위치를 적용한다. 지정하지 않은
 도구는 그대로 둔다. 업그레이드의 처음 선택은 앱의 스위치를, 이전이 없던 설정이면 관리 hook 표식을 따른다.
 무인 새 설치는 `/CLAUDECODE=on`이 없으면 Claude Code를 끈다(BA-01·BA-07·BA-10).
+Claude Code를 켜면 한도를 받는 관리 status line도 함께 연결한다. hook과 status line이 같은 `settings.json`을
+고치므로 앞 단계가 파일을 쓰면 다음 단계는 그 파일로 다시 계획한다(`ToolActivation.apply`).
+
+연결 감시(`features/integrations/watch.py`)는 시작 5초 뒤와 10분마다, 연결 화면의 상태 갱신 뒤에 검사한다.
+켜 둔 도구의 폴더가 있는데 hook이 `not_installed`·`partial`·`drifted`·`invalid`이면 `broken`이다. 사용자나
+정책이 그 도구 설정에서 hook을 끈 `disabled`·`blocked_by_policy`와 사용자가 바꿀 수 있는 status line은 보지
+않는다. 꺼 둔 도구의 폴더가 처음 확인 뒤에 생기면 `found`다. 첫 검사는 이미 있는 도구를
+`integrations/knownTools`에 기록만 한다. runtime은 새 alert를 시스템 알림(교체 키 `connection:<도구>`, 이동
+대상 `diagnostics`)으로 제출하고, 트레이 메뉴 첫 줄과 설정 홈의 `연결` 행은 감시 snapshot을 읽는다.
+`broken`은 실행마다 한 번, 회복 뒤 다시 풀리면 한 번 더 알리고, `found`는 한 번만 알린다. 이 알림은 일반
+알림 대기열·숨김 규칙을 그대로 따르며 활동 상태를 바꾸지 않는다(BA-01·BA-03·BA-07).
 
 사용량 기록의 프로젝트 정렬·선택은 `usage/project_history.py`가 맡고, 저장소가 전체 보존 기록의
 프로젝트 요약을 먼저 집계한 뒤 프로젝트·대화·작업을 각각 100건씩 전달한다. UI는 카드 목록을
@@ -310,7 +336,8 @@ heartbeat·일반 도구 왕복·변경 없는 정상 조회·펫 이동·반복
 | 상태·상황 | 사용자 표시 | 수명 |
 |---|---|---|
 | 실행 | 작업 중 | 일반 표시 시간으로 종료하지 않음 |
-| Claude Code 무활동 | (행 제거) | 마지막 이벤트 뒤 작업 중 10분, 확인 대기·백그라운드 대기 30분(설정 가능). 완료·실패로 기록하지 않음 |
+| Claude Code 무활동 | (행 제거) | 마지막 이벤트(하위 에이전트 이벤트 포함) 뒤 작업 중 10분, 권한 요청·백그라운드 대기·끝나지 않은 도구 실행 중 30분(설정 가능). 완료·실패로 기록하지 않음 |
+| Claude Code 권한 요청 | 권한 요청 | 같은 도구의 종료 이벤트, 다음 도구 이벤트 또는 턴 종료까지. 승인 시점에는 hook이 없어 승인 뒤 도구 실행 중에도 남으며, 배지 툴팁이 이를 알린다 |
 | Claude Code 백그라운드 대기 | 백그라운드 N개 | 턴은 끝났지만 결과를 읽으러 다시 깨어날 백그라운드 작업(명령·하위 에이전트)이 남음. 펫은 작업 중 집계에서 빠지고 알림·완료 기록 없음. 결과를 읽는 턴의 도구 이벤트로 작업 중, 그 턴의 `Stop`으로 완료 |
 | 검토 | 검토 중 | 일반 표시 시간으로 종료하지 않음 |
 | 동기 사용자 입력·사용자 승인 대기 | 확인 필요 | 연결된 요청의 해소 또는 턴 종료까지 |
@@ -318,6 +345,7 @@ heartbeat·일반 도구 왕복·변경 없는 정상 조회·펫 이동·반복
 | 자동 승인 심사 | 작업 중 | 사용자의 확인 대기로 승격하지 않음 |
 | 승인 주체 미상 | 권한 처리 중 | 승인 주체를 추측하지 않고 요청 단위로 관리 |
 | 일반 활동의 수신 지연 | 상태 확인 중 | 단순 지연만으로 행을 제거하지 않고 후속 이벤트로 회복 |
+| Codex 종료 기록만 확인 | 종료됨 | 결과 표시 시간 기본 8초. 성공 강조·성공 기록 없이 읽기 전용 결과 확인 |
 | 재시작 시 미확정 복구 | 상태 확인 중 | 복구 후 60초간 새 활동이 없으면 임시 행 제거; 완료로 기록하지 않음 |
 | 컨텍스트 압축 | 컨텍스트 압축 중 | 기존 대화의 부가 표시이며 별도 완료가 아님 |
 | 성공 완료 | 완료 | 강조 기본 15초, 완료 행 최대 300초 |
@@ -345,6 +373,42 @@ heartbeat가 없는 Claude Code는 긴 응답·도구 실행 중에도 이벤트
 일반 활동의 불확실 표시와 재시작 복구의 재확인 만료는 문구만 같고 수명이 다르다.
 복구 행이 새 유효 활동으로 확인되면 복구 전용 60초 기한을 해제하고 일반 활동 규칙으로 전환한다.
 
+### Codex 종료 근거와 관측 경계
+
+`task_complete`는 턴 종료이며 성공의 증거로 사용하지 않는다. `ended`로 정규화해 중립적인
+`종료됨`을 표시하고, 같은 턴의 명확한 성공 hook 또는 저장된 턴의 종료 결과가 있어야 성공 완료를 만든다.
+구조화 오류 코드는 사용량·요청·예산·컨텍스트 제한, 공급자 오류, 미상으로만 분류하며 오류 원문은
+보관하지 않는다. 오류 단독 입력은 재시도일 수 있으므로 종료를 확정하지 않는다. `failed`의 확정 사유가
+사용량 제한이면 `사용량 제한으로 중단`을 표시한다. Claude Code의 `Stop` 등은 기존 해석을 유지한다.
+
+`CodexTurnStatusMonitor`는 별도 Qt worker와 기존 App Server 클라이언트로 `thread/turns/list`만 읽는다.
+종료 미확정은 즉시, 활동 무응답은 기존 지연 기준, 사용자 대기는 60초 뒤 종료 여부만 조사한다.
+복구 행도 즉시 조사할 수 있다. 동시에 1건, 대상 128개, 요청 10초, 재조회 최소 30초,
+최신순 20턴씩 최대 2페이지(40턴)이며 `itemsView=notLoaded`로 본문을 받지 않는다.
+종료 미확정을 우선하고 다른 대상은 순환한다. 메타데이터 조회와 독립적이며 대화를 재개·실행·구독하지 않는다.
+대화·턴·활동 버전·계정 세대·연결 세대가 모두 일치하는 종료만 반영한다. `inProgress`, `notLoaded`,
+누락·미지원·조회 실패로 실행·완료를 추정하지 않는다. 미지원 메서드는 재연결까지 조회를 멈춘다.
+늦은 결과는 최초 종료 시각의 강조·유지 기한을 보존하며, 만료·닫기·새 턴 뒤에는 표시를 복원하지 않는다.
+이미 종료된 행의 보강은 애니메이션을 재생하지 않고, 복구 행의 과거 종료는 행 정리만 한다.
+
+heartbeat 생성 전에 레코드의 턴·도구 요청 연결을 확인한다. 이전 턴의 늦은 반환·종료는 새 턴의
+관측 시각·활성 ID·질문·복구 근거를 변경하지 않는다. 파일 삭제는 해당 추적을 해제하고, 일시적 읽기 오류는
+파일별로 격리해 다른 파일의 활동·사용량·복구 순회를 계속한다. 파일 오류 요약도 추적 상한 안에 둔다.
+계정 전환은 로그 worker의 세대를 즉시 바꾸어 큐에 남은 활동·사용량·복구·진단을 차단한 뒤 새 파일 끝을
+기준점으로 잡는다. 전환 뒤 과거 복구 효과를 재생하지 않는다.
+
+Codex 관측 상태는 프로젝트 서비스가 소유하며 `AgentActivityService`가 기존 펫 세션에만 투영한다.
+불확실 상태는 작업 중 애니메이션·활성 개수·출처 문구에서 제외한다. 유효 heartbeat는 펫의 최근 확인
+시각도 갱신하므로 12시간 일반 세션 정리와 어긋나지 않는다. 명시적인 사용자 대기는 보존한다.
+Codex 내부 에이전트는 활성 개수와 사용자 알림에서 제외하며 실패도 진단에만 남긴다.
+카드는 부모·자식을 합친 대화 단위, 펫 활성 개수는 불확실·내부 항목을 제외한 세션 단위다.
+
+Codex 미확인 행의 툴팁은 마지막 확인 시각을 보이고 ×로 숨길 수 있다. 닫기는 현재 턴·활동 버전의
+표시만 숨기며 종료 기록을 만들지 않는다. 제목 조회·재렌더링으로 복원하지 않고 실제 새 활동이나
+새 턴에서 복귀한다. 자동 만료는 추가하지 않는다. 트레이 행과 말풍선은 같은 상태 레이블을 쓴다.
+부모가 종료됐을 때 이미 불확실한 자식은 집계에서 제외해 부모 결과를 가리지 않으며 부모 결과 만료 뒤에도
+그 오래된 행을 복원하지 않는다. 자식의 새 유효 활동은 다시 집계한다. 정상 활동·사용자 대기 중인 자식은 유지한다.
+
 부모·자식 집계에서는 사용자 확인 요청을 최우선으로 선택한다. 그 외에는 정상 수신 중인 활성 항목들에
 기존 상태 우선순위를 적용한다. 불확실한 활성 항목만 남을 때 `상태 확인 중`을 표시한다.
 따라서 정상 작업 중인 부모 또는 자식을 오래된 다른 자식의 상태가 가리지 않는다.
@@ -369,7 +433,8 @@ heartbeat가 없는 Claude Code는 긴 응답·도구 실행 중에도 이벤트
 - 너비 측정과 줄바꿈은 같은 `QTextLayout` 규칙을 사용하고 자연 너비를 올림한다. 정수 반올림으로 짧은 제목이 불필요하게 두 줄이 되는 회귀를 방지한다.
 - 제목·상태 배지·완료 ×는 독립된 칸이다. 상태 칸이 짧아질 때 이전 고정 너비를 해제해 원래 크기로 돌아간다.
 - 상태 배지의 문구·툴팁·색은 UI 전용 표시 함수에서 불확실 상태 → 압축 상태 → 기본 상태 순으로 함께 결정한다. 이는 서비스 상태를 변경하거나 재해석하지 않는다(BA-01).
-- 작업 중·검토 중·권한 처리 중·컨텍스트 압축 중·상태 확인 중·중단은 투명 배경과 현재 테마 글자색을 사용한다. 확인 필요·실패·완료만 기존 노랑·빨강·초록 계열 배경과 글자색으로 강조한다. 미등록 상태는 상태 문자열과 투명 배경·테마 글자색으로 표시한다.
+- 작업 중·검토 중·권한 처리 중·컨텍스트 압축 중·상태 확인 중·중단은 투명 배경과 현재 테마 글자색을 사용한다. 확인 필요(Claude Code는 `권한 요청`)·실패·완료만 기존 노랑·빨강·초록 계열 배경과 글자색으로 강조한다.
+상태 이름은 서비스의 `state_label(state, source)`가 정하며 카드 요약·기록이 이를 쓴다. 행 배지·설정창 활동 목록·트레이 행은 미확인·압축·Codex 제한 사유를 먼저 반영하는 `row_status_label(row)`를 쓰고, 그 밖의 상태는 같은 `state_label`로 정한다. 미등록 상태는 상태 문자열과 투명 배경·테마 글자색으로 표시한다.
 - 상태 확인 중의 설명 툴팁, 모든 배지의 공통 글꼴·여백·모서리·오른쪽 정렬, 완료 직후의 행·헤더 강조는 유지한다. 배지 외형은 상태 수명·정렬 순서·스크롤·클릭 대상을 바꾸지 않는다(BA-04·BA-05·BA-06).
 - 행과 창은 프로젝트 키·대화 ID로 재사용한다. 제목·상태 갱신이나 펫 이동으로 스크롤을 초기화하지 않는다. 스크롤 기준 행이 삭제되면 남아 있는 인접 행을 기준으로 복원한다.
 - `bubble_row_membership`은 카드의 스크롤 영역에 행이 포함된 관측이다. 화면에 보인 행이라고 해석하지 않는다. `bubble_card_visibility`는 실제 창 표시이며 공간 부족·프로젝트 상한·끄기·일시 중지·펫 숨김·미리보기·종료를 구분한다. 창 삭제는 활동 종료 판정이 아니다(BA-04·BA-06).
@@ -504,7 +569,7 @@ ID·경로를 덮어쓰지 않습니다. 영구 삭제와 비우기는 사용자
 1. 새 입력 경로·책임 이동이 있으면 1절 구조도와 2절 책임 표를 갱신한다.
 2. 표시·수명·정책 변경은 3~6절 및 관련 코드 주석에 반영한다. 같은 정책의 이전 설명이 다른 절에 남아 있지 않은지 검색한다.
 3. 아래 검증표에서 해당 규칙의 테스트를 실행한다. 새 경계 조건은 기존 동작 검사를 보존하면서 추가한다. 승인된 동작 변경 때문에 기대값을 바꾸면 이유를 기록한다.
-4. 코드·검사 로직 변경은 `scripts/check.ps1`을 통과한다. 문서·주석만 바뀐 경우에는 문서 링크 검증과 해당 파일 형식 검사를 수행한다. 레이아웃·배율·배치가 바뀌면 Windows 실환경 QA도 수행한다.
+4. 코드 변경은 `scripts/check.ps1`을 통과한다. 검사 진입점·변경 분류기·커버리지 게이트·CI 워크플로 변경과 배포 전 검증은 `scripts/check.ps1 -Quality` 하나로 필수 검사·회귀 테스트·커버리지·의존성 감사를 함께 실행한다. 정밀 모드는 일반 unittest를 커버리지 실행으로 대체하므로 전체 테스트는 한 번 실행된다. 문서만 바뀐 경우에는 `scripts/check.ps1 -DocsOnly`로 문서 링크·프로젝트 구조·정적 계층 경계를 검사한다. 코드의 주석 변경은 전체 검사 경로를 따른다. 레이아웃·배율·배치가 바뀌면 Windows 실환경 QA도 수행한다.
 5. 완료 보고에 변경한 규칙 ID, 실제 검사 결과, 실측과 재현의 구분, 남은 한계를 기록한다. 구조 계약이 바뀌었다면 규칙 변경 이유도 남긴다.
 
 | 규칙·변경 영역 | 관련 회귀 테스트 (`tests/`의 모듈명) |
@@ -516,6 +581,7 @@ ID·경로를 덮어쓰지 않습니다. 영구 삭제와 비우기는 사용자
 | BA-07 숨김·미리보기·초기화 | `test_project_completion_rows`, `test_notification_service`, `test_bubble_customization` |
 | BA-09 첫 표시·복구·조회·보관 상한 | `test_bubble_latency`, `test_project_metadata`, `test_codex_log_monitor`, `test_fork_log_identity` |
 | BA-10 문서·코드·검사 일치 | 이 절의 변경 체크와 `scripts.validate_project`의 문서 링크 검사 |
+| BA-01·BA-02·BA-04·BA-06·BA-07·BA-08·BA-09·BA-10 Codex 종료 근거·수집 경계·관측 투영·직접 닫기 | `test_codex_activity_reliability`, `test_codex_turn_status`, `test_codex_state_projection` 및 기존 Codex·말풍선 회귀 검사 |
 | BA-01·BA-02·BA-08·BA-09·BA-10 Codex 관리 hook의 Windows 실행·복구·수신 | `test_codex_hook_install`, `test_codex_windows_command`, `test_codex_hook_bridge` (실측 기록: `docs/windows-hook-command-verification.md`) |
 | BA-01·BA-08·BA-10 Claude Code 관리 hook·status line의 Windows 실행·복구 | `test_claude_code_hook_install`, `test_claude_code_status_line_install` (실측 기록: `docs/windows-hook-command-verification.md`) |
 | BA-01·BA-06·BA-07·BA-10 사용자 폴더의 펫 발견·로딩·전용 장식 | `test_pet_catalog`, `test_pet_loader`, `test_bubble_frame` |
@@ -527,6 +593,15 @@ ID·경로를 덮어쓰지 않습니다. 영구 삭제와 비우기는 사용자
 
 `test_bubble_architecture`는 핵심 서비스의 UI·펫·조립 계층 의존, 수집 계층의 기능 서비스 직접 의존,
 표시 위젯의 수집·저장·이벤트 해석 계층 의존을 정적 import 검사로 차단한다. 이 검사는
-`scripts/check.ps1`의 unittest 단계에서 자동 실행된다. 새 책임 파일을 추가하거나 이동하면 검사 대상도 갱신한다.
+`scripts/check.ps1`의 unittest 단계, `-Quality`의 커버리지 테스트, `-DocsOnly` 경량 모드에서 자동 실행된다. 새 책임 파일을 추가하거나 이동하면 검사 대상도 갱신한다.
 동적 import, 객체 속성의 직접 변경, 문장과 코드의 의미 일치까지 자동 증명하는 검사는 아니다.
 이 영역은 위 표의 동작 회귀 검사와 변경 리뷰로 확인하며 테스트 통과만으로 문서 검토를 생략하지 않는다.
+
+설정·화면 분리의 세부 책임과 수명은 [유지보수 경계](maintenance-boundaries.md)를 따른다.
+BA-01·BA-06·BA-07·BA-09·BA-10의 계약·표시 정책은 유지한다. `test_settings_protocol`은
+실제 어댑터의 DTO 응답과 생성물 최신성·명령 노출을 검사하고 `protocol.type-test.ts`는
+잘못된 요청·응답 필드를 TypeScript에서 거부하는지 확인한다. 이는 Electron 화면 검수를 대신하지 않는다.
+0.15.5 통합의 Electron QA는 호스트 페이지 이동·숨김·재열기 뒤 편집 초안 유지와,
+사용량 기록 화면 왕복 뒤 출처·필터·정렬·선택·대화상자 유지를 검사한다. 기존 충돌 후
+재불러오기·실제 표시 후 ACK 검사는 함께 유지한다. 결과와 미실시 실환경 검수는
+개발 저장소의 0.15.5 비공개 통합 기록에 남긴다.
