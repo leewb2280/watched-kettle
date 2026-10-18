@@ -1,3 +1,4 @@
+import { t } from "../../localization.cjs";
 import type { UsageResponse } from "../types";
 import { isStale, number, quotaTone, time } from "./presentation";
 
@@ -11,7 +12,7 @@ export function QuotaGroups({
   return (
     <div className="quota-groups">
       {!(usage.limit_groups || []).length && (
-        <p className="quiet-row">두 도구의 사용량이 꺼져 있습니다.</p>
+        <p className="quiet-row">{t("message.0898")}</p>
       )}
       {(usage.limit_groups || []).map((group) => (
         <section
@@ -27,7 +28,7 @@ export function QuotaGroups({
                 const [tone, quotaLabel] = quotaTone(remaining);
                 // Past its reset with no new sample (claude_code_limits.bucket).
                 const estimated = !!limit.window.estimated;
-                const toneLabel = estimated ? "추정" : quotaLabel;
+                const toneLabel = estimated ? t("message.0899") : quotaLabel;
                 return (
                   <article
                     className={
@@ -55,7 +56,7 @@ export function QuotaGroups({
                         <div className="quota-value">
                           {number(remaining)}
                           {typeof remaining === "number" && <span>%</span>}
-                          <small>남음</small>
+                          <small>{t("message.0900")}</small>
                         </div>
                       </>
                     )}
@@ -70,20 +71,25 @@ export function QuotaGroups({
                       <>
                         <p>
                           {limit.window.resets_at
-                            ? `${time(limit.window.resets_at)} 초기화${estimated ? " (추정)" : ""}`
+                            ? t("message.0901", {
+                                value0: time(limit.window.resets_at),
+                                value1: estimated
+                                  ? " " + t("widget.estimated")
+                                  : "",
+                              })
                             : estimated
-                              ? "다음에 사용할 때 새로 시작"
-                              : "초기화 시각 확인 불가"}
+                              ? t("message.0902")
+                              : t("message.0903")}
                         </p>
                         {group.key === "claude_code" &&
                           usage.claude_code?.data?.limits_observed_at && (
                             <p className="quota-source">
                               {time(usage.claude_code.data.limits_observed_at)}{" "}
-                              관측
+                              {t("message.0904")}
                               {isStale(
                                 usage.claude_code.data.limits_observed_at,
                               )
-                                ? " · 오래된 값"
+                                ? t("message.0905")
                                 : ""}
                             </p>
                           )}
@@ -93,21 +99,16 @@ export function QuotaGroups({
                 );
               })}
               {group.key === "claude_code" && !compact && (
-                <p className="quota-note">
-                  Claude Code 한도는 터미널에서 Claude Code를 쓸 때만
-                  갱신됩니다. 한동안 쓰지 않았거나 웹·데스크톱 앱에서 쓴 양은
-                  반영되지 않으며, 초기화 시각이 지나면 다시 쓸 때까지 100%로
-                  추정합니다.
-                </p>
+                <p className="quota-note">{t("message.0906")}</p>
               )}
             </div>
           ) : (
             <p className="quiet-row">
               {group.key === "claude_code"
                 ? usage.claude_code?.status_line === "installed"
-                  ? "터미널에서 Claude Code를 사용하면 한도가 표시됩니다."
-                  : "연결·진단에서 Claude Code 한도 가져오기를 켜 주세요."
-                : "현재 확인 가능한 Codex 한도가 없습니다."}
+                  ? t("message.0907")
+                  : t("message.0908")
+                : t("message.0909")}
             </p>
           )}
         </section>

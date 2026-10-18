@@ -78,6 +78,8 @@ a = Analysis(
     binaries=[],
     datas=(
         pet_datas
+        + [(str(path), str(path.parent.relative_to(project_root)))
+           for path in (project_root / "watched_kettle/localization/resources").rglob("*.json")]
         + font_datas
         + widget_datas
         + [(str(app_icon_png), "assets")]

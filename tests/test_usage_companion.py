@@ -259,6 +259,31 @@ class UsageCompanionTests(unittest.TestCase):
         controller.refresh()
         self.assertEqual(controller.window.model.layout, "rings")
 
+    def test_live_and_sample_preview_keep_the_task_switch(self):
+        controller, _pet, usage_vm, _ = self.controller(
+            activity=lambda: {"codex": {"running": 2}},
+        )
+        usage_vm.widget_shape = "chips"
+        for visible in (True, False, True):
+            usage_vm.set_widget_tasks_visible(visible)
+            self.assertEqual(controller._widget_context()["tasks_visible"], visible)
+            self.assertEqual(controller.window.model.state["tasksVisible"], visible)
+            for sample in (False, True):
+                with self.subTest(visible=visible, sample=sample):
+                    image, used_sample = controller.preview(
+                        sample=sample, expanded=True
+                    )
+                    self.assertFalse(image.isNull())
+                    self.assertEqual(used_sample, sample)
+                    state = controller._preview_window.model.state
+                    self.assertEqual(state["tasksVisible"], visible)
+                    rows = state["providers"]
+                    expected = [(1, 0), (0, 1)] if sample else [(2, 0)]
+                    self.assertEqual(
+                        [(p["running"], p["attention"]) for p in rows],
+                        expected if visible else [(0, 0)] * len(rows),
+                    )
+
     def test_enabled_claude_without_observed_limits_does_not_add_a_widget_row(self):
         usage_vm = FakeUsageViewModel(snapshot())
         usage_vm.claude_code_enabled = True

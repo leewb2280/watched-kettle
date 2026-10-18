@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 from dataclasses import dataclass
 import os
 from pathlib import Path
@@ -134,7 +136,7 @@ class WindowsStartupRegistration:
 
     def set_enabled(self, enabled):
         if not self.supported:
-            raise OSError("Windows에서만 시작 프로그램을 등록할 수 있습니다.")
+            raise OSError(t("message.0130"))
         if enabled:
             self.registry.write(RUN_VALUE_NAME, self.expected_command())
         else:

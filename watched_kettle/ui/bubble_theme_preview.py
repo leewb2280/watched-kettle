@@ -1,5 +1,7 @@
 """Live preview widget used by the speech-bubble customizer."""
 
+from watched_kettle.localization import t
+
 from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QWidget
@@ -73,7 +75,7 @@ class BubbleThemePreview(QWidget):
             painter.drawText(
                 message_rect,
                 Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap,
-                "새로운 말풍선 디자인을 미리 확인해 보세요",
+                t("message.0253"),
             )
             painter.restore()
             return
@@ -102,7 +104,7 @@ class BubbleThemePreview(QWidget):
         painter.drawText(
             header_rect,
             Qt.AlignmentFlag.AlignCenter,
-            "Codex · 작업 완료",
+            t("message.0252"),
         )
         font.setPointSizeF(max(10.0, self.font().pointSizeF()))
         font.setBold(False)
@@ -112,7 +114,7 @@ class BubbleThemePreview(QWidget):
         painter.drawText(
             message_rect,
             Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap,
-            "새로운 말풍선 디자인을 미리 확인해 보세요",
+            t("message.0253"),
         )
         painter.restore()
 
@@ -136,11 +138,11 @@ class BubbleThemePreview(QWidget):
         painter.drawText(
             QRectF(header.right() + 10, header.top(), 200, header.height()),
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
-            "확인 필요 1개 · 작업 중 1개",
+            t("message.0254"),
         )
         rows = (
-            ("화면 검수", "확인 필요", "#fcefc8", "#7a5410"),
-            ("회귀 검사", "작업 중", "#e3edf7", "#2f5c86"),
+            (t("message.0255"), t("status.attention"), "#fcefc8", "#7a5410"),
+            (t("message.0256"), t("message.0257"), "#e3edf7", "#2f5c86"),
         )
         top = header.bottom() + 14
         for title, state, fill, ink in rows:

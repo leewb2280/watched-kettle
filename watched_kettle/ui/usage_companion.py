@@ -144,6 +144,7 @@ class UsageCompanionController(QObject):
             "claude_code_enabled": None
             if getattr(vm, "claude_code_enabled", False)
             else False,
+            "tasks_visible": vm.widget_tasks_visible,
             "activity": self.activity() if vm.widget_tasks_visible else None,
             "today": vm.widget_today_visible,
             "hour_range": vm.widget_hour_range,

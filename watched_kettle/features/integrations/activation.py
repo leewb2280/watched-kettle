@@ -10,6 +10,8 @@ tool's events (docs/bubble-architecture.md 2절).
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 from dataclasses import dataclass
 
 TOOLS = ("codex", "claude_code")
@@ -41,7 +43,14 @@ class ActivationPlan:
     @property
     def changes(self):
         label = TOOL_LABELS[self.tool]
-        lines = [f"{label} 사용을 {'켭니다' if self.enabled else '끕니다'}"]
+        lines = [
+            t(
+                "integration.enable_changes"
+                if self.enabled
+                else "integration.disable_changes",
+                tool=label,
+            )
+        ]
         for step in self.steps:
             if step.plan is not None and step.plan.can_apply:
                 lines.extend(step.plan.changes)
@@ -57,7 +66,7 @@ class ActivationPlan:
             if plan is not None:
                 lines.extend(plan.warnings)
         if not self.enabled:
-            lines.append("저장된 사용량 기록은 지우지 않습니다. 다시 켜면 보입니다.")
+            lines.append(t("message.0451"))
         return tuple(dict.fromkeys(lines))
 
 
@@ -71,14 +80,12 @@ class ActivationResult:
 def _blocked_message(tool, enabled, provider):
     if provider == "claude_code_status_line":
         if enabled:
-            return "Claude Code status line을 바꾸지 못해 한도를 받을 수 없습니다."
-        return (
-            "Claude Code status line을 되돌리지 못했습니다. 설정 파일을 확인해 주세요."
-        )
+            return t("message.0450")
+        return t("message.0447")
     label = TOOL_LABELS[tool]
     if enabled:
-        return f"{label} hook을 설치할 수 없어 활동 표시가 제한됩니다."
-    return f"{label} hook을 지우지 못했습니다. 남은 hook의 이벤트는 앱이 무시합니다."
+        return t("message.0448", value0=label)
+    return t("message.0446", value0=label)
 
 
 def tool_providers(tool, enabled):

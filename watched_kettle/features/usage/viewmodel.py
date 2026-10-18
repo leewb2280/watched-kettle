@@ -1,5 +1,7 @@
 """UI-facing Work·Codex usage commands and immutable state."""
 
+from watched_kettle.localization import t
+
 from dataclasses import replace
 
 from PySide6.QtCore import QObject, Signal
@@ -42,9 +44,7 @@ class UsageViewModel(QObject):
             snapshot = replace(
                 snapshot,
                 buckets=(),
-                availability=UsageAvailability(
-                    "disabled", "Codex 사용량이 꺼져 있습니다."
-                ),
+                availability=UsageAvailability("disabled", t("message.0478")),
             )
         return replace(snapshot, buckets=tuple(snapshot.buckets) + buckets)
 

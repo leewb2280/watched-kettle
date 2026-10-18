@@ -1,5 +1,7 @@
 """Bounded, read-only metadata worker independent of usage collection."""
 
+from watched_kettle.localization import t
+
 from collections import OrderedDict
 import json
 import ntpath
@@ -16,6 +18,7 @@ from watched_kettle.activity_diagnostics import (
     diagnostic_thread_ref,
 )
 
+from watched_kettle.state.agent_scope import scope_from_thread_metadata
 from watched_kettle.integrations.codex_app_server import CodexAppServerClient
 from watched_kettle.integrations.codex_paths import codex_home
 from watched_kettle.features.project_activity.service import (
@@ -77,7 +80,9 @@ def _read_desktop_project_index(path):
                 continue
             project_id = project.get("id", fallback_id)
             if isinstance(project_id, str) and project_id:
-                projects[project_id] = safe_label(project.get("name"), "Codex 작업")
+                projects[project_id] = safe_label(
+                    project.get("name"), t("message.0441")
+                )
                 raw_roots = project.get("rootPaths")
                 if isinstance(raw_roots, list):
                     for value in raw_roots:
@@ -266,9 +271,9 @@ class _MetadataWorker(QObject):
         if ready:
             self.control_request("account/read", {})
             self.control_request("project/list", {})
-            self.status.emit("메타데이터 연결됨")
+            self.status.emit(t("message.0463"))
         else:
-            self.status.emit("메타데이터 연결 끊김")
+            self.status.emit(t("message.0464"))
 
     def notification(self, method, _params):
         if method == "account/updated" and self.client is not None:
@@ -352,7 +357,8 @@ class _MetadataWorker(QObject):
             request_id=rid,
             project_ref=diagnostic_ref(metadata.project_key),
             project_known=metadata.project_id is not None,
-            title_present=metadata.title != "Codex 대화",
+            title_present=bool(metadata.title),
+            scope=metadata.agent_scope,
             parent_ref=diagnostic_thread_ref("codex", metadata.parent_thread_id),
             reason=self.project_evidence(thread),
         )
@@ -428,6 +434,7 @@ class _MetadataWorker(QObject):
                     "project_ref",
                     "project_known",
                     "title_present",
+                    "scope",
                     "parent_ref",
                     "information_retained",
                 ),
@@ -585,7 +592,7 @@ class _MetadataWorker(QObject):
                 self.due[pending_thread] = (
                     self.clock() + (3, 6, 12, 30)[min(failures - 1, 3)]
                 )
-                self.status.emit("일부 메타데이터 확인 불가 · 마지막 이름 유지")
+                self.status.emit(t("message.0466"))
                 return
             failed = self.failures.pop(pending_thread, None)
             if failed:
@@ -606,7 +613,7 @@ class _MetadataWorker(QObject):
         if method in {"account/read", "project/list"} and generation != self.generation:
             return
         if error or not isinstance(result, dict):
-            self.status.emit("일부 메타데이터 확인 불가 · 임시 이름 사용")
+            self.status.emit(t("message.0465"))
             return
         if method == "project/list":
             values = result.get("data", result.get("projects", []))
@@ -615,7 +622,7 @@ class _MetadataWorker(QObject):
             for project in values[:1000]:
                 if isinstance(project, dict) and project.get("id"):
                     self.projects[project["id"]] = safe_label(
-                        project.get("name"), "Codex 작업"
+                        project.get("name"), t("message.0441")
                     )
             cursor = result.get("nextCursor")
             if (
@@ -689,6 +696,7 @@ class _MetadataWorker(QObject):
                 str(thread_data.get("cwd") or ""),
                 conversation_title(thread_data.get("name")),
                 str(thread_data.get("parentThreadId") or ""),
+                agent_scope=scope_from_thread_metadata(thread_data),
             )
             self.result.emit(metadata, generation)
             self._diagnose_resolved(metadata, rid)
@@ -866,6 +874,8 @@ class ConversationMetadataService(QObject):
             if not i.expires or i.expires > now and i.state != "done"
         }
         targets.update(r.thread_id for r in self.activity.visible_completions)
+        targets.update(self.activity.unconfirmed_completion_threads)
+        targets = {t for t in targets if self.activity.effective_scope(t) != "internal"}
         for thread in tuple(targets):
             seen = set()
             while thread not in seen:

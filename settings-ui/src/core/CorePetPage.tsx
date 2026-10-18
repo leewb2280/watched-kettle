@@ -1,3 +1,4 @@
+import { t } from "../../localization.cjs";
 import {
   ChevronRight,
   Folder,
@@ -9,7 +10,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { Fields, Heading } from "../components";
-import { petTabs } from "./petCatalog";
+import { petTabs, petTabLabels } from "./petCatalog";
 import type { CoreSettingsState } from "./useCoreSettings";
 export function CorePetPage({
   snapshot,
@@ -61,29 +62,26 @@ export function CorePetPage({
 >) {
   return (
     <div className="page">
-      <Heading
-        title="펫"
-        subtitle="표시할 펫을 고르고 크기와 동작을 설정합니다."
-      />
+      <Heading title={t("message.0591")} subtitle={t("message.1112")} />
       <div className="pet-grid">
         <section className="pet-stage card">
           <div className="stage-top">
             <span className="pill">
               <span className="small-dot" />
               {snapshot.pet.visible
-                ? `화면 속 펫 · ${currentAnimationLabel}`
-                : "화면에서 숨김"}
+                ? t("message.1113", { value0: currentAnimationLabel })
+                : t("message.1114")}
             </span>
             <button
               className="icon-button"
-              aria-label="펫 폴더 다시 읽기"
-              title="펫 폴더 다시 읽기"
+              aria-label={t("message.1115")}
+              title={t("message.1115")}
               onClick={() =>
                 Promise.all([
                   loadCatalog(),
                   loadPetPreview(snapshot.pet.pet_id),
                 ])
-                  .then(() => notify("펫 목록을 다시 읽었어요."))
+                  .then(() => notify(t("message.1116")))
                   .catch(fail)
               }
             >
@@ -123,19 +121,19 @@ export function CorePetPage({
             }}
           >
             <LayoutGrid size={15} />
-            다른 펫 선택
+            {t("message.1117")}
             <ChevronRight size={14} />
           </button>
           <div className="stage-footer">
             <span className="stage-visibility">
               <span>
-                {snapshot.pet.visible ? "화면에 표시 중" : "숨김 상태"}
+                {snapshot.pet.visible ? t("message.1118") : t("message.1119")}
               </span>
               <button
                 className="text-button"
                 onClick={() => call("pet.action", { action: "visibility" })}
               >
-                {snapshot.pet.visible ? "펫 숨기기" : "펫 다시 표시"}
+                {snapshot.pet.visible ? t("message.0224") : t("message.1120")}
               </button>
             </span>
             <span>{displaySizeLabel}</span>
@@ -145,7 +143,7 @@ export function CorePetPage({
           <div
             className="tabs"
             role="tablist"
-            aria-label="펫 설정 영역"
+            aria-label={t("message.1121")}
             onKeyDown={(event) => {
               const index = petTabs.indexOf(petTab);
               const target = {
@@ -172,7 +170,7 @@ export function CorePetPage({
                 tabIndex={petTab === label ? 0 : -1}
                 onClick={() => setPetTab(label)}
               >
-                {label}
+                {petTabLabels[label]}
               </button>
             ))}
           </div>
@@ -183,7 +181,7 @@ export function CorePetPage({
           >
             <Fields
               key={snapshot.pet.pet_id}
-              controls={snapshot.controls.filter((c) => c.group === petTab)}
+              controls={snapshot.controls.filter((c) => c.groupId === petTab)}
               change={change}
               hideTitles
               fieldExtras={
@@ -196,7 +194,7 @@ export function CorePetPage({
                             call("pet.action", { action: "recall" })
                           }
                         >
-                          지금 이 화면으로 옮기기
+                          {t("message.1122")}
                           <ChevronRight size={13} />
                         </button>
                       ),
@@ -204,18 +202,18 @@ export function CorePetPage({
                   : undefined
               }
               groupRows={{
-                "동작·화면": (
+                pet_behavior: (
                   <div className="setting-row recover-row">
                     <div>
-                      <h3>펫이 안 보이나요?</h3>
-                      <p>화면 밖으로 나갔거나 찾기 어려울 때 데려와요.</p>
+                      <h3>{t("message.1123")}</h3>
+                      <p>{t("message.1124")}</p>
                     </div>
                     <button
                       className="button"
                       onClick={() => call("pet.action", { action: "recenter" })}
                     >
                       <Monitor size={14} />
-                      화면 가운데로 불러오기
+                      {t("message.1125")}
                     </button>
                   </div>
                 ),
@@ -227,20 +225,20 @@ export function CorePetPage({
               <button className="link-card" onClick={() => setImportPet(true)}>
                 <Plus size={19} />
                 <span>
-                  <strong>펫 가져오기</strong>
-                  <small>다운로드한 펫 스프라이트를 추가합니다.</small>
+                  <strong>{t("message.1126")}</strong>
+                  <small>{t("message.1127")}</small>
                 </span>
                 <ChevronRight size={16} />
               </button>
               <button
                 className="link-card"
-                aria-label="펫 관리"
+                aria-label={t("message.1128")}
                 onClick={openCatalogManager}
               >
                 <LayoutGrid size={19} />
                 <span>
-                  <strong>펫 관리</strong>
-                  <small>펫을 추가하고 표시·순서·휴지통을 관리합니다.</small>
+                  <strong>{t("message.1128")}</strong>
+                  <small>{t("message.1129")}</small>
                 </span>
                 <ChevronRight size={16} />
               </button>
@@ -250,17 +248,21 @@ export function CorePetPage({
               >
                 <Palette size={19} />
                 <span>
-                  <strong>말풍선 꾸미기</strong>
-                  <small>색과 모양, 장식을 바꿉니다.</small>
+                  <strong>{t("message.1100")}</strong>
+                  <small>{t("message.1130")}</small>
                 </span>
                 <ChevronRight size={16} />
               </button>
-              <div className="pet-utility-actions" aria-label="펫 보조 기능">
+              <div
+                className="pet-utility-actions"
+                aria-label={t("message.1131")}
+              >
                 <button
                   className="text-button"
                   onClick={() => call("pet.action", { action: "folder" })}
                 >
-                  <Folder size={14} />펫 폴더 열기
+                  <Folder size={14} />
+                  {t("message.1132")}
                 </button>
               </div>
             </>
@@ -273,12 +275,13 @@ export function CorePetPage({
                       <Play size={18} />
                     </span>
                     <span>
-                      <strong>동작 미리보기</strong>
-                      <small>화면 위의 펫에서 바로 확인합니다.</small>
+                      <strong>{t("message.1133")}</strong>
+                      <small>{t("message.1134")}</small>
                     </span>
                   </span>
                   <span className="animation-current" aria-live="polite">
-                    현재 동작: {currentAnimationLabel}
+                    {t("message.1135")}
+                    {currentAnimationLabel}
                   </span>
                   <ChevronRight
                     className="animation-disclosure-chevron"
@@ -288,11 +291,8 @@ export function CorePetPage({
                 <div className="animation-panel-body">
                   <div className="walk-test">
                     <span>
-                      <strong>걷기 테스트</strong>
-                      <small>
-                        선택한 이동 디스플레이에서 잠깐 실제로 걸어요. 걷기를 꺼
-                        두어도 한 번 실행돼요.
-                      </small>
+                      <strong>{t("message.1136")}</strong>
+                      <small>{t("message.1137")}</small>
                     </span>
                     <button
                       className="button compact"
@@ -300,20 +300,19 @@ export function CorePetPage({
                         call("pet.action", { action: "movement_test" })
                       }
                     >
-                      실제로 걸어보기
+                      {t("message.1138")}
                     </button>
                   </div>
-                  <h3 className="animation-group-title">제자리 동작</h3>
+                  <h3 className="animation-group-title">{t("message.1139")}</h3>
                   {!snapshot.pet.visible && (
                     <p className="animation-hidden-note" role="status">
-                      펫이 숨겨져 있어 제자리 동작은 보이지 않아요. 펫을 다시
-                      표시하면 확인할 수 있어요.
+                      {t("message.1140")}
                     </p>
                   )}
                   <div
                     className="animation-actions"
                     role="group"
-                    aria-label="펫 동작 선택"
+                    aria-label={t("message.1141")}
                   >
                     {snapshot.animations.map((item) => (
                       <button
@@ -336,7 +335,7 @@ export function CorePetPage({
                       className="text-button"
                       onClick={() => call("pet.action", { action: "restore" })}
                     >
-                      실제 상태로 돌아가기
+                      {t("message.1142")}
                     </button>
                   </div>
                 </div>

@@ -54,6 +54,106 @@ def status_input(five=23.5, seven=41.2, reset=RESET):
 
 
 class StatusLineBridgeTests(unittest.TestCase):
+    def test_valid_long_translations_cross_the_bounded_status_line_snapshot(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            # Within the catalog's 16,384-character ceiling, beyond the old
+            # bridge limits of 1,024 characters / 16 KiB.
+            label = "界" * 6000
+            (root / "language-statusline.json").write_text(
+                json.dumps(
+                    {
+                        "statusline.five_hour": label + " {percent}%{reset}",
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+            stdout = io.BytesIO()
+            with (
+                patch.object(
+                    hook_bridge_entrypoint,
+                    "DEFAULT_USER_SPOOL_DIRECTORY",
+                    root / "events",
+                ),
+                patch.dict(
+                    os.environ,
+                    {
+                        "WATCHED_KETTLE_STATUS_LINE_CONFIG": str(root / "missing.json"),
+                        "WATCHED_KETTLE_STATUS_LINE_LAYOUT": str(
+                            root / "missing-layout.json"
+                        ),
+                        "COLUMNS": "100000",
+                    },
+                ),
+                patch(
+                    "watched_kettle.integrations.codex_client.send_pet_event",
+                    return_value=True,
+                ),
+                patch(
+                    "watched_kettle.integrations.claude_code_status_line.detected_ide",
+                    return_value=None,
+                ),
+            ):
+                code = hook_bridge_entrypoint.run_status_line(
+                    io.BytesIO(json.dumps(status_input()).encode("utf-8")), stdout
+                )
+            self.assertEqual(code, 0)
+            self.assertIn(label, stdout.getvalue().decode("utf-8"))
+
+    def test_corrupt_status_line_templates_fall_back_without_losing_limits(self):
+        from watched_kettle.integrations.claude_code_status_line import status_text
+
+        text = status_text(
+            {"context_window": {"used_percentage": 10}},
+            {"five_hour_percent": 25, "seven_day_percent": 50},
+            language={
+                "statusline.context": "{missing}",
+                "statusline.five_hour": "{",
+                "statusline.seven_day": "{percent[missing]}",
+            },
+        )
+        self.assertIn("컨텍스트 10%", text)
+        self.assertIn("5시간 25%", text)
+        self.assertIn("7일 50%", text)
+
+    def test_deeply_nested_status_line_snapshot_recovers_without_exception(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "language-statusline.json").write_text(
+                "[" * 2000 + "0" + "]" * 2000
+            )
+            stdout = io.BytesIO()
+            with (
+                patch.object(
+                    hook_bridge_entrypoint,
+                    "DEFAULT_USER_SPOOL_DIRECTORY",
+                    root / "events",
+                ),
+                patch.dict(
+                    os.environ,
+                    {
+                        "WATCHED_KETTLE_STATUS_LINE_CONFIG": str(root / "missing.json"),
+                        "WATCHED_KETTLE_STATUS_LINE_LAYOUT": str(
+                            root / "missing-layout.json"
+                        ),
+                    },
+                ),
+                patch(
+                    "watched_kettle.integrations.codex_client.send_pet_event",
+                    return_value=True,
+                ),
+                patch(
+                    "watched_kettle.integrations.claude_code_status_line.detected_ide",
+                    return_value=None,
+                ),
+            ):
+                code = hook_bridge_entrypoint.run_status_line(
+                    io.BytesIO(json.dumps(status_input()).encode("utf-8")), stdout
+                )
+            self.assertEqual(code, 0)
+            self.assertIn("5시간", stdout.getvalue().decode("utf-8"))
+
     def test_only_limit_numbers_cross_the_pipe(self):
         event = normalize_status_line(status_input())
 

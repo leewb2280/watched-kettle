@@ -1,3 +1,4 @@
+import { t } from "../../localization.cjs";
 import {
   ArrowDown,
   ArrowUp,
@@ -81,10 +82,7 @@ export function AssistantUsagePage({
 >) {
   return (
     <div className="page">
-      <Heading
-        title="사용량"
-        subtitle="남은 한도와 이 기기에서 관측한 작업을 확인합니다."
-      >
+      <Heading title={t("message.0204")} subtitle={t("message.0680")}>
         <div className="heading-actions">
           <button
             className="button compact"
@@ -92,23 +90,23 @@ export function AssistantUsagePage({
             onClick={() => call("usage.action", { action: "refresh" })}
           >
             <RotateCcw size={14} />
-            새로고침
+            {t("message.0667")}
           </button>
         </div>
       </Heading>
       <TabList
         id="usage"
-        label="사용량 영역"
+        label={t("message.0681")}
         tabs={[
-          ["overview", "현황"],
-          ["history", "기록"],
-          ["settings", "설정"],
+          ["overview", t("message.0682")],
+          ["history", t("message.0498")],
+          ["settings", t("message.0225")],
         ]}
         value={tab}
         select={selectTab}
       />
       {!u ? (
-        <Empty>사용량을 불러오는 중입니다.</Empty>
+        <Empty>{t("message.0683")}</Empty>
       ) : (
         <div
           role="tabpanel"
@@ -151,8 +149,12 @@ export function AssistantUsagePage({
                 <strong>Claude Code</strong>
                 <span>
                   {usage!.claude_code.data?.limits_observed_at
-                    ? `마지막 관측 ${time(usage!.claude_code.data.limits_observed_at)}`
-                    : "아직 관측 전"}
+                    ? t("message.0684", {
+                        value0: time(
+                          usage!.claude_code.data.limits_observed_at,
+                        ),
+                      })
+                    : t("message.0685")}
                 </span>
               </span>
             )}
@@ -165,37 +167,39 @@ export function AssistantUsagePage({
           )}
           {u.refresh?.state === "refreshing" && (
             <p className="footnote" role="status">
-              {u.refresh.message || "최신 사용량 확인 중…"}
+              {u.refresh.message || t("message.0686")}
             </p>
           )}
           {!usage!.any_enabled && tab !== "settings" && (
             <p className="paused-note">
-              사용 중인 도구가 없어 한도를 확인하지 않습니다.{" "}
+              {t("message.0687")}{" "}
               <button
                 className="text-button inline"
                 onClick={() => shell.navigate("integration")}
               >
-                연결·진단
+                {t("message.0594")}
               </button>
-              에서 Codex나 Claude Code를 켤 수 있습니다.
+              {t("message.0688")}
             </p>
           )}
           {tab === "overview" && (
             <div>
               <div className="section-heading">
-                <h2>남은 한도</h2>
+                <h2>{t("message.0662")}</h2>
                 <span>
-                  {u.last_updated_at ? `${time(u.last_updated_at)} 확인` : ""}
+                  {u.last_updated_at
+                    ? t("message.0689", { value0: time(u.last_updated_at) })
+                    : ""}
                 </span>
               </div>
               <QuotaGroups usage={usage!} />
               {usage!.enabled && (
                 <Section
-                  title="오늘의 기기 활동"
+                  title={t("message.0690")}
                   note={
                     u.last_sample_at
-                      ? `마지막 관측 ${time(u.last_sample_at)}`
-                      : "아직 관측 전"
+                      ? t("message.0684", { value0: time(u.last_sample_at) })
+                      : t("message.0685")
                   }
                 >
                   {[
@@ -203,18 +207,15 @@ export function AssistantUsagePage({
                     u.unclassified_today_tokens,
                     u.observed_today_percent_points,
                   ].every((value) => typeof value !== "number") ? (
-                    <p className="paused-note">
-                      오늘 이 기기에서 관측한 Codex 작업이 아직 없습니다. 작업을
-                      하면 토큰과 한도 감소가 여기에 표시됩니다.
-                    </p>
+                    <p className="paused-note">{t("message.0691")}</p>
                   ) : (
                     <div className="activity-summary">
                       {(
                         [
-                          ["관측한 토큰", u.observed_today_tokens, ""],
-                          ["미분류 토큰", u.unclassified_today_tokens, ""],
+                          [t("message.0692"), u.observed_today_tokens, ""],
+                          [t("message.0693"), u.unclassified_today_tokens, ""],
                           [
-                            "관측한 한도 감소",
+                            t("message.0694"),
                             u.observed_today_percent_points,
                             "%p",
                           ],
@@ -248,7 +249,7 @@ export function AssistantUsagePage({
               />
               {usage!.enabled && (
                 <details className="explanation">
-                  <summary>한도 상세와 계정 통계</summary>
+                  <summary>{t("message.0695")}</summary>
                   {u.buckets.map((bucket) => (
                     <div className="detail-group" key={bucket.limit_id}>
                       <h3>{bucket.limit_name || bucket.limit_id}</h3>
@@ -256,7 +257,7 @@ export function AssistantUsagePage({
                     </div>
                   ))}
                   <div className="detail-group">
-                    <h3>계정 통계</h3>
+                    <h3>{t("message.0696")}</h3>
                     <Details value={u.summary} />
                   </div>
                 </details>
@@ -282,7 +283,7 @@ export function AssistantUsagePage({
                 <div className="chip-row provider-row">
                   {historySources.length > 1 && (
                     <Segmented
-                      label="기록 출처"
+                      label={t("message.0697")}
                       options={[
                         ["codex", "Codex"],
                         ["claude_code", "Claude Code"],
@@ -296,16 +297,21 @@ export function AssistantUsagePage({
                       <span className="footnote">
                         {h.availability?.message}
                         {("import_remaining" in h ? h.import_remaining : 0)
-                          ? ` · 남은 파일 ${"import_remaining" in h ? h.import_remaining : 0}개`
+                          ? t("message.0698", {
+                              value0:
+                                "import_remaining" in h
+                                  ? h.import_remaining
+                                  : 0,
+                            })
                           : ""}
                       </span>
                       <button
                         className="text-button danger"
                         onClick={() =>
                           setConfirming({
-                            title: "Claude Code 작업 기록 지우기",
-                            body: "이 기기에 저장한 Claude Code 작업 기록을 지웁니다. Claude Code의 대화 기록 파일은 지우지 않으며, 이후 작업부터 다시 기록합니다.",
-                            label: "지우기",
+                            title: t("message.0699"),
+                            body: t("message.0700"),
+                            label: t("message.0628"),
                             run: () =>
                               call("usage.action", {
                                 action: "clear",
@@ -314,7 +320,7 @@ export function AssistantUsagePage({
                           })
                         }
                       >
-                        기록 지우기
+                        {t("message.0701")}
                       </button>
                     </>
                   )}
@@ -324,9 +330,9 @@ export function AssistantUsagePage({
                 <label className="search">
                   <Search size={15} />
                   <input
-                    aria-label="사용량 기록 검색"
+                    aria-label={t("message.0702")}
                     value={search}
-                    placeholder="프로젝트·대화 검색"
+                    placeholder={t("message.0703")}
                     onChange={(event) => setSearch(event.target.value)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter") queryProjects();
@@ -334,34 +340,34 @@ export function AssistantUsagePage({
                   />
                 </label>
                 <button className="button" onClick={() => queryProjects()}>
-                  검색
+                  {t("message.0643")}
                 </button>
               </div>
               <div className="history-columns">
                 <section className="section">
                   <div className="section-heading">
-                    <h2>프로젝트 · {h.project_count ?? 0}개</h2>
+                    <h2>
+                      {t("usage.projects", { count: h.project_count ?? 0 })}
+                    </h2>
                     <select
-                      aria-label="프로젝트 정렬"
+                      aria-label={t("message.0706")}
                       value={projectOrder}
                       onChange={(event) => {
                         setProjectOrder(event.target.value);
                         queryProjects(0, event.target.value);
                       }}
                     >
-                      <option value="recent">최근순</option>
-                      <option value="name">이름순</option>
+                      <option value="recent">{t("message.0707")}</option>
+                      <option value="name">{t("message.0708")}</option>
                       {source === "codex" && (
-                        <option value="custom">직접 정렬</option>
+                        <option value="custom">{t("message.0709")}</option>
                       )}
                     </select>
                   </div>
                   <div className="card">
                     {!h.projects?.length && (
                       <Empty>
-                        {search
-                          ? "검색 결과가 없습니다."
-                          : "아직 기록된 프로젝트가 없습니다."}
+                        {search ? t("message.0644") : t("message.0710")}
                       </Empty>
                     )}
                     {(h.projects || []).map((row) => {
@@ -387,10 +393,14 @@ export function AssistantUsagePage({
                               {(row.name || "?")[0]}
                             </span>
                             <span className="project-name">
-                              <strong title={row.name}>{row.name}</strong>
+                              <strong title={row.name} data-user-text>
+                                {row.name}
+                              </strong>
                               <small>
-                                {row.conversation_count ?? 0}개 대화 ·{" "}
-                                {time(row.completed_at)}
+                                {t("usage.conversations", {
+                                  count: row.conversation_count ?? 0,
+                                  time: time(row.completed_at),
+                                })}
                               </small>
                             </span>
                           </button>
@@ -398,7 +408,9 @@ export function AssistantUsagePage({
                             <>
                               <button
                                 className="icon-button"
-                                aria-label={`${row.name} 위로`}
+                                aria-label={t("message.0712", {
+                                  value0: row.name,
+                                })}
                                 onClick={() =>
                                   call("usage.move", {
                                     key: row.project_key,
@@ -410,7 +422,9 @@ export function AssistantUsagePage({
                               </button>
                               <button
                                 className="icon-button"
-                                aria-label={`${row.name} 아래로`}
+                                aria-label={t("message.0713", {
+                                  value0: row.name,
+                                })}
                                 onClick={() =>
                                   call("usage.move", {
                                     key: row.project_key,
@@ -426,7 +440,7 @@ export function AssistantUsagePage({
                       );
                     })}
                     <Pager
-                      label="프로젝트"
+                      label={t("message.0619")}
                       offset={h.project_offset || 0}
                       hasMore={!!h.projects_has_more}
                       go={(offset) => queryProjects(offset)}
@@ -437,27 +451,27 @@ export function AssistantUsagePage({
                   <div className="section-heading">
                     <h2 title={selectedProject?.name}>
                       {selectedProject?.name
-                        ? `${selectedProject.name}의 대화`
-                        : "대화"}
+                        ? t("message.0714", { value0: selectedProject.name })
+                        : t("message.0620")}
                     </h2>
                     <select
-                      aria-label="대화 정렬"
+                      aria-label={t("message.0715")}
                       value={conversationOrder}
                       onChange={(event) => {
                         setConversationOrder(event.target.value);
                         queryConversations(0, event.target.value);
                       }}
                     >
-                      <option value="recent">최근순</option>
-                      <option value="top">측정 사용량 상위</option>
+                      <option value="recent">{t("message.0707")}</option>
+                      <option value="top">{t("message.0639")}</option>
                     </select>
                   </div>
                   <div className="card">
                     {!h.conversations?.length && (
                       <Empty>
                         {h.projects?.length
-                          ? "이 프로젝트에 표시할 대화가 없습니다."
-                          : "프로젝트를 고르면 대화가 표시됩니다."}
+                          ? t("message.0716")
+                          : t("message.0717")}
                       </Empty>
                     )}
                     {(h.conversations || []).map((row) => {
@@ -474,11 +488,16 @@ export function AssistantUsagePage({
                             onClick={() => openConversation(row.thread_hash)}
                           >
                             <span className="project-name">
-                              <strong title={row.title}>{row.title}</strong>
+                              <strong title={row.title} data-user-text>
+                                {row.title}
+                              </strong>
                               <small>{time(row.completed_at)}</small>
                             </span>
                             <span className="record-tokens">
-                              {number(row.total_tokens)} tokens
+                              {t("message.1258", {
+                                count: row.total_tokens,
+                                value0: number(row.total_tokens),
+                              })}
                             </span>
                             <ChevronRight size={15} />
                           </button>
@@ -486,7 +505,7 @@ export function AssistantUsagePage({
                       );
                     })}
                     <Pager
-                      label="대화"
+                      label={t("message.0620")}
                       offset={h.conversation_offset || 0}
                       hasMore={!!h.conversations_has_more}
                       go={(offset) => queryConversations(offset)}
@@ -500,13 +519,16 @@ export function AssistantUsagePage({
               {!!h.legacy_tasks?.length && (
                 <details className="explanation">
                   <summary>
-                    이전 형식의 기록 · {h.legacy_tasks!.length}건
+                    {t("usage.legacy", { count: h.legacy_tasks!.length })}
                   </summary>
                   {h.legacy_tasks!.map((row, index: number) => (
                     <div className="detail-group" key={index}>
                       <h3>
-                        {time(row.completed_at)} · {number(row.total_tokens)}{" "}
-                        tokens
+                        {time(row.completed_at)} ·{" "}
+                        {t("message.1258", {
+                          count: row.total_tokens,
+                          value0: number(row.total_tokens),
+                        })}
                       </h3>
                       <Details value={row} />
                     </div>
@@ -522,29 +544,26 @@ export function AssistantUsagePage({
             <>
               <Fields
                 controls={usage!.controls.filter(
-                  (control: Control) => control.group === "사용량 알림",
+                  (control: Control) => control.groupId === "usage_notices",
                 )}
                 change={(key, value) =>
                   call("usage.set", { key, value } as UsageSetting)
                 }
               />
               {usage!.enabled && (
-                <Section title="데이터 관리">
+                <Section title={t("message.0720")}>
                   <div className="setting-row">
                     <div className="field-label">
-                      <label>Codex 기기 관측 기록</label>
-                      <p className="field-description">
-                        이 Windows 사용자의 Codex 로그에서 관측한 토큰·한도
-                        변화입니다.
-                      </p>
+                      <label>{t("message.0721")}</label>
+                      <p className="field-description">{t("message.0722")}</p>
                     </div>
                     <button
                       className="button danger"
                       onClick={() =>
                         setConfirming({
-                          title: "기기 관측 기록 지우기",
-                          body: "이 기기의 관측 기록을 지웁니다. 되돌릴 수 없습니다.",
-                          label: "지우기",
+                          title: t("message.0723"),
+                          body: t("message.0724"),
+                          label: t("message.0628"),
                           run: () =>
                             call("usage.action", {
                               action: "clear_device",
@@ -552,30 +571,27 @@ export function AssistantUsagePage({
                         })
                       }
                     >
-                      지우기
+                      {t("message.0628")}
                     </button>
                   </div>
                   <div className="setting-row">
                     <div className="field-label">
-                      <label>Codex 현재 계정 작업 기록</label>
-                      <p className="field-description">
-                        현재 Codex 계정의 프로젝트·대화·작업 사용량입니다.
-                        Claude Code 작업 기록은 기록 탭에서 지웁니다.
-                      </p>
+                      <label>{t("message.0725")}</label>
+                      <p className="field-description">{t("message.0726")}</p>
                     </div>
                     <button
                       className="button danger"
                       disabled={u.clearing_history || u.account_checking}
                       onClick={() =>
                         setConfirming({
-                          title: "현재 계정 기록 지우기",
-                          body: "현재 계정의 사용량 기록을 지웁니다. 되돌릴 수 없습니다.",
-                          label: "지우기",
+                          title: t("message.0727"),
+                          body: t("message.0728"),
+                          label: t("message.0628"),
                           run: () => call("usage.action", { action: "clear" }),
                         })
                       }
                     >
-                      지우기
+                      {t("message.0628")}
                     </button>
                   </div>
                 </Section>

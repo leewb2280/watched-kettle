@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 from datetime import datetime
 import re
 from uuid import uuid4
@@ -68,132 +70,146 @@ class AssistantSettingsAdapter:
         controls = [
             control(
                 "quiet_summary",
-                "조용한 사용량 요약",
+                t("message.0482"),
                 vm.quiet_summary_enabled,
-                group="사용량 알림",
+                groupId="usage_notices",
+                group=t("message.0493"),
                 disabled=not vm.enabled,
             ),
             control(
-                "widget_visible", "사용량 위젯 표시", vm.widget_visible, group="위젯"
+                "widget_visible",
+                t("message.0483"),
+                vm.widget_visible,
+                groupId="widget",
+                group=t("message.0494"),
             ),
             control(
                 "widget_shape",
-                "위젯 모양",
+                t("message.0484"),
                 vm.widget_shape,
                 "select",
                 options=[
                     dict(value=v, label=label)
                     for v, label in (
-                        ("rings", "링"),
-                        ("bars", "두 줄 막대"),
-                        ("chips", "작은 칩"),
+                        ("rings", t("message.0269")),
+                        ("bars", t("message.0270")),
+                        ("chips", t("message.0271")),
                     )
                 ],
-                group="위젯",
+                groupId="widget",
+                group=t("message.0494"),
                 disabled=hidden,
             ),
             control(
                 "widget_emphasis",
-                "크게 보여 줄 한도",
+                t("message.0485"),
                 vm.widget_emphasis,
                 "select",
                 options=[
                     dict(value=v, label=label)
                     for v, label in (
-                        ("auto", "자동(남은 양이 적은 쪽)"),
-                        ("five_hour", "5시간"),
-                        ("seven_day", "7일"),
+                        ("auto", t("message.0506")),
+                        ("five_hour", t("message.0333")),
+                        ("seven_day", t("message.0334")),
                     )
                 ],
-                group="위젯",
+                groupId="widget",
+                group=t("message.0494"),
                 disabled=hidden,
-                description="Codex와 Claude Code에 함께 적용합니다.",
+                description=t("message.0495"),
             ),
             control(
                 "widget_tasks",
-                "작업 상태 표시",
+                t("message.0264"),
                 vm.widget_tasks_visible,
-                group="위젯",
+                groupId="widget",
+                group=t("message.0494"),
                 disabled=hidden,
             ),
             control(
                 "widget_today",
-                "오늘 흐름 표시",
+                t("message.0265"),
                 vm.widget_today_visible,
-                group="위젯",
+                groupId="widget",
+                group=t("message.0494"),
                 disabled=hidden,
-                description="시간대별 토큰을 그립니다.",
+                description=t("message.0496"),
             ),
             control(
                 "widget_material",
-                "배경 재질",
+                t("message.0486"),
                 vm.widget_material,
                 "select",
                 options=[
-                    dict(value="opaque", label="단색"),
-                    dict(value="acrylic", label="아크릴"),
+                    dict(value="opaque", label=t("message.0502")),
+                    dict(value="acrylic", label=t("message.0503")),
                 ],
-                group="위젯 외관",
+                groupId="widget_appearance",
+                group=t("message.0497"),
                 disabled=hidden or not acrylic_available(),
                 description=(
-                    "아크릴은 위젯 뒤를 흐리게 비추고 앱 테마 색을 따릅니다. "
-                    "Windows 투명 효과를 끄거나 고대비를 쓰면 단색으로 그립니다. "
-                    "단색은 배경 농도로 투명도를 조절합니다."
-                    if acrylic_available()
-                    else "아크릴은 Windows 11에서만 쓸 수 있습니다."
+                    t("message.0500") if acrylic_available() else t("message.0501")
                 ),
             ),
             control(
                 "widget_theme",
-                "색",
+                t("message.0487"),
                 vm.widget_theme_mode,
                 "select",
                 options=[
-                    dict(value="app", label="앱 테마 따르기"),
-                    dict(value="custom", label="배경색 직접 지정"),
+                    dict(value="app", label=t("message.0504")),
+                    dict(value="custom", label=t("message.0505")),
                 ],
-                group="위젯 외관",
+                groupId="widget_appearance",
+                group=t("message.0497"),
                 disabled=hidden or acrylic,
             ),
             control(
                 "widget_color",
-                "배경색",
+                t("message.0488"),
                 vm.widget_background_color,
                 "color",
-                group="위젯 외관",
+                groupId="widget_appearance",
+                group=t("message.0497"),
                 disabled=hidden or acrylic or vm.widget_theme_mode != "custom",
             ),
             control(
                 "widget_opacity",
-                "배경 농도",
+                t("message.0489"),
                 vm.widget_background_opacity,
                 "range",
                 min=0,
                 max=100,
                 step=1,
                 unit="%",
-                group="위젯 외관",
+                groupId="widget_appearance",
+                group=t("message.0497"),
                 disabled=hidden or acrylic,
             ),
             control(
                 "widget_scale",
-                "크기",
+                t("message.0490"),
                 vm.widget_scale_percent,
                 "range",
                 min=70,
                 max=130,
                 step=10,
                 unit="%",
-                group="위젯 외관",
+                groupId="widget_appearance",
+                group=t("message.0497"),
                 disabled=hidden,
             ),
             control(
                 "chart_days",
-                "기록 표시 기간",
+                t("message.0491"),
                 vm.chart_days,
                 "select",
-                options=[dict(value=v, label=f"{v}일") for v in USAGE_CHART_DAYS],
-                group="기록",
+                options=[
+                    dict(value=v, label=t("message.0425", value0=v))
+                    for v in USAGE_CHART_DAYS
+                ],
+                groupId="history",
+                group=t("message.0498"),
             ),
         ]
         claude_code = vm.claude_code_snapshot
@@ -266,7 +282,7 @@ class AssistantSettingsAdapter:
             return self._integration_snapshot(args)
         require(
             args.get("epoch") == self.core.account_epoch,
-            "계정 상태가 변경됐습니다. 다시 불러오세요.",
+            t("message.0479"),
             "stale_context",
         )
         vm = self.usage
@@ -291,7 +307,7 @@ class AssistantSettingsAdapter:
             token = text(args.get("token"), 64)
             require(
                 token in self.runtime.action_router.targets,
-                "이동 대상이 만료됐습니다.",
+                t("message.0507"),
                 "expired",
             )
             return dict(opened=self.runtime.action_router.open(token))
@@ -331,7 +347,7 @@ class AssistantSettingsAdapter:
             self.runtime.set_claude_code_timeouts(work, waiting)
             self.core._sync()
         else:
-            raise CommandError("unsupported", "지원하지 않는 비서 명령입니다.")
+            raise CommandError("unsupported", t("message.0509"))
         self.core.changed.emit("usage")
         self.core.changed.emit("activity")
         return dict(
@@ -343,9 +359,7 @@ class AssistantSettingsAdapter:
     def _widget_preview(self, args) -> wire_types.WidgetPreview:
         companion = getattr(self.runtime, "usage_companion", None)
         if companion is None:
-            raise CommandError(
-                "invalid_argument", "위젯 미리보기를 준비하지 못했습니다."
-            )
+            raise CommandError("invalid_argument", t("message.0492"))
         image, sample = companion.preview(
             sample=args.get("sample") is True,
             expanded=args.get("expanded") is True,
@@ -472,7 +486,7 @@ class AssistantSettingsAdapter:
             require(start < end)
             vm.set_widget_hour_range(start, end)
         else:
-            raise CommandError("unsupported", "지원하지 않는 사용량 설정입니다.")
+            raise CommandError("unsupported", t("message.0508"))
         self.core._sync()
 
     def _query_usage(self, args):
@@ -556,7 +570,7 @@ class AssistantSettingsAdapter:
         # option of Claude Code, connects and disconnects on its own.
         require(
             operation == "repair" or provider == "claude_code_status_line",
-            "도구 사용 스위치로 연결을 켜고 끕니다.",
+            t("message.0480"),
             "unsupported",
         )
         fn = {
@@ -579,7 +593,7 @@ class AssistantSettingsAdapter:
         entry = self.plans.pop(text(args.get("token"), 64), None)
         require(
             entry is not None,
-            "변경 계획이 만료됐습니다. 다시 검토해 주세요.",
+            t("message.0481"),
             "expired",
         )
         provider, plan = entry
@@ -588,7 +602,7 @@ class AssistantSettingsAdapter:
         elif provider in self.runtime.active_providers():
             self.runtime.integrations_vm.apply_plan(plan, provider)
         else:
-            raise CommandError("expired", "도구가 꺼져 변경을 적용하지 않았습니다.")
+            raise CommandError("expired", t("message.0499"))
 
     def _provider(self, args):
         providers = ("codex",) + (

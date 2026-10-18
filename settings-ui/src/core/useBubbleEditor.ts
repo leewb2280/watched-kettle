@@ -1,3 +1,4 @@
+import { t } from "../../localization.cjs";
 import { useEffect, useRef, useState } from "react";
 import { errorText, isStaleError } from "../errors";
 import type { BubbleEditor as Editor, ElementKind, Shell } from "../types";
@@ -60,7 +61,7 @@ export function useBubbleEditor(
                 Object.keys(draft).some((key) => draft[key] !== normalized[key])
               ) {
                 setDraft(normalized);
-                setEditorNotice("허용 범위에 맞게 일부 값을 조정했어요.");
+                setEditorNotice(t("message.1146"));
               }
             }
           })
@@ -92,8 +93,7 @@ export function useBubbleEditor(
   };
 
   const reloadSavedTheme = () => {
-    if (!dirty || confirm("편집 중인 값을 버리고 저장된 값을 불러올까요?"))
-      openEditor();
+    if (!dirty || confirm(t("message.1147"))) openEditor();
   };
 
   // After a conflict: adopt the latest revision but keep the user's draft.
@@ -106,7 +106,7 @@ export function useBubbleEditor(
       if (latest.petId !== editor.petId) {
         setDraft(latest.theme);
         setResetDraft(false);
-        setEditorNotice("펫이 바뀌어 새 펫의 디자인을 불러왔어요.");
+        setEditorNotice(t("message.1148"));
       } else {
         const known = new Set(latest.elements.map((element) => element.id));
         setDraft((value) => dropMissingElements(value, known));
@@ -124,7 +124,7 @@ export function useBubbleEditor(
     (resetDraft || JSON.stringify(editor.theme) !== JSON.stringify(draft));
 
   const closeEditor = () => {
-    if (!dirty || confirm("적용하지 않은 디자인 변경을 버릴까요?")) {
+    if (!dirty || confirm(t("message.1149"))) {
       setEditor(null);
       setPreview("");
     }

@@ -12,6 +12,7 @@ def run_settings_smoke(arguments, runtime_factory, agent_controller_factory):
     parser = argparse.ArgumentParser()
     parser.add_argument("--settings-ui-smoke-test", action="store_true")
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--language", choices=("ko", "en"), default="ko")
     args = parser.parse_args(arguments)
     previous_local = os.environ.get("LOCALAPPDATA")
     result = {"status": "failed", "phases": []}
@@ -23,6 +24,7 @@ def run_settings_smoke(arguments, runtime_factory, agent_controller_factory):
             from watched_kettle.app import resolve_startup_pet
             from watched_kettle.app_preferences import ApplicationPreferences
             from watched_kettle.application.paths import AppPaths
+            from watched_kettle.application.localization import initialize_language
             from watched_kettle.pet.window import DesktopPet
 
             app = QApplication.instance() or QApplication([])
@@ -30,13 +32,20 @@ def run_settings_smoke(arguments, runtime_factory, agent_controller_factory):
             settings = QSettings(
                 str(Path(directory) / "settings.ini"), QSettings.Format.IniFormat
             )
+            settings.setValue("app/languagePack", f"official.{args.language}")
             preferences = ApplicationPreferences(settings)
+            paths = AppPaths(Path(directory))
+            packs = initialize_language(preferences, paths)
+            if packs.active.pack_id != f"official.{args.language}":
+                raise RuntimeError("Requested language pack was not loaded")
+            result["language"] = packs.active.locale
+            result["language_pack"] = packs.active.pack_id
             pet = DesktopPet(
                 resolve_startup_pet(preferences=preferences),
                 settings=settings,
                 agent_controller_factory=agent_controller_factory,
             )
-            runtime = runtime_factory(app, pet, preferences, AppPaths(Path(directory)))
+            runtime = runtime_factory(app, pet, preferences, paths)
             host = getattr(runtime, "center", None) or runtime.settings
             host.process.finished.connect(
                 lambda code, status: result.setdefault("exits", []).append(

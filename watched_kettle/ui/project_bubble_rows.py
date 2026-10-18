@@ -1,5 +1,7 @@
 """Reusable project rows with status badges and a two-row scroll viewport."""
 
+from watched_kettle.localization import t
+
 from html import escape
 from datetime import datetime
 import re
@@ -25,24 +27,24 @@ from watched_kettle.ui.wrapped_title_button import WrappedTitleButton, title_tex
 def _badge_presentation(row, theme):
     """Resolve presentation only; activity state remains owned by the service."""
     if row.uncertain:
-        tooltip = "최근 활동을 받지 못했습니다. 작업 종료는 확인되지 않았습니다."
+        tooltip = t("message.0293")
         if row.source == "codex" and row.last_confirmed_at:
-            tooltip += "\n마지막 확인: " + datetime.fromtimestamp(
+            tooltip += t("message.0299") + datetime.fromtimestamp(
                 row.last_confirmed_at
             ).astimezone().strftime("%Y-%m-%d %H:%M:%S")
         return (
-            "상태 확인 중",
+            t("message.0295"),
             tooltip,
             theme.text,
             "transparent",
         )
     if row.compacting:
-        return "컨텍스트 압축 중", "", theme.text, "transparent"
+        return t("message.0296"), "", theme.text, "transparent"
     if row.state == "background":
         count = getattr(row, "background_count", 0)
         return (
-            f"백그라운드 {count}개" if count else "백그라운드 대기",
-            "백그라운드 작업이 끝나면 결과를 읽고 이어서 마무리합니다.",
+            t("message.0300", value0=count) if count else t("message.0301"),
+            t("message.0297"),
             theme.text,
             "transparent",
         )
@@ -54,10 +56,7 @@ def _badge_presentation(row, theme):
     foreground, background = colors.get(row.state, (theme.text, "transparent"))
     source = getattr(row, "source", "codex")
     tooltip = (
-        "Claude Code가 도구 사용 권한을 물었습니다. "
-        "승인한 뒤에도 그 도구가 끝날 때까지 이 표시가 남습니다."
-        if source == "claude_code" and row.state == "waiting"
-        else ""
+        t("message.0294") if source == "claude_code" and row.state == "waiting" else ""
     )
     return row_status_label(row), tooltip, foreground, background
 
@@ -82,8 +81,8 @@ class ProjectConversationRow(QFrame):
         )
         self.close_button = QToolButton(self)
         self.close_button.setText("×")
-        self.close_button.setToolTip("완료 표시 닫기")
-        self.close_button.setAccessibleName("완료 표시 닫기")
+        self.close_button.setToolTip(t("message.0298"))
+        self.close_button.setAccessibleName(t("message.0298"))
         self.close_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.close_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.close_button.clicked.connect(self._dismiss)
@@ -121,7 +120,7 @@ class ProjectConversationRow(QFrame):
         self.close_button.setFixedSize(scaled(20), scaled(22))
         self.close_button.setVisible(row.state == "done" or bool(row.dismiss_id))
         self.close_button.setToolTip(
-            "완료 닫기" if row.completion_id else "미확인 작업 숨기기"
+            t("message.0302") if row.completion_id else t("message.0303")
         )
         self.close_button.setStyleSheet(
             f"QToolButton {{ color: {theme.text}; border: none; background: transparent; }} QToolButton:hover {{ background: rgba(100,140,180,30); }}"
@@ -316,13 +315,15 @@ def layout_project_bubble(window, content, compact):
     window.summary_label.setTextFormat(Qt.TextFormat.RichText)
     window.summary_label.setStyleSheet(f"color: {window.theme.text};")
     highlighted = any(row.highlighted for row in content.project_rows)
-    parts = content.summary.split(" · ")
+    parts = content.summary_parts or tuple(
+        ("", part) for part in content.summary.split(" · ")
+    )
     window.summary_label.setText(
         " · ".join(
             f'<span style="background-color:#d7f1df;color:#17633a;font-weight:600">{escape(part).replace(" ", "&nbsp;")}</span>'
-            if highlighted and part.startswith("완료 ")
+            if highlighted and kind == "done"
             else escape(part).replace(" ", "&nbsp;")
-            for part in parts
+            for kind, part in parts
         )
     )
     window.summary_label.setToolTip(content.summary)
@@ -406,7 +407,7 @@ def layout_project_bubble(window, content, compact):
     window.setAccessibleName(
         " · ".join(filter(None, (content.heading, content.summary)))
     )
-    window.setWindowTitle(f"말풍선 · {content.heading}")
+    window.setWindowTitle(t("message.0199", value0=content.heading))
     window.content_layout.activate()
     window.resize(window.sizeHint())
 

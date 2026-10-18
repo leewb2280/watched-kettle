@@ -1,5 +1,7 @@
 """Compact application-owned system tray."""
 
+from watched_kettle.localization import t
+
 from PySide6.QtCore import QObject, QRectF, Qt, QTimer, SIGNAL
 from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
@@ -19,9 +21,9 @@ def connection_action_text(alerts):
     found = [a.label for a in alerts if a.kind == "found"]
     parts = []
     if broken:
-        parts.append(f"{'·'.join(broken)} 다시 연결 필요")
+        parts.append(t("message.0214", value0="·".join(broken)))
     if found:
-        parts.append(f"{'·'.join(found)} 연결 가능")
+        parts.append(t("message.0215", value0="·".join(found)))
     return " · ".join(parts)
 
 
@@ -119,44 +121,48 @@ class AssistantSystemTray(QObject):
         self.connection_action.triggered.connect(
             lambda: open_route(RouteId.INTEGRATIONS)
         )
-        self.status_action = self.menu.addAction("현재 상태: 대기 중")
+        self.status_action = self.menu.addAction(t("message.0216"))
         self.status_action.setEnabled(False)
-        self.usage_status_action = self.menu.addAction("Codex 사용량: 확인 불가")
+        self.usage_status_action = self.menu.addAction(t("message.0217"))
         self.usage_status_action.setEnabled(False)
-        self.claude_usage_action = self.menu.addAction("Claude Code 사용량: 확인 불가")
+        self.claude_usage_action = self.menu.addAction(t("message.0218"))
         self.claude_usage_action.setEnabled(False)
         self.claude_usage_action.setVisible(False)
         self.menu.addSeparator()
-        self.projects_menu = self.menu.addMenu("진행 중 프로젝트")
-        self.recent_menu = self.menu.addMenu("최근 알림")
+        self.projects_menu = self.menu.addMenu(t("message.0219"))
+        self.recent_menu = self.menu.addMenu(t("message.0220"))
         self.menu.addSeparator()
-        home = self.menu.addAction("홈 열기")
+        home = self.menu.addAction(t("message.0221"))
         home.triggered.connect(lambda: open_route(RouteId.OVERVIEW))
-        usage = self.menu.addAction("사용량 보기")
+        usage = self.menu.addAction(t("message.0200"))
         usage.triggered.connect(lambda: open_route(RouteId.USAGE))
         self.menu.addSeparator()
         self._categories = {
             name: self.recent_menu.addMenu(label)
             for name, label in (
-                ("usage", "사용량"),
-                ("system", "시스템"),
-                ("schedule", "일정"),
-                ("events", "프로젝트 이벤트"),
+                ("usage", t("message.0204")),
+                ("system", t("message.0202")),
+                ("schedule", t("message.0205")),
+                ("events", t("message.0235")),
             )
         }
-        self.focus_menu = self.menu.addMenu("알림 잠시 쉬기")
-        for label, minutes in (("15분", 15), ("30분", 30), ("1시간", 60)):
+        self.focus_menu = self.menu.addMenu(t("message.0222"))
+        for label, minutes in (
+            (t("message.0227"), 15),
+            (t("message.0228"), 30),
+            (t("message.0229"), 60),
+        ):
             action = self.focus_menu.addAction(label)
             action.triggered.connect(
                 lambda checked=False, minutes=minutes: pet_vm.snooze_bubbles(
                     minutes * 60 * 1000
                 )
             )
-        resume = self.focus_menu.addAction("다시 표시")
+        resume = self.focus_menu.addAction(t("message.0223"))
         resume.triggered.connect(pet_vm.resume_bubbles)
-        self.visibility_action = self.menu.addAction("펫 숨기기")
+        self.visibility_action = self.menu.addAction(t("message.0224"))
         self.visibility_action.triggered.connect(pet_vm.toggle_visibility)
-        settings = self.menu.addAction("설정")
+        settings = self.menu.addAction(t("message.0225"))
         settings.triggered.connect(lambda: open_route(RouteId.PET_SETTINGS))
         self.update_action = self.menu.addAction(update_action_text(updates))
         self.update_action.triggered.connect(self._check_updates)
@@ -165,7 +171,7 @@ class AssistantSystemTray(QObject):
                 lambda: self.update_action.setText(update_action_text(updates))
             )
         self.menu.addSeparator()
-        quit_action = self.menu.addAction("종료")
+        quit_action = self.menu.addAction(t("message.0226"))
         quit_action.triggered.connect(QApplication.quit)
         self.menu.aboutToShow.connect(self._opening)
         self.menu.aboutToHide.connect(self._closing)
@@ -377,22 +383,29 @@ class AssistantSystemTray(QObject):
             # A tool switched off has no line at all.
             codex = bool(self.usage_vm.enabled)
             usage = self.usage_vm.tray_summary() if codex else ""
-            active = f" · 활성 작업 {pet.active_count}개" if pet.active_count else ""
-            self._set_text(self.status_action, f"현재 상태: {state}{active}")
+            active = (
+                t("message.0230", value0=pet.active_count) if pet.active_count else ""
+            )
+            self._set_text(
+                self.status_action, t("message.0231", value0=state, value1=active)
+            )
             self._update_icon(pet.visual_state)
             if self.usage_status_action.isVisible() != codex:
                 self.usage_status_action.setVisible(codex)
             if codex:
-                self._set_text(self.usage_status_action, f"Codex 사용량: {usage}")
+                self._set_text(
+                    self.usage_status_action, t("message.0232", value0=usage)
+                )
             claude_usage = self._claude_code_usage()
             if self.claude_usage_action.isVisible() != bool(claude_usage):
                 self.claude_usage_action.setVisible(bool(claude_usage))
             if claude_usage:
                 self._set_text(
-                    self.claude_usage_action, f"Claude Code 사용량: {claude_usage}"
+                    self.claude_usage_action, t("message.0233", value0=claude_usage)
                 )
             self._set_text(
-                self.visibility_action, "펫 숨기기" if pet.visible else "펫 표시"
+                self.visibility_action,
+                t("message.0224") if pet.visible else t("message.0234"),
             )
             connection = connection_action_text(
                 self.connections.snapshot if self.connections is not None else ()
@@ -417,9 +430,13 @@ class AssistantSystemTray(QObject):
             tooltip = (
                 f"Watched Kettle\n{state}"
                 + (f"\n{connection}" if connection else "")
-                + (f" · 활성 작업 {pet.active_count}개" if pet.active_count else "")
-                + (f"\nCodex 사용량: {usage}" if codex else "")
-                + (f"\nClaude Code 사용량: {claude_usage}" if claude_usage else "")
+                + (
+                    t("message.0230", value0=pet.active_count)
+                    if pet.active_count
+                    else ""
+                )
+                + (t("message.0237", value0=usage) if codex else "")
+                + (t("message.0236", value0=claude_usage) if claude_usage else "")
                 + (f"\n{notice}" if notice else "")
             )
             if self.tray.toolTip() != tooltip:

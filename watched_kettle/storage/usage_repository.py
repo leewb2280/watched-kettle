@@ -22,7 +22,13 @@ from watched_kettle.usage.models import (
     UsageActivitySample,
 )
 from watched_kettle.usage.identifiers import hash_identifier
-from watched_kettle.usage.task_query import ORDERS, PAGE_SIZE, TaskPage, search_text
+from watched_kettle.usage.task_query import (
+    ORDERS,
+    PAGE_SIZE,
+    TaskPage,
+    search_text,
+    search_labels,
+)
 from watched_kettle.usage.conversation_models import (
     ConversationPage,
     ConversationUsage,
@@ -308,9 +314,11 @@ class SqliteUsageRepository:
         if order in ("top", "input", "output"):
             where += " AND source_version=3 AND data_quality!='unavailable' AND total_tokens IS NOT NULL"
         if search:
-            # Execute matching inside the worker-owned DB; only result rows are
-            # materialized. Escape LIKE metacharacters for literal search.
+            # Match the same localized projection as the fallback store.
+            # Every translated value is bound, including quotes and LIKE characters.
+            labels = {key: value.casefold() for key, value in search_labels().items()}
             checking = "0"
+            pending_args: list[str] = []
             if pending:
                 checking = (
                     "(thread_hash,turn_hash) IN ("
@@ -318,11 +326,34 @@ class SqliteUsageRepository:
                     + ")"
                 )
                 for thread, turn in sorted(pending):
-                    args.extend((thread, turn))
+                    pending_args.extend((thread, turn))
             where += (
-                " AND lower(strftime('%m/%d %H:%M:%S',completed_at_utc,'localtime') || char(31) || CASE outcome WHEN 'done' THEN '완료' WHEN 'completed' THEN '완료' WHEN 'failed' THEN '실패' WHEN 'aborted' THEN '중단' WHEN 'cancelled' THEN '중단' ELSE outcome END || char(31) || CASE WHEN source_version<3 THEN '이전 기록 · 집계 제외' WHEN data_quality='unavailable' THEN CASE WHEN "
+                " AND lower(strftime('%m/%d %H:%M:%S',completed_at_utc,'localtime') || char(31) || "
+                "CASE outcome WHEN 'done' THEN ? WHEN 'completed' THEN ? WHEN 'failed' THEN ? "
+                "WHEN 'aborted' THEN ? WHEN 'cancelled' THEN ? ELSE outcome END || char(31) || "
+                "CASE WHEN source_version<3 THEN ? WHEN data_quality='unavailable' THEN CASE WHEN "
                 + checking
-                + " THEN '확인 중' ELSE '측정 불가' END WHEN data_quality='partial' THEN '부분 측정' ELSE '측정됨' END || char(31) || coalesce(model,'—')) LIKE ? ESCAPE '\\'"
+                + " THEN ? ELSE ? END WHEN data_quality='partial' THEN ? ELSE ? END || "
+                "char(31) || coalesce(model,'—')) LIKE ? ESCAPE '\\'"
+            )
+            args.extend(
+                (
+                    labels["done"],
+                    labels["done"],
+                    labels["failed"],
+                    labels["cancelled"],
+                    labels["cancelled"],
+                    labels["legacy"],
+                )
+            )
+            args.extend(pending_args)
+            args.extend(
+                (
+                    labels["checking"],
+                    labels["unavailable"],
+                    labels["partial"],
+                    labels["measured"],
+                )
             )
             args.append(
                 "%"

@@ -1,0 +1,88 @@
+{
+  "korean": {
+    "watched_kettle/features/tasks/candidates.py": {
+      "count": 11,
+      "reason": "Frozen task feature, not exposed in any edition; patterns match Korean conversation text"
+    },
+    "watched_kettle/features/tasks/catalog.py": {
+      "count": 11,
+      "reason": "Frozen task feature, not exposed in any edition"
+    },
+    "watched_kettle/features/tasks/connection.py": {
+      "count": 15,
+      "reason": "Frozen task feature, not exposed in any edition"
+    },
+    "watched_kettle/features/tasks/history.py": {
+      "count": 9,
+      "reason": "Frozen task feature, not exposed in any edition"
+    },
+    "watched_kettle/features/tasks/models.py": {
+      "count": 4,
+      "reason": "Frozen task feature, not exposed in any edition"
+    },
+    "watched_kettle/features/tasks/notifications.py": {
+      "count": 1,
+      "reason": "Frozen task feature, not exposed in any edition"
+    },
+    "watched_kettle/features/tasks/presentation.py": {
+      "count": 56,
+      "reason": "Frozen task feature, not exposed in any edition"
+    },
+    "watched_kettle/features/tasks/worker.py": {
+      "count": 35,
+      "reason": "Frozen task feature, not exposed in any edition"
+    },
+    "watched_kettle/integrations/claude_code_status_line.py": {
+      "count": 4,
+      "reason": "Source-language fallbacks when the saved status line dictionary lacks a key; the status line cannot load language packs"
+    },
+    "watched_kettle/integrations/execution_connection.py": {
+      "count": 8,
+      "reason": "Used only by the frozen task feature"
+    },
+    "watched_kettle/localization/packs.py": {
+      "count": 1,
+      "reason": "Native name of the official Korean pack"
+    },
+    "watched_kettle/runtime_smoke.py": {
+      "count": 2,
+      "reason": "Smoke test expectations for the default Korean run"
+    },
+    "watched_kettle/state/event_names.py": {
+      "count": 2,
+      "reason": "Hook-path fallback labels; state.events.source_display_label replaces them with t() for display"
+    },
+    "watched_kettle/storage/legacy_usage.py": {
+      "count": 2,
+      "reason": "Internal exception text; the worker shows t(\"message.0437\") instead"
+    },
+    "watched_kettle/storage/task_repository.py": {
+      "count": 1,
+      "reason": "Frozen task feature storage"
+    },
+    "watched_kettle/storage/usage_repository.py": {
+      "count": 1,
+      "reason": "Internal exception text; the worker shows t(\"message.0437\") instead"
+    },
+    "settings-ui/localization.cjs": {
+      "count": 10,
+      "reason": "Bilingual emergency messages shown before the settings dictionary arrives"
+    }
+  },
+  "untranslated": {
+    "Watched Kettle": "Product name",
+    "Codex": "Product name",
+    "Claude Code": "Product name",
+    "claude": "Command users type",
+    "/context": "Claude Code command",
+    "/usage": "Claude Code command",
+    "/clear": "Claude Code command",
+    "/compact": "Claude Code command",
+    "/resume": "Claude Code command",
+    "/rename": "Claude Code command",
+    "%APPDATA%\\Code\\User\\keybindings.json": "File path users open",
+    "Ctrl+Shift+&apos;": "Keyboard shortcut",
+    "ID:": "Technical identifier label kept in every language",
+    "MB": "Unit symbol"
+  }
+}

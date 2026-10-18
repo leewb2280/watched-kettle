@@ -13,6 +13,8 @@ const { randomUUID } = require("node:crypto");
 const fs = require("node:fs");
 const os = require("node:os");
 const appearancePolicy = require("./appearance.cjs");
+const { t, setCatalog } = require("../localization.cjs");
+let localization;
 
 const pipe = process.env.WATCHED_KETTLE_SETTINGS_PIPE;
 const token = process.env.WATCHED_KETTLE_SETTINGS_TOKEN;
@@ -45,23 +47,16 @@ function sendEvent(event, data) {
 }
 function request(method, args = {}) {
   if (!ready || !socket || socket.destroyed)
-    return Promise.reject(
-      new Error("설정 연결이 끊겼습니다. 창을 닫고 다시 열어주세요."),
-    );
-  if (pending.size >= 32)
-    return Promise.reject(new Error("진행 중인 요청이 너무 많습니다."));
+    return Promise.reject(new Error(t("message.1262")));
+  if (pending.size >= 32) return Promise.reject(new Error(t("message.1263")));
   const id = randomUUID();
   const body = JSON.stringify({ id, method, args }) + "\n";
   if (Buffer.byteLength(body) > 4 * 1024 * 1024)
-    return Promise.reject(new Error("요청이 너무 큽니다."));
+    return Promise.reject(new Error(t("message.1264")));
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       pending.delete(id);
-      reject(
-        new Error(
-          "응답을 기다리는 시간이 길어졌습니다. 적용 여부를 새로 확인해 주세요.",
-        ),
-      );
+      reject(new Error(t("message.1265")));
     }, 15000);
     pending.set(id, { resolve, reject, timer });
     socket.write(body);
@@ -74,7 +69,7 @@ function validSender(event) {
     event.senderFrame !== window.webContents.mainFrame ||
     event.senderFrame.url.split("#")[0] !== documentURL
   )
-    throw new Error("허용되지 않은 화면입니다.");
+    throw new Error(t("message.1266"));
 }
 function effectiveAppearance() {
   return appearancePolicy.effectiveAppearance(
@@ -105,6 +100,7 @@ ipcMain.handle("settings:ready", (event) => {
   validSender(event);
   return {
     connected: !!ready,
+    localization,
     edition: ready?.edition,
     route: latestRoute,
     appearance: applyAppearance(),
@@ -119,7 +115,7 @@ ipcMain.handle("settings:request", async (event, method, args) => {
     typeof args !== "object" ||
     Array.isArray(args)
   )
-    throw new Error("허용되지 않은 명령입니다.");
+    throw new Error(t("message.1267"));
   const result = await request(method, args);
   const settings = method === "settings.snapshot" ? result : result?.snapshot;
   if (settings?.appearance) {
@@ -128,6 +124,10 @@ ipcMain.handle("settings:request", async (event, method, args) => {
   }
   return result;
 });
+ipcMain.handle("settings:language-folder", (event) => {
+  validSender(event);
+  return request("language.open_folder");
+});
 ipcMain.handle("settings:file", async (event, purpose, kind) => {
   validSender(event);
   const elementKinds = ["pattern", "ornament", "photo", "frame", "sticker"];
@@ -135,32 +135,34 @@ ipcMain.handle("settings:file", async (event, purpose, kind) => {
     // Discard the previous preparation even if the new picker is cancelled.
     await request("file.pet.cancel");
     const selected = await dialog.showOpenDialog(window, {
-      title: "펫 스프라이트 선택",
+      title: t("message.1268"),
       properties: ["openFile"],
-      filters: [{ name: "펫 스프라이트", extensions: ["png", "webp"] }],
+      filters: [{ name: t("message.1269"), extensions: ["png", "webp"] }],
     });
     if (selected.canceled) return { cancelled: true };
     return request("file.pet.prepare", { path: selected.filePaths[0] });
   }
   if (purpose === "import" && elementKinds.includes(kind)) {
     const selected = await dialog.showOpenDialog(window, {
-      title: "말풍선 요소 이미지 선택",
+      title: t("message.1270"),
       properties: ["openFile"],
-      filters: [{ name: "이미지", extensions: ["png", "webp", "jpg", "jpeg"] }],
+      filters: [
+        { name: t("message.1271"), extensions: ["png", "webp", "jpg", "jpeg"] },
+      ],
     });
     if (selected.canceled) return { cancelled: true };
     return request("file.import", { path: selected.filePaths[0], kind });
   }
   if (purpose === "export" && ready?.edition === "pet-assistant") {
     const selected = await dialog.showSaveDialog(window, {
-      title: "진단 내보내기",
+      title: t("message.0676"),
       defaultPath: "WatchedKettle-diagnostics.zip",
       filters: [{ name: "ZIP", extensions: ["zip"] }],
     });
     if (selected.canceled) return { cancelled: true };
     return request("file.export", { path: selected.filePath });
   }
-  throw new Error("허용되지 않은 파일 작업입니다.");
+  throw new Error(t("message.1272"));
 });
 
 function boundsState() {
@@ -209,7 +211,7 @@ async function createWindow() {
     minWidth: 640,
     minHeight: 460,
     show: false,
-    title: "Watched Kettle · 설정",
+    title: t("message.1273"),
     icon: process.env.WATCHED_KETTLE_SETTINGS_ICON || undefined,
     backgroundColor: "#00000000",
     backgroundMaterial: "acrylic",
@@ -268,7 +270,7 @@ function bringToFront() {
     window.setAlwaysOnTop(false);
   }
 }
-function received(message) {
+async function received(message) {
   if (message.event === "ready") {
     let edition;
     try {
@@ -288,6 +290,8 @@ function received(message) {
     }
     ready = message.data;
     latestRoute = ready.route;
+    localization = await request("language.bootstrap");
+    setCatalog(localization);
     createWindow().catch((error) => {
       console.error("Settings window startup failed:", error.message);
       quitting = true;
@@ -329,10 +333,7 @@ function received(message) {
 }
 app.whenReady().then(() => {
   if (!pipe || !token) {
-    dialog.showErrorBox(
-      "Watched Kettle",
-      "펫 앱의 트레이에서 설정을 열어주세요.",
-    );
+    dialog.showErrorBox("Watched Kettle", t("message.1274"));
     app.exit(1);
     return;
   }
@@ -361,7 +362,10 @@ app.whenReady().then(() => {
       const line = buffer.subarray(0, end);
       buffer = buffer.subarray(end + 1);
       try {
-        received(JSON.parse(line));
+        received(JSON.parse(line)).catch(() => {
+          quitting = true;
+          app.exit(2);
+        });
       } catch {
         app.exit(2);
         return;
@@ -376,7 +380,7 @@ app.whenReady().then(() => {
   socket.on("close", () => {
     for (const p of pending.values()) {
       clearTimeout(p.timer);
-      p.reject(new Error("런타임 연결이 종료되었습니다."));
+      p.reject(new Error(t("message.1275")));
     }
     pending.clear();
     quitting = true;

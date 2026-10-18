@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 import json
 import re
 import math
@@ -96,7 +98,7 @@ def normalize_codex_hook(payload):
         "source": "codex",
         "event": event,
         "session_id": session_id,
-        "agent_scope": "subagent" if is_subagent else "main",
+        "agent_scope": "subagent" if is_subagent else "unknown",
     }
     if hook_name in {"PreCompact", "PostCompact"} or (
         hook_name == "SessionStart" and payload.get("source") == "compact"
@@ -147,7 +149,7 @@ def sanitize_pet_event(payload):
             :120
         ]
         if not message:
-            message = "일정 알림이 있어요"
+            message = t("message.0109")
         sanitized = {
             "source": "schedule",
             "event": "notification",

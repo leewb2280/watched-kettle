@@ -45,7 +45,7 @@ def release_files(version):
     }
 
 
-def build_release(root, version, bases=None, revision=1, files=None):
+def build_release(root, version, bases=None, revision=1, files=None, signed=False):
     """Build both editions of ``version`` and their assets; return the out folder."""
     root = Path(root)
     out = root / f"release-{version}"
@@ -63,7 +63,7 @@ def build_release(root, version, bases=None, revision=1, files=None):
                 revision,
             )
         )
-        (out / installer_name(version, KIND, edition)).write_bytes(
+        (out / installer_name(version, KIND, edition, signed)).write_bytes(
             f"setup {version} {edition}".encode() * 1000
         )
     build_update_assets.build(bundles, out, bases, out)

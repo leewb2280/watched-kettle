@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 import os
 
 from PySide6.QtCore import QObject, Signal
@@ -59,7 +61,7 @@ class SingleInstanceCoordinator(QObject):
         QLocalServer.removeServer(self.server_name)
         if self._listen():
             return True
-        raise OSError("프로그램 중복 실행 감지용 로컬 서버를 시작하지 못했습니다.")
+        raise OSError(t("message.0129"))
 
     def _listen(self):
         server = QLocalServer(self)

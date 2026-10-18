@@ -92,8 +92,8 @@ Item {
                         Text {
                             anchors.baseline: parent.children[0].baseline
                             text: row.limited
-                                ? Style.labelText(row.provider.main) + " 남음"
-                                  + (row.provider.main.reset ? " · " + row.provider.main.reset + " 초기화" : "")
+                                ? row.provider.main.labelRemainingText
+                                  + (row.provider.main.resetText ? " · " + row.provider.main.resetText : "")
                                 : ""
                             color: layout.theme.float_muted
                             font.pixelSize: layout.px(11)
@@ -119,9 +119,9 @@ Item {
                         width: parent.width
                         text: {
                             const p = row.provider
-                            let line = p.other ? p.other.label + " " + Style.percentText(p.other) + " 남음" : ""
+                            let line = p.other ? p.other.remainingText : ""
                             if (p.state === "stale" && p.age)
-                                line += (line ? " · " : "") + p.age + " 값"
+                                line += (line ? " · " : "") + p.sampleText
                             return line
                         }
                         visible: text !== ""

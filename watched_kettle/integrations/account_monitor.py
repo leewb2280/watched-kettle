@@ -1,5 +1,8 @@
 """Fresh-process, read-only authentication checks shared by application features."""
 
+from watched_kettle.localization import t
+from dataclasses import field as localized_field
+
 import logging
 from uuid import uuid4
 from dataclasses import dataclass
@@ -18,7 +21,7 @@ def masked_email(value):
     return (
         f"{local[:1]}***@{domain}"
         if local and separator and domain
-        else "이메일 정보 없음"
+        else t("message.0058")
     )
 
 
@@ -29,7 +32,7 @@ class AccountCheck:
     auth_type: str = ""
     email_fingerprint: str = ""
     account_hash: str = ""
-    email_label: str = "이메일 정보 없음"
+    email_label: str = localized_field(default_factory=lambda: t("message.0058"))
     plan: str = ""
     error_code: str = ""
     reason: str = "periodic"

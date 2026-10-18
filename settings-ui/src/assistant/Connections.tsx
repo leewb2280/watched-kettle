@@ -1,3 +1,5 @@
+import { t } from "../../localization.cjs";
+import { LocalizedText } from "../LocalizedText";
 import {
   ArrowDown,
   ArrowUp,
@@ -60,30 +62,35 @@ export function integrationChecks(
     trust.valid && (trust.approved_count ?? 0) < (trust.expected_count ?? 0);
   return [
     {
-      label: "설치 감지",
+      label: t("message.0737"),
       state: diagnostics.codex_environment?.detected ? "ok" : "warn",
-      value: diagnostics.codex_environment?.detected ? "감지됨" : "찾지 못함",
+      value: diagnostics.codex_environment?.detected
+        ? t("message.0738")
+        : t("message.0739"),
     },
     {
-      label: "관리 hook",
+      label: t("message.0740"),
       state: installed
         ? "ok"
         : install.state === "not_installed"
           ? "off"
           : "warn",
-      value: `${install.installed_events ?? 0}/${install.expected_events ?? 0}개 이벤트`,
+      value: t("message.0741", {
+        value0: install.installed_events ?? 0,
+        value1: install.expected_events ?? 0,
+      }),
     },
     {
-      label: "최근 이벤트 수신",
+      label: t("message.0742"),
       state: diagnostics.last_received_at ? "ok" : "off",
       value: diagnostics.last_received_at
         ? `${time(diagnostics.last_received_at)}${
             diagnostics.last_transport ? ` · ${diagnostics.last_transport}` : ""
           }`
-        : "이번 실행에서 아직 없음",
+        : t("message.0743"),
     },
     {
-      label: "신뢰 승인",
+      label: t("message.0744"),
       state:
         !installed || !trust.valid
           ? "off"
@@ -91,21 +98,24 @@ export function integrationChecks(
             ? "warn"
             : "ok",
       value: !installed
-        ? "hook 설치 후 확인"
+        ? t("message.0745")
         : !trust.valid
-          ? "확인할 수 없음"
+          ? t("message.0746")
           : trust.possibly_stale
-            ? "승인 이후 hook이 바뀌었을 수 있음"
+            ? t("message.0747")
             : trustMissing
-              ? `Codex에서 승인 필요 (${trust.approved_count}/${trust.expected_count})`
-              : "승인됨",
+              ? t("message.0748", {
+                  value0: trust.approved_count,
+                  value1: trust.expected_count,
+                })
+              : t("message.0749"),
     },
     {
-      label: "작업 로그 감시",
+      label: t("message.0750"),
       state: jsonl.active ? "ok" : "off",
       value: jsonl.active
-        ? `감시 중 · 파일 ${jsonl.tracked_files ?? 0}개`
-        : "꺼져 있음",
+        ? t("message.0751", { value0: jsonl.tracked_files ?? 0 })
+        : t("message.0752"),
     },
   ];
 }
@@ -117,19 +127,23 @@ export function appChecks(
 ): Check[] {
   return [
     {
-      label: "마지막 오류",
+      label: t("message.0753"),
       state: diagnostics.last_error ? "error" : "ok",
-      value: diagnostics.last_error || "없음",
+      value: diagnostics.last_error || t("message.0754"),
     },
     {
-      label: "로컬 기록 저장소",
+      label: t("message.0755"),
       state: storage.available ? "ok" : "error",
-      value: storage.message || (storage.available ? "사용 가능" : "사용 불가"),
+      value:
+        storage.message ||
+        (storage.available ? t("message.0756") : t("message.0757")),
     },
     {
-      label: "일정 알림",
+      label: t("message.0034"),
       state: "off",
-      value: `이번 실행 ${diagnostics.schedule_event_count || 0}건 · 외부 일정 미연결`,
+      value: t("message.0758", {
+        value0: diagnostics.schedule_event_count || 0,
+      }),
     },
   ];
 }
@@ -140,34 +154,34 @@ export const heroes: Record<
 > = {
   installed: {
     tone: "ok",
-    title: "Codex 작업 상태를 받을 준비가 됐어요",
+    title: t("message.0759"),
   },
   // Codex is in use but its hook is missing: logs still give some activity,
   // and the hero reconnects the hook.
   not_installed: {
     tone: "warn",
-    title: "Codex hook이 연결되지 않았어요",
-    body: "hook 없이도 Codex 로그로 작업 상태를 일부 받습니다. 연결하면 진행과 완료를 더 정확히 알려 줍니다.",
-    action: ["repair", "hook 연결하기"],
+    title: t("message.0760"),
+    body: t("message.0761"),
+    action: ["repair", t("message.0762")],
   },
   partial: {
     tone: "warn",
-    title: "연결 설정 일부가 바뀌었어요",
-    action: ["repair", "연결 복구하기"],
+    title: t("message.0763"),
+    action: ["repair", t("message.0764")],
   },
   drifted: {
     tone: "warn",
-    title: "연결 설정 일부가 바뀌었어요",
-    action: ["repair", "연결 복구하기"],
+    title: t("message.0763"),
+    action: ["repair", t("message.0764")],
   },
   disabled: {
     tone: "warn",
-    title: "Codex hook 기능이 꺼져 있어요",
-    body: "Codex 설정에서 hook 기능을 켠 뒤 다시 확인해 주세요.",
+    title: t("message.0765"),
+    body: t("message.0766"),
   },
   invalid: {
     tone: "error",
-    title: "Codex 설정을 읽을 수 없어요",
+    title: t("message.0767"),
   },
 };
 
@@ -183,10 +197,13 @@ export function heroFor(integration: IntegrationResponse) {
   )
     return {
       tone: "warn",
-      title: "Codex에서 hook 승인을 확인해 주세요",
+      title: t("message.0768"),
       body: trust.possibly_stale
-        ? "승인한 뒤 hook이 바뀌었을 수 있습니다. Codex에서 승인 상태를 다시 확인해 주세요."
-        : `승인되지 않은 hook이 있습니다 (${trust.approved_count}/${trust.expected_count}). Codex에서 승인 상태를 확인해 주세요.`,
+        ? t("message.0769")
+        : t("message.0770", {
+            value0: trust.approved_count,
+            value1: trust.expected_count,
+          }),
     };
   if (
     install.state === "not_installed" &&
@@ -194,7 +211,7 @@ export function heroFor(integration: IntegrationResponse) {
   )
     return {
       ...heroes.not_installed,
-      body: "Codex를 찾지 못했습니다. Codex를 설치한 뒤 새로고침하거나, hook을 미리 연결해 둘 수 있습니다.",
+      body: t("message.0771"),
     };
   return heroes[install.state] || heroes.invalid;
 }
@@ -205,37 +222,37 @@ export const claudeHeroes: Record<
 > = {
   installed: {
     tone: "ok",
-    title: "Claude Code 작업 상태를 받을 준비가 됐어요",
-    body: "이미 열려 있는 Claude Code 세션은 다시 시작해야 적용됩니다.",
+    title: t("message.0772"),
+    body: t("message.0061"),
   },
   not_installed: {
     tone: "warn",
-    title: "Claude Code hook이 연결되지 않았어요",
-    body: "hook을 연결해야 CLI와 VS Code의 Claude Code 작업을 펫이 알려 줍니다.",
-    action: ["repair", "hook 연결하기"],
+    title: t("message.0773"),
+    body: t("message.0774"),
+    action: ["repair", t("message.0762")],
   },
   partial: {
     tone: "warn",
-    title: "Claude Code 연결 설정 일부가 바뀌었어요",
-    action: ["repair", "연결 복구하기"],
+    title: t("message.0775"),
+    action: ["repair", t("message.0764")],
   },
   drifted: {
     tone: "warn",
-    title: "Claude Code 연결 설정 일부가 바뀌었어요",
-    action: ["repair", "연결 복구하기"],
+    title: t("message.0775"),
+    action: ["repair", t("message.0764")],
   },
   disabled: {
     tone: "warn",
-    title: "Claude Code에서 hook이 모두 꺼져 있어요",
-    body: "Claude Code 설정의 disableAllHooks를 끈 뒤 다시 확인해 주세요.",
+    title: t("message.0776"),
+    body: t("message.0777"),
   },
   blocked_by_policy: {
     tone: "warn",
-    title: "관리자 정책이 사용자 hook을 막고 있어요",
+    title: t("message.0778"),
   },
   invalid: {
     tone: "error",
-    title: "Claude Code 설정을 읽을 수 없어요",
+    title: t("message.0779"),
   },
 };
 
@@ -248,61 +265,66 @@ export function claudeChecks(
   const installed = install.state === "installed";
   return [
     {
-      label: "설치 감지",
+      label: t("message.0737"),
       state: install.detected ? "ok" : "warn",
-      value: install.detected ? "감지됨" : "찾지 못함",
+      value: install.detected ? t("message.0738") : t("message.0739"),
     },
     {
-      label: "관리 hook",
+      label: t("message.0740"),
       state: installed
         ? "ok"
         : install.state === "not_installed"
           ? "off"
           : "warn",
-      value: `${install.installed_events ?? 0}/${install.expected_events ?? 0}개 이벤트`,
+      value: t("message.0741", {
+        value0: install.installed_events ?? 0,
+        value1: install.expected_events ?? 0,
+      }),
     },
     {
-      label: "최근 이벤트 수신",
+      label: t("message.0742"),
       state: diagnostics.last_hook_received_at ? "ok" : "off",
       value: diagnostics.last_hook_received_at
         ? time(diagnostics.last_hook_received_at)
-        : "이번 실행에서 아직 없음",
+        : t("message.0743"),
     },
     ...(claude.status_line
       ? [
           {
-            label: "한도 수신",
+            label: t("message.0780"),
             state: (claude.status_line.observed_at
               ? "ok"
               : claude.status_line.state === "installed"
                 ? "off"
                 : "warn") as CheckState,
             value: claude.status_line.observed_at
-              ? `${time(claude.status_line.observed_at)} 관측`
+              ? t("message.0781", {
+                  value0: time(claude.status_line.observed_at),
+                })
               : claude.status_line.state === "installed"
-                ? "터미널 Claude Code 응답 후 표시"
-                : "연결 안 됨",
+                ? t("message.0782")
+                : t("message.0783"),
           },
         ]
       : []),
     {
-      label: "거절·중단 감지",
+      label: t("message.0784"),
       state: monitor.attached ? "ok" : "off",
       value: monitor.active_turns
-        ? `작업 중 세션 ${monitor.active_turns}개 확인 중`
-        : `대기 중 · 이번 실행 ${monitor.detected_count ?? 0}건 감지`,
+        ? t("message.0785", { value0: monitor.active_turns })
+        : t("message.0786", { value0: monitor.detected_count ?? 0 }),
     },
   ];
 }
 
 // Items the built-in Claude Code status line can show, with a sample.
 export const STATUS_LINE_ITEMS: [string, string, string][] = [
-  ["pet", "펫 연결(끊겼을 때만)", "펫 꺼짐"],
+  ["pet", t("message.0787"), t("statusline.pet_off")],
   ["ide", "IDE", "VS Code"],
-  ["model", "모델·추론 강도", "Opus 5.5 high"],
-  ["context", "컨텍스트", "컨텍스트 12% (24k/200k)"],
-  ["five_hour", "5시간 한도", "5시간 41%"],
-  ["seven_day", "7일 한도", "7일 55%"],
+  ["model", t("message.0788"), "Opus 5.5 high"],
+  ["context", t("message.0789"), t("message.0790")],
+  ["five_hour", t("message.0791"), t("message.0792")],
+  ["seven_day", t("message.0793"), t("message.0794")],
 ];
 
 export function StatusLineEditor({
@@ -360,13 +382,13 @@ export function StatusLineEditor({
               commit(order, { ...lineOf, [key]: Number(event.target.value) })
             }
           >
-            <option value={-1}>숨김</option>
-            <option value={0}>1줄</option>
-            <option value={1}>2줄</option>
+            <option value={-1}>{t("message.0795")}</option>
+            <option value={0}>{t("message.0796")}</option>
+            <option value={1}>{t("message.0797")}</option>
           </select>
           <button
             className="icon-button"
-            aria-label={`${label(key)} 위로`}
+            aria-label={t("message.0712", { value0: label(key) })}
             disabled={index === 0}
             onClick={() => move(index, -1)}
           >
@@ -374,7 +396,7 @@ export function StatusLineEditor({
           </button>
           <button
             className="icon-button"
-            aria-label={`${label(key)} 아래로`}
+            aria-label={t("message.0713", { value0: label(key) })}
             disabled={index === order.length - 1}
             onClick={() => move(index, 1)}
           >
@@ -383,22 +405,22 @@ export function StatusLineEditor({
         </div>
       ))}
       <div className="setting-row">
-        <label>색으로 강조</label>
+        <label>{t("message.0798")}</label>
         <Switch
-          label="상태줄 색으로 강조"
+          label={t("message.0799")}
           value={!!layout.color}
           change={(value) => commit(order, lineOf, { color: value })}
         />
       </div>
       <div className="setting-row">
-        <label>5시간 한도 초기화 시각</label>
+        <label>{t("message.0800")}</label>
         <Switch
-          label="5시간 한도 초기화 시각 표시"
+          label={t("message.0801")}
           value={!!layout.reset_times}
           change={(value) => commit(order, lineOf, { reset_times: value })}
         />
       </div>
-      <div className="status-line-preview" aria-label="상태줄 미리보기">
+      <div className="status-line-preview" aria-label={t("message.0802")}>
         {lines.some((line) => line.length) ? (
           lines
             .filter((line) => line.length)
@@ -406,7 +428,7 @@ export function StatusLineEditor({
               <div key={index}>{line.map(sample).join(" · ")}</div>
             ))
         ) : (
-          <div>표시할 항목이 없습니다.</div>
+          <div>{t("message.0803")}</div>
         )}
       </div>
     </div>
@@ -417,17 +439,22 @@ export function TerminalHelp({ close }: { close: () => void }) {
   const [copied, setCopied] = useState(false);
   const text = JSON.stringify(TERMINAL_KEYBINDING, null, 4);
   return (
-    <Modal title="터미널에서 Claude Code 쓰기" close={close}>
+    <Modal title={t("message.0804")} close={close}>
       <p>
-        Claude Code 한도와 상태줄은 터미널에서 실행한 Claude Code에서만
-        갱신됩니다. VS Code 확장의 그래픽 패널은 상태줄을 실행하지 않으므로, VS
-        Code에서는 내장 터미널에서 <code>claude</code>를 실행해 주세요.
+        <LocalizedText
+          id="integration.terminal_help"
+          values={{ command: <code>claude</code> }}
+        />
       </p>
-      <h3>VS Code 단축키로 열기</h3>
+      <h3>{t("message.0807")}</h3>
       <p>
-        <code>%APPDATA%\Code\User\keybindings.json</code>에 아래 항목을 추가하면{" "}
-        <code>Ctrl+Shift+&apos;</code>로 오른쪽 편집 그룹의 새 탭에 Claude
-        Code가 열립니다. 앱은 VS Code 설정을 바꾸지 않습니다.
+        <LocalizedText
+          id="integration.keybinding_help"
+          values={{
+            file: <code>%APPDATA%\Code\User\keybindings.json</code>,
+            shortcut: <code>Ctrl+Shift+&apos;</code>,
+          }}
+        />
       </p>
       <pre className="code-block">{text}</pre>
       <button
@@ -436,30 +463,31 @@ export function TerminalHelp({ close }: { close: () => void }) {
           navigator.clipboard.writeText(text).then(() => setCopied(true))
         }
       >
-        {copied ? "복사했습니다" : "단축키 설정 복사"}
+        {copied ? t("message.0810") : t("message.0811")}
       </button>
       <ul className="help-notes">
+        <li>{t("message.0812")}</li>
         <li>
-          터미널을 연 편집 그룹은 VS Code가 자동으로 잠그므로, 단축키가 잠금을
-          풀고 새 탭을 연 뒤 다시 잠급니다.
+          <LocalizedText
+            id="integration.venv_note"
+            values={{ command: <code>claude</code> }}
+          />
         </li>
-        <li>
-          명령 앞부분은 Python 프로젝트의 가상 환경(venv)을 켭니다. Python
-          프로젝트가 아니면 <code>claude</code>만 남겨도 됩니다.
-        </li>
-        <li>편집 그룹이 셋 이상이면 두 번째 그룹에 열립니다.</li>
+        <li>{t("message.0815")}</li>
       </ul>
-      <h3>자주 쓰는 Claude Code 명령</h3>
+      <h3>{t("message.0816")}</h3>
       <ul className="help-notes">
         <li>
-          <code>/context</code> 컨텍스트 사용량, <code>/usage</code> 한도
+          <code>/context</code> {t("message.0817")}
+          <code>/usage</code> {t("message.0818")}
         </li>
         <li>
-          <code>/clear</code> 새 대화, <code>/compact</code> 요약 후 계속,{" "}
-          <code>/resume</code> 이전 대화
+          <code>/clear</code> {t("message.0819")}
+          <code>/compact</code> {t("message.0820")} <code>/resume</code>{" "}
+          {t("message.0821")}
         </li>
         <li>
-          <code>/rename</code> 세션 이름(입력창 위 가로줄에 보입니다)
+          <code>/rename</code> {t("message.0822")}
         </li>
       </ul>
     </Modal>
@@ -535,7 +563,7 @@ export function ProviderBlock({
         <StatusHero hero={hero} message={message} act={act} />
         <div className="card">{children}</div>
         <div className="card">
-          <h4 className="check-heading">연결 점검</h4>
+          <h4 className="check-heading">{t("message.0823")}</h4>
           <CheckList checks={checks} />
         </div>
       </div>
@@ -557,16 +585,16 @@ export function ToolSwitchRow({
   return (
     <div className="setting-row">
       <div className="field-label">
-        <label>{name} 사용</label>
+        <label>{t("integration.tool_label", { name })}</label>
         <p className="field-description">
           {value
-            ? `끄면 이 앱의 hook을 지우고 ${name} 파일을 더 읽지 않으며, 홈·사용량·기록·트레이·위젯에서 숨깁니다. 저장된 기록은 남습니다.`
-            : `켜면 ${name} 사용자 설정에 이 앱의 hook만 추가하고 작업 상태와 사용량을 보여 줍니다.`}{" "}
-          적용 전에 바뀌는 내용을 먼저 보여 줍니다.
+            ? t("message.0825", { value0: name })
+            : t("message.0826", { value0: name })}{" "}
+          {t("message.0827")}
         </p>
       </div>
       <Switch
-        label={`${name} 사용`}
+        label={t("message.0828", { value0: name })}
         value={value}
         change={(next) => preview(next ? "enable" : "disable")}
       />
@@ -595,8 +623,7 @@ export function ToolOffSection({
           <ToolSwitchRow name={name} value={false} preview={preview} />
           {!detected && (
             <p className="footnote">
-              이 PC에서 {name}을(를) 찾지 못했습니다. 설치한 뒤 켜도 되고, 미리
-              켜 둘 수도 있습니다.
+              {t("integration.not_installed", { name })}
             </p>
           )}
         </div>
@@ -672,7 +699,8 @@ export function ClaudeCodeSection({
       >
         {minuteOptions(choices, current).map((value) => (
           <option key={value} value={String(value)}>
-            {value}분
+            {value}
+            {t("message.0831")}
           </option>
         ))}
       </select>
@@ -691,30 +719,30 @@ export function ClaudeCodeSection({
         <div className="setting-row">
           <div className="field-label">
             <div className="heading-title">
-              <label>Claude Code 한도 가져오기</label>
+              <label>{t("message.0832")}</label>
               <span
                 className="info-tip"
                 role="note"
-                aria-label="한도 가져오기 안내"
+                aria-label={t("message.0833")}
                 title={[
-                  "터미널(CLI·VS Code 터미널 모드)에서만 갱신되고, VS Code 그래픽 패널에서는 갱신되지 않습니다.",
-                  "쓰던 status line은 그대로 보여 주고, 없으면 짧은 한도 문구를 보여 줍니다.",
-                  'Claude Code를 쓰는 동안에만 값이 들어와, 15분 넘게 새 값이 없으면 위젯에 회색과 "n분 전"으로 표시합니다. Codex는 5분마다 다시 확인해 회색이 되지 않습니다.',
+                  t("message.0834"),
+                  t("message.0835"),
+                  t("message.0836"),
                 ].join("\n")}
               >
                 <Info size={13} />
               </span>
             </div>
             <p className="field-description">
-              Claude Code 하단 status line으로 5시간·7일 한도를 받습니다. (
+              {t("message.0837")}
               <button className="text-button inline" onClick={openHelp}>
-                터미널에서 쓰는 방법
+                {t("message.0838")}
               </button>
               )
             </p>
           </div>
           <Switch
-            label="Claude Code 한도 가져오기"
+            label={t("message.0832")}
             value={statusLineOn}
             disabled={statusLine.state === "invalid"}
             change={(value) =>
@@ -730,30 +758,26 @@ export function ClaudeCodeSection({
         </div>
       )}
       <details className="status-line-details">
-        <summary>세부 설정</summary>
+        <summary>{t("message.0839")}</summary>
         {minutes(
           "claude_code_work_minutes",
-          "작업 중 표시 유지",
+          t("message.0840"),
           WORK_MINUTES,
           claude.work_minutes,
-          "이 시간 동안 Claude Code 신호가 없으면 작업 중 표시를 풉니다. 도구 실행 중에는 확인 대기 시간을 씁니다.",
+          t("message.0841"),
         )}
         {minutes(
           "claude_code_waiting_minutes",
-          "확인 대기 표시 유지",
+          t("message.0842"),
           WAITING_MINUTES,
           claude.waiting_minutes,
-          "이 시간 동안 신호가 없으면 권한 요청·백그라운드 대기·도구 실행 중 표시를 풉니다. 거절·중단은 바로 감지합니다.",
+          t("message.0843"),
         )}
         {statusLine && statusLineOn && statusLine.layout && (
           <div className="status-line-block">
-            <h4 className="check-heading">상태줄 항목</h4>
+            <h4 className="check-heading">{t("message.0844")}</h4>
             {statusLine.has_original && (
-              <p className="footnote">
-                쓰던 status line이 있어 그 출력을 그대로 보여 줍니다. 아래
-                항목은 쓰던 status line이 없을 때 표시하는 기본 상태줄에
-                적용됩니다.
-              </p>
+              <p className="footnote">{t("message.0845")}</p>
             )}
             <StatusLineEditor layout={statusLine.layout} save={saveLayout} />
           </div>

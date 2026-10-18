@@ -1,3 +1,4 @@
+import { t } from "../../localization.cjs";
 import { Check, Eye, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Field, Modal, Section } from "../components";
 import { errorText } from "../errors";
@@ -72,25 +73,25 @@ export function BubbleEditorDialog({
     <>
       {editor && (
         <Modal
-          title={`${snapshot.pet.display_name} · 말풍선 꾸미기`}
+          title={t("message.0978", { value0: snapshot.pet.display_name })}
           close={closeEditor}
           footer={
             <>
               <span className="draft-status" aria-live="polite">
                 {resetDraft
-                  ? "적용하면 펫 기본 디자인으로 돌아갑니다."
+                  ? t("message.0979")
                   : !dirty
-                    ? "변경 사항 없음"
+                    ? t("message.0980")
                     : snapshot.pet.bubble_theme_mode !== "custom"
-                      ? "적용하면 테마가 '내가 꾸민 디자인'으로 바뀝니다."
-                      : "적용하지 않은 변경이 있어요."}
+                      ? t("message.0981")
+                      : t("message.0982")}
               </span>
               <button
                 className="button"
                 disabled={editorBusy}
                 onClick={closeEditor}
               >
-                취소
+                {t("message.0650")}
               </button>
               <button
                 className="button primary"
@@ -98,14 +99,14 @@ export function BubbleEditorDialog({
                 onClick={saveEditor}
               >
                 <Check size={14} />
-                적용
+                {t("message.0983")}
               </button>
             </>
           }
         >
           <div className="editor-grid">
             <div className="editor-controls">
-              <div className="preset-gallery" aria-label="디자인 프리셋">
+              <div className="preset-gallery" aria-label={t("message.0984")}>
                 {(editor.presets || []).map((preset) => (
                   <button
                     key={preset.id}
@@ -147,7 +148,9 @@ export function BubbleEditorDialog({
                       }));
                       if (elementKeys.includes(key))
                         options = [
-                          ...(options || [{ value: "none", label: "없음" }]),
+                          ...(options || [
+                            { value: "none", label: t("message.0754") },
+                          ]),
                           ...editor.elements
                             .filter(
                               (element) => element.kind === elementKind(key),
@@ -190,32 +193,29 @@ export function BubbleEditorDialog({
                     })}
                 </details>
               ))}
-              <Section title="사용자 장식 이미지">
+              <Section title={t("message.0985")}>
                 <div className="card-body">
-                  <p className="footnote">
-                    이미지 추가·삭제는 즉시 반영되며 디자인 취소로 되돌아가지
-                    않습니다.
-                  </p>
+                  <p className="footnote">{t("message.0986")}</p>
                   <div className="button-row">
                     <button
                       className="button compact"
                       onClick={() => assetChange("pattern")}
                     >
                       <Plus size={13} />
-                      무늬 추가
+                      {t("message.0987")}
                     </button>
                     <button
                       className="button compact"
                       onClick={() => assetChange("ornament")}
                     >
                       <Plus size={13} />
-                      장식 추가
+                      {t("message.0988")}
                     </button>
                     {(
                       [
-                        ["photo", "사진 추가"],
-                        ["frame", "테두리 이미지 추가"],
-                        ["sticker", "스티커 추가"],
+                        ["photo", t("message.0989")],
+                        ["frame", t("message.0990")],
+                        ["sticker", t("message.0991")],
                       ] as const
                     ).map(([kind, label]) => (
                       <button
@@ -233,13 +233,9 @@ export function BubbleEditorDialog({
                       <span>{element.name}</span>
                       <button
                         className="icon-button"
-                        aria-label={`${element.name} 삭제`}
+                        aria-label={t("message.0992", { value0: element.name })}
                         onClick={() => {
-                          if (
-                            confirm(
-                              "다른 펫에서 사용 중인 장식도 사라질 수 있습니다. 삭제할까요?",
-                            )
-                          )
+                          if (confirm(t("message.0993")))
                             command(
                               "element.delete",
                               { reference: element.id },
@@ -279,16 +275,16 @@ export function BubbleEditorDialog({
             <div className="editor-preview">
               <div className="preview-heading">
                 <Eye size={15} />
-                실제 그리기로 미리보기
+                {t("message.0994")}
                 <span
                   className="segmented preview-samples"
                   role="group"
-                  aria-label="미리보기 종류"
+                  aria-label={t("message.0995")}
                 >
                   {(
                     [
-                      ["notice", "짧은 알림"],
-                      ["project", "프로젝트 카드"],
+                      ["notice", t("message.0996")],
+                      ["project", t("message.0997")],
                     ] as const
                   ).map(([value, label]) => (
                     <button
@@ -305,7 +301,7 @@ export function BubbleEditorDialog({
                 (slot) => draft[`sticker_${slot}`] !== "none",
               ) && (
                 <label className="sticker-place">
-                  미리보기를 눌러 놓을 스티커
+                  {t("message.0998")}
                   <select
                     value={stickerSlot}
                     onChange={(event) =>
@@ -316,7 +312,7 @@ export function BubbleEditorDialog({
                       .filter((slot) => draft[`sticker_${slot}`] !== "none")
                       .map((slot) => (
                         <option key={slot} value={slot}>
-                          스티커 {slot}
+                          {t("message.1037", { value0: slot })}
                         </option>
                       ))}
                   </select>
@@ -327,7 +323,7 @@ export function BubbleEditorDialog({
                   <img
                     className="bubble-preview-image"
                     src={preview}
-                    alt="현재 말풍선 디자인 미리보기"
+                    alt={t("message.1000")}
                     onClick={(event) => {
                       // Clicking the preview places the chosen sticker. The
                       // renderer draws the body inside fixed margins.
@@ -359,12 +355,10 @@ export function BubbleEditorDialog({
                     }}
                   />
                 ) : (
-                  <p>미리보기를 만드는 중…</p>
+                  <p>{t("message.1001")}</p>
                 )}
               </div>
-              <p className="footnote">
-                실사용 알림과 상태를 바꾸지 않는 독립 미리보기입니다.
-              </p>
+              <p className="footnote">{t("message.1002")}</p>
               {editorNotice && (
                 <p className="editor-notice" role="status">
                   {editorNotice}
@@ -381,7 +375,7 @@ export function BubbleEditorDialog({
                   {editorStale && (
                     <button className="button compact" onClick={rebaseEditor}>
                       <RotateCcw size={13} />
-                      최신 상태 다시 불러오기
+                      {t("message.1003")}
                     </button>
                   )}
                 </div>
@@ -394,10 +388,11 @@ export function BubbleEditorDialog({
                     setDraft({ ...editor.packageTheme });
                   }}
                 >
-                  <RotateCcw size={13} />펫 기본 디자인
+                  <RotateCcw size={13} />
+                  {t("message.0558")}
                 </button>
                 <button className="button compact" onClick={reloadSavedTheme}>
-                  저장된 값 다시 불러오기
+                  {t("message.1004")}
                 </button>
               </div>
             </div>

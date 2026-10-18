@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 from datetime import datetime, timedelta, timezone
 from watched_kettle.usage.device import DeviceTokenEvent, DeviceQuotaSample
 
@@ -96,7 +98,7 @@ class DeviceRepository:
     def legacy(self):
         # v4 events cannot prove account ownership or measurement quality.
         return tuple(
-            (r[0], r[1], "이전 기록 · 집계 제외")
+            (r[0], r[1], t("message.0355"))
             for r in self.connection.execute(
                 "SELECT occurred_at_utc, CAST(delta_tokens AS TEXT) || ' tokens' FROM usage_local_token_events UNION ALL SELECT observed_at_utc, CAST(used_percent AS TEXT) || '%' FROM usage_quota_samples WHERE source='legacy_unverified' ORDER BY 1 DESC LIMIT 500"
             )

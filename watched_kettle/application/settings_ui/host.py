@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 from collections import OrderedDict
+from collections.abc import Callable
 import hmac
 import hashlib
 import json
@@ -65,6 +68,7 @@ class SettingsWindowHost(QObject):
         self.process.finished.connect(self._process_finished)
         self.process.errorOccurred.connect(self._process_error)
         self.executable = executable
+        self.restart: Callable[[], None] | None = None
         self.socket = None
         self.pending_socket = None
         self.buffer = bytearray()
@@ -101,7 +105,7 @@ class SettingsWindowHost(QObject):
         self.token = secrets.token_urlsafe(32)
         require(
             self.server.listen(self.name),
-            "설정 연결을 시작하지 못했습니다.",
+            t("message.0571"),
             "connection_failed",
         )
 
@@ -149,13 +153,13 @@ class SettingsWindowHost(QObject):
         executable = Path(self.executable or executable)
         require(
             executable.is_file(),
-            "Electron 설정창 파일이 없습니다. 설정 UI를 빌드하거나 앱을 다시 설치해 주세요.",
+            t("message.0572"),
             "ui_missing",
         )
         if arguments:
             require(
                 (root / "dist" / "index.html").is_file(),
-                "설정창을 먼저 빌드해 주세요: settings-ui에서 pnpm build",
+                t("message.0574"),
                 "ui_missing",
             )
         environment = QProcessEnvironment.systemEnvironment()
@@ -285,7 +289,7 @@ class SettingsWindowHost(QObject):
                 ok=False,
                 error=dict(
                     code="operation_failed",
-                    message="요청을 처리하지 못했습니다. 상태를 새로 확인해 주세요.",
+                    message=t("message.0578"),
                 ),
             )
         length = len(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
@@ -293,9 +297,7 @@ class SettingsWindowHost(QObject):
             payload = dict(
                 id=request_id,
                 ok=False,
-                error=dict(
-                    code="response_limit", message="표시할 데이터가 너무 큽니다."
-                ),
+                error=dict(code="response_limit", message=t("message.0577")),
             )
             length = len(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
         self.responses[request_id] = (fingerprint, payload)
@@ -374,6 +376,19 @@ class SettingsWindowHost(QObject):
                 runtime.integrations_vm.refresh_requested(),
             )
             return dict(saved=True)
+        if method == "app.restart":
+            restart = self.restart
+            if restart is None:
+                raise CommandError("unsupported", t("app.restart_failed"))
+            require(
+                not self.adapter.pet_batch.running
+                and self.adapter.updates.state
+                not in {"downloading", "preparing", "installing"},
+                t("app.restart_busy"),
+                "operation_busy",
+            )
+            restart()
+            return dict(accepted=True)
         if method == "app.quit":
             QTimer.singleShot(0, self.adapter.app.quit)
             return dict(accepted=True)
@@ -469,15 +484,13 @@ class SettingsWindowHost(QObject):
         if self.error_dialog:
             self.error_dialog.close()
         self.error_dialog = QMessageBox()
-        self.error_dialog.setWindowTitle("설정창을 열지 못했습니다")
+        self.error_dialog.setWindowTitle(t("message.0573"))
         self.error_dialog.setText(message)
         self.error_dialog.show()
 
     def _process_error(self, _error):
         if not self.closed and _error == QProcess.ProcessError.FailedToStart:
-            self._show_error(
-                "설정창 프로세스를 실행하지 못했습니다. 펫은 계속 사용할 수 있습니다."
-            )
+            self._show_error(t("message.0575"))
 
     def _schedule_retire(self):
         if self.visible or self.closed:
@@ -517,9 +530,7 @@ class SettingsWindowHost(QObject):
                     self._show_error(str(error))
             return
         if not self.closed and _code:
-            self._show_error(
-                "설정창 연결이 종료되었습니다. 트레이에서 다시 열 수 있습니다. 펫은 계속 사용할 수 있습니다."
-            )
+            self._show_error(t("message.0576"))
 
     def hide(self):
         self.adapter.cancel_pet_import()

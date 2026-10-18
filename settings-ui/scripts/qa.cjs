@@ -1149,6 +1149,12 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
           ).pet.bubble_duration_seconds === 22,
       );
       assert.equal(await page.locator('input[type="checkbox"]').count(), 0);
+      await until(
+        async () =>
+          (await page
+            .getByText("공통 시간 · 22초", { exact: true })
+            .count()) === 3,
+      );
       assert.equal(
         await page.getByText("공통 시간 · 22초", { exact: true }).count(),
         3,
@@ -1168,6 +1174,13 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
           return snapshot.pet.bubble_duration_policy[kind] === initial;
         });
         const slider = page.getByLabel(`${label} 표시 시간`, { exact: true });
+        // The backend snapshot can arrive before React accepts the command reply.
+        await until(
+          async () =>
+            (await toggle.getAttribute("aria-checked")) === "true" &&
+            (await slider.isEnabled()) &&
+            (await slider.getAttribute("aria-valuetext")) === `${initial}초`,
+        );
         assert.equal(await slider.isEnabled(), true);
         assert.equal(
           await slider.getAttribute("aria-valuetext"),
@@ -1188,6 +1201,12 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
             );
             return snapshot.pet.bubble_duration_policy.result === null;
           });
+          await until(
+            async () =>
+              (await toggle.getAttribute("aria-checked")) === "false" &&
+              (await slider.isDisabled()) &&
+              (await slider.getAttribute("aria-valuetext")) === "22초",
+          );
           assert.equal(await slider.isDisabled(), true);
           await toggle.click();
           await until(async () => {
@@ -1196,6 +1215,12 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
             );
             return snapshot.pet.bubble_duration_policy.result === 22;
           });
+          await until(
+            async () =>
+              (await toggle.getAttribute("aria-checked")) === "true" &&
+              (await slider.isEnabled()) &&
+              (await slider.getAttribute("aria-valuetext")) === "22초",
+          );
           assert.equal(await slider.getAttribute("aria-valuetext"), "22초");
           await slider.fill(String(changed));
           await until(async () => {
@@ -1224,6 +1249,13 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
           )
         );
       });
+      await until(
+        async () =>
+          (await durationReset.isDisabled()) &&
+          (await page
+            .getByText("공통 시간 · 22초", { exact: true })
+            .count()) === 3,
+      );
       assert.equal(await durationReset.isDisabled(), true);
       assert.equal(
         await page.getByText("공통 시간 · 22초", { exact: true }).count(),

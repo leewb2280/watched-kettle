@@ -1,3 +1,4 @@
+import { t } from "../../localization.cjs";
 import { Modal } from "../components";
 import { errorText } from "../errors";
 import { PetImportDialog } from "../PetImportDialog";
@@ -97,7 +98,7 @@ export function CoreDialogs(
       )}
       {picker && catalog && (
         <Modal
-          title="펫 선택"
+          title={t("message.1111")}
           close={() => setPicker(false)}
           error={pickerError || undefined}
         >

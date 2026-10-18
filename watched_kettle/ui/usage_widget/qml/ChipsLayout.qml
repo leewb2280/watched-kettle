@@ -15,6 +15,30 @@ Item {
 
     function px(value) { return Style.px(value, widgetModel.scale) }
 
+    // Share the trailing slot so proportional digits and translated window
+    // labels cannot move one provider's activity dot sideways.
+    FontMetrics {
+        id: valueMetrics
+        font.pixelSize: layout.px(14)
+        font.weight: Font.Bold
+    }
+    FontMetrics {
+        id: labelMetrics
+        font.pixelSize: layout.px(11)
+    }
+    readonly property real limitSummaryWidth: {
+        let widest = 0
+        const providers = widgetModel.state.providers
+        for (let i = 0; i < providers.length; ++i) {
+            if (Style.hasLimit(providers[i]))
+                widest = Math.max(widest,
+                    valueMetrics.advanceWidth(Style.valueText(providers[i].main))
+                    + labelMetrics.advanceWidth(Style.labelText(providers[i].main)))
+        }
+        return Math.ceil(widest) + px(6)
+            + (widgetModel.state.tasksVisible ? px(7) + px(6) : 0)
+    }
+
     HoverHandler { id: hover }
 
     Column {
@@ -96,17 +120,19 @@ Item {
 
                     Row {
                         id: trailing
+                        width: chip.limited ? layout.limitSummaryWidth : implicitWidth
                         anchors.right: parent.right
                         anchors.rightMargin: layout.px(8)
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: layout.px(6)
                         Rectangle {
-                            readonly property int count: chip.provider.attention || chip.provider.running
-                            visible: count > 0
+                            objectName: "activityDot_" + chip.provider.key
+                            visible: widgetModel.state.tasksVisible
                             anchors.verticalCenter: parent.verticalCenter
                             width: layout.px(7); height: width; radius: width / 2
                             color: chip.provider.attention ? layout.theme.status_attention
-                                                           : layout.theme.status_running
+                                : chip.provider.running ? layout.theme.status_running
+                                                        : layout.theme.float_muted
                         }
                         Text {
                             text: chip.limited ? Style.valueText(chip.provider.main) : Style.stateText(chip.provider)
@@ -137,25 +163,24 @@ Item {
                 }
 
                 Column {
-                    visible: layout.expanded && chip.limited
+                    visible: layout.expanded
                     x: layout.textStart
                     bottomPadding: layout.px(6)
                     spacing: layout.px(2)
                     Repeater {
                         model: {
                             const p = chip.provider
-                            if (!chip.limited)
-                                return []
-                            // The chip already shows the main percent and window.
-                            const lines = p.main.reset ? [p.main.reset + " 초기화"] : []
+                            // Limit details and activity are independent inputs.
+                            const lines = chip.limited && p.main.resetText ? [p.main.resetText] : []
                             if (p.other)
-                                lines.push(p.other.label + " 남음 " + Style.percentText(p.other))
-                            const tasks = [p.running ? "작업 중 " + p.running : "",
-                                           p.attention ? "확인 필요 " + p.attention : ""].filter(Boolean)
-                            if (tasks.length)
-                                lines.push(tasks.join(" · "))
+                                lines.push(p.other.remainingText)
+                            if (widgetModel.state.tasksVisible) {
+                                const tasks = [p.running ? p.workingText : "",
+                                               p.attention ? p.attentionText : ""].filter(Boolean)
+                                lines.push(tasks.length ? tasks.join(" · ") : p.noTasksText)
+                            }
                             if (p.state === "stale" && p.age)
-                                lines.push(p.age + " 값")
+                                lines.push(p.sampleText)
                             return lines
                         }
                         Text {
@@ -166,7 +191,7 @@ Item {
                             font.pixelSize: layout.px(11)
                             style: widgetModel.theme.halo ? Text.Outline : Text.Normal
                             styleColor: widgetModel.theme.halo_color
-                            elide: Text.ElideRight
+                            wrapMode: Text.WordWrap
                         }
                     }
                 }

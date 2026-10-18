@@ -1,6 +1,6 @@
 # 말풍선 구조와 유지 기준
 
-기준일: 2026-10-17. 커밋되지 않은 변경을 포함한 현재 작업 트리 기준이다.
+기준일: 2026-10-18. 커밋되지 않은 변경을 포함한 현재 작업 트리 기준이다.
 이 문서는 말풍선 변경 시 따라야 하는 구조 계약이다. 작업 지침은 개발 저장소의 `AGENTS.md`에 있다.
 
 - **필수 구조 규칙:** 2절의 책임 경계와 7절의 보존 규칙. 일반적인 버그 수정·외형 변경에서 함께 바꾸지 않는다.
@@ -27,16 +27,17 @@
 
 ```mermaid
 flowchart TD
-    E[Codex hook · Claude Code hook · 새 로그 이벤트] --> I[CodexHookServer: 정규화된 입력·중복 판정]
+    E[Codex hook · Claude Code hook · 새 로그 이벤트] --> I[CodexHookServer: 정규화·로그 신원 근거·중복 판정]
     Q[비동기 질문 뒤 같은 대화·턴의 사용자 메시지] --> LQ[CodexLogMonitor: 가장 오래된 질문 요청 한 건 해제]
     LQ --> I
     I --> C[AppCoordinator]
-    C --> A[AgentActivityService]
-    A --> P[ProjectActivityService: 턴·요청·부모 관계와 상태]
+    C --> A[AgentActivityService: 확정 scope 전달·기존 펫 세션 투영]
+    A --> P[ProjectActivityService: 대화 종류 확인·턴·요청·부모 관계와 상태]
     P -->|Codex 종료·무응답·복구 대상| TS[CodexTurnStatusMonitor: 별도 worker의 읽기 전용 턴 조회]
     TS -->|식별자·버전·계정·연결 세대가 일치하는 종료 근거| A
     P -->|Codex 관측 상태: 기존 세션에만 투영| A
-    M[ConversationMetadataService: 제목·프로젝트 관계] --> P
+    M[ConversationMetadataService: 비임시 여부·출처·부모·제목·프로젝트 관계] --> P
+    P -->|미확인 활동·보류 완료도 조회 대상| M
     CM[UsageConversationCatalog: 읽기 전용 제목·프로젝트 조회] --> UH[사용량 기록: 프로젝트·대화별 탐색]
     PS[저장소: 전체 프로젝트 집계] --> PH[ProjectHistory: 정렬·선택·페이지]
     PH --> UH
@@ -44,6 +45,11 @@ flowchart TD
     X --> G[ThreadedCodexLogMonitor: 복구 스냅샷·감시 세대 검증]
     G -->|ApplicationRuntime 연결| P
     A --> S[기존 상태 제어기: 펫 애니메이션]
+    P --> WA[ApplicationRuntime: 출처별 작업·확인 개수]
+    WS[위젯 설정: 작업 상태 표시] --> WC[UsageCompanionController: 실사용·미리보기 문맥]
+    WA --> WC
+    WC --> WM[widget_state: 작업 표시 스위치·번역된 표시 값]
+    WM --> WQ[Qt Quick 사용량 위젯: 상태 점·펼친 상세]
     U[사용량 · 시스템 · 일정 알림] --> N[NotificationService: 중복·대기열·표시 기한]
     P --> B[ActionableBubbleController: 카드 선택·화면 배치]
     N --> B
@@ -59,6 +65,8 @@ flowchart TD
     O -.전달 결과 · 실패 요약.-> D
     ER[Electron 설정 renderer] --> EM[Electron main: 허용된 명령과 네이티브 파일 선택]
     EM --> EH
+    EH --> AR[앱 재시작 콜백: 정상 종료 요청]
+    AR --> AC[app.py: runtime 정리·단일 인스턴스 해제 후 같은 구성 재실행]
     EH --> EA[Core/AssistantSettingsAdapter: 명령 선택·revision·계정 epoch 검증]
     PC[settings_protocol: Qt 독립 DTO·명령 노출 명세] -.생성.-> CG[generate_settings_protocol]
     CG -.TS 타입.-> ER
@@ -126,23 +134,30 @@ Claude Code는 중단·권한 거절·패널 닫기 때 종료 이벤트를 보�
 같은 `InactivityLimit`과 두 규칙을 `state/session_manager.py`(펫)와
 `ProjectActivityService`(카드 행)가 각각 적용한다. 이 만료는 완료·결과·알림의 표시 기한과 별개다(BA-04).
 
+언어팩은 표시 문구만 제공한다. 팩 → 공통 번역기 → 설정·트레이·말풍선·위젯 경로와
+상태줄 표시 사전은 [언어팩 구조](localization-architecture.md)를 따른다. 상태·수명·ID를 번역하지 않는다.
+
 ## 2. 책임과 수정 위치
 
 | 책임 | 현재 구현 | 이곳에서 결정하지 않을 것 |
 |---|---|---|
+| 언어팩 검증·표시 문구·불변 사전 전달 | 공통 localization 모듈, application/localization.py, 설정 프로토콜과 host | 활동 상태·표시 기한·이동 대상 |
+| 언어 적용을 위한 앱 재시작 | `application/restart.py`, `app.py`; host는 작업 중 거부와 콜백 호출만 담당 | 활동 상태 해석·복구 정책·표시 기한 변경 |
 | 외부 이벤트 정규화·승인 주체 해석 | `state/events.py` | 카드 크기·배치 |
 | 펫·비서가 공유하는 말풍선 표시 값, 출처 레이블, 출처 색 점(`SOURCE_MARK_TOKENS`) | `ui/bubble_models.py` | 상태 전이·알림 기한 결정 |
 | 펫 아래 활동 문구(작업 중인 출처 이름) | `ui/activity_caption.py`, 출처 목록은 `state/presentation.py`의 `working_sources` | 출처별 세션 상태 해석 |
+| 사용량 위젯의 출처별 작업 개수·표시 스위치·번역 문구 | `ApplicationRuntime._widget_activity`, `ui/usage_companion.py`, `usage/widget_state.py` | 활동 수집·상태 전이·완료 판정 |
+| 사용량 위젯의 상태 점·펼친 상세 | `ui/usage_widget/window.py`, `ui/usage_widget/qml` | 작업 생성·수집·설정 저장 |
 | 트레이 상태·프로젝트 메뉴·사용량 요약 | `ui/assistant_tray.py`, Codex 한도 요약은 `usage/presentation.py` | 활동 상태 생성·한도 데이터 수정 |
 | 훅·로그 해석, 비동기 질문과 후속 사용자 메시지의 요청 ID 연결, 전달 중복 판정 | `integrations/codex_hooks.py`, `claude_code_hooks.py`, `claude_code_transcript.py`, `log_lifecycle.py`, `codex_log.py`, `codex_ipc.py` | 실제 카드나 펫 상태 직접 변경 |
 | 복구할 미종료 턴의 근거 수집 | `integrations/activity_recovery.py`, `codex_log.py` | 복구를 현재 작업 중으로 확정하거나 완료 효과 재생 |
 | 복구 스냅샷 전달·감시 세대/계정 경계 | `integrations/codex_log_worker.py` | 복구 행의 표시·만료 결정 |
 | Codex 저장된 턴의 종료 근거 조회·본문 생략·조회 상한·계정/연결 세대 | `integrations/codex_turn_status.py`, 값 계약 `state/codex_activity.py` | 대화 재개·실행·구독, 미종료 상태를 현재 활동으로 추정 |
-| Codex 관측 상태를 기존 펫 세션에 투영 | `features/agent_activity/service.py`, `state/session_manager.py` | 복구 행을 새 펫 세션으로 생성, 다른 출처의 상태 규칙 변경 |
-| 턴 수명, 승인·동기 입력·비동기 질문의 대기 요청, 부모·자식 집계, 완료 기록, 출처별 대화 키·Claude Code 폴더 카드·무활동 해제 | `features/project_activity/service.py` | 글꼴·줄바꿈 |
+| 확정 scope를 펫 입력에 전달·Codex 관측 상태를 기존 펫 세션에 투영 | `features/agent_activity/service.py`, `state/session_manager.py` | 복구 행을 새 펫 세션으로 생성, 다른 출처의 상태 규칙 변경 |
+| 대화 종류 확인·미확인 보관 상한, 턴 수명, 승인·동기 입력·비동기 질문의 대기 요청, 부모·자식 집계, 완료 기록, 출처별 대화 키·Claude Code 폴더 카드·무활동 해제 | `features/project_activity/service.py` | 글꼴·줄바꿈 |
 | Claude Code 프로젝트 이름·해시(git 주 저장소 기준, 워크트리·하위 폴더 통합) | `integrations/claude_code_hooks.py`의 `project_identity`·`project_root`(hook 브리지와 대화 기록 공통) | 카드 수명·정렬 |
 | 복구 근거 수용·현재 상태 전환·임시 행 만료 | `features/project_activity/service.py` | 원본 로그 스캔·과거 이벤트 재전송 |
-| 제목과 프로젝트 관계 보강 | `features/project_activity/metadata.py` | 수신 지연을 근거로 작업 완료 추정 |
+| 읽기 전용 대화 신원 근거·제목·프로젝트 관계 보강 | `features/project_activity/metadata.py` | 수신 지연을 근거로 작업 완료 추정 |
 | 사용량 기록의 제목·프로젝트 표시 | `usage/conversation_catalog.py`, `application/settings_ui/assistant.py` | 활동 상태 변경·과거 이벤트 재전송 |
 | Claude Code 작업 기록(대화 기록 파일의 턴별 토큰) | `usage/claude_code_transcripts.py`, `usage/claude_code_service.py`, `storage/claude_code_repository.py` | 말풍선 활동 상태 변경 |
 | 사용량 프로젝트 집계·정렬·페이지 | `storage/usage_repository.py`, `usage/project_history.py` | Codex 또는 말풍선 프로젝트 순서 변경 |
@@ -252,7 +267,19 @@ Claude Code를 켜면 한도를 받는 관리 status line도 함께 연결한다
 헤더 집계는 스크롤 밖의 대화까지 포함한다.
 
 프로젝트 없는 대화는 별도 공통 카드로 묶는다. 프로젝트 정보 미확정은 이와 구분하고,
-작업 시작을 감지하면 이름 조회를 기다리지 않고 `프로젝트 확인 중` 카드로 묶는다.
+사용자 대화의 주 작업임이 확인되면 이름 조회를 기다리지 않고 `프로젝트 확인 중` 카드로 묶는다.
+일반 Codex hook은 하위 에이전트 이벤트가 아니라는 이유로 주 대화임을 확정하지 않는다.
+일반 hook의 scope는 `unknown`이며, 이전 브리지·대기열의 `main`도 로그 근거가 없으면 미확인으로 받는다.
+저장된 세션 로그의 주 에이전트 출처 또는 동일 ID의 `thread/read(includeTurns=false)` 응답에서
+`ephemeral=false`·지원하는 주 출처·부모 없음이 확인되어야 독립 주 대화로 표시한다.
+API의 `subAgent`·`threadSpawn`과 로그의 `subagent`·`thread_spawn`을 모두 해석한다.
+`ephemeral=true`와 내부 에이전트 출처는 내부 세션, 명시적 부모·spawn 출처는 하위 에이전트로
+구분한다. 내부·자식 근거가 주 대화 근거보다 우선하며 제목·프로젝트 연결만으로 승격하지 않는다.
+필드 누락·새 출처·조회 실패(`-32600` 포함)는 미확인으로 남기고 기존 백오프로 재조회한다.
+목록에 없다는 사실이나 제목·프로젝트가 없다는 사실로 내부 세션을 확정하지 않는다.
+미확인 상태에서도 턴·도구·질문 관계는 수집하되 카드·활동 기록·펫 집계·일시/지속 알림과 효과에서
+제외한다. 정상 대화로 확인되면 현재 활동을 기존 펫 세션에 투영하며 과거 시작·완료 효과는 재생하지 않는다.
+미확인과 내부 세션의 대기 요청도 펫의 지속 알림을 만들지 않는다. 확인된 자식의 기존 부모 집계는 유지한다.
 프로젝트 식별은 API의 명시적 프로젝트 ID → 데스크톱의 대화별 연결 → 명시적 프로젝트 없는 대화
 순서로 확인한다. 셋 모두 없으면 대화의 작업 폴더와 등록된 로컬 프로젝트의 `rootPaths`를
 Windows 경로 기준으로 비교한다. 작업 폴더를 포함하는 가장 구체적인 루트가 단일 프로젝트에
@@ -356,10 +383,14 @@ heartbeat·일반 도구 왕복·변경 없는 정상 조회·펫 이동·반복
 완료 행은 ×, 같은 대화의 새 작업 시작, 만료 또는 상태 초기화로 제거된다. 제목을 눌러 대화를 여는 것은 완료 닫기가 아니다.
 완료 표시 대상은 주 에이전트의 성공이며, 늦게 온 이전 턴 결과나 자식 완료를 별도 주 작업 완료로 만들지 않는다.
 
-에이전트 구분이 `unknown`인 완료는 즉시 성공 표시를 만들지 않는다. 정확한 턴 ID가 있는 경우에만
-최초 완료 시각과 기한을 내부에 보관하고, 300초 안에 같은 대화·턴의 명확한 주 작업 완료가 도착하면
-완료 행을 한 번 생성한다. 강조와 유지 기한은 최초 완료 시각 기준이며, 완료 애니메이션은 다시 재생하지 않는다.
-새 턴·초기화·계정 전환·만료·자식 관계 확인은 이 후속 확인을 무효화한다. 이미 닫은 완료는 복원하지 않는다.
+대화의 확인된 scope가 `unknown`인 완료는 즉시 성공 표시를 만들지 않는다. 최초 완료 시각·기한과
+로컬 활동 버전을 완료 후보에 보관한다. 턴 ID가 없는 hook도 같은 대화의 현재 활동에 연결하되,
+식별자가 없는 종료로 이미 식별된 다른 턴을 끝내지는 않는다. 후보는 활동의 결과 표시 8초가 끝난 뒤에도
+메타데이터 조회 대상에 유지한다. 300초 안에 정상 주 대화의 신원이 확인되거나 같은 대화·턴의
+명확한 주 작업 완료가 도착하면 한 번만 발행한다. 다른 턴의 완료로 후보를 확인하지 않는다.
+강조와 유지 기한은 최초 완료 시각 기준이며, 완료 애니메이션은 다시 재생하지 않는다.
+이미 주 대화임이 확인된 대화는 후속 hook의 `unknown` 때문에 신원 확인을 잃지 않는다.
+새 턴·초기화·계정 전환·만료·내부/자식 관계 확인은 이 후속 확인을 무효화한다. 이미 닫은 완료는 복원하지 않는다.
 
 수신 지연 기준은 실행 60초, 도구 실행 180초, 압축 유예 600초다. 이는 작업 종료 기한이 아니라 상태 불확실 표시의 기준이다.
 heartbeat가 없는 Claude Code는 긴 응답·도구 실행 중에도 이벤트가 끊기므로 이 기준으로 `상태 확인 중`을 표시하지
@@ -486,9 +517,29 @@ Electron 설정창은 펫에서 미리보기, 종류별 시간 초기화, 알림
 활동·완료·알림 전달 상태와 이동 토큰은 메모리 상태다. 프로젝트 최근 이력 20건,
 완료 이력 100건, 알림 이력 기본 50건을 유지한다. 완료 표시 대기 목록은 완료 이력 100건 제한과 분리되어 있다.
 비서의 `알림·기록` 화면은 이 메모리 행이 앱 종료 후 사라진다고 고지한다. DB 기반 `Codex 작업` 사용량 기록의 보존·삭제는 별도 저장 정책을 따른다.
-주 작업 여부가 불명확한 완료의 후속 확인 기록은 별도의 메모리 목록으로 최대 4,096건·300초를 유지한다.
+미확인 활동과 완료 후보의 대화 수는 합쳐 최대 4,096건이다. 상한을 넘으면 가장 오래 수신한 미확인
+대화의 활동·후보·조회 대상을 정리한다. 완료 후보는 최초 완료 후 최대 300초이며 메타데이터 수신으로
+기한을 연장하지 않는다. 내부 세션으로 확인되면 재조회를 중단한다. 부모 대화만 조회한 경우도
+마지막 활동·후보·기록 참조가 사라지면 제목·프로젝트와 함께 분류 캐시를 정리한다.
+대화 확인·완료 보류/해제·만료·상한 정리는 해시·scope·고정 사유만 진단하며 본문·제목·경로를 기록하지 않는다.
 말풍선 켜기·배율·시간 설정은 공통 QSettings, 사용자 테마와 테마 선택은 펫별 설정 경로도 사용한다.
 캐릭터 매니페스트 테마, 기본 테마, 사용자 테마의 세 모드가 있다.
+
+### 사용량 위젯의 작업 상태 표시
+
+모양 이름은 링·막대·간단형(Rings·Bars·Compact)이며 저장 값은 rings·bars·chips를 유지한다.
+기존 프로젝트 카드의 출처별 작업·확인 개수를 runtime이 합산하고, companion이 기존 작업 상태
+표시 설정을 `tasks_visible`로 실사용·예시 미리보기에 함께 전달한다. `widget_state`는
+`tasksVisible`과 번역된 작업 문구를 반환한다. 표시를 끄면 표시 모델의 개수만 0으로 만들며
+원본 활동·알림·표시 기한을 초기화하지 않는다(BA-01·BA-06·BA-07).
+
+간단형은 표시가 켜진 두 출처 모두 남은 값 왼쪽 같은 위치에 상태 점을 그린다. 한도 표시 행은
+실제 글꼴로 측정한 공통 요약 폭을 사용하여 숫자·번역된 한도 이름의 폭 차이로 점이 어긋나지 않게 한다. 확인 필요가
+있으면 확인 색, 작업 중이면 작업 색, 둘 다 없으면 보조색 토큰의 회색 계열이다. 회색 점은
+연결 정상·실제 대기·작업 완료의 근거가 아니다. 표시를 끄면 상태 점과 작업 문구를 함께 숨긴다.
+펼친 상세는 한도 정보 유무와 독립적으로 작업·확인 개수를 표시하고, 둘 다 없으면
+`표시할 작업 없음 / No tasks to show`를 보인다. 문구는 Python에서 번역하고 QML은 받은 값을
+표시한다. 구조 규칙은 변경하지 않고 이 표시 정책과 회귀 검사를 함께 유지한다(BA-10).
 
 ## 7. 필수 구조 규칙과 선택적 정리
 
@@ -564,6 +615,11 @@ ID·경로를 덮어쓰지 않습니다. 영구 삭제와 비우기는 사용자
 
 ## 8. 변경 절차와 검증
 
+언어 설정의 재시작 버튼은 정상 종료·시작 경로를 사용한다. BA-01·BA-03·BA-07·BA-09·BA-10을
+보존하며 활동 이벤트의 의미나 기존 재시작 복구 정책을 바꾸지 않는다. `test_app_restart`와
+`test_settings_bridge`는 인스턴스 해제 순서·저장 언어 적용·중복 요청·작업 중 거부를 확인하고,
+`language-qa.cjs`는 두 구성에서 선택창 위치와 버튼 배치·명령을 확인한다.
+
 변경 전에는 이 문서를 읽고 영향받는 BA 규칙과 책임 계층을 선택한다. 구현 후에는 다음 항목을 확인한다.
 
 1. 새 입력 경로·책임 이동이 있으면 1절 구조도와 2절 책임 표를 갱신한다.
@@ -579,7 +635,7 @@ ID·경로를 덮어쓰지 않습니다. 영구 삭제와 비우기는 사용자
 | BA-03·BA-04 수명·기한 | `test_project_completion_rows`, `test_notification_service`, `test_bubble_timing`, `test_bubble_latency`, `test_claude_code_activity` |
 | BA-05·BA-06 외형·정렬·스크롤·소속 이동 | `test_project_completion_rows`, `test_bubble_title_width`, `test_bubble_customization`, `test_title_activity_stability` |
 | BA-07 숨김·미리보기·초기화 | `test_project_completion_rows`, `test_notification_service`, `test_bubble_customization` |
-| BA-09 첫 표시·복구·조회·보관 상한 | `test_bubble_latency`, `test_project_metadata`, `test_codex_log_monitor`, `test_fork_log_identity` |
+| BA-09 대화 신원 확인·첫 표시·복구·조회·보관 상한 | `test_codex_conversation_identity`, `test_bubble_latency`, `test_project_metadata`, `test_codex_log_monitor`, `test_fork_log_identity` |
 | BA-10 문서·코드·검사 일치 | 이 절의 변경 체크와 `scripts.validate_project`의 문서 링크 검사 |
 | BA-01·BA-02·BA-04·BA-06·BA-07·BA-08·BA-09·BA-10 Codex 종료 근거·수집 경계·관측 투영·직접 닫기 | `test_codex_activity_reliability`, `test_codex_turn_status`, `test_codex_state_projection` 및 기존 Codex·말풍선 회귀 검사 |
 | BA-01·BA-02·BA-08·BA-09·BA-10 Codex 관리 hook의 Windows 실행·복구·수신 | `test_codex_hook_install`, `test_codex_windows_command`, `test_codex_hook_bridge` (실측 기록: `docs/windows-hook-command-verification.md`) |
@@ -587,9 +643,14 @@ ID·경로를 덮어쓰지 않습니다. 영구 삭제와 비우기는 사용자
 | BA-01·BA-06·BA-07·BA-10 사용자 폴더의 펫 발견·로딩·전용 장식 | `test_pet_catalog`, `test_pet_loader`, `test_bubble_frame` |
 | BA-01·BA-02·BA-04·BA-06·BA-08·BA-09 활동·조회·표시·이동 진단 | `test_bubble_diagnostics`, `test_activity_trace`, `test_diagnostics` |
 | 트레이 Codex 한도 요약·worker 연결 | `test_tray_worker_regression` |
-| BA-01·BA-07·BA-10 사용량 출처 분리·독립 스위치·reserve 순서 | `test_usage_models`, `test_widget_state`, `test_usage_companion`, `test_tray_worker_regression`, `test_settings_bridge`, `settings-ui/scripts/qa.cjs` |
+| BA-01·BA-07·BA-10 사용량 출처 분리·독립 스위치·reserve 순서 | `test_usage_models`, `test_widget_state`, `test_usage_widget_qml`, `test_usage_companion`, `test_localization`, `test_pet_menu`, `test_tray_worker_regression`, `test_settings_bridge`, `settings-ui/scripts/qa.cjs` |
 | BA-01·BA-06·BA-07·BA-10 펫 수명·휴지통·중단 복구 | `test_pet_trash`, `test_pet_batch`, `test_settings_bridge`, `test_pet_catalog`, `test_pet_preferences`, `test_bubble_architecture`, `settings-ui/scripts/qa.cjs` |
 | BA-01·BA-06·BA-07·BA-09 설정 경계·독립 미리보기·비동기 확인 | `test_settings_bridge`, `settings-ui/scripts/qa.cjs` |
+
+표시 시간 Electron QA는 Python 설정 스냅샷의 저장값과 renderer의 표시값을 각각 확인한다.
+저장값이 바뀐 뒤에도 React가 명령 응답을 반영하기 전일 수 있으므로 기존 10초 제한 안에서
+스위치 상태·슬라이더 활성 여부·표시값이 모두 일치할 때까지 기다린다. 저장값 검증이나
+실패 판정은 생략하지 않는다. 제품의 상태 소유권·표시 시간 정책과 BA-01·BA-04·BA-10은 유지한다.
 
 `test_bubble_architecture`는 핵심 서비스의 UI·펫·조립 계층 의존, 수집 계층의 기능 서비스 직접 의존,
 표시 위젯의 수집·저장·이벤트 해석 계층 의존을 정적 import 검사로 차단한다. 이 검사는

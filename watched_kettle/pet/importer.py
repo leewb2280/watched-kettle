@@ -1,5 +1,7 @@
 """Validate downloaded atlases and publish durable, local pet packages."""
 
+from watched_kettle.localization import t
+
 from dataclasses import dataclass
 import hashlib
 from io import BytesIO
@@ -60,14 +62,12 @@ class PetImporter:
             with path.open("rb") as stream:
                 raw = stream.read(MAX_IMPORT_BYTES + 1)
             if len(raw) > MAX_IMPORT_BYTES:
-                raise PetImportError("펫 이미지는 20MiB 이하여야 합니다.")
+                raise PetImportError(t("message.0141"))
             with Image.open(BytesIO(raw)) as source:
                 if source.format not in {"PNG", "WEBP"}:
-                    raise PetImportError("PNG 또는 WebP 스프라이트를 선택하세요.")
+                    raise PetImportError(t("message.0145"))
                 if getattr(source, "is_animated", False):
-                    raise PetImportError(
-                        "움직이는 이미지 대신 정지 스프라이트를 선택하세요."
-                    )
+                    raise PetImportError(t("message.0146"))
                 version, _ = detect_sprite_version(source)
                 atlas = source.convert("RGBA")
             self._validate_frames(atlas, version)
@@ -90,9 +90,7 @@ class PetImporter:
         except ValueError as error:
             raise PetImportError(str(error)) from error
         except (OSError, Image.DecompressionBombError) as error:
-            raise PetImportError(
-                "펫 이미지를 읽지 못했습니다. 파일 형식과 손상 여부를 확인하세요."
-            ) from error
+            raise PetImportError(t("message.0142")) from error
         self.prepared = PreparedPet(
             uuid4().hex,
             "imported-" + digest,
@@ -108,7 +106,7 @@ class PetImporter:
     def _validate_frames(atlas, version):
         alpha = atlas.getchannel("A")
         if alpha.getextrema()[0] != 0:
-            raise PetImportError("투명 배경이 있는 스프라이트가 필요합니다.")
+            raise PetImportError(t("message.0137"))
         rows = [(item["row"], item["frames"]) for item in ANIMATIONS.values()]
         if version == 2:
             rows.extend([(9, 8), (10, 8)])
@@ -124,24 +122,22 @@ class PetImporter:
                 )
                 if cell.getbbox() is None:
                     raise PetImportError(
-                        f"필수 프레임이 비어 있습니다: {row + 1}행 {column + 1}열."
+                        t("message.0147", value0=row + 1, value1=column + 1)
                     )
                 if cell.getextrema()[0] != 0:
                     raise PetImportError(
-                        f"프레임 배경이 투명하지 않습니다: {row + 1}행 {column + 1}열."
+                        t("message.0148", value0=row + 1, value1=column + 1)
                     )
 
     def commit(self, token, name):
         prepared = self.prepared
         if prepared is None or self.clock() >= prepared.expires:
             self.cancel()
-            raise PetImportError("파일 선택이 만료됐습니다. 펫 파일을 다시 선택하세요.")
+            raise PetImportError(t("message.0138"))
         if token != prepared.token:
-            raise PetImportError(
-                "선택한 파일이 바뀌었습니다. 펫 파일을 다시 선택하세요."
-            )
+            raise PetImportError(t("message.0139"))
         if not isinstance(name, str) or not name.strip() or len(name.strip()) > 100:
-            raise PetImportError("펫 이름은 1~100자로 입력하세요.")
+            raise PetImportError(t("message.0140"))
         destination = self.root / prepared.pet_id
         try:
             self.root.mkdir(parents=True, exist_ok=True)
@@ -172,9 +168,7 @@ class PetImporter:
         except PetImportError:
             raise
         except OSError as error:
-            raise PetImportError(
-                "펫을 저장하지 못했습니다. 저장 공간과 폴더 권한을 확인하세요."
-            ) from error
+            raise PetImportError(t("message.0143")) from error
         # Retain the bounded preparation until cancel/expiry so retries can
         # resolve the same ID after a lost response, without duplicating pets.
         return ImportedPet(prepared.pet_id, name.strip(), False)
@@ -203,6 +197,4 @@ class PetImporter:
                 raise ValueError()
             return ImportedPet(prepared.pet_id, str(manifest["displayName"]), True)
         except (OSError, ValueError, TypeError, KeyError, AttributeError) as error:
-            raise PetImportError(
-                "같은 펫의 저장 파일이 손상됐습니다. 펫 폴더를 확인하세요."
-            ) from error
+            raise PetImportError(t("message.0144")) from error

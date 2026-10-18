@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization.collections import MessageId, MessageMapping
+
 from dataclasses import asdict, dataclass, replace
 
 from PySide6.QtGui import QColor
@@ -136,57 +138,59 @@ DEFAULT_BUBBLE_THEME = SpeechBubbleTheme(
 
 # Starting points for the editor's gallery in every build. Choosing one keeps
 # the user's photo, frame image and stickers (IMAGE_THEME_KEYS).
-PUBLIC_BUBBLE_PRESETS = {
-    "cream": ("기본 크림", {}),
-    "sage": (
-        "세이지",
-        {"background": "#f4f8f3", "border": "#4f7a5c", "text": "#263230"},
-    ),
-    "graphite": (
-        "그라파이트",
-        {
-            "background": "#1f2723",
-            "fill_end": "#26302b",
-            "gradient": "vertical",
-            "border": "#9bbfa3",
-            "text": "#edf2ec",
-            "shadow": "#000000",
-            "shadow_alpha": 60,
-        },
-    ),
-    "sky": (
-        "하늘",
-        {
-            "background": "#f1f7fd",
-            "border": "#3a6d96",
-            "text": "#1f3447",
-            "shape": "cloud",
-            "tail": "curved",
-        },
-    ),
-    "paper": (
-        "종이 노트",
-        {
-            "background": "#fffef7",
-            "border": "#b9a98a",
-            "text": "#3a332a",
-            "pattern": "grid",
-            "radius": 6,
-            "tail": "stub",
-        },
-    ),
-    "pop": (
-        "팝",
-        {
-            "background": "#fff6e8",
-            "border": "#a14f3a",
-            "text": "#3a1f17",
-            "shape": "comic",
-            "border_style": "double",
-            "tail": "angular",
-        },
-    ),
-}
+PUBLIC_BUBBLE_PRESETS = MessageMapping(
+    {
+        "cream": (MessageId("message.0131"), {}),
+        "sage": (
+            MessageId("message.0132"),
+            {"background": "#f4f8f3", "border": "#4f7a5c", "text": "#263230"},
+        ),
+        "graphite": (
+            MessageId("message.0133"),
+            {
+                "background": "#1f2723",
+                "fill_end": "#26302b",
+                "gradient": "vertical",
+                "border": "#9bbfa3",
+                "text": "#edf2ec",
+                "shadow": "#000000",
+                "shadow_alpha": 60,
+            },
+        ),
+        "sky": (
+            MessageId("message.0134"),
+            {
+                "background": "#f1f7fd",
+                "border": "#3a6d96",
+                "text": "#1f3447",
+                "shape": "cloud",
+                "tail": "curved",
+            },
+        ),
+        "paper": (
+            MessageId("message.0135"),
+            {
+                "background": "#fffef7",
+                "border": "#b9a98a",
+                "text": "#3a332a",
+                "pattern": "grid",
+                "radius": 6,
+                "tail": "stub",
+            },
+        ),
+        "pop": (
+            MessageId("message.0136"),
+            {
+                "background": "#fff6e8",
+                "border": "#a14f3a",
+                "text": "#3a1f17",
+                "shape": "comic",
+                "border_style": "double",
+                "tail": "angular",
+            },
+        ),
+    }
+)
 
 
 def normalize_bubble_theme_mode(value):

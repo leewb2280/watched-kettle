@@ -26,6 +26,7 @@ from PySide6.QtWidgets import QApplication
 
 from watched_kettle.application.logging import log_event
 from watched_kettle.ui import design_tokens
+from watched_kettle.localization import t
 from watched_kettle.ui.usage_companion import clamp_widget_position
 from watched_kettle.ui.usage_widget.backdrop import ACRYLIC, OPAQUE
 from watched_kettle.usage.widget_state import widget_state
@@ -138,7 +139,16 @@ class UsageWidgetModel(QObject):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._state = {"providers": [], "empty": True}
+        self._state = {"providers": [], "empty": True, "tasksVisible": True}
+        self._labels = {
+            name: t("widget." + name)
+            for name in (
+                "empty",
+                "today",
+                "attention",
+                "running",
+            )
+        }
         self._theme = widget_theme("light")
         self._layout = DEFAULT_LAYOUT
         self._scale = 1.0
@@ -158,6 +168,7 @@ class UsageWidgetModel(QObject):
             setattr(self, name, value)
         self.changed.emit()
 
+    labels = Property("QVariantMap", lambda self: self._labels, constant=True)
     state = Property("QVariantMap", lambda self: self._state, notify=changed)
     theme = Property("QVariantMap", lambda self: self._theme, notify=changed)
     layout = Property(str, lambda self: self._layout, notify=changed)
@@ -250,6 +261,7 @@ class QuickUsageWindow(QQuickView):
             claude_code_enabled=context.get("claude_code_enabled"),
             claude_code_observed_at=context.get("claude_code_observed_at"),
             activity=context.get("activity"),
+            tasks_visible=context.get("tasks_visible", True),
             today=context.get("today", False),
             hour_range=context.get("hour_range", (0, 24)),
             claude_code_hourly=context.get("claude_code_hourly", ()),

@@ -1,5 +1,7 @@
 """Mouse dragging, gestures, and V2 pointer-look behavior for DesktopPet."""
 
+from watched_kettle.localization import t
+
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QCursor
 
@@ -102,9 +104,7 @@ class PetPointerController:
             self.window.wave_finish_timer.start(1000)
             opener = self.window.codex_opener
             if opener is not None and not opener():
-                self.window.bubble_controller.preview(
-                    "Codex 앱을 열 수 없어요. 설치 상태를 확인해 주세요."
-                )
+                self.window.bubble_controller.preview(t("message.0161"))
             event.accept()
 
     def finish_waving(self):

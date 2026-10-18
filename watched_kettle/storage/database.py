@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -54,7 +56,7 @@ class DatabaseManager:
     def __init__(self, path):
         self.path = Path(path)
         self.connection = None
-        self.availability = StorageAvailability(False, "저장소를 시작하지 않았습니다.")
+        self.availability = StorageAvailability(False, t("storage.not_started"))
 
     def start(self):
         """Open, validate and migrate the database without exposing failures upstream."""
@@ -77,7 +79,7 @@ class DatabaseManager:
                 self.connection = None
                 self.availability = StorageAvailability(
                     False,
-                    "로컬 기록 저장소를 열 수 없습니다. 원본은 보존됩니다.",
+                    t("storage.open_preserved"),
                     code=str(error)
                     if isinstance(error, UnsupportedSchema)
                     else "storage_open_failed",
@@ -87,7 +89,7 @@ class DatabaseManager:
             if recovered is None:
                 self.availability = StorageAvailability(
                     False,
-                    "손상 원본을 보존하지 못했습니다.",
+                    t("storage.preserve_failed"),
                     code="preservation_failed",
                 )
                 return self.availability
@@ -100,19 +102,19 @@ class DatabaseManager:
                 self.connection = None
                 self.availability = StorageAvailability(
                     False,
-                    "로컬 기록 저장소를 열 수 없습니다.",
+                    t("storage.open_failed"),
                     recovered,
                 )
                 return self.availability
             self.connection = connection
             self.availability = StorageAvailability(
                 True,
-                "손상된 저장소를 보존하고 새로 만들었습니다.",
+                t("storage.recreated"),
                 recovered,
             )
             return self.availability
         self.connection = connection
-        self.availability = StorageAvailability(True, "로컬 기록 저장소 사용 가능")
+        self.availability = StorageAvailability(True, t("storage.available"))
         return self.availability
 
     def close(self):

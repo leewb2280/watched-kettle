@@ -14,6 +14,9 @@ It is never stored or logged.
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+from watched_kettle.localization.collections import MessageId, MessageMapping
+
 import json
 import os
 import re
@@ -35,11 +38,13 @@ OPEN_SESSION = "session"
 OPEN_FOLDER = "folder"
 OPEN_LIST = "list"
 CLIENT_ACTIONS = {"vscode-panel": OPEN_SESSION, "vscode-terminal": OPEN_FOLDER}
-ACTION_LABELS = {
-    OPEN_SESSION: "대화 열기",
-    OPEN_FOLDER: "창 열기",
-    OPEN_LIST: "목록 보기",
-}
+ACTION_LABELS = MessageMapping(
+    {
+        OPEN_SESSION: MessageId("message.0077"),
+        OPEN_FOLDER: MessageId("message.0078"),
+        OPEN_LIST: MessageId("message.0079"),
+    }
+)
 
 
 # The child gets no console, so nothing it starts can attach to ours.
@@ -174,10 +179,10 @@ class ClaudeCodeLauncher:
             if self._open(folder_url(self.cwd_reader(session_id))):
                 if action == OPEN_FOLDER:
                     return True, ""
-                return True, "대화를 열지 못해 작업 폴더의 VS Code 창을 열었습니다."
-            return False, "VS Code에서 이 대화를 열지 못했습니다."
+                return True, t("message.0082")
+            return False, t("message.0080")
         if client == "terminal":
-            return False, "터미널에서 실행 중인 대화라 활동 목록을 열었습니다."
+            return False, t("message.0081")
         return False, ""
 
     def _open(self, url):

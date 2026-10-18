@@ -1,5 +1,7 @@
 """Thread-owned usage runtime with a bounded GUI command mailbox."""
 
+from watched_kettle.localization import t
+
 import sqlite3
 import logging
 from collections import deque
@@ -116,7 +118,7 @@ class _UsageWorker(QObject):
             self.storage_changed.emit(
                 StorageAvailability(
                     False,
-                    "사용량 작업을 시작하지 못했습니다.",
+                    t("message.0435"),
                     code="usage_worker_start_failed",
                 )
             )
@@ -139,7 +141,7 @@ class _UsageWorker(QObject):
                 self.storage_changed.emit(
                     StorageAvailability(
                         True,
-                        "기존 기록은 보존되었지만 이전하지 못했습니다.",
+                        t("message.0437"),
                         code=type(error).__name__,
                     )
                 )
@@ -189,9 +191,7 @@ class _UsageWorker(QObject):
                     logging.WARNING,
                     error_code="database_error",
                 )
-                self.service._publish(
-                    storage_error="기록 정리를 다음 주기로 미뤘습니다. (storage_maintenance_deferred)"
-                )
+                self.service._publish(storage_error=t("message.0438"))
 
     @Slot(object)
     def publish(self, snapshot):
@@ -228,9 +228,7 @@ class _UsageWorker(QObject):
                 error_code="usage_queue_limit",
             )
             self.service._reset_account()
-            self.service._publish(
-                storage_error="작업 대기량이 많아 관측을 다시 시작합니다. (usage_queue_limit)"
-            )
+            self.service._publish(storage_error=t("message.0433"))
             self.service.refresh()
         deadline = monotonic() + 0.020
         while monotonic() < deadline:
@@ -251,11 +249,9 @@ class _UsageWorker(QObject):
                     logging.ERROR,
                     error_code=type(error).__name__,
                 )
-                self.service._finish_refresh(
-                    "error", "새로고침 작업을 처리하지 못했습니다."
-                )
+                self.service._finish_refresh("error", t("message.0436"))
                 self.service._publish(
-                    storage_error="기록 작업을 처리하지 못했습니다. (usage_worker_operation_failed)",
+                    storage_error=t("message.0439"),
                     clearing_history=False,
                 )
 
@@ -288,7 +284,7 @@ class UsageWorkerService(QObject):
         self.quiet_summary_enabled = preferences.load_usage_quiet_summary_enabled()
         self.snapshot = UsageSnapshot()
         self.claude_code_snapshot = ClaudeCodeUsageSnapshot()
-        self.availability = StorageAvailability(False, "저장소 준비 중")
+        self.availability = StorageAvailability(False, t("message.0432"))
         self._next_id = 0
         self._account_generation = 0
         self._minimum_result_id = 0
@@ -413,7 +409,7 @@ class UsageWorkerService(QObject):
                 error_code="usage_queue_limit",
             )
             self._publish(
-                storage_error="기록 처리 대기량을 초과했습니다. (usage_queue_limit)",
+                storage_error=t("message.0434"),
                 clearing_history=False,
             )
         return accepted
@@ -438,7 +434,7 @@ class UsageWorkerService(QObject):
         request_id = self._next_id + 1
         self._publish(
             refresh=UsageRefreshState(
-                request_id, "refreshing", "queued", "현재 계정 확인 중"
+                request_id, "refreshing", "queued", t("message.0366")
             )
         )
         self._refresh_timer.start()
@@ -449,7 +445,7 @@ class UsageWorkerService(QObject):
                 refresh=UsageRefreshState(
                     request_id,
                     "error",
-                    message="새로고침 요청을 접수하지 못했습니다.",
+                    message=t("message.0397"),
                     completed_at=datetime.now(timezone.utc),
                 )
             )
@@ -464,9 +460,7 @@ class UsageWorkerService(QObject):
                     refresh,
                     state="partial" if partial else "error",
                     phase="",
-                    message="한도 갱신 완료 · 상세 사용량 조회 시간 초과"
-                    if partial
-                    else "새로고침 시간이 초과되었습니다. 다시 시도해 주세요.",
+                    message=t("message.0374") if partial else t("message.0375"),
                     completed_at=datetime.now(timezone.utc),
                 )
             )
@@ -583,7 +577,7 @@ class UsageWorkerService(QObject):
                         self.snapshot.refresh,
                         state="cancelled",
                         phase="",
-                        message="사용량 비서가 꺼져 새로고침을 취소했습니다.",
+                        message=t("message.0373"),
                     )
                 )
         accepted = self._send("set_enabled", self.enabled)

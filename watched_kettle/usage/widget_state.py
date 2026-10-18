@@ -6,6 +6,8 @@ its tighter (or chosen) limit, the other limit, and how fresh the values are.
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 from datetime import datetime, timezone
 
 from watched_kettle.usage.claude_code_limits import LIMIT_ID as CLAUDE_CODE_LIMIT_ID
@@ -34,15 +36,15 @@ def limit_level(remaining):
 
 def duration_label(minutes):
     if minutes is None:
-        return "한도"
+        return t("message.0412")
     if minutes % 1440 == 0:
-        return f"{minutes // 1440}일"
+        return t("message.0425", value0=minutes // 1440)
     if minutes % 60 == 0:
-        return f"{minutes // 60}시간"
-    return f"{minutes}분"
+        return t("message.0426", value0=minutes // 60)
+    return t("message.0423", value0=minutes)
 
 
-def reset_text(resets_at, now):
+def reset_text(resets_at, now, *, full=False):
     if resets_at is None:
         return ""
     seconds = max(0, int((resets_at - now).total_seconds()))
@@ -50,10 +52,16 @@ def reset_text(resets_at, now):
     hours, remainder = divmod(remainder, 3600)
     minutes = remainder // 60
     if days:
-        return f"{days}일 {hours}시간 뒤"
+        return t(
+            "widget.reset_days" if full else "message.0427", value0=days, value1=hours
+        )
     if hours:
-        return f"{hours}시간 {minutes}분 뒤"
-    return f"{minutes}분 뒤"
+        return t(
+            "widget.reset_hours" if full else "message.0428",
+            value0=hours,
+            value1=minutes,
+        )
+    return t("widget.reset_minutes" if full else "message.0424", value0=minutes)
 
 
 def age_text(observed_at, now):
@@ -62,22 +70,30 @@ def age_text(observed_at, now):
         return "", False
     minutes = max(0, int((now - observed_at).total_seconds() // 60))
     if minutes < 2:
-        return "방금", False
+        return t("message.0430"), False
     if minutes < 60:
-        return f"{minutes}분 전", minutes >= STALE_MINUTES
-    return f"{minutes // 60}시간 전", True
+        return t("message.0431", value0=minutes), minutes >= STALE_MINUTES
+    return t("message.0429", value0=minutes // 60), True
 
 
 def _limit(window, now):
     if window is None or window.remaining_percent is None:
         return None
     remaining = max(0, min(100, round(window.remaining_percent)))
+    label = duration_label(window.window_duration_mins)
+    mark = t("widget.estimated") if window.estimated else ""
     return {
-        "label": duration_label(window.window_duration_mins),
+        "label": label,
+        "labelRemainingText": t("widget.label_remaining", label=label + mark),
+        "remainingText": t(
+            "widget.remaining_value", label=label, percent=f"{remaining}%{mark}"
+        ),
+        "resetText": reset_text(window.resets_at, now, full=True),
         "remaining": remaining,
         "level": limit_level(remaining),
         "reset": reset_text(window.resets_at, now),
         "estimated": window.estimated,
+        "estimateMark": t("widget.estimated"),
     }
 
 
@@ -120,12 +136,28 @@ def _provider(key, name, bucket, emphasis, now, observed_at, state, activity):
     if main is None and state == "ok":
         state = "no_limits"
     return {
+        "labels": {
+            name: t("widget." + name)
+            for name in (
+                "loading",
+                "offline",
+                "no_account",
+                "no_limits",
+                "terminal_limits",
+            )
+        },
+        "noTasksText": t("widget.no_tasks"),
+        "workingText": t("widget.working_count", count=int(activity.get("running", 0))),
+        "attentionText": t(
+            "widget.attention_count", count=int(activity.get("attention", 0))
+        ),
         "key": key,
         "name": name,
         "state": "stale" if state == "ok" and stale else state,
         "main": main,
         "other": other,
         "age": age,
+        "sampleText": t("widget.sample_age", age=age) if age else "",
         "running": int(activity.get("running", 0)),
         "attention": int(activity.get("attention", 0)),
     }
@@ -145,6 +177,7 @@ def widget_state(
     claude_code_enabled=None,
     claude_code_observed_at=None,
     activity=None,
+    tasks_visible=True,
     today=False,
     hour_range=(0, 24),
     claude_code_hourly=(),
@@ -154,12 +187,13 @@ def widget_state(
 
     ``snapshot`` is the usage view model snapshot whose buckets already include
     the Claude Code limits. ``activity`` maps provider keys to running and
-    attention counts. A provider that is off and has nothing to show takes no
-    room.
+    attention counts. ``tasks_visible`` controls activity presentation only;
+    hiding it does not reset the source activity. A provider that is off and has
+    nothing to show takes no room.
     """
     now = now or datetime.now(timezone.utc)
     emphasis = emphasis if emphasis in EMPHASIS_CHOICES else "auto"
-    activity = activity or {}
+    activity = (activity or {}) if tasks_visible else {}
     buckets = {bucket.limit_id: bucket for bucket in snapshot.buckets}
     providers = []
 
@@ -213,4 +247,9 @@ def widget_state(
             # transcripts cover the whole day.
             row["today"] = today_flow(claude_code_hourly, hour_range)
         providers.append(row)
-    return {"providers": providers, "empty": not providers, "today": bool(today)}
+    return {
+        "providers": providers,
+        "empty": not providers,
+        "today": bool(today),
+        "tasksVisible": bool(tasks_visible),
+    }

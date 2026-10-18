@@ -7,6 +7,9 @@ so the overview cards, widget choices and tray read both the same way.
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+from watched_kettle.localization.collections import MessageId, MessageMapping
+
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import json
@@ -19,10 +22,12 @@ from watched_kettle.usage.notice_policy import ALERT_THRESHOLDS
 
 LIMIT_ID = "claude_code"
 LIMIT_NAME = "Claude Code"
-WINDOWS = {
-    "five_hour": ("primary", 5 * 60, "5시간"),
-    "seven_day": ("secondary", 7 * 24 * 60, "7일"),
-}
+WINDOWS = MessageMapping(
+    {
+        "five_hour": ("primary", 5 * 60, MessageId("message.0333")),
+        "seven_day": ("secondary", 7 * 24 * 60, MessageId("message.0334")),
+    }
+)
 LOCAL_ACCOUNT = "claude_code:local"
 
 
@@ -138,14 +143,14 @@ def threshold_notices(previous, sample, now=None):
         if not before < threshold <= sample.used_percent:
             continue
         remaining = max(0.0, 100.0 - sample.used_percent)
-        text = f"Claude Code {label} 잔여 {remaining:.0f}%"
+        text = t("message.0335", value0=label, value1=f"{remaining:.0f}")
         if sample.resets_at is not None:
             seconds = max(0, int((sample.resets_at - now).total_seconds()))
             hours, rest = divmod(seconds, 3600)
             text += (
-                f" · {hours}시간 {rest // 60}분 후 초기화"
+                t("message.0337", value0=hours, value1=rest // 60)
                 if hours
-                else f" · {rest // 60}분 후 초기화"
+                else t("message.0338", value0=rest // 60)
             )
         prefix = f"{LIMIT_ID}|{sample.window}|{reset_key}"
         notices.append(
@@ -162,12 +167,22 @@ def threshold_notices(previous, sample, now=None):
 def tray_summary(buckets):
     parts = []
     for item in buckets:
-        for slot, label in (("primary", "5시간"), ("secondary", "7일")):
+        for slot, label in (
+            ("primary", t("message.0333")),
+            ("secondary", t("message.0334")),
+        ):
             window = getattr(item, slot)
             if window is not None and window.remaining_percent is not None:
-                estimate = "(추정)" if window.estimated else ""
-                parts.append(f"{label} 잔여 {window.remaining_percent:.0f}%{estimate}")
-    return " · ".join(parts) if parts else "확인 불가"
+                estimate = t("message.0339") if window.estimated else ""
+                parts.append(
+                    t(
+                        "message.0340",
+                        value0=label,
+                        value1=f"{window.remaining_percent:.0f}",
+                        value2=estimate,
+                    )
+                )
+    return " · ".join(parts) if parts else t("message.0336")
 
 
 def _epoch(value):

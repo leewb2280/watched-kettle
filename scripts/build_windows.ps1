@@ -12,11 +12,15 @@ param(
     # With -UpdateTestPort: the test server PC's private network IPv4 address,
     # so other PCs on the same network can try updates (serve_update_test --host).
     [string]$UpdateTestHost = "127.0.0.1",
+    # Signs the bundle's executable files (scripts/code_signing.ps1). Defaults
+    # to WATCHED_KETTLE_SIGNING_THUMBPRINT; without either the bundle is unsigned.
+    [string]$SigningCertificateThumbprint = "",
     [switch]$SkipTests,
     [switch]$SkipPackageSmoke
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "code_signing.ps1")
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $python = Join-Path $projectRoot ".venv\Scripts\python.exe"
 $spec = Join-Path $projectRoot "packaging\WatchedKettle.spec"
@@ -36,6 +40,9 @@ $executable = Join-Path $bundle "WatchedKettle.exe"
 if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
     throw "Project virtual-environment Python was not found: $python"
 }
+
+# Checked before the long build, so a disconnected certificate fails fast.
+$signing = Get-CodeSigningConfig $SigningCertificateThumbprint
 
 & $python (Join-Path $PSScriptRoot "python_version.py")
 if ($LASTEXITCODE -ne 0) { throw "Select the supported Python environment before building." }
@@ -126,6 +133,8 @@ if ($buildEdition -eq "pet-assistant") {
 
 & (Join-Path $PSScriptRoot "build_settings_ui.ps1") -Edition $buildEdition -Destination (Join-Path $bundle "settings-ui")
 if ($LASTEXITCODE -ne 0) { throw "The settings UI package failed." }
+# Before the smoke tests, so they run the signed files the manifest records.
+if ($signing) { Invoke-BundleCodeSigning $signing $bundle }
 
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 # Partial updates are made only between bundles of one installer revision.
@@ -285,6 +294,7 @@ Set-Content `
 Write-Host "Build complete: $bundle"
 Write-Host "Build profile: $buildProfile"
 Write-Host "Edition: $buildEdition"
+Write-Host "Code signing: $(if ($signing) { $signing.Subject } else { 'unsigned' })"
 Write-Host "Executable SHA256: $($hash.Hash)"
 Write-Host "Handoff archive: $archive"
 Write-Host "Archive SHA256: $($archiveHash.Hash)"

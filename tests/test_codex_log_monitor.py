@@ -676,7 +676,7 @@ class CodexLogMonitorTests(unittest.TestCase):
             "event": "prompt",
             "session_id": "one",
             "turn_id": "turn-1",
-            "agent_scope": "main",
+            "agent_scope": "unknown",
         }
         try:
             self.assertTrue(server._deliver_payload(payload, PIPE_TRANSPORT))

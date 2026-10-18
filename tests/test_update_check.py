@@ -33,6 +33,7 @@ from watched_kettle.branding import (
 )
 from watched_kettle.ui.pet_tray import update_action_text
 from tests.update_bundle_support import KIND, build_release
+from watched_kettle.localization import t
 
 INSTALLER_NAME = "WatchedKettle-9.9.9-public-update-test-unsigned-setup.exe"
 
@@ -247,6 +248,25 @@ class UpdateServiceTests(unittest.TestCase):
     def installed(self):
         return patch.object(update_check, "installed_app_root", return_value=self.root)
 
+    def test_idle_schedule_hint_is_not_inferred_from_translated_messages(self):
+        with patch.object(update_check, "t", return_value="Same translation"):
+            service = self.service(self.root / "missing.json")
+            service.set_auto_check(True)
+            changes = []
+            service.changed.connect(lambda: changes.append(service.snapshot()))
+            service.check()
+            self.assertEqual(service.state, "idle")
+            changes.clear()
+            service.set_auto_check(False)
+            self.assertEqual(changes, [])
+
+    def test_neutral_schedule_hint_updates_after_automatic_failure(self):
+        service = self.service(self.root / "missing.json")
+        service._automatic = True
+        service._settle("error", "Failed")
+        service.set_auto_check(True)
+        self.assertEqual(service.snapshot()["message"], t("message.0024"))
+
     def test_requires_a_configured_and_consistent_source(self):
         _, update = self.check(self.root / "missing.json")
         self.assertEqual(update["state"], "idle")
@@ -316,12 +336,12 @@ class UpdateServiceTests(unittest.TestCase):
         service.automatic_finished.connect(finished.append)
         service.found.connect(found.append)
         service.set_auto_check(True)
-        self.assertEqual(service.snapshot()["message"], update_check.AUTO_IDLE_MESSAGE)
+        self.assertEqual(service.snapshot()["message"], t("message.0024"))
         service.check(automatic=True)
         update = self.wait_while(service, "checking")
         self.assertEqual(
             (update["state"], update["message"], update["retry"]),
-            ("idle", update_check.AUTO_IDLE_MESSAGE, ""),
+            ("idle", t("message.0024"), ""),
         )
         # The same failure is shown when the user asked.
         service.check()
@@ -387,7 +407,7 @@ class UpdateServiceTests(unittest.TestCase):
             update = self.wait_while(service, "downloading")
             # A full bar and the notice show before Setup starts and the app quits.
             self.assertEqual(update["state"], "installing", update["message"])
-            self.assertEqual(update["message"], update_check.INSTALLING_MESSAGE)
+            self.assertEqual(update["message"], t("message.0020"))
             self.assertEqual((update["received"], update["total"]), (300_000, 300_000))
             start.assert_not_called()
             quit_app.assert_not_called()
@@ -776,9 +796,7 @@ class UpdateCheckScheduleTests(unittest.TestCase):
         self.assertEqual(
             schedule.timer.interval(), update_check.AUTO_CHECK_FIRST_DELAY_MS
         )
-        self.assertEqual(
-            self.service.snapshot()["message"], update_check.AUTO_IDLE_MESSAGE
-        )
+        self.assertEqual(self.service.snapshot()["message"], t("message.0024"))
         schedule._tick()
         self.assertEqual(self.checks, [True])
         self.assertEqual(schedule.timer.interval(), update_check.AUTO_CHECK_TICK_MS)
@@ -836,7 +854,7 @@ class UpdateCheckScheduleTests(unittest.TestCase):
     def test_off_busy_found_or_source_run_never_checks(self):
         schedule = self.schedule(auto_check=False)
         self.assertFalse(schedule.timer.isActive())
-        self.assertEqual(self.service.snapshot()["message"], update_check.IDLE_MESSAGE)
+        self.assertEqual(self.service.snapshot()["message"], t("message.0023"))
         schedule._tick()
         schedule.set_enabled(True)
         self.service._state["state"] = "available"

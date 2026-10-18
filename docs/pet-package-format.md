@@ -24,6 +24,9 @@
 
 - `id`: 안정적인 펫 식별자
 - `displayName`: 사용자에게 표시할 이름
+- `description`: 선택적 한 줄 설명. 아래 언어별 설명이 없을 때 쓴다
+- `localizedDescriptions`: 선택적 언어별 설명. `{"en": "...", "en-GB": "..."}`처럼 언어 코드를
+  키로 둔다. 현재 언어팩의 언어 코드와 정확히 같은 키, 같은 언어(`en`) 키, `description` 순서로 고른다
 - `spritesheetPath`: 패키지 내부 스프라이트 경로
 - `spriteVersionNumber`: 1 또는 2
 - `distribution`: public 또는 private

@@ -9,9 +9,14 @@ param(
     [switch]$WithPrivatePets,
     # Also build one update installer per edition, the in-app update's
     # fallback when no partial update applies (ADR 0007).
-    [switch]$UpdateInstallers
+    [switch]$UpdateInstallers,
+    # Signs the launcher, installers and uninstaller (scripts/code_signing.ps1).
+    # Defaults to WATCHED_KETTLE_SIGNING_THUMBPRINT; without either the output
+    # stays an -unsigned candidate. The bundles must be signed with the same one.
+    [string]$SigningCertificateThumbprint = ""
 )
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "code_signing.ps1")
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $petBundle = (Resolve-Path -LiteralPath $PetOnlyBundleRoot).Path
 $assistantBundle = (Resolve-Path -LiteralPath $AssistantBundleRoot).Path
@@ -20,6 +25,10 @@ $artifactDir = [IO.Path]::GetFullPath((Join-Path $projectRoot $OutputRoot))
 if ($WithPrivatePets -and $UpdateInstallers) {
     throw "Update installers come from the public bundles only; build them without -WithPrivatePets."
 }
+$signing = Get-CodeSigningConfig $SigningCertificateThumbprint
+# The invitation installer carries pets outside the open source project, so
+# it is never signed with the project's certificate.
+$signInstallers = $signing -and -not $WithPrivatePets
 $versions = @()
 $channels = @()
 $revisions = @()
@@ -32,6 +41,10 @@ foreach ($item in @(@{ Path = $petBundle; Edition = "pet-only" }, @{ Path = $ass
     if ($versionLine.Count -ne 1) { throw "Missing or invalid bundle version." }
     if (-not (Test-Path -LiteralPath (Join-Path $item.Path "WatchedKettle.exe"))) {
         throw "Missing executable: $($item.Path)"
+    }
+    if ($signInstallers) {
+        try { Assert-CodeSigned $signing @(Join-Path $item.Path "WatchedKettle.exe") }
+        catch { throw "Build the $($item.Edition) bundle with the same signing certificate first. $_" }
     }
     $versions += $versionLine[0].Substring(8)
     # Written by build_windows.ps1; older bundles predate the line.
@@ -81,6 +94,7 @@ $launcher = Join-Path $launcherRoot "WatchedKettle.exe"
     "/win32icon:$(Join-Path $projectRoot 'assets\app_icon.ico')" "/out:$launcher" `
     (Join-Path $projectRoot "packaging\launcher\WatchedKettleLauncher.cs") $assemblyInfo
 if ($LASTEXITCODE -ne 0) { throw "Launcher compilation failed." }
+if ($signing) { Invoke-CodeSigning $signing @($launcher) }
 
 $runtimeBytes = ($petBundle, $assistantBundle | ForEach-Object {
     (Get-ChildItem -LiteralPath $_ -Recurse -File | Measure-Object -Property Length -Sum).Sum
@@ -100,15 +114,31 @@ if ($WithPrivatePets) {
     $compilerArguments += "/DPrivatePetsRoot=$stage"
     $installerKind = $installerKind -replace '^public', 'private-pets'
 }
+if ($signInstallers) {
+    # Inno Setup signs Setup and its uninstaller through a named sign tool. The
+    # directive comes from an emulated #include (/J) and the signed name from
+    # /F, so windows-installer.iss and its installer revision stay unchanged.
+    $signingInclude = Join-Path $installerStage "signing.iss"
+    Set-Content -LiteralPath $signingInclude -Encoding utf8 -Value @("[Setup]", "SignTool=watchedkettle")
+    # $q is Inno's quote; a literal one would not survive Windows PowerShell's
+    # argument quoting when the signtool path has spaces.
+    $signCommand = (@('$q' + $signing.SignTool + '$q') + (Get-SignToolArguments $signing) + @('$f')) -join " "
+    $compilerArguments += @("/Swatchedkettle=$signCommand", "/J$signingInclude")
+}
 function Build-Installer([string[]]$Extra, [string]$Kind) {
-    & $compilerPath @compilerArguments @Extra (Join-Path $projectRoot "packaging/windows-installer.iss")
+    $name = if ($signInstallers) { "WatchedKettle-$version-$Kind-setup" } else { "WatchedKettle-$version-$Kind-unsigned-setup" }
+    $nameArgument = @(if ($signInstallers) { "/F$name" })
+    & $compilerPath @compilerArguments @nameArgument @Extra (Join-Path $projectRoot "packaging/windows-installer.iss")
     if ($LASTEXITCODE -ne 0) { throw "Installer compilation failed." }
-    $installer = Join-Path $artifactDir "WatchedKettle-$version-$Kind-unsigned-setup.exe"
-    $signature = Get-AuthenticodeSignature -LiteralPath $installer
-    if ($signature.Status -ne 'NotSigned') { throw "Expected an unsigned candidate; inspect signing state." }
+    $installer = Join-Path $artifactDir "$name.exe"
+    if ($signInstallers) {
+        Assert-CodeSigned $signing @($installer)
+    } elseif ((Get-AuthenticodeSignature -LiteralPath $installer).Status -ne 'NotSigned') {
+        throw "Expected an unsigned candidate; inspect signing state."
+    }
     $hash = Get-FileHash -LiteralPath $installer -Algorithm SHA256
     Set-Content -LiteralPath "$installer.sha256" -Value "$($hash.Hash)  $([IO.Path]::GetFileName($installer))" -Encoding ascii
-    Write-Host "Unsigned installer candidate: $installer"
+    Write-Host "$(if ($signInstallers) { 'Signed installer' } else { 'Unsigned installer candidate' }): $installer"
 }
 Build-Installer @() $installerKind
 if ($UpdateInstallers) {

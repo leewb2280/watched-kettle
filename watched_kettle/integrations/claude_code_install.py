@@ -9,6 +9,8 @@ line a form both shells read alike (docs/support-claude-code.md).
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 from copy import deepcopy
 from dataclasses import dataclass
 import json
@@ -146,20 +148,20 @@ class ClaudeCodeHookInstaller:
         if payload.get("disableAllHooks") is True:
             state, message = (
                 "disabled",
-                "Claude Code 설정에서 모든 hook이 꺼져 있습니다.",
+                t("message.0062"),
             )
         elif self._policy_blocks_user_hooks():
             state = "blocked_by_policy"
-            message = "관리자 정책이 사용자 hook 실행을 허용하지 않습니다."
+            message = t("message.0063")
         elif installed == expected and markers == exact == expected:
-            state, message = "installed", "사용자 전역 hook이 설치되어 있습니다."
+            state, message = "installed", t("message.0074")
         elif markers:
             state = "partial" if installed else "drifted"
-            message = "관리 hook이 일부 누락되었거나 실행 경로가 변경됐습니다."
+            message = t("message.0075")
         else:
             state, message = (
                 "not_installed",
-                "사용자 전역 hook이 설치되어 있지 않습니다.",
+                t("message.0076"),
             )
         return self._status(state, installed, detected, True, message)
 
@@ -169,7 +171,7 @@ class ClaudeCodeHookInstaller:
             return self._blocked_plan("install", status, status.message)
         if self.command_error or not self.commands:
             return self._blocked_plan(
-                "install", status, self.command_error or "hook 명령을 만들 수 없습니다."
+                "install", status, self.command_error or t("message.0071")
             )
         payload, _ = self._read_settings()
         merged = self._merge_managed_hooks(payload)
@@ -178,17 +180,15 @@ class ClaudeCodeHookInstaller:
         settings_text = None
         if merged != payload:
             settings_text = _dump_settings(merged)
-            changes.append(
-                f"lifecycle 이벤트 {len(MANAGED_HOOK_EVENTS)}종에 관리 hook 병합"
-            )
+            changes.append(t("message.0064", value0=len(MANAGED_HOOK_EVENTS)))
         else:
-            changes.append("변경 없음 · 이미 최신 상태")
+            changes.append(t("message.0065"))
         if status.state in {"partial", "drifted"}:
-            warnings.append("기존 관리 항목의 누락·중복·경로 변경을 정리합니다.")
+            warnings.append(t("message.0066"))
         if status.state in {"disabled", "blocked_by_policy"}:
-            warnings.append(status.message + " 설치해도 실행되지 않습니다.")
-        warnings.append("다른 Claude Code 설정과 hook은 보존합니다.")
-        warnings.append("이미 열려 있는 Claude Code 세션은 다시 시작해야 적용됩니다.")
+            warnings.append(status.message + t("message.0072"))
+        warnings.append(t("message.0060"))
+        warnings.append(t("message.0061"))
         return self._plan("install", status, changes, warnings, settings_text)
 
     def preview_repair(self):
@@ -215,7 +215,7 @@ class ClaudeCodeHookInstaller:
             return self._plan(
                 "remove",
                 status,
-                ["변경 없음 · 관리 hook이 설치되어 있지 않음"],
+                [t("message.0068")],
                 [],
                 None,
             )
@@ -223,25 +223,21 @@ class ClaudeCodeHookInstaller:
         cleaned = self._remove_managed_hooks(payload)
         settings_text = _dump_settings(cleaned) if cleaned != payload else None
         changes = (
-            ["Watched Kettle 관리 hook만 제거"]
-            if settings_text is not None
-            else ["변경 없음 · 관리 hook이 설치되어 있지 않음"]
+            [t("message.0067")] if settings_text is not None else [t("message.0068")]
         )
         return self._plan(
             "remove",
             status,
             changes,
-            ["다른 Claude Code 설정과 hook은 보존합니다."],
+            [t("message.0060")],
             settings_text,
         )
 
     def apply(self, plan: HookChangePlan):
         if not plan.can_apply:
-            raise HookInstallError("적용할 수 없는 hook 변경 계획입니다.")
+            raise HookInstallError(t("message.0069"))
         if _fingerprint(self.settings_path) != plan.hooks_fingerprint:
-            raise StaleHookPlanError(
-                "Claude Code settings.json이 미리보기 후 변경되어 다시 확인해야 합니다."
-            )
+            raise StaleHookPlanError(t("message.0070"))
         changed_paths = []
         backup_paths = []
         if plan.hooks_text is not None:
@@ -267,7 +263,7 @@ class ClaudeCodeHookInstaller:
             payload = json.loads(text)
             _validate_settings(payload)
         except (json.JSONDecodeError, ValueError) as error:
-            return None, f"Claude Code settings.json 형식을 지원하지 않습니다: {error}"
+            return None, t("message.0073", value0=error)
         return payload, ""
 
     def _merge_managed_hooks(self, payload):

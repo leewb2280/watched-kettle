@@ -68,6 +68,12 @@ class AgentCompletionScopeTests(unittest.TestCase):
         self.addCleanup(self.monitor.close)
 
     def hook(self, name, session_id="main", **fields):
+        if self.monitor.session_scope(session_id) == "unknown":
+            # Main-session fixtures carry a persisted rollout header.
+            path = self.monitor.sessions_root / f"rollout-{session_id}.jsonl"
+            if not path.exists():
+                self.rollout("cli", session_id=session_id)
+                self.monitor._read_session_metadata(path)
         payload = normalize_codex_hook(
             {
                 "hook_event_name": name,
@@ -193,7 +199,14 @@ class AgentCompletionScopeTests(unittest.TestCase):
                 self.assertEqual(self.presentations[-1].event, "ended")
 
     def test_unknown_completion_is_quiet_but_does_not_hide_known_main_completion(self):
-        self.hook("UserPromptSubmit")
+        self.controller.apply_payload(
+            {
+                "source": "codex",
+                "event": "prompt",
+                "session_id": "main",
+                "agent_scope": "unknown",
+            }
+        )
         self.server._deliver_payload(
             {
                 "source": "codex",
@@ -243,6 +256,10 @@ class AgentCompletionScopeTests(unittest.TestCase):
         ):
             with self.subTest(first=first):
                 session_id = uuid4().hex
+                self.rollout("cli", session_id=session_id)
+                self.monitor._read_session_metadata(
+                    self.monitor.sessions_root / f"rollout-{session_id}.jsonl"
+                )
                 event = normalize_codex_hook(
                     {"hook_event_name": "Stop", "session_id": session_id}
                 )

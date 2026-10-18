@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 import argparse
 import json
 import os
@@ -22,7 +24,7 @@ from watched_kettle.integrations.codex_spool import (
 def build_notification_payload(arguments):
     parser = argparse.ArgumentParser(
         prog="WatchedKettle --assistant-notification",
-        description="실행 중인 작은 비서에 로컬 일정 알림을 전달합니다.",
+        description=t("message.0059"),
     )
     parser.add_argument("--assistant-notification", action="store_true")
     parser.add_argument("--message", required=True)

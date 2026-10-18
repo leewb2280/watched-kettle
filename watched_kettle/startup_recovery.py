@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 from dataclasses import dataclass
 import json
 from pathlib import Path
@@ -49,17 +51,18 @@ class StartupPetLoadError(RuntimeError):
     @property
     def user_message(self):
         if not self.failures:
-            return f"사용 가능한 펫을 찾지 못했습니다: {self.search_root}"
+            return t("message.0032", value0=self.search_root)
         last = self.failures[-1]
-        return (
-            f"펫 {len(self.failures)}개를 불러오지 못했습니다.\n"
-            f"마지막 오류: {last.message or last.error_type}"
+        return t(
+            "message.0031",
+            value0=len(self.failures),
+            value1=last.message or last.error_type,
         )
 
     @property
     def details(self):
         if not self.failures:
-            return f"검색 폴더: {self.search_root}"
+            return t("message.0033", value0=self.search_root)
         return "\n\n".join(
             f"{failure.directory}\n{failure.error_type}: {failure.message}"
             for failure in self.failures

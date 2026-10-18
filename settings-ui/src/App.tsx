@@ -1,3 +1,4 @@
+import { t } from "../localization.cjs";
 import { AssistantPages } from "@assistant";
 import {
   ChartNoAxesCombined,
@@ -31,14 +32,14 @@ import type {
 } from "./types";
 
 const labels: Record<Page, string> = {
-  home: "홈",
-  pet: "펫",
-  bubble: "말풍선",
-  widget: "위젯",
-  usage: "사용량",
-  activity: "활동 기록",
-  integration: "연결·진단",
-  app: "앱 설정",
+  home: t("message.0590"),
+  pet: t("message.0591"),
+  bubble: t("message.0592"),
+  widget: t("message.0494"),
+  usage: t("message.0204"),
+  activity: t("message.0593"),
+  integration: t("message.0594"),
+  app: t("message.0595"),
 };
 export function App() {
   const [snapshot, setSnapshot] = useState<SettingsSnapshot | null>(null);
@@ -84,12 +85,12 @@ export function App() {
         const origin = snapshot;
         queue.current = queue.current.then(async () => {
           if (!window.settings || !current.current) {
-            reject(new Error("설정 연결을 기다려 주세요."));
+            reject(new Error(t("message.0596")));
             return;
           }
           setBusy((count) => count + 1);
           setError("");
-          if (!options.quiet) setStatus("처리 중…");
+          if (!options.quiet) setStatus("processing");
           try {
             const context = current.current;
             if (
@@ -97,9 +98,7 @@ export function App() {
               origin.epoch !== context.epoch ||
               origin.pet.pet_id !== context.pet.pet_id
             )
-              throw new Error(
-                "계정 또는 펫이 변경됐습니다. 현재 화면에서 다시 변경해 주세요.",
-              );
+              throw new Error(t("message.0597"));
             const result = await window.settings.request(method, {
               petId: context.pet.pet_id,
               revision: context.revision,
@@ -109,16 +108,16 @@ export function App() {
             if ("snapshot" in result) {
               ++refreshSequence.current;
               accept(result.snapshot);
-            } else await refresh();
+            } else if (method !== "app.restart") await refresh();
             setEventVersion((count) => count + 1);
             if (!options.quiet)
               setStatus(
-                "saved" in result && result.saved ? "저장됨" : "요청 처리됨",
+                "saved" in result && result.saved ? "saved" : "processed",
               );
             resolve(result);
           } catch (e) {
             if (!options.inline) setError(errorText(e));
-            setStatus("확인 필요");
+            setStatus("attention");
             try {
               await refresh();
             } catch {}
@@ -149,9 +148,7 @@ export function App() {
   }, []);
   useEffect(() => {
     if (!window.settings) {
-      setError(
-        "설정창은 펫 앱의 트레이에서 열어주세요. 브라우저에서는 실제 설정에 연결할 수 없습니다.",
-      );
+      setError(t("message.0598"));
       return;
     }
     const off = window.settings.onEvent(({ event, data }) => {
@@ -237,6 +234,7 @@ export function App() {
         reportError,
         visible,
         eventVersion,
+        busy: busy > 0,
         route,
       }
     : null;
@@ -263,18 +261,18 @@ export function App() {
       </header>
       <div className="shell">
         <aside className="sidebar">
-          <nav aria-label="설정 탐색">
+          <nav aria-label={t("message.0599")}>
             {assistant && (
               <>
                 {navButton("home", House)}
-                <div className="nav-label separated">비서</div>
+                <div className="nav-label separated">{t("message.0251")}</div>
                 {navButton("usage", ChartNoAxesCombined)}
                 {navButton("activity", Layers)}
                 {navButton("integration", PlugZap)}
               </>
             )}
             <div className={`nav-label ${assistant ? "separated" : ""}`}>
-              꾸미기
+              {t("message.0600")}
             </div>
             {navButton("pet", PawPrint)}
             {navButton("bubble", MessageCircle)}
@@ -286,25 +284,27 @@ export function App() {
               onClick={() => setPage("app")}
             >
               <Settings2 />
-              <span>앱 설정</span>
+              <span>{t("message.0595")}</span>
             </button>
             <button
               className="nav-item quit"
               onClick={() => {
-                if (confirm("펫과 비서, 설정창을 모두 종료할까요?"))
+                if (confirm(t("message.0601")))
                   command("app.quit").catch(() => {});
               }}
             >
               <Power />
-              <span>펫 앱 종료</span>
+              <span>{t("message.0602")}</span>
             </button>
             <div className="sidebar-profile">
               <span className="profile-avatar">
                 <PawPrint size={16} />
               </span>
               <div>
-                <strong>{snapshot?.pet.display_name || "연결 중"}</strong>
-                <span>{assistant ? "펫 + 비서" : "펫만"}</span>
+                <strong>
+                  {snapshot?.pet.display_name || t("message.0603")}
+                </strong>
+                <span>{assistant ? t("message.0604") : t("message.0605")}</span>
               </div>
             </div>
           </div>
@@ -312,29 +312,29 @@ export function App() {
         <main id="main">
           <div className="page-topline">
             <div className="breadcrumb">
-              설정
+              {t("message.0225")}
               <ChevronRight size={13} />
               <span>{labels[page]}</span>
             </div>
             <div className="topline-actions">
               <span
                 className={`save-state ${
-                  !busy && status === "확인 필요" ? "error" : ""
+                  !busy && status === "attention" ? "error" : ""
                 }`}
                 role="status"
               >
                 {busy ? (
                   <span className="small-dot" />
-                ) : status === "확인 필요" ? (
+                ) : status === "attention" ? (
                   <Info size={12} />
                 ) : (
                   <Check size={12} />
                 )}
-                {status}
+                {status && t("status." + status)}
               </span>
               <button
                 className="icon-button"
-                aria-label="도움말"
+                aria-label={t("message.0606")}
                 onClick={() => setHelp(true)}
               >
                 <CircleHelp size={17} />
@@ -353,11 +353,11 @@ export function App() {
                     .catch((e) => setError(errorText(e)))
                 }
               >
-                다시 확인
+                {t("message.0607")}
               </button>
               <button
                 className="icon-button"
-                aria-label="오류 안내 닫기"
+                aria-label={t("message.0608")}
                 onClick={() => setError("")}
               >
                 <X size={15} />
@@ -378,8 +378,8 @@ export function App() {
           ) : (
             <Empty>
               <PawPrint size={32} />
-              <h2>설정에 연결하는 중입니다.</h2>
-              <p>펫의 현재 설정을 확인하고 있습니다.</p>
+              <h2>{t("message.0609")}</h2>
+              <p>{t("message.0610")}</p>
             </Empty>
           )}
         </main>
@@ -391,19 +391,10 @@ export function App() {
         </div>
       )}
       {help && (
-        <Modal title="도움말" close={() => setHelp(false)}>
-          <p>
-            일반 설정과 펫 관리는 즉시 적용·저장됩니다. 말풍선 꾸미기는 적용
-            버튼으로 저장해 주세요.
-          </p>
-          <p>
-            X는 설정창만 숨깁니다. 트레이에서 다시 열 수 있으며, 펫 앱 종료는
-            모든 기능을 종료합니다.
-          </p>
-          <p>
-            저장 오류가 표시되면 다시 확인해 주세요. 사용량과 활동 정보는 설치한
-            구성과 연결 상태에 따라 표시됩니다.
-          </p>
+        <Modal title={t("message.0606")} close={() => setHelp(false)}>
+          <p>{t("message.0611")}</p>
+          <p>{t("message.0612")}</p>
+          <p>{t("message.0613")}</p>
         </Modal>
       )}
     </>

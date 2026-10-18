@@ -1,0 +1,5379 @@
+{
+  "language.title": {
+    "sourceRevision": 1,
+    "value": "Language"
+  },
+  "language.selection": {
+    "sourceRevision": 1,
+    "value": "Language pack"
+  },
+  "language.restart": {
+    "sourceRevision": 1,
+    "value": "Language changes take effect after restarting the app."
+  },
+  "language.coverage": {
+    "sourceRevision": 1,
+    "value": "Translated {done}/{total} · Review needed: {review}"
+  },
+  "language.invalid": {
+    "sourceRevision": 1,
+    "value": "This language pack is unavailable."
+  },
+  "language.recovered": {
+    "sourceRevision": 1,
+    "value": "The selected language pack could not be loaded. Korean is being used."
+  },
+  "language.folder": {
+    "sourceRevision": 1,
+    "value": "Open language pack folder"
+  },
+  "language.refresh": {
+    "sourceRevision": 1,
+    "value": "Reload language packs"
+  },
+  "status.processing": {
+    "sourceRevision": 1,
+    "value": "Working…"
+  },
+  "status.saved": {
+    "sourceRevision": 1,
+    "value": "Saved"
+  },
+  "status.processed": {
+    "sourceRevision": 1,
+    "value": "Request completed"
+  },
+  "status.attention": {
+    "sourceRevision": 1,
+    "value": "Needs attention"
+  },
+  "bubble.more_projects": {
+    "sourceRevision": 1,
+    "value": {
+      "one": "{count} more project",
+      "other": "{count} more projects"
+    }
+  },
+  "bubble.more_items": {
+    "sourceRevision": 1,
+    "value": {
+      "one": "{count} more item",
+      "other": "{count} more items"
+    }
+  },
+  "statusline.pet_off": {
+    "sourceRevision": 1,
+    "value": "Pet offline"
+  },
+  "statusline.five_hour": {
+    "sourceRevision": 1,
+    "value": "5h {percent}%{reset}"
+  },
+  "statusline.seven_day": {
+    "sourceRevision": 1,
+    "value": "7d {percent}%"
+  },
+  "statusline.context": {
+    "sourceRevision": 1,
+    "value": "Context {percent}%"
+  },
+  "message.0020": {
+    "sourceRevision": 1,
+    "value": "Installing the update. The app will restart shortly."
+  },
+  "message.0021": {
+    "sourceRevision": 1,
+    "value": "A new version is available (v{version}). Update it in Settings → App settings."
+  },
+  "message.0022": {
+    "sourceRevision": 1,
+    "value": "Preparing the update…"
+  },
+  "message.0023": {
+    "sourceRevision": 1,
+    "value": "Updates are checked only when you request them."
+  },
+  "message.0024": {
+    "sourceRevision": 1,
+    "value": "Checks for a new version once a day."
+  },
+  "message.0025": {
+    "sourceRevision": 1,
+    "value": "Claude Code conversation"
+  },
+  "message.0026": {
+    "sourceRevision": 1,
+    "value": "Claude Code tasks"
+  },
+  "message.0027": {
+    "sourceRevision": 1,
+    "value": "Uncategorized"
+  },
+  "message.0028": {
+    "sourceRevision": 1,
+    "value": "Original sprite cells are 192×208px. Sizes from 80–224px are standard; 256–352px are extended sizes for larger displays."
+  },
+  "message.0029": {
+    "sourceRevision": 1,
+    "value": "Codex was not detected · Pet features are still available"
+  },
+  "message.0030": {
+    "sourceRevision": 1,
+    "value": "Started with {value0} instead of the damaged pet"
+  },
+  "message.0031": {
+    "sourceRevision": 2,
+    "value": {
+      "one": "Could not load {value0} pet.\nLast error: {value1}",
+      "other": "Could not load {value0} pets.\nLast error: {value1}"
+    }
+  },
+  "message.0032": {
+    "sourceRevision": 1,
+    "value": "No available pets found: {value0}"
+  },
+  "message.0033": {
+    "sourceRevision": 1,
+    "value": "Search folder: {value0}"
+  },
+  "message.0034": {
+    "sourceRevision": 1,
+    "value": "Reminder"
+  },
+  "message.0035": {
+    "sourceRevision": 1,
+    "value": "The download was stopped after making no progress for too long."
+  },
+  "message.0036": {
+    "sourceRevision": 1,
+    "value": "The download was stopped because it redirected to a disallowed address."
+  },
+  "message.0037": {
+    "sourceRevision": 1,
+    "value": "The downloaded file differs from the release and was not installed. Please try again."
+  },
+  "message.0038": {
+    "sourceRevision": 1,
+    "value": "Could not save the installer."
+  },
+  "message.0039": {
+    "sourceRevision": 1,
+    "value": "Checking…"
+  },
+  "message.0040": {
+    "sourceRevision": 1,
+    "value": "Version v{value0} is available. Download it from the release page."
+  },
+  "message.0041": {
+    "sourceRevision": 1,
+    "value": "Downloading…"
+  },
+  "message.0042": {
+    "sourceRevision": 1,
+    "value": "Could not download the installer."
+  },
+  "message.0043": {
+    "sourceRevision": 1,
+    "value": "Updating with the installer."
+  },
+  "message.0044": {
+    "sourceRevision": 1,
+    "value": "The update address is not configured correctly."
+  },
+  "message.0045": {
+    "sourceRevision": 1,
+    "value": "You're up to date."
+  },
+  "message.0046": {
+    "sourceRevision": 1,
+    "value": "Version v{value0} is available. In-app updates require an installed copy."
+  },
+  "message.0047": {
+    "sourceRevision": 1,
+    "value": "Version v{value0} is available{value1}."
+  },
+  "message.0048": {
+    "sourceRevision": 1,
+    "value": "Could not prepare the update. Please try again."
+  },
+  "message.0049": {
+    "sourceRevision": 1,
+    "value": "Could not apply the update. Please try again."
+  },
+  "message.0050": {
+    "sourceRevision": 1,
+    "value": "Could not start the installer."
+  },
+  "message.0051": {
+    "sourceRevision": 1,
+    "value": "An official update address has not been configured."
+  },
+  "message.0052": {
+    "sourceRevision": 1,
+    "value": "No published releases are available yet."
+  },
+  "message.0053": {
+    "sourceRevision": 1,
+    "value": "Could not check for updates."
+  },
+  "message.0054": {
+    "sourceRevision": 1,
+    "value": "The update response could not be verified."
+  },
+  "message.0055": {
+    "sourceRevision": 1,
+    "value": "Could not read the release checksum."
+  },
+  "message.0056": {
+    "sourceRevision": 1,
+    "value": "Could not prepare the download folder."
+  },
+  "message.0057": {
+    "sourceRevision": 1,
+    "value": "The previous update could not be applied. Check again."
+  },
+  "message.0058": {
+    "sourceRevision": 1,
+    "value": "No email information"
+  },
+  "message.0059": {
+    "sourceRevision": 1,
+    "value": "Sends a local reminder to the running assistant."
+  },
+  "message.0060": {
+    "sourceRevision": 1,
+    "value": "Other Claude Code settings and hooks are preserved."
+  },
+  "message.0061": {
+    "sourceRevision": 1,
+    "value": "Restart existing Claude Code sessions to apply this change."
+  },
+  "message.0062": {
+    "sourceRevision": 1,
+    "value": "All hooks are disabled in Claude Code settings."
+  },
+  "message.0063": {
+    "sourceRevision": 1,
+    "value": "Administrator policy does not allow user hooks."
+  },
+  "message.0064": {
+    "sourceRevision": 1,
+    "value": "Merge managed hooks for {value0} lifecycle event types"
+  },
+  "message.0065": {
+    "sourceRevision": 1,
+    "value": "No changes · Already up to date"
+  },
+  "message.0066": {
+    "sourceRevision": 1,
+    "value": "Repairs missing or duplicate managed entries and outdated paths."
+  },
+  "message.0067": {
+    "sourceRevision": 1,
+    "value": "Remove only Watched Kettle managed hooks"
+  },
+  "message.0068": {
+    "sourceRevision": 1,
+    "value": "No changes · Managed hooks are not installed"
+  },
+  "message.0069": {
+    "sourceRevision": 1,
+    "value": "This hook change plan cannot be applied."
+  },
+  "message.0070": {
+    "sourceRevision": 1,
+    "value": "Claude Code settings.json changed after the preview. Review it again."
+  },
+  "message.0071": {
+    "sourceRevision": 1,
+    "value": "Could not create the hook command."
+  },
+  "message.0072": {
+    "sourceRevision": 1,
+    "value": " It will not run even if installed."
+  },
+  "message.0073": {
+    "sourceRevision": 1,
+    "value": "Unsupported Claude Code settings.json format: {value0}"
+  },
+  "message.0074": {
+    "sourceRevision": 1,
+    "value": "User-level hooks are installed."
+  },
+  "message.0075": {
+    "sourceRevision": 1,
+    "value": "Some managed hooks are missing or their executable path has changed."
+  },
+  "message.0076": {
+    "sourceRevision": 1,
+    "value": "User-level hooks are not installed."
+  },
+  "message.0077": {
+    "sourceRevision": 1,
+    "value": "Open conversation"
+  },
+  "message.0078": {
+    "sourceRevision": 1,
+    "value": "Open window"
+  },
+  "message.0079": {
+    "sourceRevision": 1,
+    "value": "View list"
+  },
+  "message.0080": {
+    "sourceRevision": 1,
+    "value": "Could not open this conversation in VS Code."
+  },
+  "message.0081": {
+    "sourceRevision": 1,
+    "value": "Opened activity history because this conversation is running in a terminal."
+  },
+  "message.0082": {
+    "sourceRevision": 1,
+    "value": "Could not open the conversation. Opened the VS Code window for its working folder."
+  },
+  "message.0083": {
+    "sourceRevision": 1,
+    "value": "Updates only in CLI and VS Code terminal modes. The VS Code graphical panel does not run a status line."
+  },
+  "message.0084": {
+    "sourceRevision": 1,
+    "value": "Other Claude Code settings are preserved."
+  },
+  "message.0085": {
+    "sourceRevision": 1,
+    "value": "Both hooks and the status line are disabled in Claude Code settings."
+  },
+  "message.0086": {
+    "sourceRevision": 1,
+    "value": "Administrator policy does not allow a user status line."
+  },
+  "message.0087": {
+    "sourceRevision": 1,
+    "value": "The status line executable path has changed. Repair it to update the path."
+  },
+  "message.0088": {
+    "sourceRevision": 1,
+    "value": "A user status line exists. Connecting preserves its output while collecting limits."
+  },
+  "message.0089": {
+    "sourceRevision": 1,
+    "value": "The status line for Claude Code limits is not connected."
+  },
+  "message.0090": {
+    "sourceRevision": 1,
+    "value": "Back up the existing status line and wrap it to preserve its output"
+  },
+  "message.0091": {
+    "sourceRevision": 1,
+    "value": "Collect limits through the Claude Code status line"
+  },
+  "message.0092": {
+    "sourceRevision": 1,
+    "value": "No changes · This app's status line is not connected"
+  },
+  "message.0093": {
+    "sourceRevision": 1,
+    "value": "This status line change plan cannot be applied."
+  },
+  "message.0094": {
+    "sourceRevision": 1,
+    "value": "The status line for Claude Code limits is connected."
+  },
+  "message.0095": {
+    "sourceRevision": 1,
+    "value": "Could not create the command."
+  },
+  "message.0096": {
+    "sourceRevision": 1,
+    "value": "No previous status line exists. A short limits summary will appear below the CLI."
+  },
+  "message.0097": {
+    "sourceRevision": 1,
+    "value": " It will not run even if connected."
+  },
+  "message.0098": {
+    "sourceRevision": 1,
+    "value": "Restore the backed-up status line"
+  },
+  "message.0099": {
+    "sourceRevision": 1,
+    "value": "Remove this app's status line"
+  },
+  "message.0100": {
+    "sourceRevision": 1,
+    "value": "The status line was changed later and will not be overwritten. Only the saved original configuration will be removed."
+  },
+  "message.0101": {
+    "sourceRevision": 1,
+    "value": "The usage service has stopped."
+  },
+  "message.0102": {
+    "sourceRevision": 1,
+    "value": "The {value0} request timed out."
+  },
+  "message.0103": {
+    "sourceRevision": 1,
+    "value": "A Codex App Server process error occurred."
+  },
+  "message.0104": {
+    "sourceRevision": 1,
+    "value": "The Codex App Server connection closed."
+  },
+  "message.0105": {
+    "sourceRevision": 1,
+    "value": "Codex CLI was not found."
+  },
+  "message.0106": {
+    "sourceRevision": 1,
+    "value": "Could not start Codex App Server."
+  },
+  "message.0107": {
+    "sourceRevision": 1,
+    "value": "Codex App Server returned an invalid response."
+  },
+  "message.0108": {
+    "sourceRevision": 1,
+    "value": "Could not initialize Codex App Server."
+  },
+  "message.0109": {
+    "sourceRevision": 1,
+    "value": "You have a reminder"
+  },
+  "message.0110": {
+    "sourceRevision": 1,
+    "value": "Could not safely enable hooks."
+  },
+  "message.0111": {
+    "sourceRevision": 1,
+    "value": "The settings path is not a file: {value0}"
+  },
+  "message.0112": {
+    "sourceRevision": 1,
+    "value": "Windows executable paths cannot contain quotation marks."
+  },
+  "message.0113": {
+    "sourceRevision": 1,
+    "value": "Unsupported Codex feature settings format."
+  },
+  "message.0114": {
+    "sourceRevision": 1,
+    "value": "Codex hooks are explicitly disabled."
+  },
+  "message.0115": {
+    "sourceRevision": 1,
+    "value": "[features].hooks is false and will not be overwritten automatically."
+  },
+  "message.0116": {
+    "sourceRevision": 1,
+    "value": "Add [features].hooks = true to config.toml"
+  },
+  "message.0117": {
+    "sourceRevision": 1,
+    "value": "hooks.json changed after the preview. Review it again."
+  },
+  "message.0118": {
+    "sourceRevision": 1,
+    "value": "config.toml changed after the preview. Review it again."
+  },
+  "message.0119": {
+    "sourceRevision": 1,
+    "value": "Could not safely enable hooks: {value0}"
+  },
+  "message.0120": {
+    "sourceRevision": 1,
+    "value": "Could not read the settings file: {value0}"
+  },
+  "message.0121": {
+    "sourceRevision": 1,
+    "value": "Could not verify the settings file: {value0}"
+  },
+  "message.0122": {
+    "sourceRevision": 1,
+    "value": "Could not back up settings: {value0}"
+  },
+  "message.0123": {
+    "sourceRevision": 1,
+    "value": "Could not save settings atomically: {value0}"
+  },
+  "message.0124": {
+    "sourceRevision": 1,
+    "value": "Other Codex hooks and feature settings are preserved."
+  },
+  "message.0125": {
+    "sourceRevision": 1,
+    "value": "Replace legacy managed hooks with the current executable"
+  },
+  "message.0126": {
+    "sourceRevision": 1,
+    "value": "Unsupported hooks.json format: {value0}"
+  },
+  "message.0127": {
+    "sourceRevision": 1,
+    "value": "Unsupported config.toml format: {value0}"
+  },
+  "message.0128": {
+    "sourceRevision": 1,
+    "value": "No changes · No legacy managed hooks found"
+  },
+  "message.0129": {
+    "sourceRevision": 1,
+    "value": "Could not start the local server used to detect duplicate app instances."
+  },
+  "message.0130": {
+    "sourceRevision": 1,
+    "value": "Startup registration is supported only on Windows."
+  },
+  "message.0131": {
+    "sourceRevision": 1,
+    "value": "Classic cream"
+  },
+  "message.0132": {
+    "sourceRevision": 1,
+    "value": "Sage"
+  },
+  "message.0133": {
+    "sourceRevision": 1,
+    "value": "Graphite"
+  },
+  "message.0134": {
+    "sourceRevision": 1,
+    "value": "Sky"
+  },
+  "message.0135": {
+    "sourceRevision": 1,
+    "value": "Notebook"
+  },
+  "message.0136": {
+    "sourceRevision": 1,
+    "value": "Pop"
+  },
+  "message.0137": {
+    "sourceRevision": 1,
+    "value": "A sprite with a transparent background is required."
+  },
+  "message.0138": {
+    "sourceRevision": 1,
+    "value": "The file selection expired. Select the pet file again."
+  },
+  "message.0139": {
+    "sourceRevision": 1,
+    "value": "The selected file has changed. Select the pet file again."
+  },
+  "message.0140": {
+    "sourceRevision": 1,
+    "value": "Pet names must contain 1–100 characters."
+  },
+  "message.0141": {
+    "sourceRevision": 1,
+    "value": "Pet images must be 20 MiB or smaller."
+  },
+  "message.0142": {
+    "sourceRevision": 1,
+    "value": "Could not read the pet image. Check its format and whether it is damaged."
+  },
+  "message.0143": {
+    "sourceRevision": 1,
+    "value": "Could not save the pet. Check disk space and folder permissions."
+  },
+  "message.0144": {
+    "sourceRevision": 1,
+    "value": "The saved copy of this pet is damaged. Check the pet folder."
+  },
+  "message.0145": {
+    "sourceRevision": 1,
+    "value": "Select a PNG or WebP sprite."
+  },
+  "message.0146": {
+    "sourceRevision": 1,
+    "value": "Select a static sprite sheet rather than an animated image."
+  },
+  "message.0147": {
+    "sourceRevision": 1,
+    "value": "A required frame is empty: row {value0}, column {value1}."
+  },
+  "message.0148": {
+    "sourceRevision": 1,
+    "value": "A frame background is not transparent: row {value0}, column {value1}."
+  },
+  "message.0149": {
+    "sourceRevision": 1,
+    "value": "Unsupported sprite sheet size.\nCurrent: {value0}\nExpected V1: (1536, 1872)\nExpected V2: (1536, 2288)"
+  },
+  "message.0150": {
+    "sourceRevision": 1,
+    "value": "pet.json was not found:\n{value0}"
+  },
+  "message.0151": {
+    "sourceRevision": 1,
+    "value": "The top-level value in pet.json must be an object."
+  },
+  "message.0152": {
+    "sourceRevision": 1,
+    "value": "spritesheetPath must be a nonempty string."
+  },
+  "message.0153": {
+    "sourceRevision": 1,
+    "value": "spritesheetPath must refer to a file inside the pet folder."
+  },
+  "message.0154": {
+    "sourceRevision": 1,
+    "value": "Sprite sheet was not found:\n{value0}"
+  },
+  "message.0155": {
+    "sourceRevision": 1,
+    "value": "Incorrect sprite sheet width.\nCurrent: {value0}\nExpected: {value1}"
+  },
+  "message.0156": {
+    "sourceRevision": 1,
+    "value": "The tracking distance must be zero or greater."
+  },
+  "message.0157": {
+    "sourceRevision": 1,
+    "value": "The entry distance cannot exceed the exit distance."
+  },
+  "message.0158": {
+    "sourceRevision": 1,
+    "value": "The deadzone must be zero or greater."
+  },
+  "message.0159": {
+    "sourceRevision": 1,
+    "value": "The maximum tracking distance must be zero or greater."
+  },
+  "message.0160": {
+    "sourceRevision": 1,
+    "value": "The maximum tracking distance cannot be smaller than the deadzone."
+  },
+  "message.0161": {
+    "sourceRevision": 1,
+    "value": "Could not open Codex. Check that it is installed."
+  },
+  "message.0162": {
+    "sourceRevision": 1,
+    "value": "The rendering cache size must be at least 1."
+  },
+  "message.0163": {
+    "sourceRevision": 1,
+    "value": "Pets in linked folders cannot be deleted or restored."
+  },
+  "message.0164": {
+    "sourceRevision": 1,
+    "value": "Trash entry not found. Reload the list."
+  },
+  "message.0165": {
+    "sourceRevision": 1,
+    "value": "A linked trash folder cannot be used."
+  },
+  "message.0166": {
+    "sourceRevision": 1,
+    "value": "Invalid trash path."
+  },
+  "message.0167": {
+    "sourceRevision": 1,
+    "value": "Bundled pets and pets in external folders can only be hidden."
+  },
+  "message.0168": {
+    "sourceRevision": 1,
+    "value": "Another package has the same ID. Resolve the duplicate IDs first."
+  },
+  "message.0169": {
+    "sourceRevision": 1,
+    "value": "Resolve the pet ID before deleting it."
+  },
+  "message.0170": {
+    "sourceRevision": 1,
+    "value": "The pet folder contains external links or cannot be accessed."
+  },
+  "message.0171": {
+    "sourceRevision": 1,
+    "value": "Invalid pet path."
+  },
+  "message.0172": {
+    "sourceRevision": 1,
+    "value": "Unrecognized files were found in the trash and have been preserved."
+  },
+  "message.0173": {
+    "sourceRevision": 1,
+    "value": "The pet list has changed. Reload it."
+  },
+  "message.0174": {
+    "sourceRevision": 1,
+    "value": "Switch to another pet before moving this one to the trash."
+  },
+  "message.0175": {
+    "sourceRevision": 1,
+    "value": "A pet with the same ID is in the trash. Restore or remove it first."
+  },
+  "message.0176": {
+    "sourceRevision": 1,
+    "value": "A previous operation is being recovered. Reload the list."
+  },
+  "message.0177": {
+    "sourceRevision": 1,
+    "value": "A pet with the same ID or folder already exists. The existing pet was not overwritten."
+  },
+  "message.0178": {
+    "sourceRevision": 1,
+    "value": "You can register up to 256 pets. Remove some before restoring this pet."
+  },
+  "message.0179": {
+    "sourceRevision": 1,
+    "value": "The pet package is damaged and could not be restored. It remains in the trash."
+  },
+  "message.0180": {
+    "sourceRevision": 1,
+    "value": "The pet folder contains external file links. Remove the links first."
+  },
+  "message.0181": {
+    "sourceRevision": 1,
+    "value": "Could not save pet settings. Check disk space and permissions."
+  },
+  "message.0182": {
+    "sourceRevision": 1,
+    "value": "A linked data folder cannot be used."
+  },
+  "message.0183": {
+    "sourceRevision": 1,
+    "value": "Could not read the trash records. The originals have been preserved."
+  },
+  "message.0184": {
+    "sourceRevision": 1,
+    "value": "An unreadable trash entry has been preserved."
+  },
+  "message.0185": {
+    "sourceRevision": 1,
+    "value": "Invalid deletion path."
+  },
+  "message.0186": {
+    "sourceRevision": 1,
+    "value": "Could not read the trash folder. Files have been preserved. Check folder permissions."
+  },
+  "message.0187": {
+    "sourceRevision": 1,
+    "value": "Could not read a trash entry. Files have been preserved."
+  },
+  "message.0188": {
+    "sourceRevision": 1,
+    "value": "Could not access the pet files. Please try again."
+  },
+  "message.0189": {
+    "sourceRevision": 1,
+    "value": "An interrupted pet move needs attention. Files have been preserved."
+  },
+  "message.0190": {
+    "sourceRevision": 1,
+    "value": "An interrupted restore needs attention. Files have been preserved."
+  },
+  "message.0191": {
+    "sourceRevision": 1,
+    "value": "{value0} is thinking"
+  },
+  "message.0192": {
+    "sourceRevision": 1,
+    "value": "{value0} is working"
+  },
+  "message.0193": {
+    "sourceRevision": 1,
+    "value": "{value0} is waiting for your input"
+  },
+  "message.0194": {
+    "sourceRevision": 1,
+    "value": "You have a {value0} notification"
+  },
+  "message.0195": {
+    "sourceRevision": 1,
+    "value": "{value0} finished working"
+  },
+  "message.0196": {
+    "sourceRevision": 1,
+    "value": "{value0} was interrupted"
+  },
+  "message.0197": {
+    "sourceRevision": 1,
+    "value": "{value0} encountered a problem"
+  },
+  "message.0198": {
+    "sourceRevision": 1,
+    "value": "{value0} started working"
+  },
+  "message.0199": {
+    "sourceRevision": 1,
+    "value": "Bubble · {value0}"
+  },
+  "message.0200": {
+    "sourceRevision": 1,
+    "value": "View usage"
+  },
+  "message.0201": {
+    "sourceRevision": 1,
+    "value": "View details"
+  },
+  "message.0202": {
+    "sourceRevision": 1,
+    "value": "System"
+  },
+  "message.0203": {
+    "sourceRevision": 1,
+    "value": "Pending: {value0}"
+  },
+  "message.0204": {
+    "sourceRevision": 1,
+    "value": "Usage"
+  },
+  "message.0205": {
+    "sourceRevision": 1,
+    "value": "Reminders"
+  },
+  "message.0206": {
+    "sourceRevision": 1,
+    "value": "Walking right"
+  },
+  "message.0207": {
+    "sourceRevision": 1,
+    "value": "Walking left"
+  },
+  "message.0208": {
+    "sourceRevision": 1,
+    "value": "Waving"
+  },
+  "message.0209": {
+    "sourceRevision": 1,
+    "value": "Jumping"
+  },
+  "message.0210": {
+    "sourceRevision": 1,
+    "value": "Feeling down"
+  },
+  "message.0211": {
+    "sourceRevision": 1,
+    "value": "Waiting for your input"
+  },
+  "message.0212": {
+    "sourceRevision": 1,
+    "value": "Helping with work"
+  },
+  "message.0213": {
+    "sourceRevision": 1,
+    "value": "Reviewing content"
+  },
+  "message.0214": {
+    "sourceRevision": 1,
+    "value": "{value0} needs reconnection"
+  },
+  "message.0215": {
+    "sourceRevision": 1,
+    "value": "{value0} is available to connect"
+  },
+  "message.0216": {
+    "sourceRevision": 1,
+    "value": "Status: Idle"
+  },
+  "message.0217": {
+    "sourceRevision": 1,
+    "value": "Codex usage: Unavailable"
+  },
+  "message.0218": {
+    "sourceRevision": 1,
+    "value": "Claude Code usage: Unavailable"
+  },
+  "message.0219": {
+    "sourceRevision": 1,
+    "value": "Active projects"
+  },
+  "message.0220": {
+    "sourceRevision": 1,
+    "value": "Recent notifications"
+  },
+  "message.0221": {
+    "sourceRevision": 1,
+    "value": "Open home"
+  },
+  "message.0222": {
+    "sourceRevision": 1,
+    "value": "Snooze notifications"
+  },
+  "message.0223": {
+    "sourceRevision": 1,
+    "value": "Resume notifications"
+  },
+  "message.0224": {
+    "sourceRevision": 1,
+    "value": "Hide pet"
+  },
+  "message.0225": {
+    "sourceRevision": 1,
+    "value": "Settings"
+  },
+  "message.0226": {
+    "sourceRevision": 1,
+    "value": "Quit"
+  },
+  "message.0227": {
+    "sourceRevision": 1,
+    "value": "15 minutes"
+  },
+  "message.0228": {
+    "sourceRevision": 1,
+    "value": "30 minutes"
+  },
+  "message.0229": {
+    "sourceRevision": 1,
+    "value": "1 hour"
+  },
+  "message.0230": {
+    "sourceRevision": 1,
+    "value": " · Active tasks: {value0}"
+  },
+  "message.0231": {
+    "sourceRevision": 1,
+    "value": "Status: {value0}{value1}"
+  },
+  "message.0232": {
+    "sourceRevision": 1,
+    "value": "Codex usage: {value0}"
+  },
+  "message.0233": {
+    "sourceRevision": 1,
+    "value": "Claude Code usage: {value0}"
+  },
+  "message.0234": {
+    "sourceRevision": 1,
+    "value": "Show pet"
+  },
+  "message.0235": {
+    "sourceRevision": 1,
+    "value": "Project events"
+  },
+  "message.0236": {
+    "sourceRevision": 1,
+    "value": "\nClaude Code usage: {value0}"
+  },
+  "message.0237": {
+    "sourceRevision": 1,
+    "value": "\nCodex usage: {value0}"
+  },
+  "message.0238": {
+    "sourceRevision": 1,
+    "value": "Custom element"
+  },
+  "message.0239": {
+    "sourceRevision": 1,
+    "value": "Unsupported element type."
+  },
+  "message.0240": {
+    "sourceRevision": 1,
+    "value": "Image file not found."
+  },
+  "message.0241": {
+    "sourceRevision": 1,
+    "value": "Only PNG, WebP, and JPEG images are supported."
+  },
+  "message.0242": {
+    "sourceRevision": 1,
+    "value": "Image files must be 20 MB or smaller."
+  },
+  "message.0243": {
+    "sourceRevision": 1,
+    "value": "The image is damaged or unreadable."
+  },
+  "message.0244": {
+    "sourceRevision": 1,
+    "value": "Could not save the element in the user data folder."
+  },
+  "message.0245": {
+    "sourceRevision": 1,
+    "value": "Only PNG and WebP images are supported."
+  },
+  "message.0246": {
+    "sourceRevision": 1,
+    "value": "Image files must be 4 MB or smaller."
+  },
+  "message.0247": {
+    "sourceRevision": 1,
+    "value": "The actual image format is not PNG or WebP."
+  },
+  "message.0248": {
+    "sourceRevision": 1,
+    "value": "Image width must not exceed 1024px."
+  },
+  "message.0249": {
+    "sourceRevision": 1,
+    "value": "Image height must not exceed 1024px."
+  },
+  "message.0250": {
+    "sourceRevision": 1,
+    "value": "The actual image format is not PNG, WebP, or JPEG."
+  },
+  "message.0251": {
+    "sourceRevision": 1,
+    "value": "Assistant"
+  },
+  "message.0252": {
+    "sourceRevision": 1,
+    "value": "Codex · Complete"
+  },
+  "message.0253": {
+    "sourceRevision": 1,
+    "value": "Preview your new bubble design"
+  },
+  "message.0254": {
+    "sourceRevision": 1,
+    "value": "Needs attention 1 · Working 1"
+  },
+  "message.0255": {
+    "sourceRevision": 1,
+    "value": "Visual review"
+  },
+  "message.0256": {
+    "sourceRevision": 1,
+    "value": "Regression tests"
+  },
+  "message.0257": {
+    "sourceRevision": 1,
+    "value": "Working"
+  },
+  "message.0258": {
+    "sourceRevision": 1,
+    "value": "Status: {value0}"
+  },
+  "message.0259": {
+    "sourceRevision": 1,
+    "value": "Idle activities"
+  },
+  "message.0260": {
+    "sourceRevision": 1,
+    "value": "Auto movement"
+  },
+  "message.0261": {
+    "sourceRevision": 1,
+    "value": "Always on top"
+  },
+  "message.0262": {
+    "sourceRevision": 1,
+    "value": "Usage widget"
+  },
+  "message.0263": {
+    "sourceRevision": 1,
+    "value": "Show widget"
+  },
+  "message.0264": {
+    "sourceRevision": 1,
+    "value": "Show task status"
+  },
+  "message.0265": {
+    "sourceRevision": 1,
+    "value": "Show today's activity"
+  },
+  "message.0266": {
+    "sourceRevision": 1,
+    "value": "Open widget settings"
+  },
+  "message.0267": {
+    "sourceRevision": 1,
+    "value": "Attach beside pet"
+  },
+  "message.0268": {
+    "sourceRevision": 1,
+    "value": "Bring to screen center"
+  },
+  "message.0269": {
+    "sourceRevision": 1,
+    "value": "Rings"
+  },
+  "message.0270": {
+    "sourceRevision": 2,
+    "value": "Bars"
+  },
+  "message.0271": {
+    "sourceRevision": 2,
+    "value": "Compact"
+  },
+  "message.0272": {
+    "sourceRevision": 1,
+    "value": "Idle"
+  },
+  "message.0273": {
+    "sourceRevision": 1,
+    "value": "Reviewing"
+  },
+  "message.0274": {
+    "sourceRevision": 1,
+    "value": "Waiting for input"
+  },
+  "message.0275": {
+    "sourceRevision": 1,
+    "value": "Task complete"
+  },
+  "message.0276": {
+    "sourceRevision": 1,
+    "value": "Task failed"
+  },
+  "message.0277": {
+    "sourceRevision": 1,
+    "value": "Showing notification"
+  },
+  "message.0278": {
+    "sourceRevision": 1,
+    "value": "Pet moving"
+  },
+  "message.0279": {
+    "sourceRevision": 1,
+    "value": "Default"
+  },
+  "message.0280": {
+    "sourceRevision": 1,
+    "value": "Move right"
+  },
+  "message.0281": {
+    "sourceRevision": 1,
+    "value": "Move left"
+  },
+  "message.0282": {
+    "sourceRevision": 1,
+    "value": "Wave"
+  },
+  "message.0283": {
+    "sourceRevision": 1,
+    "value": "Jump"
+  },
+  "message.0284": {
+    "sourceRevision": 1,
+    "value": "Failed"
+  },
+  "message.0285": {
+    "sourceRevision": 1,
+    "value": "{value0} · Default"
+  },
+  "message.0286": {
+    "sourceRevision": 1,
+    "value": "{value0} · Original size"
+  },
+  "message.0287": {
+    "sourceRevision": 1,
+    "value": "{value0} · Standard maximum"
+  },
+  "message.0288": {
+    "sourceRevision": 1,
+    "value": "{value0} · Extended maximum"
+  },
+  "message.0289": {
+    "sourceRevision": 1,
+    "value": "{value0} · Extended size"
+  },
+  "message.0290": {
+    "sourceRevision": 1,
+    "value": "Check for updates"
+  },
+  "message.0291": {
+    "sourceRevision": 1,
+    "value": "Get new version (v{value0})"
+  },
+  "message.0292": {
+    "sourceRevision": 1,
+    "value": "Pet settings"
+  },
+  "message.0293": {
+    "sourceRevision": 1,
+    "value": "No recent activity has been received. Task completion has not been confirmed."
+  },
+  "message.0294": {
+    "sourceRevision": 1,
+    "value": "Claude Code requested tool permission. This status remains until the tool finishes, even after approval."
+  },
+  "message.0295": {
+    "sourceRevision": 1,
+    "value": "Checking status"
+  },
+  "message.0296": {
+    "sourceRevision": 1,
+    "value": "Compacting context"
+  },
+  "message.0297": {
+    "sourceRevision": 1,
+    "value": "Will read the results and finish after the background work completes."
+  },
+  "message.0298": {
+    "sourceRevision": 1,
+    "value": "Dismiss completion"
+  },
+  "message.0299": {
+    "sourceRevision": 1,
+    "value": "\nLast checked: "
+  },
+  "message.0300": {
+    "sourceRevision": 1,
+    "value": "Background: {value0}"
+  },
+  "message.0301": {
+    "sourceRevision": 1,
+    "value": "Waiting in background"
+  },
+  "message.0302": {
+    "sourceRevision": 1,
+    "value": "Dismiss completion"
+  },
+  "message.0303": {
+    "sourceRevision": 1,
+    "value": "Hide unconfirmed task"
+  },
+  "message.0304": {
+    "sourceRevision": 1,
+    "value": "{value0} status changes: {value1}"
+  },
+  "message.0305": {
+    "sourceRevision": 2,
+    "value": {
+      "one": "{value0} · {value1} task {value2}",
+      "other": "{value0} · {value1} tasks {value2}"
+    }
+  },
+  "message.0306": {
+    "sourceRevision": 1,
+    "value": "{value0} · {value1}"
+  },
+  "message.0307": {
+    "sourceRevision": 1,
+    "value": "{value0} task problems: {value1}"
+  },
+  "message.0308": {
+    "sourceRevision": 1,
+    "value": "{value0} needs attention: {value1}"
+  },
+  "message.0309": {
+    "sourceRevision": 1,
+    "value": "{value0} notifications: {value1}"
+  },
+  "message.0310": {
+    "sourceRevision": 2,
+    "value": {
+      "one": "{value0} · {value1} task completed",
+      "other": "{value0} · {value1} tasks completed"
+    }
+  },
+  "message.0311": {
+    "sourceRevision": 2,
+    "value": {
+      "one": "{value0} · {value1} task interrupted",
+      "other": "{value0} · {value1} tasks interrupted"
+    }
+  },
+  "message.0312": {
+    "sourceRevision": 2,
+    "value": {
+      "one": "{value0} · {value1} task started",
+      "other": "{value0} · {value1} tasks started"
+    }
+  },
+  "message.0313": {
+    "sourceRevision": 1,
+    "value": "{value0} {value1}"
+  },
+  "message.0314": {
+    "sourceRevision": 1,
+    "value": "started"
+  },
+  "message.0315": {
+    "sourceRevision": 1,
+    "value": "finished"
+  },
+  "message.0316": {
+    "sourceRevision": 1,
+    "value": "Problem"
+  },
+  "message.0317": {
+    "sourceRevision": 1,
+    "value": "Attention"
+  },
+  "message.0318": {
+    "sourceRevision": 1,
+    "value": "Notification"
+  },
+  "message.0319": {
+    "sourceRevision": 1,
+    "value": "Complete"
+  },
+  "message.0320": {
+    "sourceRevision": 1,
+    "value": "Interrupted"
+  },
+  "message.0321": {
+    "sourceRevision": 1,
+    "value": "{value0}\nMore notifications: {value1}"
+  },
+  "message.0322": {
+    "sourceRevision": 1,
+    "value": "Start"
+  },
+  "message.0323": {
+    "sourceRevision": 1,
+    "value": "Preview"
+  },
+  "message.0324": {
+    "sourceRevision": 1,
+    "value": "Task problem"
+  },
+  "message.0325": {
+    "sourceRevision": 1,
+    "value": "Task interrupted"
+  },
+  "message.0326": {
+    "sourceRevision": 1,
+    "value": "Task started"
+  },
+  "message.0327": {
+    "sourceRevision": 1,
+    "value": "Watched Kettle recovery"
+  },
+  "message.0328": {
+    "sourceRevision": 1,
+    "value": "Could not start the assistant"
+  },
+  "message.0329": {
+    "sourceRevision": 1,
+    "value": "Repair the pet files and try again, or select another pet folder containing pet.json and a sprite sheet."
+  },
+  "message.0330": {
+    "sourceRevision": 1,
+    "value": "Choose another pet folder…"
+  },
+  "message.0331": {
+    "sourceRevision": 1,
+    "value": "Try again"
+  },
+  "message.0332": {
+    "sourceRevision": 1,
+    "value": "Choose pet folder"
+  },
+  "message.0333": {
+    "sourceRevision": 1,
+    "value": "5 hours"
+  },
+  "message.0334": {
+    "sourceRevision": 1,
+    "value": "7 days"
+  },
+  "message.0335": {
+    "sourceRevision": 1,
+    "value": "Claude Code {value0}: {value1}% left"
+  },
+  "message.0336": {
+    "sourceRevision": 1,
+    "value": "Unavailable"
+  },
+  "message.0337": {
+    "sourceRevision": 1,
+    "value": " · Resets in {value0}h {value1}m"
+  },
+  "message.0338": {
+    "sourceRevision": 1,
+    "value": " · Resets in {value0}m"
+  },
+  "message.0339": {
+    "sourceRevision": 1,
+    "value": "(est.)"
+  },
+  "message.0340": {
+    "sourceRevision": 1,
+    "value": "{value0}: {value1}% left{value2}"
+  },
+  "message.0341": {
+    "sourceRevision": 1,
+    "value": "Claude Code task history was cleared. Recording will resume with subsequent tasks."
+  },
+  "message.0342": {
+    "sourceRevision": 1,
+    "value": "Preparing history."
+  },
+  "message.0343": {
+    "sourceRevision": 1,
+    "value": "Tasks observed in this device's Claude Code transcripts"
+  },
+  "message.0344": {
+    "sourceRevision": 1,
+    "value": "Reading Claude Code transcripts."
+  },
+  "message.0345": {
+    "sourceRevision": 1,
+    "value": "Claude Code history is not being collected because storage is unavailable."
+  },
+  "message.0346": {
+    "sourceRevision": 1,
+    "value": "The usage assistant is off."
+  },
+  "message.0347": {
+    "sourceRevision": 1,
+    "value": "Looking up conversation titles and projects"
+  },
+  "message.0348": {
+    "sourceRevision": 1,
+    "value": "Some names are unavailable · History remains visible"
+  },
+  "message.0349": {
+    "sourceRevision": 1,
+    "value": "Title unavailable · {value0}"
+  },
+  "message.0350": {
+    "sourceRevision": 1,
+    "value": "Project unavailable"
+  },
+  "message.0351": {
+    "sourceRevision": 1,
+    "value": "Name lookup limit reached · Showing known names only"
+  },
+  "message.0352": {
+    "sourceRevision": 1,
+    "value": "No project"
+  },
+  "message.0353": {
+    "sourceRevision": 1,
+    "value": "Project name unavailable"
+  },
+  "message.0354": {
+    "sourceRevision": 1,
+    "value": "Based on this device's logs · View titles in Codex"
+  },
+  "message.0355": {
+    "sourceRevision": 1,
+    "value": "Older record · Excluded from totals"
+  },
+  "message.0356": {
+    "sourceRevision": 1,
+    "value": "Partially measured"
+  },
+  "message.0357": {
+    "sourceRevision": 1,
+    "value": "Measured"
+  },
+  "message.0358": {
+    "sourceRevision": 1,
+    "value": "Checking"
+  },
+  "message.0359": {
+    "sourceRevision": 1,
+    "value": "Not measurable"
+  },
+  "message.0360": {
+    "sourceRevision": 1,
+    "value": "{value0}-minute limit"
+  },
+  "message.0361": {
+    "sourceRevision": 1,
+    "value": "Starting the usage service."
+  },
+  "message.0362": {
+    "sourceRevision": 1,
+    "value": "{value0}-day limit"
+  },
+  "message.0363": {
+    "sourceRevision": 1,
+    "value": "{value0}-hour limit"
+  },
+  "message.0364": {
+    "sourceRevision": 1,
+    "value": "Primary window"
+  },
+  "message.0365": {
+    "sourceRevision": 1,
+    "value": "Secondary window"
+  },
+  "message.0366": {
+    "sourceRevision": 1,
+    "value": "Checking current account"
+  },
+  "message.0367": {
+    "sourceRevision": 1,
+    "value": "Today's account agent token activity: {value0}"
+  },
+  "message.0368": {
+    "sourceRevision": 1,
+    "value": " · {value0}% {value1} than the 7-day average"
+  },
+  "message.0369": {
+    "sourceRevision": 1,
+    "value": "Codex remaining: {value0}"
+  },
+  "message.0370": {
+    "sourceRevision": 1,
+    "value": "{value0}% left"
+  },
+  "message.0371": {
+    "sourceRevision": 1,
+    "value": "Refresh cancelled."
+  },
+  "message.0372": {
+    "sourceRevision": 1,
+    "value": "Checking usage limits"
+  },
+  "message.0373": {
+    "sourceRevision": 1,
+    "value": "Refresh cancelled because the usage assistant is off."
+  },
+  "message.0374": {
+    "sourceRevision": 1,
+    "value": "Limits refreshed · Detailed usage query timed out"
+  },
+  "message.0375": {
+    "sourceRevision": 1,
+    "value": "Refresh timed out. Please try again."
+  },
+  "message.0376": {
+    "sourceRevision": 1,
+    "value": "Could not verify the current account. Please try again."
+  },
+  "message.0377": {
+    "sourceRevision": 1,
+    "value": "Sign in to Codex to continue."
+  },
+  "message.0378": {
+    "sourceRevision": 1,
+    "value": "Account usage is unavailable with the current sign-in method."
+  },
+  "message.0379": {
+    "sourceRevision": 1,
+    "value": "History for the current account was cleared."
+  },
+  "message.0380": {
+    "sourceRevision": 1,
+    "value": "Refresh cancelled because the account status changed."
+  },
+  "message.0381": {
+    "sourceRevision": 1,
+    "value": "Could not connect to usage queries."
+  },
+  "message.0382": {
+    "sourceRevision": 1,
+    "value": "The account response could not be verified."
+  },
+  "message.0383": {
+    "sourceRevision": 1,
+    "value": "Checking detailed usage"
+  },
+  "message.0384": {
+    "sourceRevision": 1,
+    "value": "Usage is shown, but local history could not be saved. (storage_operation_failed)"
+  },
+  "message.0385": {
+    "sourceRevision": 1,
+    "value": "Connecting to Codex usage."
+  },
+  "message.0386": {
+    "sourceRevision": 1,
+    "value": "Connecting to usage queries."
+  },
+  "message.0387": {
+    "sourceRevision": 1,
+    "value": "Reconnecting after an account change"
+  },
+  "message.0388": {
+    "sourceRevision": 1,
+    "value": "Nothing was deleted because the account changed."
+  },
+  "message.0389": {
+    "sourceRevision": 1,
+    "value": "Observation history for this device was cleared."
+  },
+  "message.0390": {
+    "sourceRevision": 1,
+    "value": "Checking account usage."
+  },
+  "message.0391": {
+    "sourceRevision": 1,
+    "value": "The usage query connection closed."
+  },
+  "message.0392": {
+    "sourceRevision": 1,
+    "value": "Unsupported sign-in method."
+  },
+  "message.0393": {
+    "sourceRevision": 1,
+    "value": "Could not submit the account check request."
+  },
+  "message.0394": {
+    "sourceRevision": 1,
+    "value": "Could not clear history."
+  },
+  "message.0395": {
+    "sourceRevision": 1,
+    "value": "Could not clear device history."
+  },
+  "message.0396": {
+    "sourceRevision": 1,
+    "value": "Limits refreshed · Could not submit the detailed usage request"
+  },
+  "message.0397": {
+    "sourceRevision": 1,
+    "value": "Could not submit the refresh request."
+  },
+  "message.0398": {
+    "sourceRevision": 1,
+    "value": "Limits refreshed · Detailed usage query failed"
+  },
+  "message.0399": {
+    "sourceRevision": 1,
+    "value": "Could not refresh usage information."
+  },
+  "message.0400": {
+    "sourceRevision": 1,
+    "value": "Could not refresh because the limits response was empty."
+  },
+  "message.0401": {
+    "sourceRevision": 1,
+    "value": "Codex limits received."
+  },
+  "message.0402": {
+    "sourceRevision": 1,
+    "value": "Limits are shown, but history recording is paused until the account can be verified."
+  },
+  "message.0403": {
+    "sourceRevision": 1,
+    "value": "Could not verify the current account. It will be checked again automatically."
+  },
+  "message.0404": {
+    "sourceRevision": 1,
+    "value": "Refresh timed out."
+  },
+  "message.0405": {
+    "sourceRevision": 1,
+    "value": "The detailed usage response could not be verified."
+  },
+  "message.0406": {
+    "sourceRevision": 1,
+    "value": "Updated"
+  },
+  "message.0407": {
+    "sourceRevision": 1,
+    "value": "Could not verify the limits response. Keeping the last values."
+  },
+  "message.0408": {
+    "sourceRevision": 1,
+    "value": "Multiple models"
+  },
+  "message.0409": {
+    "sourceRevision": 1,
+    "value": "Observed today: {value0}"
+  },
+  "message.0410": {
+    "sourceRevision": 1,
+    "value": "Today: {value0}"
+  },
+  "message.0411": {
+    "sourceRevision": 1,
+    "value": "No limits"
+  },
+  "message.0412": {
+    "sourceRevision": 1,
+    "value": "Limit"
+  },
+  "message.0413": {
+    "sourceRevision": 1,
+    "value": "Awaiting observation"
+  },
+  "message.0414": {
+    "sourceRevision": 1,
+    "value": "Reset time unavailable"
+  },
+  "message.0415": {
+    "sourceRevision": 1,
+    "value": "In {value0}h {value1}m"
+  },
+  "message.0416": {
+    "sourceRevision": 1,
+    "value": "In {value0}m"
+  },
+  "message.0417": {
+    "sourceRevision": 1,
+    "value": "Updated {value0}m ago"
+  },
+  "message.0418": {
+    "sourceRevision": 1,
+    "value": "Awaiting today's observations"
+  },
+  "message.0419": {
+    "sourceRevision": 1,
+    "value": "Collecting baseline"
+  },
+  "message.0420": {
+    "sourceRevision": 1,
+    "value": "Awaiting update"
+  },
+  "message.0421": {
+    "sourceRevision": 1,
+    "value": "Just updated"
+  },
+  "message.0422": {
+    "sourceRevision": 1,
+    "value": "Sample values"
+  },
+  "message.0423": {
+    "sourceRevision": 1,
+    "value": "{value0} min"
+  },
+  "message.0424": {
+    "sourceRevision": 1,
+    "value": "In {value0}m"
+  },
+  "message.0425": {
+    "sourceRevision": 1,
+    "value": "{value0}d"
+  },
+  "message.0426": {
+    "sourceRevision": 1,
+    "value": "{value0}h"
+  },
+  "message.0427": {
+    "sourceRevision": 1,
+    "value": "In {value0}d {value1}h"
+  },
+  "message.0428": {
+    "sourceRevision": 1,
+    "value": "In {value0}h {value1}m"
+  },
+  "message.0429": {
+    "sourceRevision": 1,
+    "value": "{value0}h ago"
+  },
+  "message.0430": {
+    "sourceRevision": 1,
+    "value": "Just now"
+  },
+  "message.0431": {
+    "sourceRevision": 1,
+    "value": "{value0}m ago"
+  },
+  "message.0432": {
+    "sourceRevision": 1,
+    "value": "Preparing storage"
+  },
+  "message.0433": {
+    "sourceRevision": 1,
+    "value": "Observation is restarting because the task queue is full. (usage_queue_limit)"
+  },
+  "message.0434": {
+    "sourceRevision": 1,
+    "value": "The history processing queue is full. (usage_queue_limit)"
+  },
+  "message.0435": {
+    "sourceRevision": 1,
+    "value": "Could not start the usage operation."
+  },
+  "message.0436": {
+    "sourceRevision": 1,
+    "value": "Could not process the refresh operation."
+  },
+  "message.0437": {
+    "sourceRevision": 1,
+    "value": "Existing history was preserved but could not be migrated."
+  },
+  "message.0438": {
+    "sourceRevision": 1,
+    "value": "History maintenance was deferred to the next cycle. (storage_maintenance_deferred)"
+  },
+  "message.0439": {
+    "sourceRevision": 1,
+    "value": "Could not process the history operation. (usage_worker_operation_failed)"
+  },
+  "message.0440": {
+    "sourceRevision": 1,
+    "value": "Assistant notification"
+  },
+  "message.0441": {
+    "sourceRevision": 1,
+    "value": "Codex tasks"
+  },
+  "message.0442": {
+    "sourceRevision": 1,
+    "value": "Estimated tokens: {value0}"
+  },
+  "message.0443": {
+    "sourceRevision": 1,
+    "value": "Observed tokens: {value0}"
+  },
+  "message.0444": {
+    "sourceRevision": 1,
+    "value": "Unconfirmed"
+  },
+  "message.0445": {
+    "sourceRevision": 1,
+    "value": "In progress"
+  },
+  "message.0446": {
+    "sourceRevision": 1,
+    "value": "Could not remove {value0} hooks. The app will ignore events from remaining hooks."
+  },
+  "message.0447": {
+    "sourceRevision": 1,
+    "value": "Could not restore the Claude Code status line. Check its settings file."
+  },
+  "message.0448": {
+    "sourceRevision": 1,
+    "value": "Activity display is limited because {value0} hooks could not be installed."
+  },
+  "message.0450": {
+    "sourceRevision": 1,
+    "value": "Could not change the Claude Code status line. Limits cannot be collected."
+  },
+  "message.0451": {
+    "sourceRevision": 1,
+    "value": "Saved usage history is preserved. It will reappear when enabled."
+  },
+  "message.0452": {
+    "sourceRevision": 1,
+    "value": "{value0} was found. Connect it to see task status."
+  },
+  "message.0453": {
+    "sourceRevision": 1,
+    "value": "{value0} was disconnected. Click to reconnect."
+  },
+  "message.0454": {
+    "sourceRevision": 1,
+    "value": "Check connection"
+  },
+  "message.0455": {
+    "sourceRevision": 1,
+    "value": "The notification target has expired."
+  },
+  "message.0456": {
+    "sourceRevision": 1,
+    "value": "Opening Codex conversations has not been verified in this environment."
+  },
+  "message.0457": {
+    "sourceRevision": 1,
+    "value": "Could not open the notification target."
+  },
+  "message.0458": {
+    "sourceRevision": 1,
+    "value": "Invalid conversation identifier."
+  },
+  "message.0459": {
+    "sourceRevision": 1,
+    "value": "Could not open that conversation. Opened the Codex app instead."
+  },
+  "message.0460": {
+    "sourceRevision": 1,
+    "value": "Choose a replacement pet."
+  },
+  "message.0461": {
+    "sourceRevision": 1,
+    "value": "Replacement pet not found."
+  },
+  "message.0462": {
+    "sourceRevision": 1,
+    "value": "Could not load the replacement pet. Nothing was moved."
+  },
+  "message.0463": {
+    "sourceRevision": 1,
+    "value": "Metadata connected"
+  },
+  "message.0464": {
+    "sourceRevision": 1,
+    "value": "Metadata disconnected"
+  },
+  "message.0465": {
+    "sourceRevision": 1,
+    "value": "Some metadata is unavailable · Using temporary names"
+  },
+  "message.0466": {
+    "sourceRevision": 1,
+    "value": "Some metadata is unavailable · Keeping the last names"
+  },
+  "message.0467": {
+    "sourceRevision": 1,
+    "value": "Codex conversation"
+  },
+  "message.0468": {
+    "sourceRevision": 1,
+    "value": "Ended"
+  },
+  "message.0469": {
+    "sourceRevision": 1,
+    "value": "Permission in progress"
+  },
+  "message.0470": {
+    "sourceRevision": 1,
+    "value": "Permission requested"
+  },
+  "message.0471": {
+    "sourceRevision": 1,
+    "value": "Conversations without a project"
+  },
+  "message.0472": {
+    "sourceRevision": 1,
+    "value": "Stopped by usage limit"
+  },
+  "message.0473": {
+    "sourceRevision": 1,
+    "value": "Stopped by rate limit"
+  },
+  "message.0474": {
+    "sourceRevision": 1,
+    "value": "Stopped by budget limit"
+  },
+  "message.0475": {
+    "sourceRevision": 1,
+    "value": "Stopped by context limit"
+  },
+  "message.0476": {
+    "sourceRevision": 1,
+    "value": "{value0} {value1}"
+  },
+  "message.0477": {
+    "sourceRevision": 1,
+    "value": "Finding project"
+  },
+  "message.0478": {
+    "sourceRevision": 1,
+    "value": "Codex usage is off."
+  },
+  "message.0479": {
+    "sourceRevision": 1,
+    "value": "The account status changed. Reload the page."
+  },
+  "message.0480": {
+    "sourceRevision": 1,
+    "value": "Use the tool switch to enable or disable the connection."
+  },
+  "message.0481": {
+    "sourceRevision": 1,
+    "value": "The change plan expired. Review it again."
+  },
+  "message.0482": {
+    "sourceRevision": 1,
+    "value": "Quiet usage summary"
+  },
+  "message.0483": {
+    "sourceRevision": 1,
+    "value": "Show usage widget"
+  },
+  "message.0484": {
+    "sourceRevision": 1,
+    "value": "Widget layout"
+  },
+  "message.0485": {
+    "sourceRevision": 1,
+    "value": "Main limit"
+  },
+  "message.0486": {
+    "sourceRevision": 1,
+    "value": "Background material"
+  },
+  "message.0487": {
+    "sourceRevision": 1,
+    "value": "Color"
+  },
+  "message.0488": {
+    "sourceRevision": 1,
+    "value": "Background color"
+  },
+  "message.0489": {
+    "sourceRevision": 1,
+    "value": "Background opacity"
+  },
+  "message.0490": {
+    "sourceRevision": 1,
+    "value": "Size"
+  },
+  "message.0491": {
+    "sourceRevision": 1,
+    "value": "History range"
+  },
+  "message.0492": {
+    "sourceRevision": 1,
+    "value": "Could not prepare the widget preview."
+  },
+  "message.0493": {
+    "sourceRevision": 1,
+    "value": "Usage notifications"
+  },
+  "message.0494": {
+    "sourceRevision": 1,
+    "value": "Widget"
+  },
+  "message.0495": {
+    "sourceRevision": 1,
+    "value": "Applies to both Codex and Claude Code."
+  },
+  "message.0496": {
+    "sourceRevision": 1,
+    "value": "Shows hourly tokens."
+  },
+  "message.0497": {
+    "sourceRevision": 1,
+    "value": "Widget appearance"
+  },
+  "message.0498": {
+    "sourceRevision": 1,
+    "value": "History"
+  },
+  "message.0499": {
+    "sourceRevision": 1,
+    "value": "Changes were not applied because the tool is off."
+  },
+  "message.0500": {
+    "sourceRevision": 1,
+    "value": "Acrylic blurs the desktop behind the widget and follows the app theme. It uses a solid background when Windows transparency is off or high contrast is enabled. Solid mode uses background opacity to control transparency."
+  },
+  "message.0501": {
+    "sourceRevision": 1,
+    "value": "Acrylic is available only on Windows 11."
+  },
+  "message.0502": {
+    "sourceRevision": 1,
+    "value": "Solid"
+  },
+  "message.0503": {
+    "sourceRevision": 1,
+    "value": "Acrylic"
+  },
+  "message.0504": {
+    "sourceRevision": 1,
+    "value": "Follow app theme"
+  },
+  "message.0505": {
+    "sourceRevision": 1,
+    "value": "Custom background color"
+  },
+  "message.0506": {
+    "sourceRevision": 1,
+    "value": "Automatic (least remaining)"
+  },
+  "message.0507": {
+    "sourceRevision": 1,
+    "value": "The navigation target expired."
+  },
+  "message.0508": {
+    "sourceRevision": 1,
+    "value": "Unsupported usage setting."
+  },
+  "message.0509": {
+    "sourceRevision": 1,
+    "value": "Unsupported assistant command."
+  },
+  "message.0510": {
+    "sourceRevision": 1,
+    "value": "The response is nested too deeply."
+  },
+  "message.0511": {
+    "sourceRevision": 1,
+    "value": "The response format cannot be displayed."
+  },
+  "message.0512": {
+    "sourceRevision": 1,
+    "value": "Could not create the preview image."
+  },
+  "message.0513": {
+    "sourceRevision": 1,
+    "value": "The pet list is too large."
+  },
+  "message.0514": {
+    "sourceRevision": 1,
+    "value": "The account changed. Reload the page."
+  },
+  "message.0515": {
+    "sourceRevision": 1,
+    "value": "The pet changed. Reload the page."
+  },
+  "message.0516": {
+    "sourceRevision": 1,
+    "value": "Settings changed elsewhere. Reload them."
+  },
+  "message.0517": {
+    "sourceRevision": 1,
+    "value": "Could not load the pet."
+  },
+  "message.0518": {
+    "sourceRevision": 1,
+    "value": "A batch operation is in progress."
+  },
+  "message.0519": {
+    "sourceRevision": 1,
+    "value": "Pet's current screen"
+  },
+  "message.0520": {
+    "sourceRevision": 1,
+    "value": "Primary screen"
+  },
+  "message.0521": {
+    "sourceRevision": 1,
+    "value": "Pet size"
+  },
+  "message.0522": {
+    "sourceRevision": 1,
+    "value": "Always show above other windows"
+  },
+  "message.0523": {
+    "sourceRevision": 1,
+    "value": "Pet opacity"
+  },
+  "message.0524": {
+    "sourceRevision": 1,
+    "value": "Ground shadow"
+  },
+  "message.0525": {
+    "sourceRevision": 1,
+    "value": "Fade in and out"
+  },
+  "message.0526": {
+    "sourceRevision": 1,
+    "value": "Show current activity below pet"
+  },
+  "message.0527": {
+    "sourceRevision": 1,
+    "value": "Perform idle activities"
+  },
+  "message.0528": {
+    "sourceRevision": 1,
+    "value": "Occasionally walk around the screen"
+  },
+  "message.0529": {
+    "sourceRevision": 1,
+    "value": "Movement display"
+  },
+  "message.0530": {
+    "sourceRevision": 1,
+    "value": "Mouse reaction distance"
+  },
+  "message.0531": {
+    "sourceRevision": 1,
+    "value": "Theme"
+  },
+  "message.0532": {
+    "sourceRevision": 1,
+    "value": "Pet not found."
+  },
+  "message.0533": {
+    "sourceRevision": 1,
+    "value": "A batch operation is in progress. Wait for it to finish or stop the remaining items."
+  },
+  "message.0534": {
+    "sourceRevision": 1,
+    "value": "You can register up to 256 pets."
+  },
+  "message.0535": {
+    "sourceRevision": 1,
+    "value": "Applied on screen but could not save. Check permissions and disk space, then try again."
+  },
+  "message.0536": {
+    "sourceRevision": 1,
+    "value": "Appearance"
+  },
+  "message.0537": {
+    "sourceRevision": 1,
+    "value": "Appears and disappears immediately when reduced motion is enabled."
+  },
+  "message.0538": {
+    "sourceRevision": 1,
+    "value": "Behavior"
+  },
+  "message.0539": {
+    "sourceRevision": 1,
+    "value": "Design"
+  },
+  "message.0540": {
+    "sourceRevision": 1,
+    "value": "Show bubble notifications"
+  },
+  "message.0541": {
+    "sourceRevision": 1,
+    "value": "Bubble scale"
+  },
+  "message.0542": {
+    "sourceRevision": 1,
+    "value": "Shared display time"
+  },
+  "message.0543": {
+    "sourceRevision": 1,
+    "value": "Could not read the pet preview image."
+  },
+  "message.0544": {
+    "sourceRevision": 1,
+    "value": "Notification display"
+  },
+  "message.0545": {
+    "sourceRevision": 1,
+    "value": " sec"
+  },
+  "message.0546": {
+    "sourceRevision": 1,
+    "value": "Display time"
+  },
+  "message.0547": {
+    "sourceRevision": 1,
+    "value": "Could not access the pet files. Check disk space and folder permissions, then try again."
+  },
+  "message.0548": {
+    "sourceRevision": 1,
+    "value": "Apply changes in the bubble editor to create your own design."
+  },
+  "message.0549": {
+    "sourceRevision": 1,
+    "value": "Failure / interruption"
+  },
+  "message.0550": {
+    "sourceRevision": 1,
+    "value": "General notifications"
+  },
+  "message.0551": {
+    "sourceRevision": 1,
+    "value": "Completion highlight"
+  },
+  "message.0552": {
+    "sourceRevision": 1,
+    "value": "Character decoration"
+  },
+  "message.0553": {
+    "sourceRevision": 1,
+    "value": "Could not read the trash. Please try again."
+  },
+  "message.0554": {
+    "sourceRevision": 1,
+    "value": "Original"
+  },
+  "message.0555": {
+    "sourceRevision": 1,
+    "value": "Standard maximum"
+  },
+  "message.0556": {
+    "sourceRevision": 1,
+    "value": "Extended maximum"
+  },
+  "message.0557": {
+    "sourceRevision": 1,
+    "value": " Using the pet's default design for now."
+  },
+  "message.0558": {
+    "sourceRevision": 1,
+    "value": "Pet's default design"
+  },
+  "message.0559": {
+    "sourceRevision": 1,
+    "value": "Shared default design"
+  },
+  "message.0560": {
+    "sourceRevision": 1,
+    "value": "Completion default"
+  },
+  "message.0561": {
+    "sourceRevision": 1,
+    "value": "Shared time"
+  },
+  "message.0562": {
+    "sourceRevision": 1,
+    "value": "My custom design"
+  },
+  "message.0563": {
+    "sourceRevision": 1,
+    "value": "My custom design (not created)"
+  },
+  "message.0564": {
+    "sourceRevision": 1,
+    "value": "The update cannot be downloaded right now."
+  },
+  "message.0565": {
+    "sourceRevision": 1,
+    "value": "No official release page is available."
+  },
+  "message.0566": {
+    "sourceRevision": 1,
+    "value": "Could not open the release page."
+  },
+  "message.0567": {
+    "sourceRevision": 1,
+    "value": "Could not delete the image."
+  },
+  "message.0568": {
+    "sourceRevision": 1,
+    "value": "This command is unavailable in this edition."
+  },
+  "message.0569": {
+    "sourceRevision": 1,
+    "value": "Could not change startup registration."
+  },
+  "message.0570": {
+    "sourceRevision": 1,
+    "value": "This setting is unavailable in this edition."
+  },
+  "message.0571": {
+    "sourceRevision": 1,
+    "value": "Could not start the settings connection."
+  },
+  "message.0572": {
+    "sourceRevision": 1,
+    "value": "The Electron settings app is missing. Build the settings UI or reinstall the app."
+  },
+  "message.0573": {
+    "sourceRevision": 1,
+    "value": "Could not open settings"
+  },
+  "message.0574": {
+    "sourceRevision": 1,
+    "value": "Build the settings UI first: run pnpm build in settings-ui"
+  },
+  "message.0575": {
+    "sourceRevision": 1,
+    "value": "Could not start the settings process. The pet is still available."
+  },
+  "message.0576": {
+    "sourceRevision": 1,
+    "value": "The settings connection closed. Reopen it from the tray. The pet is still available."
+  },
+  "message.0577": {
+    "sourceRevision": 1,
+    "value": "The display data is too large."
+  },
+  "message.0578": {
+    "sourceRevision": 1,
+    "value": "Could not process the request. Refresh the status."
+  },
+  "message.0579": {
+    "sourceRevision": 1,
+    "value": "Operation details expired. Check the list again."
+  },
+  "message.0580": {
+    "sourceRevision": 1,
+    "value": "Remaining operations were stopped because the app is closing."
+  },
+  "message.0581": {
+    "sourceRevision": 1,
+    "value": "The trash list changed. Reload it."
+  },
+  "message.0582": {
+    "sourceRevision": 1,
+    "value": "Some trash entries cannot be processed. Reload the list."
+  },
+  "message.0583": {
+    "sourceRevision": 1,
+    "value": "Remaining operations stopped. Completed items are kept."
+  },
+  "message.0584": {
+    "sourceRevision": 1,
+    "value": "A request key cannot be reused for a different operation."
+  },
+  "message.0585": {
+    "sourceRevision": 1,
+    "value": "Choose a replacement pet outside the selection."
+  },
+  "message.0586": {
+    "sourceRevision": 1,
+    "value": "Settings or the pet changed, so remaining operations stopped. Check the list again."
+  },
+  "message.0587": {
+    "sourceRevision": 1,
+    "value": "This pet cannot be selected."
+  },
+  "message.0588": {
+    "sourceRevision": 1,
+    "value": "Could not access the files. Check locks, permissions, and disk space."
+  },
+  "message.0589": {
+    "sourceRevision": 1,
+    "value": "Invalid setting value."
+  },
+  "message.0590": {
+    "sourceRevision": 1,
+    "value": "Home"
+  },
+  "message.0591": {
+    "sourceRevision": 1,
+    "value": "Pet"
+  },
+  "message.0592": {
+    "sourceRevision": 1,
+    "value": "Bubbles"
+  },
+  "message.0593": {
+    "sourceRevision": 1,
+    "value": "Activity"
+  },
+  "message.0594": {
+    "sourceRevision": 1,
+    "value": "Connections & diagnostics"
+  },
+  "message.0595": {
+    "sourceRevision": 1,
+    "value": "App settings"
+  },
+  "message.0596": {
+    "sourceRevision": 1,
+    "value": "Please wait for the settings connection."
+  },
+  "message.0597": {
+    "sourceRevision": 1,
+    "value": "The account or pet changed. Make changes again from the current screen."
+  },
+  "message.0598": {
+    "sourceRevision": 1,
+    "value": "Open settings from the pet app's tray. A browser cannot connect to live settings."
+  },
+  "message.0599": {
+    "sourceRevision": 1,
+    "value": "Settings navigation"
+  },
+  "message.0600": {
+    "sourceRevision": 1,
+    "value": "Customize"
+  },
+  "message.0601": {
+    "sourceRevision": 1,
+    "value": "Quit the pet, assistant, and settings app?"
+  },
+  "message.0602": {
+    "sourceRevision": 1,
+    "value": "Quit pet app"
+  },
+  "message.0603": {
+    "sourceRevision": 1,
+    "value": "Connecting"
+  },
+  "message.0604": {
+    "sourceRevision": 1,
+    "value": "Pet + Assistant"
+  },
+  "message.0605": {
+    "sourceRevision": 1,
+    "value": "Pet only"
+  },
+  "message.0606": {
+    "sourceRevision": 1,
+    "value": "Help"
+  },
+  "message.0607": {
+    "sourceRevision": 1,
+    "value": "Check again"
+  },
+  "message.0608": {
+    "sourceRevision": 1,
+    "value": "Dismiss error"
+  },
+  "message.0609": {
+    "sourceRevision": 1,
+    "value": "Connecting to settings."
+  },
+  "message.0610": {
+    "sourceRevision": 1,
+    "value": "Checking the pet's current settings."
+  },
+  "message.0611": {
+    "sourceRevision": 1,
+    "value": "General settings and pet management are saved immediately. Use Apply to save bubble designs."
+  },
+  "message.0612": {
+    "sourceRevision": 1,
+    "value": "X hides only the settings window. Reopen it from the tray. Quit pet app closes all features."
+  },
+  "message.0613": {
+    "sourceRevision": 1,
+    "value": "If a save error appears, check again. Usage and activity information depends on the installed edition and connection status."
+  },
+  "message.0614": {
+    "sourceRevision": 1,
+    "value": "View notifications that need attention, active tasks, and recent activity."
+  },
+  "message.0615": {
+    "sourceRevision": 1,
+    "value": "Loading activity."
+  },
+  "message.0616": {
+    "sourceRevision": 1,
+    "value": "Unread notifications"
+  },
+  "message.0617": {
+    "sourceRevision": 1,
+    "value": "{value0}"
+  },
+  "message.0618": {
+    "sourceRevision": 1,
+    "value": "No notifications need your attention."
+  },
+  "message.0619": {
+    "sourceRevision": 1,
+    "value": "Project"
+  },
+  "message.0620": {
+    "sourceRevision": 1,
+    "value": "Conversation"
+  },
+  "message.0621": {
+    "sourceRevision": 1,
+    "value": "No active tasks."
+  },
+  "message.0622": {
+    "sourceRevision": 1,
+    "value": "Recent activity"
+  },
+  "message.0623": {
+    "sourceRevision": 1,
+    "value": "Storage"
+  },
+  "message.0624": {
+    "sourceRevision": 1,
+    "value": "Assistant notifications, project events, and completions are shown only for this app session. Codex task usage history follows a separate local storage policy."
+  },
+  "message.0625": {
+    "sourceRevision": 1,
+    "value": "Manage activity"
+  },
+  "message.0626": {
+    "sourceRevision": 1,
+    "value": "Clear assistant notifications"
+  },
+  "message.0627": {
+    "sourceRevision": 1,
+    "value": "Clears assistant notifications from this app session. Task and project history is kept."
+  },
+  "message.0628": {
+    "sourceRevision": 1,
+    "value": "Clear"
+  },
+  "message.0629": {
+    "sourceRevision": 1,
+    "value": "Activity type"
+  },
+  "message.0630": {
+    "sourceRevision": 1,
+    "value": "All {value0}"
+  },
+  "message.0631": {
+    "sourceRevision": 1,
+    "value": "No activity recorded yet."
+  },
+  "message.0632": {
+    "sourceRevision": 1,
+    "value": "No activity of this type."
+  },
+  "message.0634": {
+    "sourceRevision": 1,
+    "value": "Tasks in selected conversation"
+  },
+  "message.0635": {
+    "sourceRevision": 1,
+    "value": "Search task history"
+  },
+  "message.0636": {
+    "sourceRevision": 1,
+    "value": "Search model, outcome, or measurement quality"
+  },
+  "message.0637": {
+    "sourceRevision": 1,
+    "value": "Task order"
+  },
+  "message.0638": {
+    "sourceRevision": 1,
+    "value": "Recent tasks"
+  },
+  "message.0639": {
+    "sourceRevision": 1,
+    "value": "Highest measured usage"
+  },
+  "message.0640": {
+    "sourceRevision": 1,
+    "value": "Oldest tasks"
+  },
+  "message.0641": {
+    "sourceRevision": 1,
+    "value": "Highest input tokens"
+  },
+  "message.0642": {
+    "sourceRevision": 1,
+    "value": "Highest output tokens"
+  },
+  "message.0643": {
+    "sourceRevision": 1,
+    "value": "Search"
+  },
+  "message.0644": {
+    "sourceRevision": 1,
+    "value": "No search results."
+  },
+  "message.0645": {
+    "sourceRevision": 1,
+    "value": "No tasks to display."
+  },
+  "message.0646": {
+    "sourceRevision": 1,
+    "value": "Tasks"
+  },
+  "message.0647": {
+    "sourceRevision": 1,
+    "value": "Notification details"
+  },
+  "message.0648": {
+    "sourceRevision": 1,
+    "value": "An external reminder system is not connected yet."
+  },
+  "message.0649": {
+    "sourceRevision": 1,
+    "value": "Review connection changes"
+  },
+  "message.0650": {
+    "sourceRevision": 1,
+    "value": "Cancel"
+  },
+  "message.0651": {
+    "sourceRevision": 1,
+    "value": "Connection settings applied."
+  },
+  "message.0652": {
+    "sourceRevision": 1,
+    "value": "Apply changes"
+  },
+  "message.0653": {
+    "sourceRevision": 1,
+    "value": "No changes to apply."
+  },
+  "message.0654": {
+    "sourceRevision": 1,
+    "value": "These changes cannot be applied right now. Review the information above."
+  },
+  "message.0655": {
+    "sourceRevision": 1,
+    "value": "View notifications, active tasks, remaining limits, and connection status."
+  },
+  "message.0656": {
+    "sourceRevision": 1,
+    "value": "Loading status."
+  },
+  "message.0657": {
+    "sourceRevision": 1,
+    "value": "Needs attention"
+  },
+  "message.0658": {
+    "sourceRevision": 1,
+    "value": "No notifications need attention."
+  },
+  "message.0659": {
+    "sourceRevision": 1,
+    "value": "Open activity"
+  },
+  "message.0660": {
+    "sourceRevision": 1,
+    "value": "{value0}"
+  },
+  "message.0661": {
+    "sourceRevision": 1,
+    "value": "No active tasks."
+  },
+  "message.0662": {
+    "sourceRevision": 1,
+    "value": "Remaining limits"
+  },
+  "message.0663": {
+    "sourceRevision": 1,
+    "value": "Open usage"
+  },
+  "message.0664": {
+    "sourceRevision": 1,
+    "value": "Connection"
+  },
+  "message.0665": {
+    "sourceRevision": 1,
+    "value": "No tools are enabled. Enable Codex or Claude Code in Connections & diagnostics."
+  },
+  "message.0666": {
+    "sourceRevision": 1,
+    "value": "Check connections that provide Codex and Claude Code task status."
+  },
+  "message.0667": {
+    "sourceRevision": 1,
+    "value": "Refresh"
+  },
+  "message.0668": {
+    "sourceRevision": 1,
+    "value": "Checking connections."
+  },
+  "message.0669": {
+    "sourceRevision": 1,
+    "value": "App status"
+  },
+  "message.0670": {
+    "sourceRevision": 1,
+    "value": "Advanced tools"
+  },
+  "message.0674": {
+    "sourceRevision": 1,
+    "value": "Review {value0} repair"
+  },
+  "message.0675": {
+    "sourceRevision": 1,
+    "value": "Review repair"
+  },
+  "message.0676": {
+    "sourceRevision": 1,
+    "value": "Export diagnostics"
+  },
+  "message.0677": {
+    "sourceRevision": 1,
+    "value": "A ZIP file you can attach when reporting a problem."
+  },
+  "message.0678": {
+    "sourceRevision": 1,
+    "value": "Diagnostics ZIP saved."
+  },
+  "message.0679": {
+    "sourceRevision": 1,
+    "value": "View raw status"
+  },
+  "message.0680": {
+    "sourceRevision": 1,
+    "value": "Check remaining limits and tasks observed on this device."
+  },
+  "message.0681": {
+    "sourceRevision": 1,
+    "value": "Usage section"
+  },
+  "message.0682": {
+    "sourceRevision": 1,
+    "value": "Overview"
+  },
+  "message.0683": {
+    "sourceRevision": 1,
+    "value": "Loading usage."
+  },
+  "message.0684": {
+    "sourceRevision": 1,
+    "value": "Last observed {value0}"
+  },
+  "message.0685": {
+    "sourceRevision": 1,
+    "value": "Not yet observed"
+  },
+  "message.0686": {
+    "sourceRevision": 1,
+    "value": "Checking latest usage…"
+  },
+  "message.0687": {
+    "sourceRevision": 1,
+    "value": "No tools are enabled, so limits are not being checked."
+  },
+  "message.0688": {
+    "sourceRevision": 1,
+    "value": " lets you enable Codex or Claude Code."
+  },
+  "message.0689": {
+    "sourceRevision": 1,
+    "value": "Check {value0}"
+  },
+  "message.0690": {
+    "sourceRevision": 1,
+    "value": "Today's device activity"
+  },
+  "message.0691": {
+    "sourceRevision": 1,
+    "value": "No Codex tasks have been observed on this device today. Tokens and limit decreases will appear here as you work."
+  },
+  "message.0692": {
+    "sourceRevision": 1,
+    "value": "Observed tokens"
+  },
+  "message.0693": {
+    "sourceRevision": 1,
+    "value": "Uncategorized tokens"
+  },
+  "message.0694": {
+    "sourceRevision": 1,
+    "value": "Observed limit decrease"
+  },
+  "message.0695": {
+    "sourceRevision": 1,
+    "value": "Limit details and account statistics"
+  },
+  "message.0696": {
+    "sourceRevision": 1,
+    "value": "Account statistics"
+  },
+  "message.0697": {
+    "sourceRevision": 1,
+    "value": "History source"
+  },
+  "message.0698": {
+    "sourceRevision": 1,
+    "value": " · Files remaining: {value0}"
+  },
+  "message.0699": {
+    "sourceRevision": 1,
+    "value": "Clear Claude Code task history"
+  },
+  "message.0700": {
+    "sourceRevision": 1,
+    "value": "Clears Claude Code task history stored on this device. Claude Code transcript files are preserved. Recording resumes with subsequent tasks."
+  },
+  "message.0701": {
+    "sourceRevision": 1,
+    "value": "Clear history"
+  },
+  "message.0702": {
+    "sourceRevision": 1,
+    "value": "Search usage history"
+  },
+  "message.0703": {
+    "sourceRevision": 1,
+    "value": "Search projects or conversations"
+  },
+  "message.0706": {
+    "sourceRevision": 1,
+    "value": "Project order"
+  },
+  "message.0707": {
+    "sourceRevision": 1,
+    "value": "Most recent"
+  },
+  "message.0708": {
+    "sourceRevision": 1,
+    "value": "Name"
+  },
+  "message.0709": {
+    "sourceRevision": 1,
+    "value": "Custom order"
+  },
+  "message.0710": {
+    "sourceRevision": 1,
+    "value": "No projects recorded yet."
+  },
+  "message.0712": {
+    "sourceRevision": 1,
+    "value": "Move {value0} up"
+  },
+  "message.0713": {
+    "sourceRevision": 1,
+    "value": "Move {value0} down"
+  },
+  "message.0714": {
+    "sourceRevision": 1,
+    "value": "Conversations in {value0}"
+  },
+  "message.0715": {
+    "sourceRevision": 1,
+    "value": "Conversation order"
+  },
+  "message.0716": {
+    "sourceRevision": 1,
+    "value": "No conversations to display for this project."
+  },
+  "message.0717": {
+    "sourceRevision": 1,
+    "value": "Select a project to view conversations."
+  },
+  "message.0720": {
+    "sourceRevision": 1,
+    "value": "Data management"
+  },
+  "message.0721": {
+    "sourceRevision": 1,
+    "value": "Codex device observations"
+  },
+  "message.0722": {
+    "sourceRevision": 1,
+    "value": "Token and limit changes observed in this Windows user's Codex logs."
+  },
+  "message.0723": {
+    "sourceRevision": 1,
+    "value": "Clear device observations"
+  },
+  "message.0724": {
+    "sourceRevision": 1,
+    "value": "Clears observations on this device. This cannot be undone."
+  },
+  "message.0725": {
+    "sourceRevision": 1,
+    "value": "Codex current account task history"
+  },
+  "message.0726": {
+    "sourceRevision": 1,
+    "value": "Project, conversation, and task usage for the current Codex account. Clear Claude Code task history from the History tab."
+  },
+  "message.0727": {
+    "sourceRevision": 1,
+    "value": "Clear current account history"
+  },
+  "message.0728": {
+    "sourceRevision": 1,
+    "value": "Clears usage history for the current account. This cannot be undone."
+  },
+  "message.0729": {
+    "sourceRevision": 1,
+    "value": "Customize the layout, content, color, and size of the usage widget beside your pet."
+  },
+  "message.0730": {
+    "sourceRevision": 1,
+    "value": "Loading widget settings."
+  },
+  "message.0731": {
+    "sourceRevision": 1,
+    "value": "Reset content"
+  },
+  "message.0732": {
+    "sourceRevision": 1,
+    "value": "Restore position beside pet"
+  },
+  "message.0733": {
+    "sourceRevision": 1,
+    "value": "Reset style"
+  },
+  "message.0734": {
+    "sourceRevision": 1,
+    "value": "Reset size"
+  },
+  "message.0735": {
+    "sourceRevision": 1,
+    "value": "Today's activity hours"
+  },
+  "message.0736": {
+    "sourceRevision": 1,
+    "value": "Show all 24 hours"
+  },
+  "message.0737": {
+    "sourceRevision": 1,
+    "value": "Installation"
+  },
+  "message.0738": {
+    "sourceRevision": 1,
+    "value": "Detected"
+  },
+  "message.0739": {
+    "sourceRevision": 1,
+    "value": "Not found"
+  },
+  "message.0740": {
+    "sourceRevision": 1,
+    "value": "Managed hooks"
+  },
+  "message.0741": {
+    "sourceRevision": 1,
+    "value": "{value0}/{value1} event types"
+  },
+  "message.0742": {
+    "sourceRevision": 1,
+    "value": "Last event received"
+  },
+  "message.0743": {
+    "sourceRevision": 1,
+    "value": "None in this app session"
+  },
+  "message.0744": {
+    "sourceRevision": 1,
+    "value": "Hook trust"
+  },
+  "message.0745": {
+    "sourceRevision": 1,
+    "value": "Check after installing hooks"
+  },
+  "message.0746": {
+    "sourceRevision": 1,
+    "value": "Unable to verify"
+  },
+  "message.0747": {
+    "sourceRevision": 1,
+    "value": "Hooks may have changed since approval"
+  },
+  "message.0748": {
+    "sourceRevision": 1,
+    "value": "Approve in Codex ({value0}/{value1})"
+  },
+  "message.0749": {
+    "sourceRevision": 1,
+    "value": "Approved"
+  },
+  "message.0750": {
+    "sourceRevision": 1,
+    "value": "Task log monitoring"
+  },
+  "message.0751": {
+    "sourceRevision": 1,
+    "value": "Watching · Files: {value0}"
+  },
+  "message.0752": {
+    "sourceRevision": 1,
+    "value": "Off"
+  },
+  "message.0753": {
+    "sourceRevision": 1,
+    "value": "Last error"
+  },
+  "message.0754": {
+    "sourceRevision": 1,
+    "value": "None"
+  },
+  "message.0755": {
+    "sourceRevision": 1,
+    "value": "Local history storage"
+  },
+  "message.0756": {
+    "sourceRevision": 1,
+    "value": "Available"
+  },
+  "message.0757": {
+    "sourceRevision": 1,
+    "value": "Unavailable"
+  },
+  "message.0758": {
+    "sourceRevision": 1,
+    "value": "This session: {value0} · No external reminders connected"
+  },
+  "message.0759": {
+    "sourceRevision": 1,
+    "value": "Ready to receive Codex task status"
+  },
+  "message.0760": {
+    "sourceRevision": 1,
+    "value": "Codex hooks are not connected"
+  },
+  "message.0761": {
+    "sourceRevision": 1,
+    "value": "Codex logs provide some task status without hooks. Connect hooks for more accurate progress and completion."
+  },
+  "message.0762": {
+    "sourceRevision": 1,
+    "value": "Connect hooks"
+  },
+  "message.0763": {
+    "sourceRevision": 1,
+    "value": "Some connection settings changed"
+  },
+  "message.0764": {
+    "sourceRevision": 1,
+    "value": "Repair connection"
+  },
+  "message.0765": {
+    "sourceRevision": 1,
+    "value": "Codex hooks are disabled"
+  },
+  "message.0766": {
+    "sourceRevision": 1,
+    "value": "Enable hooks in Codex settings, then check again."
+  },
+  "message.0767": {
+    "sourceRevision": 1,
+    "value": "Could not read Codex settings"
+  },
+  "message.0768": {
+    "sourceRevision": 1,
+    "value": "Check hook approval in Codex"
+  },
+  "message.0769": {
+    "sourceRevision": 1,
+    "value": "Hooks may have changed since approval. Check their approval status again in Codex."
+  },
+  "message.0770": {
+    "sourceRevision": 1,
+    "value": "Some hooks are not approved ({value0}/{value1}). Check their approval status in Codex."
+  },
+  "message.0771": {
+    "sourceRevision": 1,
+    "value": "Codex was not found. Install it and refresh, or connect hooks in advance."
+  },
+  "message.0772": {
+    "sourceRevision": 1,
+    "value": "Ready to receive Claude Code task status"
+  },
+  "message.0773": {
+    "sourceRevision": 1,
+    "value": "Claude Code hooks are not connected"
+  },
+  "message.0774": {
+    "sourceRevision": 1,
+    "value": "Connect hooks to show Claude Code activity from the CLI and VS Code on your pet."
+  },
+  "message.0775": {
+    "sourceRevision": 1,
+    "value": "Some Claude Code connection settings changed"
+  },
+  "message.0776": {
+    "sourceRevision": 1,
+    "value": "All Claude Code hooks are disabled"
+  },
+  "message.0777": {
+    "sourceRevision": 1,
+    "value": "Turn off disableAllHooks in Claude Code settings, then check again."
+  },
+  "message.0778": {
+    "sourceRevision": 1,
+    "value": "Administrator policy blocks user hooks"
+  },
+  "message.0779": {
+    "sourceRevision": 1,
+    "value": "Could not read Claude Code settings"
+  },
+  "message.0780": {
+    "sourceRevision": 1,
+    "value": "Limits received"
+  },
+  "message.0781": {
+    "sourceRevision": 1,
+    "value": "Observed {value0}"
+  },
+  "message.0782": {
+    "sourceRevision": 1,
+    "value": "Shown after a terminal Claude Code response"
+  },
+  "message.0783": {
+    "sourceRevision": 1,
+    "value": "Disconnected"
+  },
+  "message.0784": {
+    "sourceRevision": 1,
+    "value": "Rejection / interruption detection"
+  },
+  "message.0785": {
+    "sourceRevision": 1,
+    "value": "Checking active sessions: {value0}"
+  },
+  "message.0786": {
+    "sourceRevision": 1,
+    "value": "Idle · Detected this session: {value0}"
+  },
+  "message.0787": {
+    "sourceRevision": 1,
+    "value": "Pet connection (only when disconnected)"
+  },
+  "message.0788": {
+    "sourceRevision": 1,
+    "value": "Model / reasoning effort"
+  },
+  "message.0789": {
+    "sourceRevision": 1,
+    "value": "Context"
+  },
+  "message.0790": {
+    "sourceRevision": 1,
+    "value": "Context 12% (24k/200k)"
+  },
+  "message.0791": {
+    "sourceRevision": 1,
+    "value": "5-hour limit"
+  },
+  "message.0792": {
+    "sourceRevision": 1,
+    "value": "5h 41%"
+  },
+  "message.0793": {
+    "sourceRevision": 1,
+    "value": "7-day limit"
+  },
+  "message.0794": {
+    "sourceRevision": 1,
+    "value": "7d 55%"
+  },
+  "message.0795": {
+    "sourceRevision": 1,
+    "value": "Hidden"
+  },
+  "message.0796": {
+    "sourceRevision": 1,
+    "value": "Line 1"
+  },
+  "message.0797": {
+    "sourceRevision": 1,
+    "value": "Line 2"
+  },
+  "message.0798": {
+    "sourceRevision": 1,
+    "value": "Use colors"
+  },
+  "message.0799": {
+    "sourceRevision": 1,
+    "value": "Use status line colors"
+  },
+  "message.0800": {
+    "sourceRevision": 1,
+    "value": "5-hour limit reset time"
+  },
+  "message.0801": {
+    "sourceRevision": 1,
+    "value": "Show 5-hour limit reset time"
+  },
+  "message.0802": {
+    "sourceRevision": 1,
+    "value": "Status line preview"
+  },
+  "message.0803": {
+    "sourceRevision": 1,
+    "value": "No items to display."
+  },
+  "message.0804": {
+    "sourceRevision": 1,
+    "value": "Use Claude Code in a terminal"
+  },
+  "message.0807": {
+    "sourceRevision": 1,
+    "value": "Open with a VS Code shortcut"
+  },
+  "message.0810": {
+    "sourceRevision": 1,
+    "value": "Copied"
+  },
+  "message.0811": {
+    "sourceRevision": 1,
+    "value": "Copy shortcut settings"
+  },
+  "message.0812": {
+    "sourceRevision": 1,
+    "value": "VS Code automatically locks an editor group containing a terminal. The shortcut unlocks the group, opens a new tab, then locks it again."
+  },
+  "integration.venv_note": {
+    "sourceRevision": 1,
+    "value": "The command prefix activates a Python project's virtual environment (venv). For non-Python projects, you can keep just {command}."
+  },
+  "message.0815": {
+    "sourceRevision": 1,
+    "value": "With three or more editor groups, it opens in the second group."
+  },
+  "message.0816": {
+    "sourceRevision": 1,
+    "value": "Common Claude Code commands"
+  },
+  "message.0817": {
+    "sourceRevision": 1,
+    "value": " context usage, "
+  },
+  "message.0818": {
+    "sourceRevision": 1,
+    "value": " limits"
+  },
+  "message.0819": {
+    "sourceRevision": 1,
+    "value": " new conversation, "
+  },
+  "message.0820": {
+    "sourceRevision": 1,
+    "value": " summarize and continue,"
+  },
+  "message.0821": {
+    "sourceRevision": 1,
+    "value": " previous conversation"
+  },
+  "message.0822": {
+    "sourceRevision": 1,
+    "value": " session name (shown above the input)"
+  },
+  "message.0823": {
+    "sourceRevision": 1,
+    "value": "Connection checks"
+  },
+  "integration.tool_label": {
+    "sourceRevision": 1,
+    "value": "{name} enabled"
+  },
+  "message.0825": {
+    "sourceRevision": 1,
+    "value": "Disabling removes this app's hooks, stops reading {value0} files, and hides it from Home, Usage, History, the tray, and the widget. Saved history is kept."
+  },
+  "message.0826": {
+    "sourceRevision": 1,
+    "value": "Enabling adds only this app's hooks to {value0} user settings and shows task status and usage."
+  },
+  "message.0827": {
+    "sourceRevision": 1,
+    "value": "You can review the changes before applying them."
+  },
+  "message.0828": {
+    "sourceRevision": 1,
+    "value": "Enable {value0}"
+  },
+  "message.0831": {
+    "sourceRevision": 1,
+    "value": " min"
+  },
+  "message.0832": {
+    "sourceRevision": 1,
+    "value": "Collect Claude Code limits"
+  },
+  "message.0833": {
+    "sourceRevision": 1,
+    "value": "About collecting limits"
+  },
+  "message.0834": {
+    "sourceRevision": 1,
+    "value": "Updates only in terminal modes (CLI and VS Code terminal), not in the VS Code graphical panel."
+  },
+  "message.0835": {
+    "sourceRevision": 1,
+    "value": "Your existing status line is preserved. If none exists, a short limits summary is shown."
+  },
+  "message.0836": {
+    "sourceRevision": 1,
+    "value": "Claude Code sends values only while in use. After 15 minutes without new data, the widget grays out and shows its age. Codex is checked every 5 minutes to keep its data fresh."
+  },
+  "message.0837": {
+    "sourceRevision": 1,
+    "value": "Collect 5-hour and 7-day limits through the Claude Code status line. ("
+  },
+  "message.0838": {
+    "sourceRevision": 1,
+    "value": "How to use it in a terminal"
+  },
+  "message.0839": {
+    "sourceRevision": 1,
+    "value": "Details"
+  },
+  "message.0840": {
+    "sourceRevision": 1,
+    "value": "Working status timeout"
+  },
+  "message.0841": {
+    "sourceRevision": 1,
+    "value": "Clears the working status after this long without a Claude Code signal. Tool execution uses the waiting timeout."
+  },
+  "message.0842": {
+    "sourceRevision": 1,
+    "value": "Waiting status timeout"
+  },
+  "message.0843": {
+    "sourceRevision": 1,
+    "value": "Clears permission requests, background waits, and tool execution status after this long without a signal. Rejections and interruptions are detected immediately."
+  },
+  "message.0844": {
+    "sourceRevision": 1,
+    "value": "Status line items"
+  },
+  "message.0845": {
+    "sourceRevision": 1,
+    "value": "Your existing status line output is preserved. These options apply to the default status line shown when you have no existing one."
+  },
+  "message.0846": {
+    "sourceRevision": 1,
+    "value": "Today"
+  },
+  "message.0847": {
+    "sourceRevision": 1,
+    "value": "Yesterday"
+  },
+  "message.0848": {
+    "sourceRevision": 1,
+    "value": "Healthy"
+  },
+  "message.0849": {
+    "sourceRevision": 1,
+    "value": "Caution"
+  },
+  "message.0850": {
+    "sourceRevision": 1,
+    "value": "Low"
+  },
+  "message.0851": {
+    "sourceRevision": 1,
+    "value": "Completed at"
+  },
+  "message.0852": {
+    "sourceRevision": 1,
+    "value": "Outcome"
+  },
+  "message.0853": {
+    "sourceRevision": 1,
+    "value": "Input tokens"
+  },
+  "message.0854": {
+    "sourceRevision": 1,
+    "value": "New input tokens"
+  },
+  "message.0855": {
+    "sourceRevision": 1,
+    "value": "Cached input tokens"
+  },
+  "message.0856": {
+    "sourceRevision": 1,
+    "value": "Output tokens"
+  },
+  "message.0857": {
+    "sourceRevision": 1,
+    "value": "Total tokens"
+  },
+  "message.0858": {
+    "sourceRevision": 1,
+    "value": "Estimated credits"
+  },
+  "message.0859": {
+    "sourceRevision": 1,
+    "value": "Estimated cost"
+  },
+  "message.0860": {
+    "sourceRevision": 1,
+    "value": "Model"
+  },
+  "message.0861": {
+    "sourceRevision": 1,
+    "value": "Reasoning effort"
+  },
+  "message.0862": {
+    "sourceRevision": 1,
+    "value": "Speed"
+  },
+  "message.0863": {
+    "sourceRevision": 1,
+    "value": "Measurement quality"
+  },
+  "message.0864": {
+    "sourceRevision": 1,
+    "value": "Quality details"
+  },
+  "message.0865": {
+    "sourceRevision": 1,
+    "value": "Account plan"
+  },
+  "message.0866": {
+    "sourceRevision": 1,
+    "value": "Limit name"
+  },
+  "message.0867": {
+    "sourceRevision": 1,
+    "value": "Plan"
+  },
+  "message.0868": {
+    "sourceRevision": 1,
+    "value": "Limit reached"
+  },
+  "message.0869": {
+    "sourceRevision": 1,
+    "value": "Individual limit"
+  },
+  "message.0870": {
+    "sourceRevision": 1,
+    "value": "Individual usage"
+  },
+  "message.0871": {
+    "sourceRevision": 1,
+    "value": "Individual remaining percentage"
+  },
+  "message.0872": {
+    "sourceRevision": 1,
+    "value": "Individual reset time"
+  },
+  "message.0873": {
+    "sourceRevision": 1,
+    "value": "Account total tokens"
+  },
+  "message.0874": {
+    "sourceRevision": 1,
+    "value": "Peak daily tokens"
+  },
+  "message.0875": {
+    "sourceRevision": 1,
+    "value": "Longest task duration"
+  },
+  "message.0876": {
+    "sourceRevision": 1,
+    "value": "Current activity streak"
+  },
+  "message.0877": {
+    "sourceRevision": 1,
+    "value": "Longest activity streak"
+  },
+  "message.0878": {
+    "sourceRevision": 1,
+    "value": "Credit balance"
+  },
+  "message.0879": {
+    "sourceRevision": 1,
+    "value": "Unlimited credits"
+  },
+  "message.0880": {
+    "sourceRevision": 1,
+    "value": "Credits used"
+  },
+  "message.0881": {
+    "sourceRevision": 1,
+    "value": "Spending limit reached"
+  },
+  "message.0882": {
+    "sourceRevision": 1,
+    "value": "Yes"
+  },
+  "message.0883": {
+    "sourceRevision": 1,
+    "value": "No"
+  },
+  "message.0884": {
+    "sourceRevision": 2,
+    "value": {
+      "one": "{value0} credit",
+      "other": "{value0} credits"
+    }
+  },
+  "message.0885": {
+    "sourceRevision": 1,
+    "value": "{value0}s"
+  },
+  "message.0886": {
+    "sourceRevision": 1,
+    "value": "No information to display."
+  },
+  "message.0887": {
+    "sourceRevision": 1,
+    "value": "Page {value0}"
+  },
+  "message.0891": {
+    "sourceRevision": 1,
+    "value": "Start must be 0–23, end must be 1–24, and start must be earlier than end."
+  },
+  "message.0892": {
+    "sourceRevision": 1,
+    "value": "Hours to display"
+  },
+  "message.0893": {
+    "sourceRevision": 1,
+    "value": "The hours of the day shown in today's activity chart."
+  },
+  "message.0894": {
+    "sourceRevision": 1,
+    "value": "Widget start hour"
+  },
+  "message.0896": {
+    "sourceRevision": 1,
+    "value": "Widget end hour"
+  },
+  "message.0898": {
+    "sourceRevision": 1,
+    "value": "Usage is off for both tools."
+  },
+  "message.0899": {
+    "sourceRevision": 1,
+    "value": "Estimated"
+  },
+  "message.0900": {
+    "sourceRevision": 1,
+    "value": "left"
+  },
+  "message.0901": {
+    "sourceRevision": 1,
+    "value": "{value0} reset{value1}"
+  },
+  "message.0902": {
+    "sourceRevision": 1,
+    "value": "Starts fresh the next time you use it"
+  },
+  "message.0903": {
+    "sourceRevision": 1,
+    "value": "Reset time unavailable"
+  },
+  "message.0904": {
+    "sourceRevision": 1,
+    "value": "Observed"
+  },
+  "message.0905": {
+    "sourceRevision": 1,
+    "value": " · Stale value"
+  },
+  "message.0906": {
+    "sourceRevision": 1,
+    "value": "Claude Code limits update only while using Claude Code in a terminal. Inactivity and usage in web or desktop apps are not reflected. After the reset time, remaining usage is estimated at 100% until you use it again."
+  },
+  "message.0907": {
+    "sourceRevision": 1,
+    "value": "Use Claude Code in a terminal to see limits."
+  },
+  "message.0908": {
+    "sourceRevision": 1,
+    "value": "Enable Claude Code limit collection in Connections & diagnostics."
+  },
+  "message.0909": {
+    "sourceRevision": 1,
+    "value": "No Codex limits are currently available."
+  },
+  "message.0910": {
+    "sourceRevision": 1,
+    "value": "Same as usual"
+  },
+  "message.0911": {
+    "sourceRevision": 1,
+    "value": "{value0}% {value1} than usual"
+  },
+  "message.0912": {
+    "sourceRevision": 1,
+    "value": "Claude Code history has not been read yet."
+  },
+  "message.0913": {
+    "sourceRevision": 1,
+    "value": "{value0} usage is off. Enable it with the switch above."
+  },
+  "message.0914": {
+    "sourceRevision": 1,
+    "value": "No tokens observed today."
+  },
+  "message.0915": {
+    "sourceRevision": 1,
+    "value": "Today's total"
+  },
+  "message.0916": {
+    "sourceRevision": 1,
+    "value": "Compared with usual"
+  },
+  "message.0917": {
+    "sourceRevision": 1,
+    "value": "Peak hour"
+  },
+  "message.0918": {
+    "sourceRevision": 1,
+    "value": "{value0}:00"
+  },
+  "message.0919": {
+    "sourceRevision": 1,
+    "value": "{value0}:00{value1}"
+  },
+  "message.0920": {
+    "sourceRevision": 1,
+    "value": "Usual ({value0}-day average)"
+  },
+  "message.0921": {
+    "sourceRevision": 1,
+    "value": "{value0} hourly tokens today. Total {value1}, {value2}."
+  },
+  "message.0922": {
+    "sourceRevision": 1,
+    "value": "Not observed"
+  },
+  "message.0923": {
+    "sourceRevision": 1,
+    "value": "Usual {value0}"
+  },
+  "message.0924": {
+    "sourceRevision": 2,
+    "value": {
+      "one": "The gray area is the same-hour average across {value0} recorded day in the past week. Comparison is up to the current hour. ",
+      "other": "The gray area is the same-hour average across {value0} recorded days in the past week. Comparison is up to the current hour. "
+    }
+  },
+  "message.0925": {
+    "sourceRevision": 2,
+    "value": {
+      "one": "Only {value0} day is available for the average. A usual pattern appears after 3 days. ",
+      "other": "Only {value0} days are available for the average. A usual pattern appears after 3 days. "
+    }
+  },
+  "message.0926": {
+    "sourceRevision": 1,
+    "value": "Based on Codex logs on this PC. Unobserved hours are marked with faint bars."
+  },
+  "message.0927": {
+    "sourceRevision": 1,
+    "value": "Based on Claude Code transcripts on this PC. Tokens are counted at the time each turn finishes."
+  },
+  "message.0930": {
+    "sourceRevision": 1,
+    "value": "Remaining now"
+  },
+  "message.0931": {
+    "sourceRevision": 1,
+    "value": "Decrease today"
+  },
+  "message.0932": {
+    "sourceRevision": 1,
+    "value": "Reset"
+  },
+  "message.0933": {
+    "sourceRevision": 2,
+    "value": {
+      "one": "{value0} time",
+      "other": "{value0} times"
+    }
+  },
+  "message.0934": {
+    "sourceRevision": 1,
+    "value": "Today's remaining percentage for {value0} {value1}. Now {value2}, decreased by {value3} today."
+  },
+  "message.0935": {
+    "sourceRevision": 1,
+    "value": "Vertical dotted lines mark resets. The faint line extends from the last observation to now."
+  },
+  "message.0936": {
+    "sourceRevision": 1,
+    "value": "Remaining percentage of the primary Codex limit. This selection is separate from the widget's main limit."
+  },
+  "message.0937": {
+    "sourceRevision": 1,
+    "value": "Observations are collected only while using Claude Code in a terminal, so gaps may appear."
+  },
+  "message.0938": {
+    "sourceRevision": 1,
+    "value": "No daily history yet."
+  },
+  "message.0939": {
+    "sourceRevision": 2,
+    "value": {
+      "one": "Last {value0} day total",
+      "other": "Last {value0} days total"
+    }
+  },
+  "message.0940": {
+    "sourceRevision": 1,
+    "value": "Daily average"
+  },
+  "message.0941": {
+    "sourceRevision": 1,
+    "value": "Peak day"
+  },
+  "message.0942": {
+    "sourceRevision": 1,
+    "value": " (today)"
+  },
+  "message.0943": {
+    "sourceRevision": 1,
+    "value": "7-day moving average"
+  },
+  "message.0944": {
+    "sourceRevision": 2,
+    "value": {
+      "one": "{value0} daily tokens for the past {value1} day. Total {value2}, daily average {value3}.",
+      "other": "{value0} daily tokens for the past {value1} days. Total {value2}, daily average {value3}."
+    }
+  },
+  "message.0945": {
+    "sourceRevision": 1,
+    "value": "No data"
+  },
+  "message.0946": {
+    "sourceRevision": 1,
+    "value": "7-day average {value0}"
+  },
+  "message.0947": {
+    "sourceRevision": 1,
+    "value": "Daily tokens for the entire account, including other PCs, provided by the server. "
+  },
+  "message.0948": {
+    "sourceRevision": 1,
+    "value": "Based on Claude Code transcripts on this PC. Usage on other PCs is not included. "
+  },
+  "message.0949": {
+    "sourceRevision": 1,
+    "value": "The line shows a 7-day moving average when at least 4 of 7 days have data."
+  },
+  "message.0950": {
+    "sourceRevision": 1,
+    "value": "Trends"
+  },
+  "message.0951": {
+    "sourceRevision": 1,
+    "value": "Trend tools"
+  },
+  "message.0952": {
+    "sourceRevision": 1,
+    "value": "Trend chart type"
+  },
+  "message.0953": {
+    "sourceRevision": 1,
+    "value": "Today's tokens"
+  },
+  "message.0954": {
+    "sourceRevision": 1,
+    "value": "Today's limits"
+  },
+  "message.0955": {
+    "sourceRevision": 1,
+    "value": "Daily tokens"
+  },
+  "message.0956": {
+    "sourceRevision": 1,
+    "value": "Limit window"
+  },
+  "usage.recent_span": {
+    "sourceRevision": 1,
+    "value": "Last {span}"
+  },
+  "message.0958": {
+    "sourceRevision": 1,
+    "value": "Found on this PC. Ready to connect"
+  },
+  "message.0959": {
+    "sourceRevision": 1,
+    "value": "This notification expired."
+  },
+  "message.0960": {
+    "sourceRevision": 1,
+    "value": "Preview of the usage widget with current settings"
+  },
+  "message.0961": {
+    "sourceRevision": 1,
+    "value": "Rendering preview."
+  },
+  "message.0962": {
+    "sourceRevision": 1,
+    "value": "Preview values"
+  },
+  "message.0963": {
+    "sourceRevision": 1,
+    "value": "Live values"
+  },
+  "message.0964": {
+    "sourceRevision": 1,
+    "value": "Chips layout"
+  },
+  "message.0965": {
+    "sourceRevision": 1,
+    "value": "Normal"
+  },
+  "message.0966": {
+    "sourceRevision": 1,
+    "value": "On hover"
+  },
+  "message.0967": {
+    "sourceRevision": 1,
+    "value": "No limits received yet. Showing sample values."
+  },
+  "message.0968": {
+    "sourceRevision": 1,
+    "value": "Rendered the same way as the widget beside your pet. Setting changes appear immediately."
+  },
+  "message.0969": {
+    "sourceRevision": 1,
+    "value": " Acrylic blurs the desktop only in the live widget. The preview shows its color over a dark background."
+  },
+  "message.0970": {
+    "sourceRevision": 1,
+    "value": "Close"
+  },
+  "message.0971": {
+    "sourceRevision": 1,
+    "value": "Pet size presets"
+  },
+  "message.0972": {
+    "sourceRevision": 1,
+    "value": "Custom time · {value0}"
+  },
+  "message.0973": {
+    "sourceRevision": 1,
+    "value": "Default"
+  },
+  "message.0974": {
+    "sourceRevision": 1,
+    "value": "Use custom time"
+  },
+  "message.0975": {
+    "sourceRevision": 1,
+    "value": "Use custom time for {value0}"
+  },
+  "message.0976": {
+    "sourceRevision": 1,
+    "value": "Display time for {value0}"
+  },
+  "message.0977": {
+    "sourceRevision": 1,
+    "value": "Not selected"
+  },
+  "message.0978": {
+    "sourceRevision": 1,
+    "value": "{value0} · Bubble editor"
+  },
+  "message.0979": {
+    "sourceRevision": 1,
+    "value": "Apply to restore the pet's default design."
+  },
+  "message.0980": {
+    "sourceRevision": 1,
+    "value": "No changes"
+  },
+  "message.0981": {
+    "sourceRevision": 1,
+    "value": "Applying changes switches the theme to My custom design."
+  },
+  "message.0982": {
+    "sourceRevision": 1,
+    "value": "You have unapplied changes."
+  },
+  "message.0983": {
+    "sourceRevision": 1,
+    "value": "Apply"
+  },
+  "message.0984": {
+    "sourceRevision": 1,
+    "value": "Design presets"
+  },
+  "message.0985": {
+    "sourceRevision": 1,
+    "value": "Custom decoration images"
+  },
+  "message.0986": {
+    "sourceRevision": 1,
+    "value": "Adding or deleting images takes effect immediately and is not undone when you cancel design changes."
+  },
+  "message.0987": {
+    "sourceRevision": 1,
+    "value": "Add pattern"
+  },
+  "message.0988": {
+    "sourceRevision": 1,
+    "value": "Add decoration"
+  },
+  "message.0989": {
+    "sourceRevision": 1,
+    "value": "Add photo"
+  },
+  "message.0990": {
+    "sourceRevision": 1,
+    "value": "Add border image"
+  },
+  "message.0991": {
+    "sourceRevision": 1,
+    "value": "Add sticker"
+  },
+  "message.0992": {
+    "sourceRevision": 1,
+    "value": "Delete {value0}"
+  },
+  "message.0993": {
+    "sourceRevision": 1,
+    "value": "Decorations used by other pets may also disappear. Delete this image?"
+  },
+  "message.0994": {
+    "sourceRevision": 1,
+    "value": "Live rendering preview"
+  },
+  "message.0995": {
+    "sourceRevision": 1,
+    "value": "Preview type"
+  },
+  "message.0996": {
+    "sourceRevision": 1,
+    "value": "Short notification"
+  },
+  "message.0997": {
+    "sourceRevision": 1,
+    "value": "Project card"
+  },
+  "message.0998": {
+    "sourceRevision": 1,
+    "value": "Sticker to place by clicking the preview"
+  },
+  "message.1000": {
+    "sourceRevision": 1,
+    "value": "Preview of current bubble design"
+  },
+  "message.1001": {
+    "sourceRevision": 1,
+    "value": "Creating preview…"
+  },
+  "message.1002": {
+    "sourceRevision": 1,
+    "value": "An independent preview that does not change live notifications or status."
+  },
+  "message.1003": {
+    "sourceRevision": 1,
+    "value": "Reload latest state"
+  },
+  "message.1004": {
+    "sourceRevision": 1,
+    "value": "Reload saved values"
+  },
+  "message.1005": {
+    "sourceRevision": 1,
+    "value": "Border color"
+  },
+  "message.1006": {
+    "sourceRevision": 1,
+    "value": "Text color"
+  },
+  "message.1007": {
+    "sourceRevision": 1,
+    "value": "Shadow color"
+  },
+  "message.1008": {
+    "sourceRevision": 1,
+    "value": "Shadow opacity"
+  },
+  "message.1009": {
+    "sourceRevision": 1,
+    "value": "Corner radius"
+  },
+  "message.1010": {
+    "sourceRevision": 1,
+    "value": "Border width"
+  },
+  "message.1011": {
+    "sourceRevision": 1,
+    "value": "Shape"
+  },
+  "message.1012": {
+    "sourceRevision": 1,
+    "value": "Tail"
+  },
+  "message.1013": {
+    "sourceRevision": 1,
+    "value": "Gradient"
+  },
+  "message.1014": {
+    "sourceRevision": 1,
+    "value": "End color"
+  },
+  "message.1015": {
+    "sourceRevision": 1,
+    "value": "Border style"
+  },
+  "message.1016": {
+    "sourceRevision": 1,
+    "value": "Source label style"
+  },
+  "message.1017": {
+    "sourceRevision": 1,
+    "value": "Background pattern"
+  },
+  "message.1018": {
+    "sourceRevision": 1,
+    "value": "Left decoration"
+  },
+  "message.1019": {
+    "sourceRevision": 1,
+    "value": "Right decoration"
+  },
+  "message.1020": {
+    "sourceRevision": 1,
+    "value": "Decoration size"
+  },
+  "message.1021": {
+    "sourceRevision": 1,
+    "value": "Glow"
+  },
+  "message.1022": {
+    "sourceRevision": 1,
+    "value": "Frame"
+  },
+  "message.1023": {
+    "sourceRevision": 1,
+    "value": "Fill opacity"
+  },
+  "message.1024": {
+    "sourceRevision": 1,
+    "value": "Minimum width"
+  },
+  "message.1025": {
+    "sourceRevision": 1,
+    "value": "Maximum width"
+  },
+  "message.1026": {
+    "sourceRevision": 1,
+    "value": "Horizontal padding"
+  },
+  "message.1027": {
+    "sourceRevision": 1,
+    "value": "Card alignment"
+  },
+  "message.1028": {
+    "sourceRevision": 1,
+    "value": "Text alignment"
+  },
+  "message.1029": {
+    "sourceRevision": 1,
+    "value": "Bold text"
+  },
+  "message.1030": {
+    "sourceRevision": 1,
+    "value": "Background photo"
+  },
+  "message.1031": {
+    "sourceRevision": 1,
+    "value": "Photo opacity"
+  },
+  "message.1032": {
+    "sourceRevision": 1,
+    "value": "Photo horizontal position"
+  },
+  "message.1033": {
+    "sourceRevision": 1,
+    "value": "Photo vertical position"
+  },
+  "message.1034": {
+    "sourceRevision": 1,
+    "value": "Photo zoom"
+  },
+  "message.1035": {
+    "sourceRevision": 1,
+    "value": "Border image"
+  },
+  "message.1036": {
+    "sourceRevision": 1,
+    "value": "Border corner size"
+  },
+  "message.1037": {
+    "sourceRevision": 1,
+    "value": "Sticker {value0}"
+  },
+  "message.1038": {
+    "sourceRevision": 1,
+    "value": "Sticker {value0} horizontal position"
+  },
+  "message.1039": {
+    "sourceRevision": 1,
+    "value": "Sticker {value0} vertical position"
+  },
+  "message.1040": {
+    "sourceRevision": 1,
+    "value": "Sticker {value0} size"
+  },
+  "message.1041": {
+    "sourceRevision": 1,
+    "value": "Rounded"
+  },
+  "message.1042": {
+    "sourceRevision": 1,
+    "value": "Cloud"
+  },
+  "message.1043": {
+    "sourceRevision": 1,
+    "value": "Jelly"
+  },
+  "message.1044": {
+    "sourceRevision": 1,
+    "value": "Comic"
+  },
+  "message.1045": {
+    "sourceRevision": 1,
+    "value": "Mechanical"
+  },
+  "message.1046": {
+    "sourceRevision": 1,
+    "value": "Triangle"
+  },
+  "message.1047": {
+    "sourceRevision": 1,
+    "value": "Curved"
+  },
+  "message.1048": {
+    "sourceRevision": 1,
+    "value": "Puffy"
+  },
+  "message.1049": {
+    "sourceRevision": 1,
+    "value": "Angular"
+  },
+  "message.1050": {
+    "sourceRevision": 1,
+    "value": "Teardrop"
+  },
+  "message.1051": {
+    "sourceRevision": 1,
+    "value": "Vertical"
+  },
+  "message.1052": {
+    "sourceRevision": 1,
+    "value": "Horizontal"
+  },
+  "message.1053": {
+    "sourceRevision": 1,
+    "value": "Standard line"
+  },
+  "message.1054": {
+    "sourceRevision": 1,
+    "value": "Double line"
+  },
+  "message.1055": {
+    "sourceRevision": 1,
+    "value": "Accent line"
+  },
+  "message.1056": {
+    "sourceRevision": 1,
+    "value": "Capsule"
+  },
+  "message.1057": {
+    "sourceRevision": 1,
+    "value": "Top tab"
+  },
+  "message.1058": {
+    "sourceRevision": 1,
+    "value": "Ribbon"
+  },
+  "message.1059": {
+    "sourceRevision": 1,
+    "value": "Mechanical panel"
+  },
+  "message.1060": {
+    "sourceRevision": 1,
+    "value": "Dots"
+  },
+  "message.1061": {
+    "sourceRevision": 1,
+    "value": "Stars"
+  },
+  "message.1062": {
+    "sourceRevision": 1,
+    "value": "Grid"
+  },
+  "message.1063": {
+    "sourceRevision": 1,
+    "value": "Center"
+  },
+  "message.1064": {
+    "sourceRevision": 1,
+    "value": "Left"
+  },
+  "message.1065": {
+    "sourceRevision": 1,
+    "value": "Cat ears"
+  },
+  "message.1066": {
+    "sourceRevision": 1,
+    "value": "Small wings"
+  },
+  "message.1067": {
+    "sourceRevision": 1,
+    "value": "Horns"
+  },
+  "message.1068": {
+    "sourceRevision": 1,
+    "value": "Bat wings"
+  },
+  "message.1069": {
+    "sourceRevision": 1,
+    "value": "Sparkles"
+  },
+  "message.1070": {
+    "sourceRevision": 1,
+    "value": "Goggles"
+  },
+  "message.1071": {
+    "sourceRevision": 1,
+    "value": "Magnet"
+  },
+  "message.1072": {
+    "sourceRevision": 1,
+    "value": "Shape & border"
+  },
+  "message.1073": {
+    "sourceRevision": 1,
+    "value": "Decorations"
+  },
+  "message.1074": {
+    "sourceRevision": 1,
+    "value": "Photos & images"
+  },
+  "message.1075": {
+    "sourceRevision": 1,
+    "value": "Text & spacing"
+  },
+  "message.1076": {
+    "sourceRevision": 1,
+    "value": "Configure startup, appearance, and updates."
+  },
+  "message.1077": {
+    "sourceRevision": 1,
+    "value": "Startup"
+  },
+  "message.1078": {
+    "sourceRevision": 1,
+    "value": "Start with Windows"
+  },
+  "message.1079": {
+    "sourceRevision": 1,
+    "value": "Registered to the current executable."
+  },
+  "message.1080": {
+    "sourceRevision": 1,
+    "value": "Changing this setting registers the current app path."
+  },
+  "message.1081": {
+    "sourceRevision": 1,
+    "value": "Theme"
+  },
+  "message.1082": {
+    "sourceRevision": 1,
+    "value": "Follow system"
+  },
+  "message.1083": {
+    "sourceRevision": 1,
+    "value": "Porcelain · Light"
+  },
+  "message.1084": {
+    "sourceRevision": 1,
+    "value": "Graphite · Dark"
+  },
+  "message.1085": {
+    "sourceRevision": 1,
+    "value": "Appearance & colors"
+  },
+  "message.1086": {
+    "sourceRevision": 1,
+    "value": "Window material"
+  },
+  "message.1087": {
+    "sourceRevision": 1,
+    "value": "Mica"
+  },
+  "message.1088": {
+    "sourceRevision": 1,
+    "value": "Light background opacity"
+  },
+  "message.1089": {
+    "sourceRevision": 1,
+    "value": "Dark background opacity"
+  },
+  "message.1090": {
+    "sourceRevision": 1,
+    "value": "Reduce motion"
+  },
+  "message.1091": {
+    "sourceRevision": 1,
+    "value": "Material and opacity apply to the title bar and sidebar. The content remains opaque. High contrast or disabled transparency uses solid colors. System reduced-motion settings are also respected."
+  },
+  "message.1092": {
+    "sourceRevision": 1,
+    "value": "Version & updates"
+  },
+  "message.1093": {
+    "sourceRevision": 1,
+    "value": "Check for updates automatically"
+  },
+  "message.1094": {
+    "sourceRevision": 1,
+    "value": "Checks once a day and lets your pet tell you about new versions. Installation starts only when you request it."
+  },
+  "message.1095": {
+    "sourceRevision": 1,
+    "value": "Configure bubble designs, display options, and timing."
+  },
+  "message.1096": {
+    "sourceRevision": 1,
+    "value": "Bubble design"
+  },
+  "message.1097": {
+    "sourceRevision": 1,
+    "value": "Colors, shapes, decorations, text, and spacing."
+  },
+  "message.1098": {
+    "sourceRevision": 1,
+    "value": "Check the preview and apply when you're happy."
+  },
+  "message.1099": {
+    "sourceRevision": 1,
+    "value": "Preview on pet"
+  },
+  "message.1100": {
+    "sourceRevision": 1,
+    "value": "Edit bubble design"
+  },
+  "message.1101": {
+    "sourceRevision": 1,
+    "value": "Reset per-type times"
+  },
+  "message.1102": {
+    "sourceRevision": 1,
+    "value": "Bubble notifications are off"
+  },
+  "message.1103": {
+    "sourceRevision": 1,
+    "value": "Enable notifications to choose a snooze duration."
+  },
+  "message.1104": {
+    "sourceRevision": 1,
+    "value": "Notifications snoozed"
+  },
+  "message.1107": {
+    "sourceRevision": 1,
+    "value": "Quiet when you need it"
+  },
+  "message.1108": {
+    "sourceRevision": 1,
+    "value": "Hides all bubbles for the selected duration. General notifications and reminders received during snooze are not replayed. Tasks still in progress reappear afterward."
+  },
+  "message.1109": {
+    "sourceRevision": 1,
+    "value": "Resume now"
+  },
+  "message.1110": {
+    "sourceRevision": 1,
+    "value": "Pet-only mode provides designs and previews. It does not generate assistant notifications."
+  },
+  "message.1111": {
+    "sourceRevision": 1,
+    "value": "Choose pet"
+  },
+  "message.1112": {
+    "sourceRevision": 1,
+    "value": "Choose a pet and configure its size and behavior."
+  },
+  "message.1113": {
+    "sourceRevision": 1,
+    "value": "On-screen pet · {value0}"
+  },
+  "message.1114": {
+    "sourceRevision": 1,
+    "value": "Hidden from screen"
+  },
+  "message.1115": {
+    "sourceRevision": 1,
+    "value": "Reload pet folders"
+  },
+  "message.1116": {
+    "sourceRevision": 1,
+    "value": "Pet list reloaded."
+  },
+  "message.1117": {
+    "sourceRevision": 1,
+    "value": "Choose another pet"
+  },
+  "message.1118": {
+    "sourceRevision": 1,
+    "value": "Visible on screen"
+  },
+  "message.1119": {
+    "sourceRevision": 1,
+    "value": "Hidden"
+  },
+  "message.1120": {
+    "sourceRevision": 1,
+    "value": "Show pet again"
+  },
+  "message.1121": {
+    "sourceRevision": 1,
+    "value": "Pet settings tabs"
+  },
+  "message.1122": {
+    "sourceRevision": 1,
+    "value": "Move to this screen now"
+  },
+  "message.1123": {
+    "sourceRevision": 1,
+    "value": "Can't find your pet?"
+  },
+  "message.1124": {
+    "sourceRevision": 1,
+    "value": "Bring it back if it is off-screen or hard to find."
+  },
+  "message.1125": {
+    "sourceRevision": 1,
+    "value": "Bring to screen center"
+  },
+  "message.1126": {
+    "sourceRevision": 1,
+    "value": "Import pet"
+  },
+  "message.1127": {
+    "sourceRevision": 1,
+    "value": "Add a downloaded pet sprite."
+  },
+  "message.1128": {
+    "sourceRevision": 1,
+    "value": "Manage pets"
+  },
+  "message.1129": {
+    "sourceRevision": 1,
+    "value": "Add pets and manage visibility, order, and trash."
+  },
+  "message.1130": {
+    "sourceRevision": 1,
+    "value": "Change colors, shapes, and decorations."
+  },
+  "message.1131": {
+    "sourceRevision": 1,
+    "value": "Pet tools"
+  },
+  "message.1132": {
+    "sourceRevision": 1,
+    "value": "Open pet folder"
+  },
+  "message.1133": {
+    "sourceRevision": 1,
+    "value": "Preview animation"
+  },
+  "message.1134": {
+    "sourceRevision": 1,
+    "value": "Preview directly on the on-screen pet."
+  },
+  "message.1135": {
+    "sourceRevision": 1,
+    "value": "Current animation: "
+  },
+  "message.1136": {
+    "sourceRevision": 1,
+    "value": "Walking test"
+  },
+  "message.1137": {
+    "sourceRevision": 1,
+    "value": "Walk briefly on the selected movement display. Runs once even when auto movement is off."
+  },
+  "message.1138": {
+    "sourceRevision": 1,
+    "value": "Try walking"
+  },
+  "message.1139": {
+    "sourceRevision": 1,
+    "value": "Stationary animations"
+  },
+  "message.1140": {
+    "sourceRevision": 1,
+    "value": "The pet is hidden, so stationary animations are not visible. Show the pet to see them."
+  },
+  "message.1141": {
+    "sourceRevision": 1,
+    "value": "Choose pet animation"
+  },
+  "message.1142": {
+    "sourceRevision": 1,
+    "value": "Return to live status"
+  },
+  "message.1143": {
+    "sourceRevision": 1,
+    "value": "Update"
+  },
+  "message.1144": {
+    "sourceRevision": 1,
+    "value": "View release notes"
+  },
+  "message.1145": {
+    "sourceRevision": 1,
+    "value": "Download update"
+  },
+  "message.1146": {
+    "sourceRevision": 1,
+    "value": "Some values were adjusted to their allowed ranges."
+  },
+  "message.1147": {
+    "sourceRevision": 1,
+    "value": "Discard the draft and load the saved values?"
+  },
+  "message.1148": {
+    "sourceRevision": 1,
+    "value": "The pet changed. Loaded the new pet's design."
+  },
+  "message.1149": {
+    "sourceRevision": 1,
+    "value": "Discard unapplied design changes?"
+  },
+  "message.1150": {
+    "sourceRevision": 1,
+    "value": "Display size: {value0}×{value1}px{value2}"
+  },
+  "message.1151": {
+    "sourceRevision": 1,
+    "value": "An unknown error occurred."
+  },
+  "message.1152": {
+    "sourceRevision": 1,
+    "value": "Restore from trash"
+  },
+  "message.1153": {
+    "sourceRevision": 1,
+    "value": "Use this pet"
+  },
+  "message.1154": {
+    "sourceRevision": 1,
+    "value": "Add"
+  },
+  "message.1155": {
+    "sourceRevision": 1,
+    "value": "Select a PNG or WebP sprite downloaded from web pet settings. Supports V1 and V2, up to 20 MiB."
+  },
+  "message.1156": {
+    "sourceRevision": 1,
+    "value": "Choose another file"
+  },
+  "message.1157": {
+    "sourceRevision": 1,
+    "value": "Choose file"
+  },
+  "message.1158": {
+    "sourceRevision": 1,
+    "value": "Imported pet's idle pose"
+  },
+  "message.1162": {
+    "sourceRevision": 1,
+    "value": "Pet name"
+  },
+  "message.1163": {
+    "sourceRevision": 1,
+    "value": " · You can delete the original file after registration."
+  },
+  "message.1164": {
+    "sourceRevision": 1,
+    "value": "Deleted {value0}; could not delete {value1}. Retry the remaining items."
+  },
+  "message.1165": {
+    "sourceRevision": 1,
+    "value": "Changes saved."
+  },
+  "message.1166": {
+    "sourceRevision": 1,
+    "value": "Selection cleared because the view conditions changed."
+  },
+  "message.1167": {
+    "sourceRevision": 1,
+    "value": "Succeeded {value0} · Failed {value1} · Not processed {value2}{value3}"
+  },
+  "message.1168": {
+    "sourceRevision": 1,
+    "value": "Pet order saved."
+  },
+  "message.1169": {
+    "sourceRevision": 1,
+    "value": "Moved {value0} to the trash."
+  },
+  "message.1170": {
+    "sourceRevision": 1,
+    "value": "Pet trash"
+  },
+  "message.1171": {
+    "sourceRevision": 1,
+    "value": "Reload"
+  },
+  "message.1174": {
+    "sourceRevision": 1,
+    "value": "Stop remaining operations"
+  },
+  "message.1176": {
+    "sourceRevision": 1,
+    "value": "Clear selection"
+  },
+  "message.1177": {
+    "sourceRevision": 1,
+    "value": "Move selected pets"
+  },
+  "message.1178": {
+    "sourceRevision": 1,
+    "value": "Items interrupted during deletion can only retry permanent deletion."
+  },
+  "message.1179": {
+    "sourceRevision": 1,
+    "value": "Restore selected pets"
+  },
+  "message.1180": {
+    "sourceRevision": 1,
+    "value": "Permanently delete selected pets"
+  },
+  "message.1181": {
+    "sourceRevision": 1,
+    "value": "Done selecting"
+  },
+  "message.1182": {
+    "sourceRevision": 1,
+    "value": "Changes are saved immediately."
+  },
+  "message.1183": {
+    "sourceRevision": 1,
+    "value": "Deselect"
+  },
+  "message.1184": {
+    "sourceRevision": 1,
+    "value": "Select"
+  },
+  "message.1185": {
+    "sourceRevision": 1,
+    "value": "Select all in current view"
+  },
+  "message.1186": {
+    "sourceRevision": 1,
+    "value": "Add pet"
+  },
+  "pet.trash": {
+    "sourceRevision": 1,
+    "value": "Trash"
+  },
+  "pet.trash_count": {
+    "sourceRevision": 1,
+    "value": "Trash ({count})"
+  },
+  "message.1188": {
+    "sourceRevision": 1,
+    "value": "Pet list"
+  },
+  "message.1189": {
+    "sourceRevision": 1,
+    "value": "Empty trash"
+  },
+  "message.1190": {
+    "sourceRevision": 1,
+    "value": "Loading list…"
+  },
+  "message.1191": {
+    "sourceRevision": 1,
+    "value": "Saving…"
+  },
+  "message.1192": {
+    "sourceRevision": 1,
+    "value": "Restored {value0}."
+  },
+  "message.1193": {
+    "sourceRevision": 1,
+    "value": "Undo"
+  },
+  "message.1196": {
+    "sourceRevision": 1,
+    "value": "Review failed and unprocessed items"
+  },
+  "message.1197": {
+    "sourceRevision": 1,
+    "value": "Not processed"
+  },
+  "message.1198": {
+    "sourceRevision": 1,
+    "value": "Some trash entries need attention. Their files have been preserved."
+  },
+  "message.1199": {
+    "sourceRevision": 1,
+    "value": "Loading pet list…"
+  },
+  "message.1200": {
+    "sourceRevision": 1,
+    "value": "Search pet names"
+  },
+  "message.1201": {
+    "sourceRevision": 1,
+    "value": "Pet visibility filter"
+  },
+  "message.1202": {
+    "sourceRevision": 1,
+    "value": "All"
+  },
+  "message.1203": {
+    "sourceRevision": 1,
+    "value": "Visible"
+  },
+  "message.1204": {
+    "sourceRevision": 1,
+    "value": "Sort order"
+  },
+  "message.1205": {
+    "sourceRevision": 1,
+    "value": "Finish reordering"
+  },
+  "message.1206": {
+    "sourceRevision": 1,
+    "value": "Reorder"
+  },
+  "message.1207": {
+    "sourceRevision": 1,
+    "value": "Only selected pets in the current view are processed. Changing search or filters clears the selection."
+  },
+  "message.1208": {
+    "sourceRevision": 1,
+    "value": "Drag handles or use the up and down buttons to reorder. Changes are saved as custom order."
+  },
+  "message.1209": {
+    "sourceRevision": 1,
+    "value": "Visible pets appear in the picker and tray menu."
+  },
+  "message.1210": {
+    "sourceRevision": 1,
+    "value": "Clear search and select the full list to reorder."
+  },
+  "message.1211": {
+    "sourceRevision": 1,
+    "value": "No pets match your search."
+  },
+  "message.1212": {
+    "sourceRevision": 1,
+    "value": "Reset search and filters"
+  },
+  "message.1213": {
+    "sourceRevision": 1,
+    "value": "Drag to reorder"
+  },
+  "message.1214": {
+    "sourceRevision": 1,
+    "value": "Select {value0} ({value1})"
+  },
+  "message.1215": {
+    "sourceRevision": 1,
+    "value": "In use"
+  },
+  "message.1216": {
+    "sourceRevision": 1,
+    "value": "Added pet"
+  },
+  "message.1217": {
+    "sourceRevision": 1,
+    "value": "Bundled pet"
+  },
+  "message.1218": {
+    "sourceRevision": 1,
+    "value": "Pet in external folder"
+  },
+  "message.1219": {
+    "sourceRevision": 1,
+    "value": "A replacement pet is required when moving this pet."
+  },
+  "message.1220": {
+    "sourceRevision": 1,
+    "value": "Switch to another pet before hiding this one."
+  },
+  "message.1221": {
+    "sourceRevision": 1,
+    "value": "Up"
+  },
+  "message.1222": {
+    "sourceRevision": 1,
+    "value": "Down"
+  },
+  "message.1223": {
+    "sourceRevision": 1,
+    "value": "Show in list"
+  },
+  "message.1224": {
+    "sourceRevision": 1,
+    "value": "Show {value0} in list"
+  },
+  "message.1225": {
+    "sourceRevision": 1,
+    "value": "More options for {value0}"
+  },
+  "message.1226": {
+    "sourceRevision": 1,
+    "value": "You are using {value0}."
+  },
+  "message.1227": {
+    "sourceRevision": 1,
+    "value": "Use this pet"
+  },
+  "message.1228": {
+    "sourceRevision": 1,
+    "value": "Move to top"
+  },
+  "message.1229": {
+    "sourceRevision": 1,
+    "value": "Move to bottom"
+  },
+  "message.1230": {
+    "sourceRevision": 1,
+    "value": "Move to trash"
+  },
+  "message.1231": {
+    "sourceRevision": 1,
+    "value": "This is the app's own trash, separate from the Windows Recycle Bin. Items are not deleted automatically."
+  },
+  "message.1233": {
+    "sourceRevision": 1,
+    "value": "The trash is empty."
+  },
+  "message.1234": {
+    "sourceRevision": 1,
+    "value": "Deleted pets can be restored here."
+  },
+  "message.1236": {
+    "sourceRevision": 1,
+    "value": "A previous operation did not finish."
+  },
+  "message.1237": {
+    "sourceRevision": 1,
+    "value": "Retry permanent deletion."
+  },
+  "message.1238": {
+    "sourceRevision": 1,
+    "value": "Reload the list or restart the app."
+  },
+  "message.1239": {
+    "sourceRevision": 1,
+    "value": "Restore"
+  },
+  "message.1240": {
+    "sourceRevision": 1,
+    "value": "Delete permanently"
+  },
+  "message.1241": {
+    "sourceRevision": 1,
+    "value": "Previous"
+  },
+  "message.1242": {
+    "sourceRevision": 1,
+    "value": "Next"
+  },
+  "message.1243": {
+    "sourceRevision": 1,
+    "value": "Move current pet"
+  },
+  "message.1244": {
+    "sourceRevision": 1,
+    "value": "Delete pet permanently"
+  },
+  "message.1245": {
+    "sourceRevision": 1,
+    "value": "Switched pets and moved the previous pet to the trash."
+  },
+  "message.1246": {
+    "sourceRevision": 1,
+    "value": "The pet was permanently deleted."
+  },
+  "message.1247": {
+    "sourceRevision": 1,
+    "value": "Finished emptying the trash."
+  },
+  "message.1248": {
+    "sourceRevision": 1,
+    "value": "Switch and move to trash"
+  },
+  "message.1249": {
+    "sourceRevision": 1,
+    "value": "Delete all permanently"
+  },
+  "message.1254": {
+    "sourceRevision": 1,
+    "value": {
+      "one": "{value0} pet ({value1})",
+      "other": "{value0} pets ({value1})"
+    }
+  },
+  "message.1256": {
+    "sourceRevision": 1,
+    "value": "Replacement pet"
+  },
+  "message.1257": {
+    "sourceRevision": 1,
+    "value": " (unhide)"
+  },
+  "message.1258": {
+    "sourceRevision": 2,
+    "value": {
+      "one": "{value0} token",
+      "other": "{value0} tokens"
+    }
+  },
+  "message.1259": {
+    "sourceRevision": 1,
+    "value": "Tokens"
+  },
+  "message.1260": {
+    "sourceRevision": 1,
+    "value": "Hour"
+  },
+  "message.1261": {
+    "sourceRevision": 1,
+    "value": "Remaining limit: {value0}%"
+  },
+  "message.1262": {
+    "sourceRevision": 1,
+    "value": "The settings connection closed. Close this window and reopen it."
+  },
+  "message.1263": {
+    "sourceRevision": 1,
+    "value": "Too many requests are in progress."
+  },
+  "message.1264": {
+    "sourceRevision": 1,
+    "value": "The request is too large."
+  },
+  "message.1265": {
+    "sourceRevision": 1,
+    "value": "The response is taking too long. Refresh to check whether your change was applied."
+  },
+  "message.1266": {
+    "sourceRevision": 1,
+    "value": "This screen is not authorized."
+  },
+  "message.1267": {
+    "sourceRevision": 1,
+    "value": "This command is not allowed."
+  },
+  "message.1268": {
+    "sourceRevision": 1,
+    "value": "Choose pet sprite"
+  },
+  "message.1269": {
+    "sourceRevision": 1,
+    "value": "Pet sprite"
+  },
+  "message.1270": {
+    "sourceRevision": 1,
+    "value": "Choose bubble element image"
+  },
+  "message.1271": {
+    "sourceRevision": 1,
+    "value": "Image"
+  },
+  "message.1272": {
+    "sourceRevision": 1,
+    "value": "This file operation is not allowed."
+  },
+  "message.1273": {
+    "sourceRevision": 1,
+    "value": "Watched Kettle · Settings"
+  },
+  "message.1274": {
+    "sourceRevision": 1,
+    "value": "Open settings from the pet app's tray."
+  },
+  "message.1275": {
+    "sourceRevision": 1,
+    "value": "The runtime connection closed."
+  },
+  "widget.empty": {
+    "sourceRevision": 1,
+    "value": "No connected usage"
+  },
+  "widget.today": {
+    "sourceRevision": 1,
+    "value": "Today's tokens"
+  },
+  "widget.attention": {
+    "sourceRevision": 1,
+    "value": "Attention"
+  },
+  "widget.running": {
+    "sourceRevision": 1,
+    "value": "Working"
+  },
+  "widget.estimated": {
+    "sourceRevision": 1,
+    "value": "(est.)"
+  },
+  "widget.loading": {
+    "sourceRevision": 1,
+    "value": "Loading"
+  },
+  "widget.offline": {
+    "sourceRevision": 1,
+    "value": "Offline"
+  },
+  "widget.no_account": {
+    "sourceRevision": 1,
+    "value": "Sign in required"
+  },
+  "widget.no_limits": {
+    "sourceRevision": 1,
+    "value": "No limit data"
+  },
+  "widget.terminal_limits": {
+    "sourceRevision": 1,
+    "value": "Limits in terminal"
+  },
+  "widget.working_count": {
+    "sourceRevision": 1,
+    "value": "Working {count}"
+  },
+  "widget.attention_count": {
+    "sourceRevision": 1,
+    "value": "Needs attention {count}"
+  },
+  "storage.not_started": {
+    "value": "Storage has not started.",
+    "sourceRevision": 1
+  },
+  "storage.open_preserved": {
+    "value": "Could not open local history storage. The original is preserved.",
+    "sourceRevision": 1
+  },
+  "storage.preserve_failed": {
+    "value": "Could not preserve the damaged original.",
+    "sourceRevision": 1
+  },
+  "storage.open_failed": {
+    "value": "Could not open local history storage.",
+    "sourceRevision": 1
+  },
+  "storage.recreated": {
+    "value": "The damaged store was preserved and a new one was created.",
+    "sourceRevision": 1
+  },
+  "storage.available": {
+    "value": "Local history storage is available",
+    "sourceRevision": 1
+  },
+  "language.error.invalid_pack": {
+    "value": "Could not read this language pack.",
+    "sourceRevision": 1
+  },
+  "language.error.duplicate_id": {
+    "value": "Duplicate pack ID. Remove duplicate pack folders.",
+    "sourceRevision": 1
+  },
+  "language.error.unsupported_format": {
+    "value": "Unsupported language pack format.",
+    "sourceRevision": 1
+  },
+  "language.error.unsupported_locale": {
+    "value": "Unsupported locale or writing direction.",
+    "sourceRevision": 1
+  },
+  "language.error.invalid_manifest": {
+    "value": "Invalid pack information.",
+    "sourceRevision": 1
+  },
+  "language.error.invalid_id": {
+    "value": "The pack ID is invalid or reserved.",
+    "sourceRevision": 1
+  },
+  "language.error.invalid_messages": {
+    "value": "Invalid translation file format.",
+    "sourceRevision": 1
+  },
+  "language.error.duplicate_key": {
+    "value": "The JSON file contains duplicate keys.",
+    "sourceRevision": 1
+  },
+  "language.error.too_large": {
+    "value": "A language pack file exceeds the size limit.",
+    "sourceRevision": 1
+  },
+  "language.error.linked_pack": {
+    "value": "Linked folders or files cannot be used as language packs.",
+    "sourceRevision": 1
+  },
+  "language.copy": {
+    "value": "Copy as editable pack",
+    "sourceRevision": 1
+  },
+  "language.copy_name": {
+    "value": "{name} (editable copy)",
+    "sourceRevision": 1
+  },
+  "language.copy_author": {
+    "value": "Me",
+    "sourceRevision": 1
+  },
+  "language.copy_done": {
+    "value": "Created and selected an editable pack. Edit the values in messages.json in the opened folder.",
+    "sourceRevision": 2
+  },
+  "language.copy_limit": {
+    "value": "There are too many language pack folders. Remove packs you no longer use.",
+    "sourceRevision": 1
+  },
+  "language.copy_failed": {
+    "value": "Could not create the editable pack.",
+    "sourceRevision": 1
+  },
+  "language.fallback": {
+    "value": {
+      "one": "{count} missing message is shown in {name}.",
+      "other": "{count} missing messages are shown in {name}."
+    },
+    "sourceRevision": 1
+  },
+  "language.problems": {
+    "value": {
+      "one": "{count} invalid entry · fallback text is shown instead.",
+      "other": "{count} invalid entries · fallback text is shown instead."
+    },
+    "sourceRevision": 1
+  },
+  "language.problem.unknown": {
+    "value": "Unknown key; ignored.",
+    "sourceRevision": 1
+  },
+  "language.problem.invalid_entry": {
+    "value": "Invalid entry. Both sourceRevision and value are required.",
+    "sourceRevision": 1
+  },
+  "language.problem.invalid_revision": {
+    "value": "sourceRevision must be an integer.",
+    "sourceRevision": 1
+  },
+  "language.problem.invalid_placeholder": {
+    "value": "Variables differ from the source. Keep the names inside braces unchanged.",
+    "sourceRevision": 1
+  },
+  "language.problem.invalid_plural": {
+    "value": "Invalid plural forms. An \"other\" form is required.",
+    "sourceRevision": 1
+  },
+  "language.problem.unexpected_plural": {
+    "value": "This message has no plural forms. Use a single string.",
+    "sourceRevision": 1
+  },
+  "language.problem.invalid_text": {
+    "value": "Empty text, HTML, control characters and overly long text are not allowed.",
+    "sourceRevision": 1
+  },
+  "language.screen.settings": {
+    "value": "Settings › {page}",
+    "sourceRevision": 1
+  },
+  "language.screen.settings_common": {
+    "value": "Settings window",
+    "sourceRevision": 1
+  },
+  "language.screen.pet": {
+    "value": "Pet and speech bubbles",
+    "sourceRevision": 1
+  },
+  "language.screen.tray": {
+    "value": "Tray menu",
+    "sourceRevision": 1
+  },
+  "language.screen.widget": {
+    "value": "Desktop usage widget",
+    "sourceRevision": 1
+  },
+  "language.screen.statusline": {
+    "value": "Claude Code status line",
+    "sourceRevision": 1
+  },
+  "language.screen.notification": {
+    "value": "Windows notifications",
+    "sourceRevision": 1
+  },
+  "language.screen.startup": {
+    "value": "Startup and recovery",
+    "sourceRevision": 1
+  },
+  "usage.projects": {
+    "value": "Projects · {count}",
+    "sourceRevision": 1
+  },
+  "usage.conversations": {
+    "value": {
+      "one": "{count} conversation · {time}",
+      "other": "{count} conversations · {time}"
+    },
+    "sourceRevision": 1
+  },
+  "usage.legacy": {
+    "value": {
+      "one": "Legacy history · {count} entry",
+      "other": "Legacy history · {count} entries"
+    },
+    "sourceRevision": 1
+  },
+  "usage.previous_page": {
+    "value": "Previous {count}",
+    "sourceRevision": 1
+  },
+  "usage.next_page": {
+    "value": "Next {count}",
+    "sourceRevision": 1
+  },
+  "usage.from": {
+    "value": "From {count}",
+    "sourceRevision": 1
+  },
+  "activity.more": {
+    "value": "Show {count} more",
+    "sourceRevision": 1
+  },
+  "bubble.snooze_remaining": {
+    "value": {
+      "one": "About {count} minute left",
+      "other": "About {count} minutes left"
+    },
+    "sourceRevision": 1
+  },
+  "pet.selected": {
+    "value": "{count} selected",
+    "sourceRevision": 1
+  },
+  "pet.undo_count": {
+    "value": "Undo ({count})",
+    "sourceRevision": 1
+  },
+  "pet.trash_summary": {
+    "value": {
+      "one": "{count} item · {size}",
+      "other": "{count} items · {size}"
+    },
+    "sourceRevision": 1
+  },
+  "pet.deleted": {
+    "value": "Deleted {date} · {size}",
+    "sourceRevision": 1
+  },
+  "pet.batch_progress": {
+    "value": "{processed} / {total} processed · Succeeded {succeeded} · Failed {failed}",
+    "sourceRevision": 1
+  },
+  "pet.import.trashed": {
+    "value": "{name} is in the trash. You can restore its previous name and settings.",
+    "sourceRevision": 1
+  },
+  "pet.import.exists": {
+    "value": "{name} is already registered. Its existing name and settings will be kept.",
+    "sourceRevision": 1
+  },
+  "pet.import.added": {
+    "value": "{name} was added to your pet list.",
+    "sourceRevision": 1
+  },
+  "pet.replacement_needed": {
+    "value": "{name} is currently in use. Choose a replacement pet.",
+    "sourceRevision": 1
+  },
+  "pet.delete_confirm": {
+    "value": "The files and per-pet settings for {name} will be permanently deleted. This cannot be undone.",
+    "sourceRevision": 1
+  },
+  "pet.batch_move_confirm": {
+    "value": {
+      "one": "Move {count} pet to the trash. You can restore it later.",
+      "other": "Move {count} pets to the trash. You can restore them later."
+    },
+    "sourceRevision": 1
+  },
+  "pet.batch_delete_confirm": {
+    "value": {
+      "one": "Permanently delete {count} pet ({size}). Files and per-pet settings cannot be recovered.",
+      "other": "Permanently delete {count} pets ({size}). Files and per-pet settings cannot be recovered."
+    },
+    "sourceRevision": 1
+  },
+  "connection.repair_title": {
+    "value": "Repair {name} connection",
+    "sourceRevision": 1
+  },
+  "connection.repair_note": {
+    "value": "Repairs this app's hooks. To turn it off, use the {name} switch above.",
+    "sourceRevision": 1
+  },
+  "usage.quota_missing": {
+    "value": "No {window} limit values have been observed today.",
+    "sourceRevision": 1
+  },
+  "comparison.more": {
+    "value": "higher",
+    "sourceRevision": 1
+  },
+  "comparison.less": {
+    "value": "lower",
+    "sourceRevision": 1
+  },
+  "comparison.now": {
+    "value": "(now)",
+    "sourceRevision": 1
+  },
+  "integration.enable_changes": {
+    "value": "Enable {tool}",
+    "sourceRevision": 1
+  },
+  "integration.disable_changes": {
+    "value": "Disable {tool}",
+    "sourceRevision": 1
+  },
+  "widget.label_remaining": {
+    "sourceRevision": 1,
+    "value": "{label} left"
+  },
+  "widget.remaining_value": {
+    "sourceRevision": 1,
+    "value": "{label} · {percent} left"
+  },
+  "widget.reset_days": {
+    "sourceRevision": 1,
+    "value": "Resets in {value0}d {value1}h"
+  },
+  "widget.reset_hours": {
+    "sourceRevision": 1,
+    "value": "Resets in {value0}h {value1}m"
+  },
+  "widget.reset_minutes": {
+    "sourceRevision": 1,
+    "value": "Resets in {value0}m"
+  },
+  "widget.sample_age": {
+    "sourceRevision": 1,
+    "value": "Sample from {age}"
+  },
+  "usage.hour_range": {
+    "sourceRevision": 1,
+    "value": "From {start} to {end}"
+  },
+  "integration.terminal_help": {
+    "sourceRevision": 1,
+    "value": "Claude Code limits and the status line update only when Claude Code runs in a terminal. The VS Code graphical panel does not run a status line. In VS Code, run {command} in the integrated terminal."
+  },
+  "integration.keybinding_help": {
+    "sourceRevision": 1,
+    "value": "Add the entry below to {file} to open Claude Code in a new tab in the right editor group with {shortcut}. This app does not modify VS Code settings."
+  },
+  "integration.not_installed": {
+    "sourceRevision": 1,
+    "value": "Could not find {name} on this PC. You can install it and enable support later, or enable support now before installing."
+  },
+  "widget.no_tasks": {
+    "sourceRevision": 1,
+    "value": "No tasks to show"
+  },
+  "language.restart_button": {
+    "sourceRevision": 1,
+    "value": "Restart app"
+  },
+  "language.restarting": {
+    "sourceRevision": 1,
+    "value": "Restarting…"
+  },
+  "app.restart_failed": {
+    "sourceRevision": 1,
+    "value": "Could not restart the app. Please open it manually."
+  },
+  "app.restart_busy": {
+    "sourceRevision": 1,
+    "value": "Wait for the current operation to finish before restarting the app."
+  }
+}

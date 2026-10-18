@@ -227,12 +227,14 @@ class MetadataTests(unittest.TestCase):
             "제목/경로 & <검토> 다음 줄",
         )
         for value in (None, 42, " "):
-            self.assertEqual(conversation_title(value), "Codex 대화")
+            self.assertEqual(
+                conversation_title(value), ""
+            )  # Display fallback is applied only when rendering.
         self.worker.pending[1] = ("t", 0)
         self.worker.response(
             1, "thread/read", {}, {"thread": {"id": "t", "preview": "SECRET"}}, None
         )
-        self.assertEqual(self.results[-1][0].title, "Codex 대화")
+        self.assertEqual(self.results[-1][0].title, "")
 
     def test_missing_project_id_is_confirmed_as_projectless(self):
         self.write_desktop_state({"projectless-thread-ids": ["t"]})

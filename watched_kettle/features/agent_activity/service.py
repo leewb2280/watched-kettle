@@ -30,10 +30,22 @@ class AgentActivityService(QObject):
         try:
             if self.projects is not None and not self.projects.observe(payload):
                 return None
-            return self.pet_surface.apply_agent_payload(payload)
+            return self.pet_surface.apply_agent_payload(
+                self._classified_payload(payload)
+            )
         finally:
             self._observing = False
             self._project_codex()
+
+    def _classified_payload(self, payload):
+        if (
+            self.projects is not None
+            and isinstance(payload, dict)
+            and payload.get("source") == "codex"
+        ):
+            thread = str(payload.get("thread_id") or payload.get("session_id") or "")
+            return {**payload, "agent_scope": self.projects.effective_scope(thread)}
+        return payload
 
     def observe_turn_outcome(self, outcome):
         if self.projects is None:
@@ -42,7 +54,7 @@ class AgentActivityService(QObject):
         try:
             payload = self.projects.apply_turn_outcome(outcome)
             if payload is not None:
-                self.pet_surface.apply_agent_payload(payload)
+                self.pet_surface.apply_agent_payload(self._classified_payload(payload))
         finally:
             self._observing = False
             self._project_codex()

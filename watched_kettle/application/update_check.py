@@ -19,6 +19,9 @@ index or checksum file. Installers upgrade silently and start the app again
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+from watched_kettle.localization.collections import MessageId, MessageMapping
+
 import hashlib
 import ipaddress
 import json
@@ -70,12 +73,6 @@ PROGRESS_INTERVAL_SECONDS = 0.25
 # The full progress bar and the "back soon" notice stay this long before the
 # app quits; the installer then runs with no window of its own.
 INSTALL_NOTICE_MS = 1500
-INSTALLING_MESSAGE = "업데이트를 설치하고 곧 다시 켜집니다."
-# The pet says this once per version an automatic check finds.
-FOUND_MESSAGE = (
-    "새 버전이 나왔어요 (v{version}). 설정 → 앱 설정에서 업데이트할 수 있어요."
-)
-PREPARING_MESSAGE = "업데이트를 준비하는 중…"
 # The launcher swaps a prepared runtime after the app quits.
 APPLY_FLAG = "--apply-staged-update"
 LAUNCHER_NAME = "WatchedKettle.exe"
@@ -100,8 +97,6 @@ INSTALLER_NAME = re.compile(r"WatchedKettle-(\d+\.\d+\.\d+)-[a-z-]+-setup\.exe")
 # Partial update zips and release indexes the updates folder may hold.
 DELTA_NAME = re.compile(r"WatchedKettle-\d+\.\d+\.\d+-[a-z-]+-from-\d+\.\d+\.\d+\.zip")
 USER_AGENT = b"WatchedKettle-update-check"
-IDLE_MESSAGE = "업데이트는 직접 확인할 때만 조회합니다."
-AUTO_IDLE_MESSAGE = "하루에 한 번 새 버전을 확인합니다."
 # Automatic checks: the first tick a minute after start, then every hour
 # against the wall clock, so sleep and restarts count toward the day.
 AUTO_CHECK_FIRST_DELAY_MS = 60_000
@@ -110,12 +105,14 @@ AUTO_CHECK_INTERVAL_SECONDS = 24 * 60 * 60
 # After a failed or interrupted automatic check.
 AUTO_CHECK_RETRY_SECONDS = 3 * 60 * 60
 BUSY_STATES = ("checking", "downloading", "preparing", "installing")
-FAILURE_MESSAGES = {
-    "timeout": "내려받기가 오래 멈춰 있어 중단했습니다.",
-    "redirect": "허용하지 않은 주소로 연결되어 내려받기를 중단했습니다.",
-    "too_large": "내려받은 파일이 배포와 달라 설치하지 않았습니다. 다시 시도해 주세요.",
-    "write": "설치 파일을 저장하지 못했습니다.",
-}
+FAILURE_MESSAGES = MessageMapping(
+    {
+        "timeout": MessageId("message.0035"),
+        "redirect": MessageId("message.0036"),
+        "too_large": MessageId("message.0037"),
+        "write": MessageId("message.0038"),
+    }
+)
 
 
 def update_source_path():
@@ -362,6 +359,7 @@ class UpdateService(QObject):
         self._assets = {}
         self._index_request = None
         self.auto_check = False
+        self._idle_hint = True
         self._automatic = False
         self._staged.connect(self._staging_finished)
         self._state = dict(
@@ -370,7 +368,7 @@ class UpdateService(QObject):
             page_url="",
             received=0,
             total=0,
-            message=IDLE_MESSAGE,
+            message=t("message.0023"),
             can_install=False,
             retry="",
         )
@@ -398,7 +396,8 @@ class UpdateService(QObject):
             self._updates_dir = resolve_data_root() / "updates"
         return self._updates_dir
 
-    def _set(self, state, message, **fields):
+    def _set(self, state, message, *, idle_hint=False, **fields):
+        self._idle_hint = idle_hint
         self._state = dict(
             self._state, state=state, message=message, received=0, total=0, retry=""
         )
@@ -413,12 +412,20 @@ class UpdateService(QObject):
             # Nobody asked for this check, so its failure is only logged.
             log_event("application.update", "auto_check_failed")
             state, message, fields = "idle", self._idle_message(), {}
-        self._set(state, message, version="", page_url="", can_install=False, **fields)
+        self._set(
+            state,
+            message,
+            idle_hint=self._automatic and not answered,
+            version="",
+            page_url="",
+            can_install=False,
+            **fields,
+        )
         if state != "checking":
             self._finish_automatic(answered)
 
     def _idle_message(self):
-        return AUTO_IDLE_MESSAGE if self.auto_check else IDLE_MESSAGE
+        return t("message.0024") if self.auto_check else t("message.0023")
 
     def _finish_automatic(self, answered):
         if self._automatic:
@@ -428,11 +435,8 @@ class UpdateService(QObject):
     def set_auto_check(self, enabled):
         """Follow the automatic check setting in the idle row's text."""
         self.auto_check = bool(enabled)
-        if self.state == "idle" and self._state["message"] in (
-            IDLE_MESSAGE,
-            AUTO_IDLE_MESSAGE,
-        ):
-            self._set("idle", self._idle_message())
+        if self.state == "idle" and self._idle_hint:
+            self._set("idle", self._idle_message(), idle_hint=True)
 
     # ---- check -------------------------------------------------------------
 
@@ -453,7 +457,7 @@ class UpdateService(QObject):
             # opens when update files live in another repository (ADR 0008).
             notes_url = str(source.get("notes_url") or "")
         except (OSError, ValueError, KeyError, TypeError):
-            self._settle("idle", "공식 업데이트 주소가 아직 설정되지 않았습니다.")
+            self._settle("idle", t("message.0051"))
             return
         kind = release_url_kind(api_url, api=True)
         api = QUrl(api_url)
@@ -469,14 +473,14 @@ class UpdateService(QObject):
                 for url in filter(None, (release_url, notes_url))
             )
         ):
-            self._settle("idle", "업데이트 주소 설정이 올바르지 않습니다.")
+            self._settle("idle", t("message.0044"))
             return
         self.release_url = release_url
         self.notes_url = notes_url
         self._kind = kind
         self._host = api.host()
         self._port = api.port()
-        self._settle("checking", "확인하는 중…")
+        self._settle("checking", t("message.0039"))
         self.reply = self._get(api_url, api=True)
         self.reply.finished.connect(self._read_release)
         self.timer.start(CHECK_TIMEOUT_MS)
@@ -527,20 +531,18 @@ class UpdateService(QObject):
             status = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
             if status == 404:
                 # GitHub answers 404 until the repository has a published release.
-                self._settle("idle", "아직 공개된 배포가 없습니다.")
+                self._settle("idle", t("message.0052"))
                 return
             # PySide6 enum members are always truthy, NoError included.
             if reply.error() != QNetworkReply.NetworkError.NoError:
-                self._settle(
-                    "error", "업데이트 정보를 확인하지 못했습니다.", retry="check"
-                )
+                self._settle("error", t("message.0053"), retry="check")
                 return
             payload = bytes(reply.read(MAX_RELEASE_BYTES + 1))
             if len(payload) > MAX_RELEASE_BYTES:
                 raise ValueError("release_response_too_large")
             self._accept_release(json.loads(payload))
         except (ValueError, TypeError, UnicodeError):
-            self._settle("error", "업데이트 응답을 확인할 수 없습니다.", retry="check")
+            self._settle("error", t("message.0054"), retry="check")
         finally:
             reply.deleteLater()
 
@@ -554,7 +556,7 @@ class UpdateService(QObject):
             raise ValueError("invalid_release_response")
         current = _version(APPLICATION_VERSION)
         if current is not None and latest <= current:
-            self._settle("current", "최신 버전을 사용 중입니다.")
+            self._settle("current", t("message.0045"))
             return
         version = tag.removeprefix("v")
         if self.notes_url:
@@ -577,13 +579,13 @@ class UpdateService(QObject):
             self.release = self._partial_plan(index) or self.release
         if self.release is None:
             can_install = False
-            message = f"v{version} 버전이 나왔습니다. 배포 페이지에서 받아 주세요."
+            message = t("message.0040", value0=version)
         elif installed_app_root() is None:
             can_install = False
-            message = f"v{version} 버전이 나왔습니다. 앱 안 업데이트는 설치판에서만 할 수 있습니다."
+            message = t("message.0046", value0=version)
         else:
             can_install = True
-            message = f"v{version} 버전을 받을 수 있습니다{_size_note(self.release)}."
+            message = t("message.0047", value0=version, value1=_size_note(self.release))
         self._set(
             "available",
             message,
@@ -758,7 +760,7 @@ class UpdateService(QObject):
             part=None,
             started=time.monotonic(),
         )
-        self._set("downloading", "내려받는 중…", total=self.release["size"])
+        self._set("downloading", t("message.0041"), total=self.release["size"])
         if self._download["digest"] is not None:
             # The index already holds the checksum.
             self._start_installer_download()
@@ -783,7 +785,7 @@ class UpdateService(QObject):
             if len(payload) <= MAX_CHECKSUM_BYTES:
                 digest = _parse_checksum(payload, self.release["name"])
             if digest is None:
-                self._fail_download("배포의 확인용 체크섬을 읽지 못했습니다.")
+                self._fail_download(t("message.0055"))
                 return
             self._download["digest"] = digest
             self._start_installer_download()
@@ -797,7 +799,7 @@ class UpdateService(QObject):
             self._download["part"] = part
             self._download["file"] = part.open("wb")
         except OSError:
-            self._fail_download("내려받을 폴더를 준비하지 못했습니다.")
+            self._fail_download(t("message.0056"))
             return
         self.reply = self._get(self.release["url"])
         self.reply.readyRead.connect(self._write_chunk)
@@ -877,7 +879,7 @@ class UpdateService(QObject):
             return
         # A full bar and the notice first; quitting at once hid both.
         size = self.release["size"]
-        self._set("installing", INSTALLING_MESSAGE, received=size, total=size)
+        self._set("installing", t("message.0020"), received=size, total=size)
         QTimer.singleShot(INSTALL_NOTICE_MS, lambda: self.install(installer))
 
     def _download_stopped(self, reply):
@@ -887,8 +889,11 @@ class UpdateService(QObject):
             self._abort_reason = ""
             self._set(
                 "available",
-                f"v{self._state['version']} 버전을 받을 수 있습니다"
-                f"{_size_note(self.release)}.",
+                t(
+                    "message.0047",
+                    value0=self._state["version"],
+                    value1=_size_note(self.release),
+                ),
             )
             return True
         status = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
@@ -902,9 +907,7 @@ class UpdateService(QObject):
         return False
 
     def _failure_message(self):
-        return FAILURE_MESSAGES.get(
-            self._abort_reason, "설치 파일을 내려받지 못했습니다."
-        )
+        return FAILURE_MESSAGES.get(self._abort_reason, t("message.0042"))
 
     def _fail_download(self, message):
         self._discard_download()
@@ -937,7 +940,7 @@ class UpdateService(QObject):
         staged = root / "runtime" / (edition + STAGED_SUFFIX)
         version = self._state["version"]
         size = self.release["size"]
-        self._set("preparing", PREPARING_MESSAGE, received=size, total=size)
+        self._set("preparing", t("message.0022"), received=size, total=size)
         started = time.monotonic()
 
         def work():
@@ -966,7 +969,7 @@ class UpdateService(QObject):
             **{key: int(value) for key, value in detail.items()},
         )
         size = self.release["size"]
-        self._set("installing", INSTALLING_MESSAGE, received=size, total=size)
+        self._set("installing", t("message.0020"), received=size, total=size)
         QTimer.singleShot(INSTALL_NOTICE_MS, lambda: self.apply_staged(staged))
 
     def _fall_back(self, reason):
@@ -981,12 +984,12 @@ class UpdateService(QObject):
         if fallback is None:
             self._set(
                 "error",
-                "업데이트를 준비하지 못했습니다. 다시 시도해 주세요.",
+                t("message.0048"),
                 retry="check",
             )
             return
         self.release = fallback
-        self._set("available", "설치 파일로 업데이트합니다.", can_install=True)
+        self._set("available", t("message.0043"), can_install=True)
         self.download()
 
     def apply_staged(self, staged):
@@ -1001,7 +1004,7 @@ class UpdateService(QObject):
             shutil.rmtree(staged, ignore_errors=True)
             self._set(
                 "error",
-                "업데이트를 적용하지 못했습니다. 다시 시도해 주세요.",
+                t("message.0049"),
                 retry="check",
             )
             return
@@ -1029,9 +1032,7 @@ class UpdateService(QObject):
                 reason=result.get("reason", ""),
             )
             if result.get("state") == "failed":
-                self._settle(
-                    "idle", "지난 업데이트를 적용하지 못했습니다. 다시 확인해 주세요."
-                )
+                self._settle("idle", t("message.0057"))
         # Only a packaged runtime owns the installed-apps entry.
         if getattr(sys, "frozen", False) and sync_uninstall_version():
             log_event("application.update", "uninstall_version_updated")
@@ -1073,7 +1074,7 @@ class UpdateService(QObject):
         if isinstance(started, tuple):
             started = started[0]
         if not started:
-            self._set("error", "설치 프로그램을 시작하지 못했습니다.", retry="download")
+            self._set("error", t("message.0050"), retry="download")
             return
         log_event(
             "application.update", "install_started", version=self._state["version"]

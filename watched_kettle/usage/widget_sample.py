@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 from datetime import datetime, timedelta, timezone
 
 from watched_kettle.usage.activity import HourlyActivityBucket
@@ -32,7 +34,7 @@ def sample_snapshot(now=None):
     now = now or datetime.now(timezone.utc)
     midnight = now.astimezone().replace(hour=0, minute=0, second=0, microsecond=0)
     return UsageSnapshot(
-        availability=UsageAvailability("available", "예시 값"),
+        availability=UsageAvailability("available", t("message.0422")),
         account_hash="sample",
         buckets=(
             RateLimitBucket(

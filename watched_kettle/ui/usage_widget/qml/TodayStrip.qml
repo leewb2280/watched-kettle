@@ -17,7 +17,7 @@ Column {
         width: parent.width
         Text {
             width: parent.width - total.width
-            text: "오늘 토큰"
+            text: widgetModel.labels.today
             color: strip.theme.float_muted
             font.pixelSize: strip.px(10)
             style: widgetModel.theme.halo ? Text.Outline : Text.Normal

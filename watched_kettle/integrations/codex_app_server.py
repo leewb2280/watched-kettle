@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 import json
 import logging
 import os
@@ -104,7 +106,7 @@ class CodexAppServerClient(QObject):
                 logging.WARNING,
                 error_code="executable_not_found",
             )
-            self._set_error("Codex CLI를 찾을 수 없습니다.")
+            self._set_error(t("message.0105"))
             self._schedule_restart()
             return
         log_event(
@@ -145,7 +147,7 @@ class CodexAppServerClient(QObject):
         self._closing = True
         self._restart_timer.stop()
         self._set_ready(False)
-        self._fail_pending("사용량 서비스를 종료했습니다.")
+        self._fail_pending(t("message.0101"))
         process = self.process
         self.process = None
         if process is not None and process.state() != QProcess.ProcessState.NotRunning:
@@ -245,7 +247,7 @@ class CodexAppServerClient(QObject):
             try:
                 message = json.loads(line.decode("utf-8"))
             except (UnicodeDecodeError, ValueError, TypeError):
-                self._set_error("Codex App Server가 잘못된 응답을 보냈습니다.")
+                self._set_error(t("message.0107"))
                 continue
             self._handle_message(message)
 
@@ -307,7 +309,7 @@ class CodexAppServerClient(QObject):
                     request_id=request_id,
                     error_code="server_error",
                 )
-                self._set_error("Codex App Server 초기화에 실패했습니다.")
+                self._set_error(t("message.0108"))
                 if self.process is not None:
                     self.process.kill()
             self.response_received.emit(request_id, method, params, result, error)
@@ -334,7 +336,7 @@ class CodexAppServerClient(QObject):
         method, params, timer, *markers = pending
         timer.stop()
         self._release_timer(timer)
-        error = {"code": "timeout", "message": f"{method} 요청 시간이 초과되었습니다."}
+        error = {"code": "timeout", "message": t("message.0102", value0=method)}
         log_event(
             "integrations.codex_app_server",
             "request_timeout",
@@ -363,10 +365,10 @@ class CodexAppServerClient(QObject):
             logging.WARNING,
             error_code=(getattr(_error, "name", None) or "process_error"),
         )
-        self._set_error("Codex App Server 프로세스 오류가 발생했습니다.")
+        self._set_error(t("message.0103"))
         if _error == QProcess.ProcessError.FailedToStart:
             self._set_ready(False)
-            self._fail_pending("Codex App Server를 시작하지 못했습니다.")
+            self._fail_pending(t("message.0106"))
             process, self.process = self.process, None
             if process is not None:
                 self._dispose_process(process)
@@ -382,7 +384,7 @@ class CodexAppServerClient(QObject):
             exit_code=exit_code,
         )
         self._set_ready(False)
-        self._fail_pending("Codex App Server 연결이 종료되었습니다.")
+        self._fail_pending(t("message.0104"))
         process, self.process = self.process, None
         if process is not None:
             self._dispose_process(process)

@@ -29,6 +29,7 @@ export type Shell = {
   reportError: (error: unknown) => void;
   visible: boolean;
   eventVersion: number;
+  busy: boolean;
   route: Route | null;
 };
 declare global {
@@ -39,6 +40,7 @@ declare global {
       file: import("./protocol.generated").FileRequest;
       onEvent: (listener: (value: SettingsEvent) => void) => () => void;
       ready: () => Promise<Ready>;
+      openLanguagePackFolder: () => Promise<{ opened: boolean }>;
     };
   }
 }

@@ -41,6 +41,7 @@ export type ControlBase = {
   key: string;
   label: string;
   group: string;
+  groupId?: string;
   min?: number;
   max?: number;
   step?: number;
@@ -115,6 +116,7 @@ export type SettingsSnapshot = {
   startup: Startup;
   animations: Array<Animation>;
   update: UpdateState;
+  language: LanguageState;
 };
 
 export type Saved = {
@@ -383,7 +385,7 @@ export type DurationSetting = Context & {
 };
 
 export type StringSetting = Context & {
-  key: "screen" | "bubble_theme" | "appearance:theme" | "appearance:material";
+  key: "screen" | "bubble_theme" | "appearance:theme" | "appearance:material" | "languagePack";
   value: string;
 };
 
@@ -420,8 +422,60 @@ export type Route = {
   filter?: string;
 };
 
+export type LocalizedMessage = {
+  value: string | { [key: string]: string };
+  plural: string;
+};
+
+export type LocalizationBootstrap = {
+  packId: string;
+  locale: string;
+  messages: { [key: string]: LocalizedMessage };
+};
+
+export type LanguageState = {
+  current: string;
+  selected: string;
+  locale: string;
+  restartRequired: boolean;
+  recovered: boolean;
+};
+
+export type LanguagePackProblem = {
+  key: string;
+  code: "unknown" | "invalid_entry" | "invalid_revision" | "invalid_placeholder" | "invalid_plural" | "unexpected_plural" | "invalid_text";
+};
+
+export type LanguagePackInfo = {
+  id: string;
+  name: string;
+  locale: string;
+  author: string;
+  version: string;
+  official: boolean;
+  error: string;
+  translated: number;
+  untranslated: number;
+  total: number;
+  outdated: number;
+  issues: Array<string>;
+  problems: Array<LanguagePackProblem>;
+  problemCount: number;
+  fallback: string;
+  fallbackCount: number;
+  selectable: boolean;
+};
+
+export type LanguagePackList = Array<LanguagePackInfo>;
+
+export type LanguagePackCopy = Mutation & {
+  id: string;
+  packs: LanguagePackList;
+};
+
 export type Ready = {
   connected: boolean;
+  localization: LocalizationBootstrap;
   edition?: "pet-only" | "pet-assistant";
   route?: Route | null;
   appearance: EffectiveAppearance;
@@ -1082,6 +1136,16 @@ export type IntegrationSetting = TimeoutSetting | LayoutSetting;
 
 export interface CommandMap {
 
+  "language.list": { args: Empty; result: LanguagePackList };
+
+  "language.refresh": { args: Empty; result: LanguagePackList };
+
+  "language.bootstrap": { args: Empty; result: LocalizationBootstrap };
+
+  "language.open_folder": { args: Empty; result: Opened };
+
+  "language.copy": { args: Context; result: LanguagePackCopy };
+
   "settings.snapshot": { args: Empty; result: SettingsSnapshot };
 
   "settings.set": { args: SettingRequest; result: Mutation };
@@ -1136,6 +1200,8 @@ export interface CommandMap {
 
   "app.quit": { args: Empty; result: Accepted };
 
+  "app.restart": { args: Empty; result: Accepted };
+
   "navigation.ack": { args: NavigationAck; result: Confirmed };
 
   "window.subscribe": { args: Topics; result: Subscribed };
@@ -1184,7 +1250,7 @@ export interface CommandMap {
 
 }
 
-export type RendererCommand = "settings.snapshot" | "settings.set" | "pet.catalog" | "pet.preview" | "pet.select" | "pet.import.commit" | "pet.import.cancel" | "pet.catalog.save" | "pet.trash.list" | "pet.trash.move" | "pet.trash.restore" | "pet.trash.delete" | "pet.trash.empty" | "pet.trash.batch.start" | "pet.trash.batch.status" | "pet.trash.batch.cancel" | "pet.action" | "bubble.editor" | "bubble.render" | "bubble.save" | "bubble.reset" | "element.delete" | "update.check" | "update.download" | "update.cancel" | "update.open" | "app.quit" | "navigation.ack" | "window.subscribe" | "usage.snapshot" | "usage.widget_preview" | "usage.set" | "usage.query" | "usage.select" | "usage.move" | "usage.action" | "activity.snapshot" | "activity.clear" | "activity.open" | "integration.snapshot" | "integration.preview" | "integration.apply" | "integration.set";
+export type RendererCommand = "language.list" | "language.refresh" | "language.copy" | "settings.snapshot" | "settings.set" | "pet.catalog" | "pet.preview" | "pet.select" | "pet.import.commit" | "pet.import.cancel" | "pet.catalog.save" | "pet.trash.list" | "pet.trash.move" | "pet.trash.restore" | "pet.trash.delete" | "pet.trash.empty" | "pet.trash.batch.start" | "pet.trash.batch.status" | "pet.trash.batch.cancel" | "pet.action" | "bubble.editor" | "bubble.render" | "bubble.save" | "bubble.reset" | "element.delete" | "update.check" | "update.download" | "update.cancel" | "update.open" | "app.quit" | "app.restart" | "navigation.ack" | "window.subscribe" | "usage.snapshot" | "usage.widget_preview" | "usage.set" | "usage.query" | "usage.select" | "usage.move" | "usage.action" | "activity.snapshot" | "activity.clear" | "activity.open" | "integration.snapshot" | "integration.preview" | "integration.apply" | "integration.set";
 
 export type Args<M extends RendererCommand> = CommandMap[M]['args'];
 

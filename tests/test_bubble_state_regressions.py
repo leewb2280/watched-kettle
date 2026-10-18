@@ -1,5 +1,6 @@
 """State regressions across IPC, activity policy and the actual Qt card widgets."""
 
+from types import SimpleNamespace
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -49,8 +50,14 @@ class BubbleStateRegressions(unittest.TestCase):
             managed_hook_health_path=None,
         )
         self.server.payload_received.connect(self.activity.observe)
+        # Confirmed main fixtures model a matching persisted rollout header.
+        self.log_scopes = {}
+        self.server.log_monitor = SimpleNamespace(
+            session_scope=lambda thread: self.log_scopes.get(thread, "unknown")
+        )
 
     def tearDown(self):
+        self.server.log_monitor = None
         self.server.close()
         self.pet.agent_controller.transient_timer.stop()
         self.pet.agent_controller.stale_session_timer.stop()
@@ -76,9 +83,17 @@ class BubbleStateRegressions(unittest.TestCase):
         return delivered
 
     def start(self, thread="a", **extra):
+        self.log_scopes[thread] = extra.get("agent_scope", "main")
         self.send(thread=thread, **extra)
         self.projects.set_metadata(
-            ThreadMetadata(thread, "p", "프로젝트", title=thread), 0
+            ThreadMetadata(
+                thread,
+                "p",
+                "프로젝트",
+                title=thread,
+                agent_scope=extra.get("agent_scope", "main"),
+            ),
+            self.projects.generation,
         )
         self.app.processEvents()
 
@@ -198,12 +213,12 @@ class BubbleStateRegressions(unittest.TestCase):
     def test_unknown_completion_can_be_confirmed_without_new_animation_or_deadline(
         self,
     ):
-        self.start()
+        self.start(agent_scope="unknown")
         self.send("done", agent_scope="unknown", transport=JSONL_TRANSPORT)
         self.assertFalse(self.controller.visible_windows)
         self.advance(20)
         self.projects.completion_duration = 60
-        self.send("done")
+        self.send("done", transport=JSONL_TRANSPORT)
         self.assert_status("완료", "완료 1개")
         self.assertFalse(self.row().row.highlighted)
         self.assertEqual(len(self.projects.completions), 1)
@@ -318,36 +333,36 @@ class BubbleStateRegressions(unittest.TestCase):
             self.assertEqual(self.pet.agent_controller.aggregate_state.state, "running")
 
     def test_completion_enrichment_within_highlight_window_keeps_original_record(self):
-        self.start()
+        self.start(agent_scope="unknown")
         self.send("done", agent_scope="unknown")
         self.advance(2)
-        self.send("done")
+        self.send("done", transport=JSONL_TRANSPORT)
         self.assert_status("완료", "완료 1개")
         self.assertTrue(self.row().row.highlighted)
         record = self.projects.completions[0]
         self.assertEqual(record.highlight_until, 115)
         self.assertEqual(self.pet.current_state, "idle")
         self.advance(3)
-        self.send("done")
+        self.send("done", transport=JSONL_TRANSPORT)
         self.assertEqual(self.projects.completions, (record,))
         self.advance(10)
         self.assertFalse(self.row().row.highlighted)
 
     def test_repeated_unknown_completion_does_not_extend_confirmation_lifetime(self):
-        self.start()
+        self.start(agent_scope="unknown")
         self.send("done", agent_scope="unknown")
         self.advance(10)
         self.send("done", agent_scope="unknown")
         self.advance(289)
-        self.send("done")
+        self.send("done", transport=JSONL_TRANSPORT)
         self.assertEqual(self.projects.completions[0].expires_at, 400)
         self.advance(1)
         self.assertFalse(self.controller.visible_windows)
 
     def test_new_turn_removes_unconfirmed_completion_and_rejects_old_confirmation(self):
-        self.start()
+        self.start(agent_scope="unknown")
         self.send("done", agent_scope="unknown")
-        self.send("prompt", turn="2")
+        self.send("prompt", turn="2", transport=JSONL_TRANSPORT)
         self.send("done", turn="1")
         self.assert_status("작업 중", "작업 중 1개")
         self.assertEqual(self.projects.activities["a"].turn_id, "2")
@@ -358,7 +373,7 @@ class BubbleStateRegressions(unittest.TestCase):
     def test_reset_and_expiry_never_allow_late_confirmation(self):
         for cleanup in ("reset", "expiry", "expiry_without_tick"):
             with self.subTest(cleanup=cleanup):
-                self.start(thread=cleanup)
+                self.start(thread=cleanup, agent_scope="unknown")
                 self.send("done", thread=cleanup, agent_scope="unknown")
                 if cleanup == "reset":
                     self.projects.reset()
@@ -366,15 +381,15 @@ class BubbleStateRegressions(unittest.TestCase):
                     self.advance(300)
                 else:
                     self.now += 300
-                self.send("done", thread=cleanup)
+                self.send("done", thread=cleanup, transport=JSONL_TRANSPORT)
                 self.assertFalse(self.projects.completions)
                 self.assertFalse(self.projects._unconfirmed_completions)
                 self.assertFalse(self.controller.visible_windows)
 
     def test_confirmation_cannot_resurrect_a_dismissed_completion(self):
-        self.start()
+        self.start(agent_scope="unknown")
         self.send("done", agent_scope="unknown")
-        self.send("done")
+        self.send("done", transport=JSONL_TRANSPORT)
         record = self.projects.completions[0]
         self.row().title.click()
         self.assertEqual(self.projects.visible_completions, (record,))
@@ -387,7 +402,7 @@ class BubbleStateRegressions(unittest.TestCase):
     def test_child_internal_and_parent_metadata_block_completion_enrichment(self):
         for scope in ("subagent", "internal", "parent_metadata", "parent_payload"):
             with self.subTest(scope=scope):
-                self.start(thread=scope)
+                self.start(thread=scope, agent_scope="unknown")
                 self.send("done", thread=scope, agent_scope="unknown")
                 if scope == "parent_metadata":
                     self.projects.set_metadata(
@@ -399,16 +414,16 @@ class BubbleStateRegressions(unittest.TestCase):
                 elif scope in {"subagent", "internal"}:
                     self.send("done", thread=scope, agent_scope=scope)
                 self.advance(2)
-                self.send("done", thread=scope)
+                self.send("done", thread=scope, transport=JSONL_TRANSPORT)
                 self.assertFalse(self.projects.completions)
                 self.assertFalse(self.controller.visible_windows)
 
     def test_idless_unknown_completion_is_not_guessed_from_later_main_event(self):
-        self.start(turn="")
+        self.start(turn="", agent_scope="unknown")
         self.send("done", turn="", agent_scope="unknown")
-        self.send("done")
+        self.send("done", transport=JSONL_TRANSPORT)
         self.assertFalse(self.projects.completions)
-        self.assertFalse(self.projects._unconfirmed_completions)
+        self.assertIn("a", self.projects._unconfirmed_completions)
 
     def test_fresh_child_is_not_hidden_by_stale_parent(self):
         self.send(thread="child", agent_scope="subagent", parent_session_id="a")

@@ -1,3 +1,5 @@
+import { LocalizedText } from "./LocalizedText";
+import { t, locale } from "../localization.cjs";
 import {
   ArrowDown,
   ArrowLeft,
@@ -179,7 +181,10 @@ export function PetManagerDialog({
       );
       if ("failed" in result && result.failed?.length)
         setError(
-          `${result.deleted}개를 삭제했고 ${result.failed.length}개는 삭제하지 못했어요. 남은 항목을 다시 시도하세요.`,
+          t("message.1164", {
+            value0: result.deleted,
+            value1: result.failed.length,
+          }),
         );
       await load();
       if (
@@ -202,10 +207,7 @@ export function PetManagerDialog({
       setBusy(false);
     }
   };
-  const save = (
-    change: Partial<PetCatalog>,
-    message = "변경 사항을 저장했어요.",
-  ) => {
+  const save = (change: Partial<PetCatalog>, message = t("message.1165")) => {
     if (!catalog) return;
     return run(
       "pet.catalog.save",
@@ -262,8 +264,7 @@ export function PetManagerDialog({
   }, [catalog, trash, view, query, filter, batch.busy, loading, selecting]);
   const clearSelection = (announce = true) => {
     setSelected([]);
-    if (announce && selecting)
-      setNotice("화면 조건이 바뀌어 선택을 해제했어요.");
+    if (announce && selecting) setNotice(t("message.1166"));
   };
   const toggleSelected = (id: string) =>
     setSelected((value) =>
@@ -309,7 +310,12 @@ export function PetManagerDialog({
     const epoch = shell.snapshot.epoch;
     setConfirmation(null);
     setNotice(
-      `${job.succeeded}개 완료 · ${job.failed}개 실패 · ${job.total - job.processed}개 미처리${job.message ? ` · ${job.message}` : ""}`,
+      t("message.1167", {
+        value0: job.succeeded,
+        value1: job.failed,
+        value2: job.total - job.processed,
+        value3: job.message ? ` · ${job.message}` : "",
+      }),
     );
     setBatchUndo(job.action === "move" ? job.undoIds : []);
     load()
@@ -355,7 +361,7 @@ export function PetManagerDialog({
     const order = rows.map((entry) => entry.id);
     const [id] = order.splice(from, 1);
     order.splice(Math.max(0, Math.min(to, order.length)), 0, id);
-    return save({ sort: "custom", order }, "펫 순서를 저장했어요.");
+    return save({ sort: "custom", order }, t("message.1168"));
   };
   const trashPet = (entry: PetCatalogEntry) => {
     if (entry.id === catalog?.petId) {
@@ -365,7 +371,7 @@ export function PetManagerDialog({
       void run(
         "pet.trash.move",
         { id: entry.id },
-        `${entry.name}을(를) 휴지통으로 옮겼어요.`,
+        t("message.1169", { value0: entry.name }),
       );
   };
   const closeMenu = (element: HTMLElement) => {
@@ -383,7 +389,7 @@ export function PetManagerDialog({
   return (
     <>
       <Modal
-        title={view === "trash" ? "펫 휴지통" : "펫 관리"}
+        title={view === "trash" ? t("message.1170") : t("message.1128")}
         close={() => {
           if (!lock.current) close();
         }}
@@ -401,7 +407,7 @@ export function PetManagerDialog({
                   load().catch((failure) => setError(errorText(failure)));
                 }}
               >
-                다시 불러오기
+                {t("message.1171")}
               </button>
             </>
           ) : undefined
@@ -411,26 +417,30 @@ export function PetManagerDialog({
             {batch.job?.state === "running" ? (
               <div className="batch-footer">
                 <span role="status">
-                  {batch.job.processed} / {batch.job.total}개 처리 · 성공{" "}
-                  {batch.job.succeeded} · 실패 {batch.job.failed}
+                  {t("pet.batch_progress", {
+                    processed: batch.job.processed,
+                    total: batch.job.total,
+                    succeeded: batch.job.succeeded,
+                    failed: batch.job.failed,
+                  })}
                 </span>
                 <button
                   className="button"
                   disabled={batch.cancelling}
                   onClick={() => void batch.cancel()}
                 >
-                  남은 작업 중단
+                  {t("message.1174")}
                 </button>
               </div>
             ) : selecting ? (
               <div className="batch-footer">
-                <strong>{selected.length}개 선택</strong>
+                <strong>{t("pet.selected", { count: selected.length })}</strong>
                 <button
                   className="text-button"
                   disabled={busy || !selected.length}
                   onClick={() => setSelected([])}
                 >
-                  선택 해제
+                  {t("message.1176")}
                 </button>
                 <div className="batch-actions">
                   {view === "owned" ? (
@@ -439,7 +449,7 @@ export function PetManagerDialog({
                       disabled={busy || !selected.length}
                       onClick={() => confirmBatch("move")}
                     >
-                      선택한 펫 이동
+                      {t("message.1177")}
                     </button>
                   ) : (
                     <>
@@ -448,19 +458,19 @@ export function PetManagerDialog({
                         disabled={busy || !canRestore}
                         title={
                           !canRestore && selected.length
-                            ? "삭제 중이던 항목은 영구 삭제 재시도만 가능해요."
+                            ? t("message.1178")
                             : undefined
                         }
                         onClick={() => void startBatch("restore", selected)}
                       >
-                        선택한 펫 복원
+                        {t("message.1179")}
                       </button>
                       <button
                         className="button danger"
                         disabled={busy || !selected.length}
                         onClick={() => confirmBatch("delete")}
                       >
-                        선택한 펫 영구 삭제
+                        {t("message.1180")}
                       </button>
                     </>
                   )}
@@ -472,21 +482,19 @@ export function PetManagerDialog({
                       setSelected([]);
                     }}
                   >
-                    선택 완료
+                    {t("message.1181")}
                   </button>
                 </div>
               </div>
             ) : (
-              <span className="manager-save-hint">
-                변경 사항은 바로 저장됩니다.
-              </span>
+              <span className="manager-save-hint">{t("message.1182")}</span>
             )}
             <button
               className="button"
               disabled={saving || batch.starting}
               onClick={close}
             >
-              닫기
+              {t("message.0970")}
             </button>
           </>
         }
@@ -503,14 +511,14 @@ export function PetManagerDialog({
                 clearSelection(false);
               }}
             >
-              {selecting ? "선택 취소" : "선택"}
+              {selecting ? t("message.1183") : t("message.1184")}
             </button>
             {selecting && (
               <label>
                 <input
                   ref={selectAll}
                   type="checkbox"
-                  aria-label="현재 화면 전체 선택"
+                  aria-label={t("message.1185")}
                   checked={
                     selectable.length > 0 &&
                     selected.length === selectable.length
@@ -520,7 +528,7 @@ export function PetManagerDialog({
                     setSelected(event.target.checked ? [...selectable] : [])
                   }
                 />
-                현재 화면 전체 선택
+                {t("message.1185")}
               </label>
             )}
           </div>
@@ -532,7 +540,8 @@ export function PetManagerDialog({
                   disabled={busy || !catalog || selecting}
                   onClick={() => setImporting(true)}
                 >
-                  <Plus size={16} />펫 추가
+                  <Plus size={16} />
+                  {t("message.1186")}
                 </button>
                 <button
                   className="button"
@@ -545,7 +554,9 @@ export function PetManagerDialog({
                   }}
                 >
                   <Trash2 size={16} />
-                  휴지통 {trash ? `(${trash.total})` : ""}
+                  {trash
+                    ? t("pet.trash_count", { count: trash.total })
+                    : t("pet.trash")}
                 </button>
               </>
             ) : (
@@ -559,21 +570,26 @@ export function PetManagerDialog({
                     clearSelection(false);
                   }}
                 >
-                  <ArrowLeft size={16} />펫 목록
+                  <ArrowLeft size={16} />
+                  {t("message.1188")}
                 </button>
                 <button
                   className="button manager-danger"
                   disabled={busy || !trash?.total || selecting}
                   onClick={() => setConfirmation({ kind: "empty" })}
                 >
-                  휴지통 비우기
+                  {t("message.1189")}
                 </button>
               </>
             )}
           </div>
           <div className="manager-feedback" ref={feedback} tabIndex={-1}>
             <span role="status">
-              {loading ? "목록을 불러오는 중…" : saving ? "저장 중…" : notice}
+              {loading
+                ? t("message.1190")
+                : saving
+                  ? t("message.1191")
+                  : notice}
             </span>
             {undo && (
               <button
@@ -583,12 +599,12 @@ export function PetManagerDialog({
                   void run(
                     "pet.trash.restore",
                     { trashId: undo.trashId },
-                    `${undo.name}을(를) 복원했어요.`,
+                    t("message.1192", { value0: undo.name }),
                   )
                 }
               >
                 <RotateCcw size={14} />
-                실행 취소
+                {t("message.1193")}
               </button>
             )}
           </div>
@@ -598,7 +614,7 @@ export function PetManagerDialog({
               disabled={busy}
               onClick={() => void startBatch("restore", batchUndo)}
             >
-              실행 취소 ({batchUndo.length}개)
+              {t("pet.undo_count", { count: batchUndo.length })}
             </button>
           )}
           {batch.job &&
@@ -607,7 +623,7 @@ export function PetManagerDialog({
               (row) => row.status === "failed" || row.status === "notStarted",
             ) && (
               <details className="batch-results">
-                <summary>실패·미처리 항목 확인</summary>
+                <summary>{t("message.1196")}</summary>
                 <ul>
                   {batch.job.results
                     .filter(
@@ -617,8 +633,10 @@ export function PetManagerDialog({
                     .map((row) => (
                       <li key={row.id}>
                         <strong>{row.name}</strong> ·{" "}
-                        {row.status === "failed" ? "실패" : "미처리"} ·{" "}
-                        {row.message}
+                        {row.status === "failed"
+                          ? t("message.0284")
+                          : t("message.1197")}{" "}
+                        · {row.message}
                       </li>
                     ))}
                 </ul>
@@ -626,19 +644,18 @@ export function PetManagerDialog({
             )}
           {trash?.issues.length ? (
             <p className="error-banner" role="alert">
-              확인이 필요한 휴지통 항목이 있어 파일을 보존했어요.{" "}
-              {trash.issues[0]}
+              {t("message.1198")} {trash.issues[0]}
             </p>
           ) : null}
           {!catalog || !trash ? (
-            <p role="status">펫 목록을 불러오는 중…</p>
+            <p role="status">{t("message.1199")}</p>
           ) : view === "owned" ? (
             <>
               <label className="manager-search">
                 <Search size={16} />
                 <input
-                  aria-label="펫 이름 검색"
-                  placeholder="펫 이름 검색"
+                  aria-label={t("message.1200")}
+                  placeholder={t("message.1200")}
                   value={query}
                   disabled={busy}
                   onChange={(event) => {
@@ -651,13 +668,13 @@ export function PetManagerDialog({
               <div
                 className="manager-filters"
                 role="group"
-                aria-label="펫 표시 필터"
+                aria-label={t("message.1201")}
               >
                 {(
                   [
-                    ["all", "전체"],
-                    ["shown", "표시 중"],
-                    ["hidden", "숨김"],
+                    ["all", t("message.1202")],
+                    ["shown", t("message.1203")],
+                    ["hidden", t("message.0795")],
                   ] as const
                 ).map(([value, label]) => (
                   <button
@@ -678,9 +695,9 @@ export function PetManagerDialog({
               {!selecting && (
                 <div className="manager-order-tools">
                   <label>
-                    정렬 방식{" "}
+                    {t("message.1204")}{" "}
                     <select
-                      aria-label="정렬 방식"
+                      aria-label={t("message.1204")}
                       value={catalog.sort}
                       disabled={busy || selecting}
                       onChange={(event) => {
@@ -690,8 +707,8 @@ export function PetManagerDialog({
                         });
                       }}
                     >
-                      <option value="name">이름순</option>
-                      <option value="custom">직접 정렬</option>
+                      <option value="name">{t("message.0708")}</option>
+                      <option value="custom">{t("message.0709")}</option>
                     </select>
                   </label>
                   <button
@@ -700,22 +717,22 @@ export function PetManagerDialog({
                     disabled={busy || !canEdit || rows.length < 2}
                     onClick={() => setEditing(!editing)}
                   >
-                    {editing ? "순서 편집 마치기" : "순서 편집"}
+                    {editing ? t("message.1205") : t("message.1206")}
                   </button>
                 </div>
               )}
               <p className="manager-help">
                 {selecting
-                  ? "현재 화면에서 선택한 펫만 처리합니다. 검색·필터를 바꾸면 선택이 해제돼요."
+                  ? t("message.1207")
                   : editing
-                    ? "손잡이를 끌거나 위·아래 버튼으로 순서를 바꾸세요. 이동하면 직접 정렬로 저장됩니다."
+                    ? t("message.1208")
                     : canEdit
-                      ? "표시한 펫은 선택 창과 트레이 메뉴에 나타납니다."
-                      : "순서를 바꾸려면 검색을 지우고 전체 목록을 선택하세요."}
+                      ? t("message.1209")
+                      : t("message.1210")}
               </p>
               {!shown.length ? (
                 <div className="manager-empty">
-                  <strong>검색 조건에 맞는 펫이 없어요.</strong>
+                  <strong>{t("message.1211")}</strong>
                   <button
                     className="button"
                     onClick={() => {
@@ -724,7 +741,7 @@ export function PetManagerDialog({
                       setFilter("all");
                     }}
                   >
-                    검색·필터 초기화
+                    {t("message.1212")}
                   </button>
                 </div>
               ) : (
@@ -775,7 +792,7 @@ export function PetManagerDialog({
                           className="drag-handle"
                           draggable={!busy}
                           aria-hidden="true"
-                          title="끌어서 순서 바꾸기"
+                          title={t("message.1213")}
                           onDragStart={(event) => {
                             event.dataTransfer.effectAllowed = "move";
                             event.dataTransfer.setData("text/plain", entry.id);
@@ -789,7 +806,10 @@ export function PetManagerDialog({
                       {selecting && (
                         <input
                           type="checkbox"
-                          aria-label={`${entry.name} (${entry.id}) 선택`}
+                          aria-label={t("message.1214", {
+                            value0: entry.name,
+                            value1: entry.id,
+                          })}
                           title={
                             entry.canDelete ? undefined : entry.deletionReason
                           }
@@ -803,16 +823,18 @@ export function PetManagerDialog({
                         <div className="manager-pet-name">
                           <strong>{entry.name}</strong>
                           {current && (
-                            <span className="current-badge">사용 중</span>
+                            <span className="current-badge">
+                              {t("message.1215")}
+                            </span>
                           )}
                         </div>
                         <small>
                           {entry.description ? `${entry.description} · ` : ""}
                           {entry.source === "user"
-                            ? "추가한 펫"
+                            ? t("message.1216")
                             : entry.source === "bundled"
-                              ? "기본 제공 펫"
-                              : "외부 경로의 펫"}
+                              ? t("message.1217")
+                              : t("message.1218")}
                         </small>
                         {catalog.entries.some(
                           (other) =>
@@ -830,9 +852,7 @@ export function PetManagerDialog({
                         )}
                         {current && (!selecting || entry.canDelete) && (
                           <small>
-                            {selecting
-                              ? "함께 이동하면 대체 펫을 선택합니다."
-                              : "다른 펫으로 바꾸면 숨길 수 있어요."}
+                            {selecting ? t("message.1219") : t("message.1220")}
                           </small>
                         )}
                         {selecting && !entry.canDelete && (
@@ -844,8 +864,10 @@ export function PetManagerDialog({
                           <div className="manager-move-buttons">
                             <button
                               className="icon-button"
-                              aria-label={`${entry.name} 위로`}
-                              title="위로"
+                              aria-label={t("message.0712", {
+                                value0: entry.name,
+                              })}
+                              title={t("message.1221")}
                               disabled={busy || index === 0}
                               onClick={() => void move(index, index - 1)}
                             >
@@ -853,8 +875,10 @@ export function PetManagerDialog({
                             </button>
                             <button
                               className="icon-button"
-                              aria-label={`${entry.name} 아래로`}
-                              title="아래로"
+                              aria-label={t("message.0713", {
+                                value0: entry.name,
+                              })}
+                              title={t("message.1222")}
                               disabled={busy || index === rows.length - 1}
                               onClick={() => void move(index, index + 1)}
                             >
@@ -863,9 +887,9 @@ export function PetManagerDialog({
                           </div>
                         ) : (
                           <label className="manager-visibility">
-                            <span>목록에 표시</span>
+                            <span>{t("message.1223")}</span>
                             <Switch
-                              label={`${entry.name} 목록에 표시`}
+                              label={t("message.1224", { value0: entry.name })}
                               value={!hidden.includes(entry.id)}
                               disabled={busy || current}
                               change={(visible) =>
@@ -894,7 +918,9 @@ export function PetManagerDialog({
                         >
                           <summary
                             className="icon-button"
-                            aria-label={`${entry.name} 더보기`}
+                            aria-label={t("message.1225", {
+                              value0: entry.name,
+                            })}
                           >
                             <MoreHorizontal size={19} />
                           </summary>
@@ -906,11 +932,11 @@ export function PetManagerDialog({
                                 void run(
                                   "pet.select",
                                   { id: entry.id },
-                                  `${entry.name}을(를) 사용하고 있어요.`,
+                                  t("message.1226", { value0: entry.name }),
                                 );
                               }}
                             >
-                              이 펫 사용하기
+                              {t("message.1227")}
                             </button>
                             {editing && (
                               <>
@@ -921,7 +947,7 @@ export function PetManagerDialog({
                                     void move(index, 0);
                                   }}
                                 >
-                                  맨 위로
+                                  {t("message.1228")}
                                 </button>
                                 <button
                                   disabled={busy || index === rows.length - 1}
@@ -930,7 +956,7 @@ export function PetManagerDialog({
                                     void move(index, rows.length - 1);
                                   }}
                                 >
-                                  맨 아래로
+                                  {t("message.1229")}
                                 </button>
                               </>
                             )}
@@ -943,7 +969,7 @@ export function PetManagerDialog({
                                   trashPet(entry);
                                 }}
                               >
-                                휴지통으로 이동
+                                {t("message.1230")}
                               </button>
                             ) : (
                               <p>{entry.deletionReason}</p>
@@ -958,18 +984,18 @@ export function PetManagerDialog({
             </>
           ) : (
             <>
-              <p className="manager-help">
-                앱 전용 휴지통입니다. Windows 휴지통과 별개이며 자동으로
-                삭제하지 않습니다.
-              </p>
+              <p className="manager-help">{t("message.1231")}</p>
               <p className="manager-trash-summary">
-                {trash.total}개 · {size(trash.totalBytes)}
+                {t("pet.trash_summary", {
+                  count: trash.total,
+                  size: size(trash.totalBytes),
+                })}
               </p>
               {!trash.entries.length ? (
                 <div className="manager-empty">
                   <Trash2 size={28} />
-                  <strong>휴지통이 비어 있어요.</strong>
-                  <span>삭제한 펫을 여기서 복원할 수 있어요.</span>
+                  <strong>{t("message.1233")}</strong>
+                  <span>{t("message.1234")}</span>
                 </div>
               ) : (
                 trash.entries.map((entry) => (
@@ -981,7 +1007,10 @@ export function PetManagerDialog({
                     {selecting && (
                       <input
                         type="checkbox"
-                        aria-label={`${entry.name} (${entry.id}) 선택`}
+                        aria-label={t("message.1214", {
+                          value0: entry.name,
+                          value1: entry.id,
+                        })}
                         checked={selected.includes(entry.trashId)}
                         disabled={
                           busy || !["trashed", "deleting"].includes(entry.state)
@@ -1002,15 +1031,19 @@ export function PetManagerDialog({
                         </small>
                       )}
                       <small>
-                        {new Date(entry.deletedAt).toLocaleString("ko-KR")} 삭제
-                        · {size(entry.bytes)}
+                        {t("pet.deleted", {
+                          date: new Date(entry.deletedAt).toLocaleString(
+                            locale(),
+                          ),
+                          size: size(entry.bytes),
+                        })}
                       </small>
                       {entry.state !== "trashed" && (
                         <small>
-                          이전 작업이 완료되지 않았어요.{" "}
+                          {t("message.1236")}{" "}
                           {entry.state === "deleting"
-                            ? "영구 삭제를 다시 시도하세요."
-                            : "다시 불러오거나 앱을 재시작하세요."}
+                            ? t("message.1237")
+                            : t("message.1238")}
                         </small>
                       )}
                     </div>
@@ -1023,11 +1056,11 @@ export function PetManagerDialog({
                             void run(
                               "pet.trash.restore",
                               { trashId: entry.trashId },
-                              `${entry.name}을(를) 복원했어요.`,
+                              t("message.1192", { value0: entry.name }),
                             )
                           }
                         >
-                          복원
+                          {t("message.1239")}
                         </button>
                         <button
                           className="button compact manager-danger"
@@ -1039,7 +1072,7 @@ export function PetManagerDialog({
                             setConfirmation({ kind: "delete", entry })
                           }
                         >
-                          영구 삭제
+                          {t("message.1240")}
                         </button>
                       </div>
                     )}
@@ -1056,7 +1089,7 @@ export function PetManagerDialog({
                       setOffset(Math.max(0, offset - 50));
                     }}
                   >
-                    이전
+                    {t("message.1241")}
                   </button>
                   <span>
                     {Math.floor(offset / 50) + 1} /{" "}
@@ -1070,7 +1103,7 @@ export function PetManagerDialog({
                       setOffset(offset + 50);
                     }}
                   >
-                    다음
+                    {t("message.1242")}
                   </button>
                 </div>
               )}
@@ -1086,13 +1119,13 @@ export function PetManagerDialog({
           title={
             confirmation.kind === "batch"
               ? confirmation.action === "move"
-                ? "선택한 펫 이동"
-                : "선택한 펫 영구 삭제"
+                ? t("message.1177")
+                : t("message.1180")
               : confirmation.kind === "move"
-                ? "사용 중인 펫 이동"
+                ? t("message.1243")
                 : confirmation.kind === "empty"
-                  ? "휴지통 비우기"
-                  : "펫 영구 삭제"
+                  ? t("message.1189")
+                  : t("message.1244")
           }
           close={() => {
             if (!busy) setConfirmation(null);
@@ -1105,7 +1138,7 @@ export function PetManagerDialog({
                 disabled={busy}
                 onClick={() => setConfirmation(null)}
               >
-                취소
+                {t("message.0650")}
               </button>
               <button
                 className={
@@ -1134,31 +1167,26 @@ export function PetManagerDialog({
                     void run(
                       "pet.trash.move",
                       { id: confirmation.entry.id, replacementId: replacement },
-                      "펫을 변경하고 휴지통으로 옮겼어요.",
+                      t("message.1245"),
                     );
                   else if (confirmation.kind === "delete")
                     void run(
                       "pet.trash.delete",
                       { trashId: confirmation.entry.trashId },
-                      "펫을 영구 삭제했어요.",
+                      t("message.1246"),
                     );
-                  else
-                    void run(
-                      "pet.trash.empty",
-                      {},
-                      "휴지통 비우기를 완료했어요.",
-                    );
+                  else void run("pet.trash.empty", {}, t("message.1247"));
                 }}
               >
                 {confirmation.kind === "batch"
                   ? confirmation.action === "move"
-                    ? "휴지통으로 이동"
-                    : "영구 삭제"
+                    ? t("message.1230")
+                    : t("message.1240")
                   : confirmation.kind === "move"
-                    ? "변경 후 휴지통으로 이동"
+                    ? t("message.1248")
                     : confirmation.kind === "empty"
-                      ? "모두 영구 삭제"
-                      : "영구 삭제"}
+                      ? t("message.1249")
+                      : t("message.1240")}
               </button>
             </>
           }
@@ -1166,10 +1194,15 @@ export function PetManagerDialog({
           {confirmation.kind === "batch" ? (
             <>
               <p>
-                {confirmation.ids.length}개 펫을{" "}
-                {confirmation.action === "move"
-                  ? "휴지통으로 옮깁니다. 나중에 복원할 수 있어요."
-                  : `영구 삭제합니다 (${size(confirmation.bytes)}). 파일과 개별 설정은 복구할 수 없어요.`}
+                {t(
+                  confirmation.action === "move"
+                    ? "pet.batch_move_confirm"
+                    : "pet.batch_delete_confirm",
+                  {
+                    count: confirmation.ids.length,
+                    size: size(confirmation.bytes),
+                  },
+                )}
               </p>
               <ul className="batch-targets">
                 {confirmation.names.map((name, index) => (
@@ -1179,18 +1212,28 @@ export function PetManagerDialog({
             </>
           ) : confirmation.kind === "move" ? (
             <p>
-              <strong>{confirmation.entry.name}</strong>은(는) 현재 사용
-              중이에요. 대신 사용할 펫을 선택하세요.
+              <LocalizedText
+                id="pet.replacement_needed"
+                values={{ name: <strong>{confirmation.entry.name}</strong> }}
+              />
             </p>
           ) : (
             <p>
-              <strong>
-                {confirmation.kind === "delete"
-                  ? confirmation.entry.name
-                  : `${trash?.total ?? 0}개 펫 (${size(trash?.totalBytes ?? 0)})`}
-              </strong>
-              의 파일과 개별 설정을 영구 삭제합니다. 삭제 후에는 복원할 수
-              없어요.
+              <LocalizedText
+                id="pet.delete_confirm"
+                values={{
+                  name: (
+                    <strong>
+                      {confirmation.kind === "delete"
+                        ? confirmation.entry.name
+                        : t("message.1254", {
+                            value0: trash?.total ?? 0,
+                            value1: size(trash?.totalBytes ?? 0),
+                          })}
+                    </strong>
+                  ),
+                }}
+              />
             </p>
           )}
           {(confirmation.kind === "move" ||
@@ -1198,14 +1241,14 @@ export function PetManagerDialog({
               confirmation.action === "move" &&
               confirmation.ids.includes(catalog?.petId ?? ""))) && (
             <label className="manager-replacement">
-              대신 사용할 펫
+              {t("message.1256")}
               <select
-                aria-label="대신 사용할 펫"
+                aria-label={t("message.1256")}
                 value={replacement}
                 disabled={busy}
                 onChange={(event) => setReplacement(event.target.value)}
               >
-                <option value="">펫 선택</option>
+                <option value="">{t("message.1111")}</option>
                 {rows
                   .filter((entry) =>
                     confirmation.kind === "batch"
@@ -1216,7 +1259,7 @@ export function PetManagerDialog({
                   .map((entry) => (
                     <option key={entry.id} value={entry.id}>
                       {entry.name}
-                      {hidden.includes(entry.id) ? " (숨김 해제)" : ""}
+                      {hidden.includes(entry.id) ? t("message.1257") : ""}
                     </option>
                   ))}
               </select>

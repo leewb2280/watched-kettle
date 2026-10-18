@@ -1,3 +1,4 @@
+import { t } from "../../localization.cjs";
 import { Empty, Fields, Heading, Section } from "../components";
 import type { Control, UsageSetting } from "../types";
 import { HourRange } from "./presentation";
@@ -10,24 +11,21 @@ export function AssistantWidgetPage({
 }: Pick<AssistantSettingsState, "usage" | "call" | "widgetVisible">) {
   return (
     <div className="page">
-      <Heading
-        title="위젯"
-        subtitle="펫 옆 사용량 위젯의 모양과 표시 항목, 색과 크기를 설정합니다."
-      />
+      <Heading title={t("message.0494")} subtitle={t("message.0729")} />
       {!usage ? (
-        <Empty>위젯 설정을 불러오는 중입니다.</Empty>
+        <Empty>{t("message.0730")}</Empty>
       ) : (
         <>
           <WidgetPreview usage={usage} />
           <Fields
             controls={usage!.controls.filter((control: Control) =>
-              ["위젯", "위젯 외관"].includes(control.group),
+              ["widget", "widget_appearance"].includes(control.groupId || ""),
             )}
             change={(key, value) =>
               call("usage.set", { key, value } as UsageSetting)
             }
             groupFooters={{
-              위젯: (
+              widget: (
                 <span className="footer-actions">
                   <button
                     className="text-button"
@@ -36,7 +34,7 @@ export function AssistantWidgetPage({
                       call("usage.action", { action: "reset_widget" })
                     }
                   >
-                    기본 구성으로
+                    {t("message.0731")}
                   </button>
                   <button
                     className="text-button"
@@ -45,11 +43,11 @@ export function AssistantWidgetPage({
                       call("usage.action", { action: "reset_position" })
                     }
                   >
-                    펫 옆으로 위치 복원
+                    {t("message.0732")}
                   </button>
                 </span>
               ),
-              "위젯 외관": (
+              widget_appearance: (
                 <span className="footer-actions">
                   <button
                     className="text-button"
@@ -58,7 +56,7 @@ export function AssistantWidgetPage({
                       call("usage.action", { action: "reset_style" })
                     }
                   >
-                    기본 스타일로
+                    {t("message.0733")}
                   </button>
                   <button
                     className="text-button"
@@ -67,13 +65,13 @@ export function AssistantWidgetPage({
                       call("usage.action", { action: "reset_scale" })
                     }
                   >
-                    기본 크기로
+                    {t("message.0734")}
                   </button>
                 </span>
               ),
             }}
           />
-          <Section title="오늘 흐름 시간대">
+          <Section title={t("message.0735")}>
             <HourRange
               hours={[usage!.hours[0], usage!.hours[1]]}
               disabled={!widgetVisible}
@@ -87,7 +85,7 @@ export function AssistantWidgetPage({
                 disabled={!widgetVisible}
                 onClick={() => call("usage.action", { action: "reset_hours" })}
               >
-                전체 24시간으로
+                {t("message.0736")}
               </button>
             </div>
           </Section>

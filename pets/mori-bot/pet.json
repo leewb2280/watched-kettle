@@ -1,6 +1,9 @@
 {
   "distribution": "public",
   "description": "작업을 지켜보는 작은 로봇 친구",
+  "localizedDescriptions": {
+    "en": "A little robot friend who keeps an eye on your work"
+  },
   "displayName": "Mori Bot",
   "license": "CC-BY-4.0",
   "spriteVersionNumber": 2,

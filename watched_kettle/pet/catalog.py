@@ -5,6 +5,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from watched_kettle.localization import get_translator
+
 
 @dataclass(frozen=True)
 class PetCatalogEntry:
@@ -13,6 +15,21 @@ class PetCatalogEntry:
     description: str
     directory: Path
     spritesheet_path: Path
+
+
+def localized_description(manifest):
+    """The active locale's description (exact tag, then language), else the default."""
+    default = str(manifest.get("description") or "")
+    variants = manifest.get("localizedDescriptions")
+    if not isinstance(variants, dict):
+        return default
+    variants = {
+        str(tag).casefold(): text
+        for tag, text in variants.items()
+        if isinstance(text, str) and text.strip()
+    }
+    locale = get_translator().locale.casefold()
+    return variants.get(locale) or variants.get(locale.split("-")[0]) or default
 
 
 def pet_name_sort_key(entry):
@@ -109,7 +126,7 @@ def discover_pets(pets_root: Path):
             PetCatalogEntry(
                 id=pet_id,
                 display_name=display_name,
-                description=str(manifest.get("description") or ""),
+                description=localized_description(manifest),
                 directory=pet_directory,
                 spritesheet_path=spritesheet_path,
             )

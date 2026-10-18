@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 from watched_kettle.features.pet.contracts import BubbleElement as BubbleElement
 
 import json
@@ -90,7 +92,7 @@ class BubbleElementRegistry:
         source_path = Path(source_path)
         kind = str(kind or "").strip().lower()
         if kind not in ELEMENT_KINDS:
-            raise BubbleElementError("지원하지 않는 요소 종류입니다.")
+            raise BubbleElementError(t("message.0239"))
         image = _open_source(source_path)
         display_name = _clean_name(name or source_path.stem)
         element_id = uuid4().hex
@@ -121,9 +123,7 @@ class BubbleElementRegistry:
                 encoding="utf-8",
             )
         except OSError as error:
-            raise BubbleElementError(
-                "요소를 사용자 데이터 폴더에 저장하지 못했습니다."
-            ) from error
+            raise BubbleElementError(t("message.0244")) from error
         self.refresh()
         return self._elements[element_id]
 
@@ -186,21 +186,21 @@ class BubbleElementRegistry:
     def _validate_image(path):
         try:
             if not path.is_file():
-                raise BubbleElementError("이미지 파일을 찾을 수 없습니다.")
+                raise BubbleElementError(t("message.0240"))
             if path.suffix.lower() not in ELEMENT_SUFFIXES:
-                raise BubbleElementError("PNG 또는 WebP 이미지만 사용할 수 있습니다.")
+                raise BubbleElementError(t("message.0245"))
             if path.stat().st_size > MAX_ELEMENT_FILE_BYTES:
-                raise BubbleElementError("이미지 파일은 4MB 이하여야 합니다.")
+                raise BubbleElementError(t("message.0246"))
             with Image.open(path) as image:
                 image_format = str(image.format or "").upper()
                 width, height = image.size
                 image.verify()
             if image_format not in {"PNG", "WEBP"}:
-                raise BubbleElementError("실제 이미지 형식이 PNG 또는 WebP가 아닙니다.")
+                raise BubbleElementError(t("message.0247"))
             if not (1 <= width <= MAX_ELEMENT_DIMENSION):
-                raise BubbleElementError("이미지 너비는 1024px 이하여야 합니다.")
+                raise BubbleElementError(t("message.0248"))
             if not (1 <= height <= MAX_ELEMENT_DIMENSION):
-                raise BubbleElementError("이미지 높이는 1024px 이하여야 합니다.")
+                raise BubbleElementError(t("message.0249"))
         except BubbleElementError:
             raise
         except (
@@ -209,25 +209,21 @@ class BubbleElementRegistry:
             UnidentifiedImageError,
             ValueError,
         ) as error:
-            raise BubbleElementError(
-                "손상되었거나 읽을 수 없는 이미지입니다."
-            ) from error
+            raise BubbleElementError(t("message.0243")) from error
 
 
 def _open_source(path):
     """Decode an import into a fresh, upright image with no metadata."""
     try:
         if not path.is_file():
-            raise BubbleElementError("이미지 파일을 찾을 수 없습니다.")
+            raise BubbleElementError(t("message.0240"))
         if path.suffix.lower() not in SOURCE_SUFFIXES:
-            raise BubbleElementError("PNG, WebP 또는 JPEG 이미지만 사용할 수 있습니다.")
+            raise BubbleElementError(t("message.0241"))
         if path.stat().st_size > MAX_SOURCE_FILE_BYTES:
-            raise BubbleElementError("이미지 파일은 20MB 이하여야 합니다.")
+            raise BubbleElementError(t("message.0242"))
         with Image.open(path) as source:
             if str(source.format or "").upper() not in SOURCE_FORMATS:
-                raise BubbleElementError(
-                    "실제 이미지 형식이 PNG, WebP 또는 JPEG가 아닙니다."
-                )
+                raise BubbleElementError(t("message.0250"))
             image = ImageOps.exif_transpose(source)
             image.load()
         image.thumbnail((MAX_ELEMENT_DIMENSION, MAX_ELEMENT_DIMENSION))
@@ -245,9 +241,9 @@ def _open_source(path):
         UnidentifiedImageError,
         ValueError,
     ) as error:
-        raise BubbleElementError("손상되었거나 읽을 수 없는 이미지입니다.") from error
+        raise BubbleElementError(t("message.0243")) from error
 
 
 def _clean_name(value):
     name = " ".join(str(value or "").split())[:60]
-    return name or "사용자 요소"
+    return name or t("message.0238")

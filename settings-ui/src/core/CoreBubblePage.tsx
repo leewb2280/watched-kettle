@@ -1,3 +1,4 @@
+import { t } from "../../localization.cjs";
 import { Eye, Palette, Sparkles } from "lucide-react";
 import { Field, Fields, Heading, Section } from "../components";
 
@@ -20,21 +21,18 @@ export function CoreBubblePage({
 >) {
   return (
     <div className="page">
-      <Heading
-        title="말풍선"
-        subtitle="말풍선 디자인과 표시 방식, 표시 시간을 설정합니다."
-      />
+      <Heading title={t("message.0592")} subtitle={t("message.1095")} />
       <div className="bubble-intro-card card">
         <div className="bubble-intro">
           <span className="large-icon">
             <Palette size={30} />
           </span>
           <div className="bubble-intro-copy">
-            <h2>말풍선 디자인</h2>
+            <h2>{t("message.1096")}</h2>
             <p>
-              색, 모양, 장식부터 글자와 여백까지.
+              {t("message.1097")}
               <br />
-              미리보기로 확인하고 마음에 들 때 적용하세요.
+              {t("message.1098")}
             </p>
           </div>
           <div className="bubble-intro-actions">
@@ -43,11 +41,11 @@ export function CoreBubblePage({
               onClick={() => call("pet.action", { action: "preview" })}
             >
               <Eye size={15} />
-              펫에서 미리보기
+              {t("message.1099")}
             </button>
             <button className="button primary" onClick={openEditor}>
               <Sparkles size={15} />
-              말풍선 꾸미기
+              {t("message.1100")}
             </button>
           </div>
         </div>
@@ -68,7 +66,7 @@ export function CoreBubblePage({
         groupFooters={
           snapshot.edition === "pet-assistant"
             ? {
-                "표시 시간": (
+                bubble_timing: (
                   <button
                     className="text-button"
                     disabled={!hasDurationOverrides}
@@ -78,7 +76,7 @@ export function CoreBubblePage({
                       })
                     }
                   >
-                    종류별 시간을 기본값으로
+                    {t("message.1101")}
                   </button>
                 ),
               }
@@ -86,29 +84,27 @@ export function CoreBubblePage({
         }
       />
       {snapshot.edition === "pet-assistant" && (
-        <Section title="알림 잠시 쉬기">
+        <Section title={t("message.0222")}>
           <div className="snooze-card">
             <div className="snooze-copy">
               {!snapshot.pet.bubbles_enabled ? (
                 <>
-                  <strong>말풍선 알림이 꺼져 있습니다</strong>
-                  <p>알림을 켜면 잠시 쉬는 시간을 선택할 수 있어요.</p>
+                  <strong>{t("message.1102")}</strong>
+                  <p>{t("message.1103")}</p>
                 </>
               ) : snapshot.pet.bubbles_snoozed ? (
                 <>
-                  <strong>알림 쉬는 중</strong>
+                  <strong>{t("message.1104")}</strong>
                   <p>
-                    약 {snapshot.pet.bubble_snooze_remaining_minutes}분 남음
+                    {t("bubble.snooze_remaining", {
+                      count: snapshot.pet.bubble_snooze_remaining_minutes,
+                    })}
                   </p>
                 </>
               ) : (
                 <>
-                  <strong>필요할 때 잠시 조용하게</strong>
-                  <p>
-                    선택한 시간 동안 말풍선을 모두 숨깁니다. 그동안 온 일반·일정
-                    알림은 나중에 다시 띄우지 않고, 아직 진행 중인 작업은 다시
-                    나타나요.
-                  </p>
+                  <strong>{t("message.1107")}</strong>
+                  <p>{t("message.1108")}</p>
                 </>
               )}
             </div>
@@ -118,7 +114,7 @@ export function CoreBubblePage({
                   className="button"
                   onClick={() => call("pet.action", { action: "resume" })}
                 >
-                  지금 다시 표시
+                  {t("message.1109")}
                 </button>
               ) : (
                 ([15, 30, 60] as const).map((minutes) => (
@@ -130,7 +126,8 @@ export function CoreBubblePage({
                       call("pet.action", { action: "snooze", minutes })
                     }
                   >
-                    {minutes}분
+                    {minutes}
+                    {t("message.0831")}
                   </button>
                 ))
               )}
@@ -139,10 +136,7 @@ export function CoreBubblePage({
         </Section>
       )}
       {snapshot.edition === "pet-only" && (
-        <p className="footnote">
-          펫만 구성에서는 디자인과 미리보기를 제공합니다. 비서 알림은 생성하지
-          않습니다.
-        </p>
+        <p className="footnote">{t("message.1110")}</p>
       )}
     </div>
   );

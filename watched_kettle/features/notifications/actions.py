@@ -1,5 +1,7 @@
 """Ephemeral, bounded navigation targets shared by bubbles and lists."""
 
+from watched_kettle.localization import t
+
 from dataclasses import dataclass
 from collections import OrderedDict
 import re
@@ -92,12 +94,12 @@ class NotificationActionRouter(QObject):
         if kind == "thread" and thread_source(identifier) != "codex":
             return self.claude_code_launcher.label(self._client(identifier))
         if kind == "thread":
-            return "대화 열기" if self.app_available else "연결 상태 확인"
+            return t("message.0077") if self.app_available else t("message.0454")
         return {
-            "usage": "사용량 보기",
-            "notice": "내용 확인",
-            "projects": "목록 보기",
-        }.get(kind, "내용 확인")
+            "usage": t("message.0200"),
+            "notice": t("message.0201"),
+            "projects": t("message.0079"),
+        }.get(kind, t("message.0201"))
 
     def open(self, token):
         self._diagnostic_serial += 1
@@ -135,7 +137,7 @@ class NotificationActionRouter(QObject):
         target = self.targets.get(token)
         if target is None:
             outcome["reason"] = "token_expired"
-            self.failed.emit("알림 대상이 만료되었습니다.")
+            self.failed.emit(t("message.0455"))
             return False
         try:
             if target.kind == "thread" and thread_source(target.identifier) != "codex":
@@ -147,7 +149,7 @@ class NotificationActionRouter(QObject):
                     outcome["reason"] = "invalid_identifier"
                     if self.internal_open:
                         self.internal_open(ActionTarget("diagnostics"))
-                    self.failed.emit("대화 식별자가 올바르지 않습니다.")
+                    self.failed.emit(t("message.0458"))
                     return False
                 if self.app_available:
                     outcome["reason"] = "dispatch_rejected"
@@ -175,17 +177,13 @@ class NotificationActionRouter(QObject):
                     )
                     if opened_root:
                         outcome.update(result="fallback", reason="app_root")
-                        self.failed.emit(
-                            "해당 대화로 이동하지 못해 Codex 앱을 열었습니다."
-                        )
+                        self.failed.emit(t("message.0459"))
                         return False
                 else:
                     outcome["reason"] = "handler_unconfirmed"
                 if self.internal_open:
                     self.internal_open(ActionTarget("diagnostics"))
-                self.failed.emit(
-                    "이 환경의 Codex 대화 열기는 아직 확인되지 않았습니다."
-                )
+                self.failed.emit(t("message.0456"))
                 return False
             opened = bool(self.internal_open and self.internal_open(target))
             outcome.update(
@@ -197,7 +195,7 @@ class NotificationActionRouter(QObject):
             outcome.update(
                 reason="navigation_exception", error_code=type(error).__name__
             )
-            self.failed.emit("알림 대상을 열지 못했습니다.")
+            self.failed.emit(t("message.0457"))
             return False
 
     def _client(self, identifier):

@@ -721,6 +721,9 @@ select {
   font-variant-numeric: tabular-nums;
   min-width: 25px;
   text-align: right;
+  /* "8 sec" must not wrap when the slider takes the row's full width. */
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .section-footer {
   display: flex;
@@ -1777,6 +1780,46 @@ input[type="color"] {
   margin: 0 0 16px;
   color: var(--muted);
 }
+/* Same left edge as the language .setting-row above it. */
+.language-details {
+  display: grid;
+  gap: 8px;
+  padding: 0 18px 16px;
+}
+.language-details > .footnote,
+.language-details > .language-notice {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.language-details > .footnote {
+  color: var(--muted);
+}
+.language-details > .button-row {
+  margin: 8px 0 0;
+}
+/* Ends the button row, under the language select's right edge. */
+.language-details .language-restart {
+  margin-left: auto;
+}
+.language-problems {
+  font-size: 11px;
+  line-height: 1.7;
+}
+.language-problems summary {
+  cursor: pointer;
+  color: var(--alert);
+}
+.language-problems ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.language-problems code {
+  font-family: Consolas, "Cascadia Mono", monospace;
+  color: var(--ink);
+}
 .segmented {
   display: inline-flex;
   flex-wrap: wrap;
@@ -2188,6 +2231,9 @@ input[type="color"] {
   .setting-row {
     padding: 14px 13px;
     gap: 10px;
+  }
+  .language-details {
+    padding-inline: 13px;
   }
   .pet-size-presets {
     grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -17,6 +17,7 @@ from watched_kettle.application.update_assets import (
     changed_paths,
     delta_name,
     index_name,
+    installer_name,
     manifest_entries,
     parse_index,
     read_result,
@@ -160,6 +161,17 @@ class BuildAndStageTests(unittest.TestCase):
     def test_a_different_installer_revision_gets_no_delta(self):
         newer = build_release(self.root / "r2", "1.0.2", bases=self.new, revision=2)
         self.assertEqual(self.index("1.0.2", newer).editions["pet-only"].deltas, {})
+
+    def test_a_signed_release_names_its_signed_update_installer(self):
+        signed = build_release(self.root / "s", "1.0.2", bases=self.new, signed=True)
+        installer = self.index("1.0.2", signed).editions["pet-only"].installer
+        self.assertEqual(
+            installer.name, installer_name("1.0.2", KIND, "pet-only", True)
+        )
+        # A folder with both names is ambiguous, so the builder stops.
+        (signed / installer_name("1.0.2", KIND, "pet-only")).write_bytes(b"setup")
+        with self.assertRaises(SystemExit):
+            build_release(self.root / "s", "1.0.2", bases=self.new, signed=True)
 
     def test_only_the_three_newest_earlier_releases_get_a_delta(self):
         bases = self.root / "bases"

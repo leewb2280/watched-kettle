@@ -1,6 +1,7 @@
 """Project and notification cards sharing the existing pet bubble theme."""
 
 from dataclasses import dataclass, replace
+from watched_kettle.localization import t
 
 from watched_kettle.activity_diagnostics import (
     DiagnosticRecorder,
@@ -46,6 +47,9 @@ class CardContent:
     available_width: int = 0
     # The agent source whose dot the heading shows; "" for none.
     mark: str = ""
+    category: str = ""
+    summary_parts: tuple = ()
+    footer_parts: tuple = ()
 
 
 class ActionableBubbleWindow(SpeechBubbleWindow):
@@ -142,7 +146,9 @@ class ActionableBubbleWindow(SpeechBubbleWindow):
         if not project:
             rows.append(
                 (
-                    "사용량 보기" if content.heading == "사용량" else "내용 확인",
+                    t("message.0200")
+                    if content.category == "usage"
+                    else t("message.0201"),
                     content.token,
                 )
             )
@@ -242,7 +248,7 @@ class ActionableBubbleWindow(SpeechBubbleWindow):
                 )
             )
         self.category_label.show()
-        self.setWindowTitle(f"말풍선 · {content.heading}")
+        self.setWindowTitle(t("message.0199", value0=content.heading))
         for index, button in enumerate(self.buttons):
             if index >= len(rows):
                 if not button.isHidden():
@@ -377,10 +383,17 @@ class ActionableBubbleController(PetBubbleController):
             footer = []
             if index == min(2, len(cards) - 1) and len(cards) > 3:
                 hidden = cards[3:]
-                noun = (
-                    "프로젝트" if all(c.kind == "project" for c in hidden) else "항목"
+                footer.append(
+                    (
+                        "overflow",
+                        t(
+                            "bubble.more_projects"
+                            if all(c.kind == "project" for c in hidden)
+                            else "bubble.more_items",
+                            count=len(hidden),
+                        ),
+                    )
                 )
-                footer.append(f"외 {len(hidden)}개 {noun}")
             contents.append(
                 CardContent(
                     "project:" + card.key,
@@ -392,10 +405,12 @@ class ActionableBubbleController(PetBubbleController):
                     if any(r.state == "failed" for r in card.rows)
                     else "start",
                     tuple((row.title, token) for row, token in tokens),
-                    " · ".join(footer),
+                    " · ".join(text for _, text in footer),
                     tokens[0][1],
                     all_token,
                     project_rows=card.rows,
+                    summary_parts=card.summary_parts,
+                    footer_parts=tuple(footer),
                     mark=card.source if self.source_marks_shown else "",
                 )
             )
@@ -424,16 +439,19 @@ class ActionableBubbleController(PetBubbleController):
             contents.append(
                 CardContent(
                     record.record_id,
-                    {"usage": "사용량", "system": "시스템", "schedule": "일정"}.get(
-                        record.category, "시스템"
-                    ),
+                    {
+                        "usage": t("message.0204"),
+                        "system": t("message.0202"),
+                        "schedule": t("message.0205"),
+                    }.get(record.category, t("message.0202")),
                     record.message,
                     "notification",
                     (),
-                    f"대기 {pending}건" if pending else "",
+                    t("message.0203", value0=pending) if pending else "",
                     token,
                     footer_token,
                     record.record_id,
+                    category=record.category,
                 )
             )
         # Notifications are appended in lane order, regardless of history order.
@@ -442,7 +460,7 @@ class ActionableBubbleController(PetBubbleController):
             key=lambda c: 0 if c.kind in {"waiting", "error"} else 1,
         )
         notices = sorted(
-            (c for c in contents if c.record_id), key=lambda c: c.heading == "일정"
+            (c for c in contents if c.record_id), key=lambda c: c.category == "schedule"
         )
         self.router.retain(retained)
         return projects + notices
@@ -535,15 +553,26 @@ class ActionableBubbleController(PetBubbleController):
                         continue
                     parts = [
                         part
-                        for part in content.footer.split(" · ")
-                        if part and not part.endswith("개 프로젝트")
+                        for kind, part in (
+                            content.footer_parts or (("other", content.footer),)
+                        )
+                        if part and kind != "overflow"
                     ]
                     if i == index:
-                        parts.append(f"외 {count}개 프로젝트")
+                        parts.append(t("bubble.more_projects", count=count))
                     entries[i] = (
                         replace(
                             content,
                             footer=" · ".join(parts),
+                            footer_parts=tuple(
+                                (
+                                    "overflow"
+                                    if i == index and n == len(parts) - 1
+                                    else "other",
+                                    part,
+                                )
+                                for n, part in enumerate(parts)
+                            ),
                             footer_token=self.router.register("projects")
                             if i == index
                             else content.footer_token,
@@ -695,7 +724,7 @@ class ActionableBubbleController(PetBubbleController):
                     if (
                         metadata
                         and metadata.project_id is not None
-                        and metadata.title != "Codex 대화"
+                        and bool(metadata.title)
                     ):
                         self.projects.mark_latency(row.thread_id, "named")
             # The mask preserves pet pixels and dragging without repeated raises.

@@ -1,3 +1,4 @@
+import { t } from "../../localization.cjs";
 import { useState } from "react";
 import type {
   ActivityProject,
@@ -151,7 +152,7 @@ export function useAssistantSettings(shell: Shell, page: Page) {
       .filter((alert) => alert.kind === "found")
       .map((alert) => alert.tool),
   );
-  const offer = { tone: "warn", title: "이 PC에서 찾았어요. 연결할 수 있어요" };
+  const offer = { tone: "warn", title: t("message.0958") };
   const connections: [string, { tone: string; title: string }][] = integration
     ? [
         ...(codexActive

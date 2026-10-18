@@ -1,3 +1,5 @@
+import { LocalizedText } from "./LocalizedText";
+import { t } from "../localization.cjs";
 import { Folder, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "./components";
@@ -128,7 +130,7 @@ export function PetImportDialog({
   };
   return (
     <Modal
-      title="펫 가져오기"
+      title={t("message.1126")}
       close={() => {
         if (!busy) close();
       }}
@@ -136,7 +138,7 @@ export function PetImportDialog({
       footer={
         <>
           <button className="button" disabled={busy} onClick={close}>
-            {registered ? "닫기" : "취소"}
+            {registered ? t("message.0970") : t("message.0650")}
           </button>
           {registered ? (
             <button
@@ -144,7 +146,9 @@ export function PetImportDialog({
               disabled={busy}
               onClick={registered.restoreRequired ? restore : use}
             >
-              {registered.restoreRequired ? "휴지통에서 복원" : "이 펫 사용"}
+              {registered.restoreRequired
+                ? t("message.1152")
+                : t("message.1153")}
             </button>
           ) : (
             <button
@@ -153,37 +157,38 @@ export function PetImportDialog({
               onClick={add}
             >
               <Plus size={15} />
-              추가
+              {t("message.1154")}
             </button>
           )}
         </>
       }
     >
-      <p className="footnote">
-        웹 펫 설정에서 다운로드한 PNG 또는 WebP 스프라이트를 선택하세요. 최대
-        20MiB이며, V1·V2 규격을 지원합니다.
-      </p>
+      <p className="footnote">{t("message.1155")}</p>
       {!registered && (
         <button className="button" disabled={busy} onClick={choose}>
           <Folder size={15} />
-          {prepared ? "다른 파일 선택" : "파일 선택"}
+          {prepared ? t("message.1156") : t("message.1157")}
         </button>
       )}
       {prepared && (
         <div className="pet-import-preview">
-          <img src={prepared.thumbnail} alt="가져올 펫 기본 자세" />
+          <img src={prepared.thumbnail} alt={t("message.1158")} />
           {registered ? (
             <p role="status">
-              <strong>{registered.name}</strong>
-              {registered.restoreRequired
-                ? "은(는) 휴지통에 있어요. 이전 이름과 설정을 그대로 복원할 수 있어요."
-                : registered.alreadyExists
-                  ? "은(는) 이미 등록되어 있습니다. 기존 이름과 설정을 유지합니다."
-                  : "을(를) 펫 목록에 추가했습니다."}
+              <LocalizedText
+                id={
+                  registered.restoreRequired
+                    ? "pet.import.trashed"
+                    : registered.alreadyExists
+                      ? "pet.import.exists"
+                      : "pet.import.added"
+                }
+                values={{ name: <strong>{registered.name}</strong> }}
+              />
             </p>
           ) : (
             <label className="pet-import-name">
-              펫 이름
+              {t("message.1162")}
               <input
                 type="text"
                 value={name}
@@ -194,12 +199,11 @@ export function PetImportDialog({
             </label>
           )}
           <small>
-            V{prepared.spriteVersion} · 등록 후 원본 파일을 지워도 사용할 수
-            있습니다.
+            V{prepared.spriteVersion} {t("message.1163")}
           </small>
         </div>
       )}
-      {busy && <p role="status">처리 중…</p>}
+      {busy && <p role="status">{t("status.processing")}</p>}
     </Modal>
   );
 }

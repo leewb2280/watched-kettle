@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+from watched_kettle.localization.collections import MessageId, MessageMapping
+
 from collections import OrderedDict
 from dataclasses import dataclass, field, replace
 import ntpath
@@ -19,6 +22,7 @@ from watched_kettle.activity_diagnostics import (
     diagnostic_thread_ref,
 )
 
+from watched_kettle.state.agent_scope import normalize_agent_scope
 from watched_kettle.state.events import approval_actor, build_decision
 from watched_kettle.state.session_manager import DEFAULT_INACTIVITY_LIMITS
 from watched_kettle.state.codex_activity import (
@@ -60,22 +64,30 @@ MAX_UNCONFIRMED_COMPLETIONS = 4096
 # Claude Code sessions share this service with Codex threads. The prefix keeps
 # their keys apart and tells navigation that no Codex deep link exists.
 CLAUDE_CODE_THREAD_PREFIX = "claude_code:"
-DEFAULT_TITLES = {"codex": "Codex 대화", "claude_code": "Claude Code 대화"}
-DEFAULT_PROJECT_LABELS = {"codex": "Codex 작업", "claude_code": "Claude Code 작업"}
-LABELS = {
-    "ended": "종료됨",
-    "permission": "권한 처리 중",
-    "waiting": "확인 필요",
-    "failed": "실패",
-    "running": "작업 중",
-    "review": "검토 중",
-    "done": "완료",
-    "cancelled": "중단",
-    "background": "백그라운드 대기",
-}
+DEFAULT_TITLES = MessageMapping(
+    {"codex": MessageId("message.0467"), "claude_code": MessageId("message.0025")}
+)
+DEFAULT_PROJECT_LABELS = MessageMapping(
+    {"codex": MessageId("message.0441"), "claude_code": MessageId("message.0026")}
+)
+LABELS = MessageMapping(
+    {
+        "ended": MessageId("message.0468"),
+        "permission": MessageId("message.0469"),
+        "waiting": MessageId("status.attention"),
+        "failed": MessageId("message.0284"),
+        "running": MessageId("message.0257"),
+        "review": MessageId("message.0273"),
+        "done": MessageId("message.0319"),
+        "cancelled": MessageId("message.0320"),
+        "background": MessageId("message.0301"),
+    }
+)
 # Claude Code waits only on permission dialogs. Approving one sends no hook
 # until the tool ends, so the label must stay true after approval.
-SOURCE_STATE_LABELS = {("claude_code", "waiting"): "권한 요청"}
+SOURCE_STATE_LABELS = MessageMapping(
+    {("claude_code", "waiting"): MessageId("message.0470")}
+)
 
 
 def state_label(state, source="codex"):
@@ -107,13 +119,13 @@ def thread_source(thread_id):
 
 def conversation_title(value):
     if not isinstance(value, str):
-        return "Codex 대화"
+        return ""
     text = " ".join(
         "".join(
             " " if unicodedata.category(c).startswith("C") else c for c in value
         ).split()
     )
-    return text or "Codex 대화"
+    return text
 
 
 @dataclass(frozen=True)
@@ -122,9 +134,10 @@ class ThreadMetadata:
     project_id: str | None = None
     project_label: str = ""
     cwd: str = ""
-    title: str = "Codex 대화"
+    title: str = ""
     parent_thread_id: str = ""
     source: str = "codex"
+    agent_scope: str = "unknown"
 
     @property
     def project_key(self):
@@ -145,11 +158,11 @@ class ThreadMetadata:
     @property
     def label(self):
         if self.project_id == "":
-            return "프로젝트 없는 대화"
+            return t("message.0471")
         folder = ntpath.basename(ntpath.normpath(self.cwd)) if self.cwd else ""
         return safe_label(
             self.project_label or folder,
-            DEFAULT_PROJECT_LABELS.get(self.source, "Codex 작업"),
+            DEFAULT_PROJECT_LABELS.get(self.source, t("message.0441")),
         )
 
 
@@ -208,15 +221,15 @@ class ConversationRow:
 def row_status_label(row):
     """One status label for the bubble and tray; no lifecycle inference."""
     if getattr(row, "uncertain", False):
-        return "상태 확인 중"
+        return t("message.0295")
     if getattr(row, "compacting", False):
-        return "컨텍스트 압축 중"
+        return t("message.0296")
     if getattr(row, "source", "codex") == "codex" and row.state == "failed":
         return {
-            "usage_limit": "사용량 제한으로 중단",
-            "rate_limit": "요청 제한으로 중단",
-            "budget_limit": "예산 제한으로 중단",
-            "context_limit": "컨텍스트 제한으로 중단",
+            "usage_limit": t("message.0472"),
+            "rate_limit": t("message.0473"),
+            "budget_limit": t("message.0474"),
+            "context_limit": t("message.0475"),
         }.get(getattr(row, "outcome_reason", "unknown"), LABELS["failed"])
     return state_label(row.state, getattr(row, "source", "codex"))
 
@@ -251,24 +264,30 @@ class ProjectCard:
 
     @property
     def summary(self):
-        return " · ".join(
-            f"{label} {count}개"
-            for label, count in (
-                ("완료", self.done),
-                (state_label("waiting", self.source), self.waiting),
+        return " · ".join(text for _, text in self.summary_parts)
+
+    @property
+    def summary_parts(self):
+        return tuple(
+            (kind, t("message.0476", value0=label, value1=count))
+            for kind, label, count in (
+                ("done", t("message.0319"), self.done),
+                ("waiting", state_label("waiting", self.source), self.waiting),
                 (
-                    "권한 처리 중",
+                    "permission",
+                    t("message.0469"),
                     sum(
                         row.state == "permission" and not row.uncertain
                         for row in self.rows
                     ),
                 ),
-                ("작업 중", self.running),
+                ("running", t("message.0257"), self.running),
                 (
-                    "백그라운드 대기",
+                    "background",
+                    t("message.0301"),
                     sum(row.state == "background" for row in self.rows),
                 ),
-                ("상태 확인 중", self.uncertain),
+                ("uncertain", t("message.0295"), self.uncertain),
             )
             if count > 0
         )
@@ -291,6 +310,7 @@ class CompletionRecord:
     expires_at: float
     dismissed: bool = False
     completed_at: float = 0
+    activity_version: int = 0
 
 
 def trace_ref(value):
@@ -344,6 +364,7 @@ class ProjectActivityService(QObject):
         self.uncertain_recovered_count = 0
         self._first_display: dict[str, float] = {}
         self._confirmed_scopes: dict[str, str] = {}
+        self._unverified_threads: OrderedDict[str, None] = OrderedDict()
         self._collection_started_at = self.wall_now()
         self._closed_threads: OrderedDict[str, float] = OrderedDict()
         self._tool_turns: OrderedDict[tuple[str, str], str] = OrderedDict()
@@ -362,7 +383,7 @@ class ProjectActivityService(QObject):
     def set_claude_code_title(self, session_id, title):
         """Show a Claude Code session's title; never logged or persisted."""
         thread = CLAUDE_CODE_THREAD_PREFIX + str(session_id or "")
-        title = conversation_title(title) if title else DEFAULT_TITLES["claude_code"]
+        title = conversation_title(title)
         self._claude_code_titles[thread] = title
         self._claude_code_titles.move_to_end(thread)
         while len(self._claude_code_titles) > 512:
@@ -430,6 +451,7 @@ class ProjectActivityService(QObject):
         self.metadata.setdefault(
             thread, ThreadMetadata(thread, parent_thread_id=snapshot.parent_thread_id)
         )
+        self._confirmed_scopes[thread] = snapshot.scope
         self._recovery_deadlines[thread] = at + 60
         self._trace(
             "activity_restored",
@@ -443,6 +465,7 @@ class ProjectActivityService(QObject):
         self.mark_latency(thread, "detected")
         self.mark_latency(thread, "restored")
         self._diagnose_current(thread, "restore")
+        self._bound_unverified(thread)
         self.changed.emit()
 
     def reset(self, source="codex"):
@@ -473,6 +496,7 @@ class ProjectActivityService(QObject):
         keep_keys(self._tool_turns, lambda item: item[0])
         keep_keys(self._first_display)
         keep_keys(self._confirmed_scopes)
+        keep_keys(self._unverified_threads)
         if source == "codex":
             self.generation += 1
         keep_keys(self.activities)
@@ -517,7 +541,7 @@ class ProjectActivityService(QObject):
         if old:
             metadata = replace(
                 metadata,
-                title=old.title if metadata.title == "Codex 대화" else metadata.title,
+                title=old.title if not metadata.title else metadata.title,
                 project_id=old.project_id
                 if metadata.project_id is None
                 else metadata.project_id,
@@ -527,15 +551,14 @@ class ProjectActivityService(QObject):
         if old and not metadata.parent_thread_id:
             metadata = replace(metadata, parent_thread_id=old.parent_thread_id)
         self.metadata[metadata.thread_id] = metadata
-        if metadata.project_id is not None and metadata.title != "Codex 대화":
+        if metadata.project_id is not None and bool(metadata.title):
             self.mark_latency(metadata.thread_id, "named")
-        if metadata.parent_thread_id:
-            self._unconfirmed_completions.pop(metadata.thread_id, None)
         activity = self.activities.get(metadata.thread_id)
-        scope_changed = bool(activity and activity.scope == "unknown")
-        if scope_changed and activity is not None:
-            activity.scope = "subagent" if metadata.parent_thread_id else "main"
-            self._confirmed_scopes[metadata.thread_id] = activity.scope
+        candidate = self._unconfirmed_completions.get(metadata.thread_id)
+        if candidate and activity and candidate.activity_version != activity.revision:
+            self._unconfirmed_completions.pop(metadata.thread_id)
+        scope_changed = self._confirm_scope(metadata.thread_id, metadata.agent_scope)
+        self._resolve_unconfirmed_completion(metadata.thread_id)
         if metadata.parent_thread_id and metadata.parent_thread_id not in self.metadata:
             self.metadata_requested.emit(metadata.parent_thread_id)
         if old != metadata or scope_changed:
@@ -544,11 +567,107 @@ class ProjectActivityService(QObject):
                 thread_ref=trace_ref(metadata.thread_id),
                 parent_ref=trace_ref(metadata.parent_thread_id),
                 state=metadata.card_kind,
-                result="named" if metadata.title != "Codex 대화" else "unnamed",
+                result="named" if bool(metadata.title) else "unnamed",
                 scope=activity.scope if activity is not None else "",
             )
             self._diagnose_current(metadata.thread_id, "metadata_applied")
             self.changed.emit()
+
+    def effective_scope(self, thread, incoming="unknown"):
+        """Identity evidence is independent of names and project assignment."""
+        if thread_source(thread) != "codex":
+            return normalize_agent_scope(incoming) if incoming != "unknown" else "main"
+        known = self._confirmed_scopes.get(thread, "unknown")
+        incoming = normalize_agent_scope(incoming)
+        metadata = self.metadata.get(thread)
+        if "internal" in {known, incoming}:
+            return "internal"
+        if "subagent" in {known, incoming} or (metadata and metadata.parent_thread_id):
+            return "subagent"
+        return "main" if "main" in {known, incoming} else "unknown"
+
+    def _confirm_scope(self, thread, incoming):
+        scope = self.effective_scope(thread, incoming)
+        previous = self._confirmed_scopes.get(thread, "unknown")
+        item = self.activities.get(thread)
+        changed = previous != scope or bool(item and item.scope != scope)
+        if scope != "unknown":
+            self._confirmed_scopes[thread] = scope
+            self._unverified_threads.pop(thread, None)
+        if item is not None and item.scope != scope:
+            item.scope = scope
+            self._revise(item)
+        if scope in {"internal", "subagent"}:
+            self._unconfirmed_completions.pop(thread, None)
+            self.pending_completions.pop(thread, None)
+            self.completions = tuple(
+                r for r in self.completions if r.thread_id != thread
+            )
+            self.recent = tuple(r for r in self.recent if r.thread_id != thread)
+        if changed:
+            self._trace(
+                "conversation_classified",
+                thread_ref=trace_ref(thread),
+                scope=scope,
+                reason="identity_pending"
+                if scope == "unknown"
+                else "identity_evidence",
+            )
+        return changed
+
+    @property
+    def unconfirmed_completion_threads(self):
+        return tuple(
+            thread
+            for thread, record in self._unconfirmed_completions.items()
+            if record.expires_at > self.now()
+        )
+
+    def _resolve_unconfirmed_completion(self, thread):
+        record = self._unconfirmed_completions.get(thread)
+        if record is None or self.effective_scope(thread) != "main":
+            return
+        self._unconfirmed_completions.pop(thread)
+        item = self.activities.get(thread)
+        if record.expires_at <= self.now() or (item and item.state != "done"):
+            return
+        # New activity invalidates the candidate before any scope promotion.
+        self._publish_completion(record)
+        self.recent = (
+            *self.recent,
+            ActivityRecord(thread, "done", record.occurred_at),
+        )[-20:]
+        self._trace("completion_confirmed", thread_ref=trace_ref(thread), scope="main")
+
+    def _defer_completion(self, record):
+        self._unconfirmed_completions[record.thread_id] = record
+        self._trace(
+            "completion_deferred",
+            thread_ref=trace_ref(record.thread_id),
+            scope="unknown",
+        )
+
+    def _bound_unverified(self, thread):
+        if self.effective_scope(thread) != "unknown":
+            return
+        self._unverified_threads[thread] = None
+        self._unverified_threads.move_to_end(thread)
+        while len(self._unverified_threads) > MAX_UNCONFIRMED_COMPLETIONS:
+            oldest, _ = self._unverified_threads.popitem(last=False)
+            self._remember_closed(oldest)
+            self.activities.pop(oldest, None)
+            self._recovery_deadlines.pop(oldest, None)
+            self._confirmed_scopes.pop(oldest, None)
+            self._unconfirmed_completions.pop(oldest, None)
+            self.metadata.pop(oldest, None)
+            self._first_display.pop(oldest, None)
+            self.latency.pop(oldest, None)
+            self._clear_tool_turns(oldest)
+            self._trace(
+                "conversation_discarded",
+                thread_ref=trace_ref(oldest),
+                reason="unverified_limit",
+            )
 
     def set_project_relation(self, thread_id, project_id, label, generation):
         if generation != self.generation or project_id is None:
@@ -559,7 +678,7 @@ class ProjectActivityService(QObject):
         )
         if updated != old:
             self.metadata[thread_id] = updated
-            if updated.project_id is not None and updated.title != "Codex 대화":
+            if updated.project_id is not None and bool(updated.title):
                 self.mark_latency(thread_id, "named")
             self._diagnose_current(thread_id, "project_relation")
             self.changed.emit()
@@ -661,9 +780,7 @@ class ProjectActivityService(QObject):
             parent_ref=trace_ref(metadata.parent_thread_id) if metadata else "",
             project_ref=trace_ref(metadata.project_key) if metadata else "",
             project_known=bool(metadata and metadata.project_id is not None),
-            title_present=bool(
-                metadata and metadata.title != DEFAULT_TITLES.get(metadata.source)
-            ),
+            title_present=bool(metadata and bool(metadata.title)),
             uncertain=bool(item and item.uncertain),
             compacting=bool(item and item.compaction_since is not None),
             active=bool(item and not item.expires),
@@ -714,6 +831,9 @@ class ProjectActivityService(QObject):
             return True
         thread = str(payload.get("thread_id") or payload.get("session_id") or "default")
         turn = str(payload.get("turn_id") or "")
+        decision = replace(
+            decision, agent_scope=self.effective_scope(thread, decision.agent_scope)
+        )
         event = decision.event
         current = self.activities.get(thread)
         stamp = self._valid_stamp(payload.get("collected_at"))
@@ -734,7 +854,9 @@ class ProjectActivityService(QObject):
             and decision.terminal
             and event != "ended"
         ):
-            self._enrich_ended(current, event, payload)
+            self._enrich_ended(
+                current, event, {**payload, "agent_scope": decision.agent_scope}
+            )
             return False
         unconfirmed = self._unconfirmed_completions.get(thread)
         if (
@@ -742,11 +864,20 @@ class ProjectActivityService(QObject):
             and turn
             and unconfirmed.turn_id == turn
             and decision.terminal
-            and (decision.agent_scope != "unknown" or event != "done")
+            and (
+                decision.agent_scope != "unknown"
+                or event != "done"
+                or payload.get("parent_session_id")
+                or payload.get("parent_thread_id")
+            )
         ):
             self._unconfirmed_completions.pop(thread)
             parent = payload.get("parent_thread_id") or payload.get("parent_session_id")
             metadata = self.metadata.get(thread, ThreadMetadata(thread))
+            if parent:
+                metadata = replace(metadata, parent_thread_id=str(parent))
+                self.metadata[thread] = metadata
+            self._confirm_scope(thread, decision.agent_scope)
             if (
                 event == "done"
                 and decision.agent_scope == "main"
@@ -760,7 +891,7 @@ class ProjectActivityService(QObject):
                     *self.recent,
                     ActivityRecord(thread, "done", unconfirmed.occurred_at),
                 )[-20:]
-                self.changed.emit()
+            self.changed.emit()
             # This enriches an ended turn's card only. Do not replay its pet
             # animation or pass a terminal event to a newer animation session.
             return False
@@ -854,11 +985,16 @@ class ProjectActivityService(QObject):
             # A hook start followed by its identified log confirmation is one run.
             if not current.turn_id and turn:
                 current.turn_id = turn
+                self._confirm_scope(thread, decision.agent_scope)
+                self._revise(current)
                 for key in tuple(self._tool_turns):
                     if key[0] == thread and self._tool_turns[key] == "":
                         self._tool_turns[key] = turn
+                self.changed.emit()
                 return False
             if current.turn_id and (not turn or turn == current.turn_id):
+                if self._confirm_scope(thread, decision.agent_scope):
+                    self.changed.emit()
                 return False
         identity = (
             thread,
@@ -946,11 +1082,7 @@ class ProjectActivityService(QObject):
         current.last_confirmed_at = self.wall_now()
         current.recovered = False
         self._revise(current)
-        if decision.agent_scope != "unknown":
-            current.scope = decision.agent_scope
-            self._confirmed_scopes[thread] = current.scope
-        elif new_activity:
-            current.scope = self._confirmed_scopes.get(thread, "unknown")
+        self._confirm_scope(thread, decision.agent_scope)
         resumes = (
             event
             in {
@@ -1061,7 +1193,6 @@ class ProjectActivityService(QObject):
                 and current.scope not in {"subagent", "internal"}
                 and not parent
                 and not self.metadata[thread].parent_thread_id
-                and (decision.agent_scope == "main" or current.turn_id)
             ):
                 self._completion_sequence += 1
                 record = CompletionRecord(
@@ -1072,15 +1203,12 @@ class ProjectActivityService(QObject):
                     at + self.completion_duration,
                     at + COMPLETION_RETENTION_SECONDS,
                     completed_at=at,
+                    activity_version=current.revision,
                 )
-                if decision.agent_scope == "main":
+                if current.scope == "main":
                     self._publish_completion(record)
                 else:
-                    self._unconfirmed_completions[thread] = record
-                    while (
-                        len(self._unconfirmed_completions) > MAX_UNCONFIRMED_COMPLETIONS
-                    ):
-                        self._unconfirmed_completions.popitem(last=False)
+                    self._defer_completion(record)
         else:
             current.state = (
                 "waiting"
@@ -1112,6 +1240,8 @@ class ProjectActivityService(QObject):
                 *self.recent,
                 ActivityRecord(thread, current.state, time.time()),
             )[-20:]
+        if decision.source == "codex":
+            self._bound_unverified(thread)
         self.changed.emit()
         return True
 
@@ -1126,7 +1256,7 @@ class ProjectActivityService(QObject):
             source="claude_code",
             project_id=reference,
             project_label=str(payload.get("project_label") or "") if reference else "",
-            title=self._claude_code_titles.get(thread, DEFAULT_TITLES["claude_code"]),
+            title=self._claude_code_titles.get(thread, ""),
         )
 
     def _publish_completion(self, record):
@@ -1142,8 +1272,6 @@ class ProjectActivityService(QObject):
             return
         if event not in {"done", "failed", "cancelled"}:
             return
-        if payload.get("agent_scope") in {"main", "subagent", "internal"}:
-            current.scope = payload["agent_scope"]
         parent = payload.get("parent_thread_id") or payload.get("parent_session_id")
         if parent:
             old = self.metadata.get(
@@ -1152,19 +1280,25 @@ class ProjectActivityService(QObject):
             self.metadata[current.thread_id] = replace(
                 old, parent_thread_id=str(parent)
             )
+        self._confirm_scope(current.thread_id, payload.get("agent_scope", "unknown"))
         current.state = event
         current.outcome_reason = outcome_reason(payload.get("outcome_reason"))
         self._revise(current)
         at = current.terminal_at if current.terminal_at is not None else self.now()
         if (
             event == "done"
-            and current.scope == "main"
+            and current.scope in {"main", "unknown"}
             and not self.metadata.get(
                 current.thread_id, ThreadMetadata(current.thread_id)
             ).parent_thread_id
         ):
             self._completion_sequence += 1
-            self._publish_completion(
+            publish = (
+                self._publish_completion
+                if current.scope == "main"
+                else self._defer_completion
+            )
+            publish(
                 CompletionRecord(
                     f"completion:{self.generation}:{self._completion_sequence}",
                     current.thread_id,
@@ -1173,12 +1307,14 @@ class ProjectActivityService(QObject):
                     at + self.completion_duration,
                     at + COMPLETION_RETENTION_SECONDS,
                     completed_at=at,
+                    activity_version=current.revision,
                 )
             )
-        self.recent = (
-            *self.recent,
-            ActivityRecord(current.thread_id, event, current.last_confirmed_at),
-        )[-20:]
+        if current.scope == "main":
+            self.recent = (
+                *self.recent,
+                ActivityRecord(current.thread_id, event, current.last_confirmed_at),
+            )[-20:]
         self.changed.emit()
 
     def _drop_terminal_activity(self, current):
@@ -1376,6 +1512,7 @@ class ProjectActivityService(QObject):
             current.uncertain = False
         current.compaction_last_stamp = stamp or self.wall_now()
         self._recovery_deadlines.pop(thread, None)
+        self._confirm_scope(thread, payload.get("agent_scope", "unknown"))
         current.last_seen_at = self.now()
         current.last_confirmed_at = self.wall_now()
         current.recovered = False
@@ -1394,6 +1531,7 @@ class ProjectActivityService(QObject):
         if current.turn_id and turn and current.turn_id != turn:
             return False
         self._recovery_deadlines.pop(thread, None)
+        self._confirm_scope(thread, payload.get("agent_scope", "unknown"))
         current.last_seen_at = self.now()
         current.last_confirmed_at = self.wall_now()
         current.recovered = False
@@ -1531,6 +1669,17 @@ class ProjectActivityService(QObject):
         self.pending_completions = {
             key: r for key, r in self.pending_completions.items() if r.expires_at > now
         }
+        unconfirmed_expired = [
+            key
+            for key, record in self._unconfirmed_completions.items()
+            if record.expires_at <= now
+        ]
+        for key in unconfirmed_expired:
+            self._trace(
+                "completion_confirmation_expired",
+                thread_ref=trace_ref(key),
+                reason="confirmation_deadline",
+            )
         self._unconfirmed_completions = OrderedDict(
             (key, record)
             for key, record in self._unconfirmed_completions.items()
@@ -1546,10 +1695,13 @@ class ProjectActivityService(QObject):
         retained |= {
             self.metadata[k].parent_thread_id for k in retained if k in self.metadata
         }
+        for key in set(self._unverified_threads) - retained:
+            self._unverified_threads.pop(key, None)
         for key in set(self.metadata) - retained:
             del self.metadata[key]
         for key in set(self._first_display) - retained:
             del self._first_display[key]
+        for key in set(self._confirmed_scopes) - retained:
             self._confirmed_scopes.pop(key, None)
         active_keys = {card.key for card in self.cards}
         self._project_order = {
@@ -1560,7 +1712,7 @@ class ProjectActivityService(QObject):
         )
         phase_changed = phase != self._completion_phase
         self._completion_phase = phase
-        if expired or silent or stale or phase_changed:
+        if expired or silent or stale or phase_changed or unconfirmed_expired:
             self.changed.emit()
 
     def _inactive(self, item, now):
@@ -1615,7 +1767,9 @@ class ProjectActivityService(QObject):
                 continue
             metadata = self.metadata.get(item.thread_id, ThreadMetadata(item.thread_id))
             root = metadata.parent_thread_id or item.thread_id
-            if item.scope != "main" and not metadata.parent_thread_id:
+            if item.scope == "internal" or (
+                item.scope != "main" and not metadata.parent_thread_id
+            ):
                 continue
             visited = {item.thread_id}
             while (
@@ -1646,7 +1800,8 @@ class ProjectActivityService(QObject):
             grouped.setdefault(key, []).append(
                 ConversationRow(
                     thread,
-                    conversation_title(metadata.title),
+                    conversation_title(metadata.title)
+                    or DEFAULT_TITLES.get(metadata.source, DEFAULT_TITLES["codex"]),
                     state,
                     order,
                     self.activities.get(thread, selected).started_at
@@ -1686,7 +1841,8 @@ class ProjectActivityService(QObject):
             grouped.setdefault(key, []).append(
                 ConversationRow(
                     record.thread_id,
-                    conversation_title(metadata.title),
+                    conversation_title(metadata.title)
+                    or DEFAULT_TITLES.get(metadata.source, DEFAULT_TITLES["codex"]),
                     "done",
                     order,
                     record.completed_at,
@@ -1758,7 +1914,7 @@ class ProjectActivityService(QObject):
             )
             cards.append(
                 ProjectCard(
-                    "unknown:pending", "프로젝트 확인 중", rows, order, "unknown"
+                    "unknown:pending", t("message.0477"), rows, order, "unknown"
                 )
             )
         return tuple(

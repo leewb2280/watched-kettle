@@ -1,5 +1,7 @@
 """Durable, local pet package lifecycle. No UI or assistant state ownership."""
 
+from watched_kettle.localization import t
+
 from datetime import datetime, timezone
 import json
 import os
@@ -32,13 +34,11 @@ def _safe_tree(path):
     path = Path(path)
     for parent in (path, *path.parents):
         if _linked(parent):
-            raise PetTrashError("연결된 폴더의 펫은 삭제하거나 복원할 수 없습니다.")
+            raise PetTrashError(t("message.0163"))
     if path.is_dir():
         for folder, dirs, files in os.walk(path, followlinks=False):
             if any(_linked(Path(folder) / name) for name in (*dirs, *files)):
-                raise PetTrashError(
-                    "펫 폴더에 외부 파일 연결이 있습니다. 연결을 먼저 정리하세요."
-                )
+                raise PetTrashError(t("message.0180"))
     return path.resolve()
 
 
@@ -63,23 +63,21 @@ class PetTrashService:
             settings.sync()
             status = settings.status()
             if getattr(status, "value", status) != 0:
-                raise PetTrashError(
-                    "펫 설정을 저장하지 못했습니다. 저장 공간과 권한을 확인하세요."
-                )
+                raise PetTrashError(t("message.0181"))
 
     def _folder(self, trash_id):
         if not isinstance(trash_id, str) or not re.fullmatch(r"[0-9a-f]{32}", trash_id):
-            raise PetTrashError("휴지통 항목을 찾을 수 없습니다. 다시 불러오세요.")
+            raise PetTrashError(t("message.0164"))
         for ancestor in (self.root.parent, *self.root.parent.parents):
             if _linked(ancestor):
-                raise PetTrashError("연결된 데이터 폴더는 사용할 수 없습니다.")
+                raise PetTrashError(t("message.0182"))
         # Only inspect ancestors here; checking unrelated user data recursively
         # would cross this service's responsibility and make every action slow.
         if _linked(self.root):
-            raise PetTrashError("연결된 휴지통 폴더는 사용할 수 없습니다.")
+            raise PetTrashError(t("message.0165"))
         folder = self.root / trash_id
         if folder.resolve().parent != self.root.resolve():
-            raise PetTrashError("올바르지 않은 휴지통 경로입니다.")
+            raise PetTrashError(t("message.0166"))
         _safe_tree(folder)
         return folder
 
@@ -128,21 +126,19 @@ class PetTrashService:
             datetime.fromisoformat(record["deletedAt"])
             return record
         except (OSError, ValueError, KeyError, TypeError) as error:
-            raise PetTrashError(
-                "휴지통 기록을 읽지 못했습니다. 원본은 보존했습니다."
-            ) from error
+            raise PetTrashError(t("message.0183")) from error
 
     def records(self):
         self.issues = []
         if not self.root.exists():
             return []
         if _linked(self.root):
-            raise PetTrashError("연결된 휴지통 폴더는 사용할 수 없습니다.")
+            raise PetTrashError(t("message.0165"))
         rows = []
         self.issues = []
         for folder in sorted(self.root.iterdir()):
             if not folder.is_dir() or not re.fullmatch(r"[0-9a-f]{32}", folder.name):
-                self.issues.append("읽을 수 없는 휴지통 항목을 보존했습니다.")
+                self.issues.append(t("message.0184"))
                 continue
             try:
                 record = self._read(folder.name)
@@ -151,7 +147,7 @@ class PetTrashService:
                 self.issues.append(
                     str(error)
                     if isinstance(error, PetTrashError)
-                    else "휴지통 항목을 읽지 못했습니다. 파일은 보존했습니다."
+                    else t("message.0187")
                 )
         return sorted(
             rows, key=lambda row: (row["deletedAt"], row["trashId"]), reverse=True
@@ -173,27 +169,27 @@ class PetTrashService:
     def deletion_reason(self, entry, duplicate_ids=None):
         try:
             if entry.directory.absolute().parent != self.user_root:
-                return "기본 제공·외부 경로의 펫은 숨기기만 할 수 있어요."
+                return t("message.0167")
             _safe_tree(entry.directory)
             if entry.id in (
                 self.duplicate_ids() if duplicate_ids is None else duplicate_ids
             ):
-                return "같은 ID의 다른 패키지가 있습니다. 중복 ID를 먼저 정리하세요."
+                return t("message.0168")
             if (
                 not entry.id
                 or len(entry.id) > 200
                 or any(char in entry.id for char in "/\\:")
                 or entry.id in {".", ".."}
             ):
-                return "펫 ID를 정리한 후 삭제할 수 있어요."
+                return t("message.0169")
             return ""
         except (OSError, PetTrashError):
-            return "외부 연결이 있거나 접근할 수 없는 펫 폴더입니다."
+            return t("message.0170")
 
     def _original(self, record):
         destination = self.user_root / record["folder"]
         if destination.absolute().parent != self.user_root:
-            raise PetTrashError("올바르지 않은 펫 경로입니다.")
+            raise PetTrashError(t("message.0171"))
         _safe_tree(destination)
         return destination
 
@@ -240,7 +236,7 @@ class PetTrashService:
         if any(
             path.name not in {"record.json", "record.tmp"} for path in folder.iterdir()
         ):
-            raise PetTrashError("휴지통에 확인되지 않은 파일이 있어 보존했습니다.")
+            raise PetTrashError(t("message.0172"))
         (folder / "record.tmp").unlink(missing_ok=True)
         (folder / "record.json").unlink(missing_ok=True)
         folder.rmdir()
@@ -248,16 +244,14 @@ class PetTrashService:
     def move(self, pet_id):
         entry = next((entry for entry in self._entries() if entry.id == pet_id), None)
         if entry is None:
-            raise PetTrashError("펫 목록이 변경됐습니다. 다시 불러오세요.")
+            raise PetTrashError(t("message.0173"))
         reason = self.deletion_reason(entry)
         if reason:
             raise PetTrashError(reason)
         if pet_id == self.preferences.load_selected_pet_id():
-            raise PetTrashError("다른 펫으로 변경한 후 휴지통으로 옮기세요.")
+            raise PetTrashError(t("message.0174"))
         if any(row["petId"] == pet_id for row in self.records()):
-            raise PetTrashError(
-                "같은 ID의 펫이 휴지통에 있습니다. 먼저 복원하거나 정리하세요."
-            )
+            raise PetTrashError(t("message.0175"))
         order = [
             row.id
             for row in order_pet_entries(
@@ -324,22 +318,16 @@ class PetTrashService:
     def restore(self, trash_id):
         record = self._read(trash_id)
         if record["state"] != "trashed":
-            raise PetTrashError("이전 작업을 복구 중입니다. 다시 불러오세요.")
+            raise PetTrashError(t("message.0176"))
         destination = self._original(record)
         if destination.exists() or any(
             entry.id == record["petId"] for entry in self._entries()
         ):
-            raise PetTrashError(
-                "같은 ID 또는 폴더의 펫이 이미 있습니다. 기존 펫을 덮어쓰지 않았습니다."
-            )
+            raise PetTrashError(t("message.0177"))
         if len(self._entries()) >= 256:
-            raise PetTrashError(
-                "펫은 최대 256개까지 등록할 수 있습니다. 목록을 정리한 후 복원하세요."
-            )
+            raise PetTrashError(t("message.0178"))
         if self.entry(record) is None:
-            raise PetTrashError(
-                "펫 패키지가 손상돼 복원하지 못했습니다. 휴지통에 보존했습니다."
-            )
+            raise PetTrashError(t("message.0179"))
         record["state"] = "restoring"
         self._write(record)
         package = self._folder(trash_id) / "package"
@@ -365,7 +353,7 @@ class PetTrashService:
             # Resolve and validate the exact recursive deletion target.
             target = _safe_tree(package)
             if target.parent != folder.resolve() or target.name != "package":
-                raise PetTrashError("올바르지 않은 삭제 경로입니다.")
+                raise PetTrashError(t("message.0185"))
             shutil.rmtree(target)
         if not live:
             self.preferences.settings.remove(f"pets/{record['petId']}")
@@ -375,7 +363,7 @@ class PetTrashService:
     def delete(self, trash_id):
         record = self._read(trash_id)
         if record["state"] not in {"trashed", "deleting"}:
-            raise PetTrashError("이전 작업을 복구 중입니다. 다시 불러오세요.")
+            raise PetTrashError(t("message.0176"))
         record["state"] = "deleting"
         self._write(record)
         self._finish_delete(record)
@@ -385,9 +373,7 @@ class PetTrashService:
         try:
             rows = self.records()
         except (OSError, PetTrashError):
-            self.issues = [
-                "휴지통 폴더를 읽지 못했습니다. 파일은 보존했으며 폴더 권한을 확인하세요."
-            ]
+            self.issues = [t("message.0186")]
             return self.issues
         issues = list(self.issues)
         for record in rows:
@@ -402,9 +388,7 @@ class PetTrashService:
                     elif original.exists() and not package.exists():
                         self._cleanup(record)
                     else:
-                        raise PetTrashError(
-                            "중단된 펫 이동을 확인해야 합니다. 파일은 보존했습니다."
-                        )
+                        raise PetTrashError(t("message.0189"))
                 elif record["state"] == "restoring":
                     if (
                         original.exists()
@@ -420,16 +404,14 @@ class PetTrashService:
                         record["state"] = "trashed"
                         self._write(record)
                     else:
-                        raise PetTrashError(
-                            "중단된 복원을 확인해야 합니다. 파일은 보존했습니다."
-                        )
+                        raise PetTrashError(t("message.0190"))
                 elif record["state"] == "deleting" and retry_deletes:
                     self._finish_delete(record)
             except (OSError, PetTrashError) as error:
                 issues.append(
                     str(error)
                     if isinstance(error, PetTrashError)
-                    else "펫 파일에 접근하지 못했습니다. 다시 시도하세요."
+                    else t("message.0188")
                 )
         self.issues = issues
         return issues

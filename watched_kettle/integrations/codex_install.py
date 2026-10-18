@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 import base64
 from copy import deepcopy
 from dataclasses import dataclass
@@ -186,19 +188,19 @@ class CodexHookInstaller:
         expected = len(MANAGED_HOOK_EVENTS)
         if not feature.valid:
             state = "invalid"
-            message = feature.error or "Codex 기능 설정 형식을 지원하지 않습니다."
+            message = feature.error or t("message.0113")
         elif feature.explicit and not feature.enabled:
             state = "disabled"
-            message = "Codex hook 기능이 명시적으로 꺼져 있습니다."
+            message = t("message.0114")
         elif installed == expected and markers == exact == expected:
             state = "installed"
-            message = "사용자 전역 hook이 설치되어 있습니다."
+            message = t("message.0074")
         elif markers:
             state = "partial" if installed else "drifted"
-            message = "관리 hook이 일부 누락되었거나 실행 경로가 변경됐습니다."
+            message = t("message.0075")
         else:
             state = "not_installed"
-            message = "사용자 전역 hook이 설치되어 있지 않습니다."
+            message = t("message.0076")
 
         return HookInstallStatus(
             state=state,
@@ -221,7 +223,7 @@ class CodexHookInstaller:
             return self._blocked_plan(
                 "install",
                 status,
-                "[features].hooks가 false이므로 자동으로 덮어쓰지 않습니다.",
+                t("message.0115"),
             )
 
         hooks_payload, _ = self._read_hooks()
@@ -230,9 +232,7 @@ class CodexHookInstaller:
         changes = []
         if merged != hooks_payload:
             hooks_text = _dump_hooks(merged)
-            changes.append(
-                f"lifecycle 이벤트 {len(MANAGED_HOOK_EVENTS)}종에 관리 hook 병합"
-            )
+            changes.append(t("message.0064", value0=len(MANAGED_HOOK_EVENTS)))
 
         config_text, _ = _read_utf8(self.config_path)
         config_text = config_text or ""
@@ -242,12 +242,12 @@ class CodexHookInstaller:
                 next_config = _enable_hooks_text(config_text)
             except ValueError as error:
                 return self._blocked_plan("install", status, str(error))
-            changes.append("config.toml의 [features].hooks = true 추가")
+            changes.append(t("message.0116"))
 
         if status.state in {"partial", "drifted"}:
-            warnings.append("기존 관리 항목의 누락·중복·경로 변경을 정리합니다.")
+            warnings.append(t("message.0066"))
         if not changes:
-            changes.append("변경 없음 · 이미 최신 상태")
+            changes.append(t("message.0065"))
 
         return HookChangePlan(
             operation="install",
@@ -283,15 +283,13 @@ class CodexHookInstaller:
         cleaned = self._remove_managed_hooks(hooks_payload)
         hooks_text = _dump_hooks(cleaned) if cleaned != hooks_payload else None
         changes = (
-            ("Watched Kettle 관리 hook만 제거",)
-            if hooks_text is not None
-            else ("변경 없음 · 관리 hook이 설치되어 있지 않음",)
+            (t("message.0067"),) if hooks_text is not None else (t("message.0068"),)
         )
         return HookChangePlan(
             operation="remove",
             status_before=status,
             changes=changes,
-            warnings=("다른 Codex hook과 기능 설정은 보존합니다.",),
+            warnings=(t("message.0124"),),
             can_apply=True,
             hooks_text=hooks_text,
             config_text=None,
@@ -309,7 +307,7 @@ class CodexHookInstaller:
             return HookChangePlan(
                 operation="migrate",
                 status_before=status,
-                changes=("변경 없음 · 이전 이름의 관리 hook이 없음",),
+                changes=(t("message.0128"),),
                 warnings=(),
                 can_apply=True,
                 hooks_text=None,
@@ -320,8 +318,8 @@ class CodexHookInstaller:
         return HookChangePlan(
             operation="migrate",
             status_before=status,
-            changes=("이전 이름의 관리 hook을 현재 실행 파일로 교체",),
-            warnings=("다른 Codex hook과 기능 설정은 보존합니다.",),
+            changes=(t("message.0125"),),
+            warnings=(t("message.0124"),),
             can_apply=True,
             hooks_text=_dump_hooks(self._merge_managed_hook(hooks_payload)),
             config_text=None,
@@ -331,15 +329,11 @@ class CodexHookInstaller:
 
     def apply(self, plan: HookChangePlan):
         if not plan.can_apply:
-            raise HookInstallError("적용할 수 없는 hook 변경 계획입니다.")
+            raise HookInstallError(t("message.0069"))
         if _fingerprint(self.hooks_path) != plan.hooks_fingerprint:
-            raise StaleHookPlanError(
-                "hooks.json이 미리보기 후 변경되어 다시 확인해야 합니다."
-            )
+            raise StaleHookPlanError(t("message.0117"))
         if _fingerprint(self.config_path) != plan.config_fingerprint:
-            raise StaleHookPlanError(
-                "config.toml이 미리보기 후 변경되어 다시 확인해야 합니다."
-            )
+            raise StaleHookPlanError(t("message.0118"))
 
         writes = []
         if plan.config_text is not None:
@@ -375,7 +369,7 @@ class CodexHookInstaller:
             payload = json.loads(text)
             _validate_hooks_payload(payload)
         except (json.JSONDecodeError, ValueError) as error:
-            return None, f"hooks.json 형식을 지원하지 않습니다: {error}"
+            return None, t("message.0126", value0=error)
         return payload, ""
 
     def _merge_managed_hook(self, payload):
@@ -517,7 +511,7 @@ def _inspect_feature(text):
         return HookFeatureStatus(
             valid=False,
             enabled=False,
-            error=f"config.toml 형식을 지원하지 않습니다: {error}",
+            error=t("message.0127", value0=error),
         )
     return HookFeatureStatus(
         valid=True,
@@ -546,11 +540,9 @@ def _enable_hooks_text(text):
     try:
         parsed = tomllib.loads(candidate)
     except tomllib.TOMLDecodeError as error:
-        raise ValueError(
-            f"hooks 기능을 안전하게 추가할 수 없습니다: {error}"
-        ) from error
+        raise ValueError(t("message.0119", value0=error)) from error
     if parsed.get("features", {}).get("hooks") is not True:
-        raise ValueError("hooks 기능을 안전하게 추가할 수 없습니다.")
+        raise ValueError(t("message.0110"))
     return candidate
 
 
@@ -559,11 +551,11 @@ def _read_utf8(path):
     if not path.exists():
         return None, ""
     if not path.is_file():
-        return None, f"설정 경로가 파일이 아닙니다: {path}"
+        return None, t("message.0111", value0=path)
     try:
         return path.read_text(encoding="utf-8"), ""
     except (OSError, UnicodeDecodeError) as error:
-        return None, f"설정 파일을 읽을 수 없습니다: {error}"
+        return None, t("message.0120", value0=error)
 
 
 def _dump_hooks(payload):
@@ -577,7 +569,7 @@ def _fingerprint(path):
     try:
         return hashlib.sha256(path.read_bytes()).hexdigest()
     except OSError as error:
-        raise HookInstallError(f"설정 파일을 확인할 수 없습니다: {error}") from error
+        raise HookInstallError(t("message.0121", value0=error)) from error
 
 
 def _backup(path):
@@ -589,7 +581,7 @@ def _backup(path):
     try:
         backup.write_bytes(path.read_bytes())
     except OSError as error:
-        raise HookInstallError(f"설정 백업을 만들 수 없습니다: {error}") from error
+        raise HookInstallError(t("message.0122", value0=error)) from error
     return backup
 
 
@@ -608,9 +600,7 @@ def _atomic_write_text(path, text):
             temporary.unlink(missing_ok=True)
         except OSError:
             pass
-        raise HookInstallError(
-            f"설정을 원자적으로 저장할 수 없습니다: {error}"
-        ) from error
+        raise HookInstallError(t("message.0123", value0=error)) from error
 
 
 def _windows_command(executable, *arguments):
@@ -621,7 +611,7 @@ def _windows_command(executable, *arguments):
     ``$`` or ``%``. The POSIX command retains the visible management marker.
     """
     if '"' in str(executable):
-        raise ValueError("Windows 실행 경로에 따옴표를 사용할 수 없습니다.")
+        raise ValueError(t("message.0112"))
     literals = (
         "'" + str(value).replace("'", "''") + "'" for value in (executable, *arguments)
     )

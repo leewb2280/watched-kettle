@@ -30,17 +30,18 @@ function sourceColor(theme, key) {
 
 // One short line for a provider that has no limit to draw.
 function stateText(provider) {
+    const labels = provider.labels || {}
     switch (provider.state) {
-    case "loading": return "불러오는 중"
-    case "offline": return "연결 안 됨"
-    case "no_account": return "로그인 필요"
+    case "loading": return labels.loading
+    case "offline": return labels.offline
+    case "no_account": return labels.no_account
     case "no_limits":
-        return provider.key === "claude_code" ? "한도는 터미널에서" : "한도 정보 없음"
+        return provider.key === "claude_code" ? (labels.terminal_limits || "") : (labels.no_limits || "")
     }
     return ""
 }
 
-// A limit past its reset with no new sample is an estimate; "(추정)" marks it.
+// A limit past its reset with no new sample is an estimate; limit.estimateMark marks it.
 // Big numbers have no room for the mark, so their window label carries it.
 function percentText(limit) {
     return valueText(limit) + estimateMark(limit)
@@ -55,7 +56,7 @@ function labelText(limit) {
 }
 
 function estimateMark(limit) {
-    return limit.estimated ? "(추정)" : ""
+    return limit.estimated ? (limit.estimateMark || "") : ""
 }
 
 function hasLimit(provider) {

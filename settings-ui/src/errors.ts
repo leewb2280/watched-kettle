@@ -1,3 +1,4 @@
+import { t } from "../localization.cjs";
 // The Electron main process rejects with "code: message"; ipcRenderer.invoke
 // then prepends its own "Error invoking remote method '…': Error: " wrapper.
 const remotePrefix = /^(?:Error: )?Error invoking remote method '[^']*': /;
@@ -11,7 +12,7 @@ export function describeError(error: unknown): DescribedError {
   ).replace(remotePrefix, "");
   text = text.replace(/^Error: /, "");
   const match = codePrefix.exec(text);
-  if (!match) return { message: text || "알 수 없는 오류가 발생했습니다." };
+  if (!match) return { message: text || t("message.1151") };
   return { code: match[1], message: text.slice(match[0].length) };
 }
 

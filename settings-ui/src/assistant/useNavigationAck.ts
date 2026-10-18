@@ -1,3 +1,4 @@
+import { t } from "../../localization.cjs";
 import { useEffect, useRef } from "react";
 import type {
   ActivityResponse,
@@ -47,7 +48,7 @@ export function useNavigationAck(
         (row) => row.record_id === route.notice?.record_id,
       );
       if (!found) {
-        reportError(new Error("알림이 만료되었습니다."));
+        reportError(new Error(t("message.0959")));
         return;
       }
       if (notice?.record_id !== found.record_id) {
@@ -58,10 +59,11 @@ export function useNavigationAck(
     if (route.filter)
       setFilter(
         (
-          { usage: "사용량", schedule: "일정", system: "시스템" } as Record<
-            string,
-            string
-          >
+          {
+            usage: t("message.0204"),
+            schedule: t("message.0205"),
+            system: t("message.0202"),
+          } as Record<string, string>
         )[route.filter] || "",
       );
     const id = route.navigationId;

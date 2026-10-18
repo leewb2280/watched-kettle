@@ -1,3 +1,4 @@
+import { t } from "../../localization.cjs";
 import { useEffect, useRef, useState } from "react";
 import type {
   Args,
@@ -90,14 +91,16 @@ export function useCoreSettings(shell: Shell, page: Page) {
 
   const selectedWidthMeaning = selectedWidthLabel.split(" · ")[1];
 
-  const displaySizeLabel = `실제 표시: ${selectedWidth}×${selectedHeight}px${
-    selectedWidthMeaning ? ` · ${selectedWidthMeaning}` : ""
-  }`;
+  const displaySizeLabel = t("message.1150", {
+    value0: selectedWidth,
+    value1: selectedHeight,
+    value2: selectedWidthMeaning ? ` · ${selectedWidthMeaning}` : "",
+  });
 
   const currentAnimationLabel =
     snapshot.animations.find(
       (animation) => animation.value === snapshot.pet.visual_state,
-    )?.label ?? "기본";
+    )?.label ?? t("message.0279");
 
   const durationOverrides = snapshot.bubbleControls.filter((control) =>
     control.key.startsWith("duration:"),

@@ -97,6 +97,8 @@ def run_status_line(stdin=None, stdout=None):
     import json
 
     from watched_kettle.integrations.claude_code_status_line import (
+        MAX_LANGUAGE_SNAPSHOT_BYTES,
+        MAX_LANGUAGE_TEMPLATE_CHARS,
         detected_ide,
         normalize_status_line,
         read_layout,
@@ -148,12 +150,49 @@ def run_status_line(stdin=None, stdout=None):
             ide_name = detected_ide(current_dir)
         except Exception:
             ide_name = None
+        language = {}
+        try:
+            language_path = (
+                DEFAULT_USER_SPOOL_DIRECTORY.parent / "language-statusline.json"
+            )
+            with language_path.open("rb") as stream:
+                raw_language = stream.read(MAX_LANGUAGE_SNAPSHOT_BYTES + 1)
+            decoded = (
+                json.loads(raw_language)
+                if len(raw_language) <= MAX_LANGUAGE_SNAPSHOT_BYTES
+                else {}
+            )
+            allowed = {
+                "statusline.pet_off",
+                "statusline.context",
+                "statusline.five_hour",
+                "statusline.seven_day",
+            }
+            language = {
+                key: value
+                for key, value in decoded.items()
+                if key in allowed
+                and isinstance(value, str)
+                and len(value) <= MAX_LANGUAGE_TEMPLATE_CHARS
+            }
+            for value in language.values():
+                value.encode("utf-8")
+        except (
+            OSError,
+            ValueError,
+            TypeError,
+            AttributeError,
+            UnicodeError,
+            RecursionError,
+        ):
+            language = {}
         output = status_text(
             payload,
             event,
             pet_connected=pet_connected,
             ide_name=ide_name,
             columns=_columns(),
+            language=language,
             layout=read_layout(
                 os.environ.get("WATCHED_KETTLE_STATUS_LINE_LAYOUT")
                 or DEFAULT_STATUS_LINE_LAYOUT_PATH

@@ -2,7 +2,7 @@
 
 [한국어](README.md) · [English](README.en.md)
 
-[로드맵](ROADMAP.md) · [0.15.5 패치노트](docs/release-notes/v0.15.5.md) · [배포 준비 상태](RELEASE_READINESS.md)
+[로드맵](ROADMAP.md) · [0.15.6 패치노트](docs/release-notes/v0.15.6.md) · [배포 준비 상태](RELEASE_READINESS.md)
 
 **코딩 에이전트의 작업 상태를 알려 주는 데스크톱 펫**
 
@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Windows%EC%9A%A9%20%EC%B5%9C%EC%8B%A0%20%EB%B2%84%EC%A0%84%20%EB%B0%9B%EA%B8%B0-2563EB?style=for-the-badge" alt="Windows용 최신 버전 받기" height="40">
 </a>
 
-Windows 10 이상 · 64비트 · 한국어 UI · 베타
+Windows 10 이상 · 64비트 · 한국어·English UI · 베타
 
 Codex와 Claude Code가 작업하는 동안 화면 위의 작은 펫이 상태를 알려 줍니다.
 작업 완료나 확인 요청은 말풍선으로 확인하고, 남은 사용 한도는 위젯으로 살펴보세요.
@@ -42,7 +42,10 @@ Codex와 Claude Code가 작업하는 동안 화면 위의 작은 펫이 상태�
    이미 열려 있던 **Claude Code 세션은 다시 시작**한 뒤 새 작업으로 상태 표시를 확인하세요.
 
 관리자 권한 없이 현재 사용자에게 설치됩니다. 설치·제거 화면은 한국어와 English 중에서 고를 수 있고,
-앱 화면은 아직 한국어만 지원합니다.
+앱도 두 언어를 지원합니다. 앱 설정의 언어에서 고른 뒤 앱을 다시 실행하세요.
+다른 언어로 번역하거나 문구를 고치려면 같은 화면의 **편집용 팩으로 복사**로 전체 문구가 담긴
+팩을 만들고, 열린 폴더의 `messages.json`을 고친 뒤 앱을 다시 실행합니다.
+번역하지 않은 문구는 영어로 보입니다. 자세한 방법은 [언어팩 안내](docs/language-packs.md)를 참고하세요.
 
 <details>
 <summary>설치 파일의 SHA-256 확인하기</summary>

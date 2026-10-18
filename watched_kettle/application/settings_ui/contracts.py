@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 from dataclasses import fields, is_dataclass
 from datetime import date, datetime
 from enum import Enum
@@ -17,9 +19,9 @@ class CommandError(Exception):
         self.code = code
 
 
-def require(condition, message="설정 값이 올바르지 않습니다.", code="invalid_argument"):
+def require(condition, message=None, code="invalid_argument"):
     if not condition:
-        raise CommandError(code, message)
+        raise CommandError(code, message if message is not None else t("message.0589"))
 
 
 def text(value, maximum=300):
@@ -44,7 +46,7 @@ def choice(value, options):
 
 def wire(value, depth=0):
     """Serialize value models only, never QObject, arbitrary objects or paths."""
-    require(depth < 16, "응답 구조가 너무 깊습니다.", "response_limit")
+    require(depth < 16, t("message.0510"), "response_limit")
     if value is None or isinstance(value, (str, bool, int)):
         return value
     if isinstance(value, float):
@@ -65,4 +67,4 @@ def wire(value, depth=0):
     if isinstance(value, (list, tuple, set, frozenset)):
         require(len(value) <= 4096, code="response_limit")
         return [wire(item, depth + 1) for item in value]
-    raise CommandError("invalid_response", "표시할 수 없는 응답 형식입니다.")
+    raise CommandError("invalid_response", t("message.0511"))

@@ -116,6 +116,20 @@ def earlier_releases(bases, version, channel, revision):
     return found[:MAX_DELTA_BASES]
 
 
+def update_installer(installers, version, kind, edition):
+    """The edition's update installer, signed or not; one folder holds one."""
+    candidates = (
+        Path(installers) / installer_name(version, kind, edition, signed)
+        for signed in (True, False)
+    )
+    found = [path for path in candidates if path.is_file()]
+    if len(found) != 1:
+        raise SystemExit(
+            f"Expected one {edition} update installer in {installers}, found {len(found)}"
+        )
+    return found[0]
+
+
 def write_delta(target, bundle, paths):
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for path in [*paths, MANIFEST_NAME]:
@@ -157,9 +171,7 @@ def build(bundles, installers, bases, out):
         edition = bundle["edition"]
         listing = out / files_name(version, kind, edition)
         listing.write_bytes(bundle["manifest"])
-        installer = Path(installers) / installer_name(version, kind, edition)
-        if not installer.is_file():
-            raise SystemExit(f"Missing update installer: {installer}")
+        installer = update_installer(installers, version, kind, edition)
         if installer.parent.resolve() != out.resolve():
             shutil.copy2(installer, out / installer.name)
             installer = out / installer.name

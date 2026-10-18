@@ -1,3 +1,4 @@
+from watched_kettle.localization import t
 from PySide6.QtCore import Qt
 
 
@@ -6,7 +7,7 @@ class PetFrameRenderer:
 
     def __init__(self, cache_limit=32):
         if cache_limit < 1:
-            raise ValueError("렌더링 캐시 크기는 1 이상이어야 합니다.")
+            raise ValueError(t("message.0162"))
 
         self.cache_limit = cache_limit
         self._cache = {}

@@ -1,5 +1,7 @@
 """Assistant notice prioritization, lifecycle merging, and history."""
 
+from watched_kettle.localization import t
+
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 import math
@@ -110,14 +112,16 @@ class PetBubbleController(QObject):
                 int(notice.count or 1),
             )
         labels = (
-            ("error", "문제"),
-            ("waiting", "확인"),
-            ("notification", "알림"),
-            ("done", "완료"),
-            ("cancelled", "중단"),
+            ("error", t("message.0316")),
+            ("waiting", t("message.0317")),
+            ("notification", t("message.0318")),
+            ("done", t("message.0319")),
+            ("cancelled", t("message.0320")),
         )
         parts = [
-            f"{label} {counts[kind]}건" for kind, label in labels if counts.get(kind)
+            t("message.0306", value0=label, value1=counts[kind])
+            for kind, label in labels
+            if counts.get(kind)
         ]
         return " · ".join(parts)
 
@@ -459,7 +463,7 @@ class PetBubbleController(QObject):
             entry.window.set_decorations_enabled(index == 0)
             message = entry.notice.message
             if index == MAX_VISIBLE_BUBBLES - 1 and overflow_count:
-                message = f"{message}\n외 {overflow_count}개 알림이 있어요"
+                message = t("message.0321", value0=message, value1=overflow_count)
             entry.window.set_message(
                 message,
                 entry.notice.kind,
@@ -590,29 +594,29 @@ class PetBubbleController(QObject):
         count = max(1, int(notice.count or 1))
         source_label = source_display_label(notice.source)
         if notice.source not in {"codex", "schedule"}:
-            source_label = "비서"
+            source_label = t("message.0251")
         if notice.kind == "error":
-            return f"{source_label} 작업 문제 {count}건"
+            return t("message.0307", value0=source_label, value1=count)
         if notice.kind == "waiting":
-            return f"{source_label} 확인 필요 {count}건"
+            return t("message.0308", value0=source_label, value1=count)
         if notice.kind == "notification":
-            return f"{source_label} 알림 {count}건"
+            return t("message.0309", value0=source_label, value1=count)
         if notice.kind == "done":
-            return f"{source_label} 작업 {count}개 완료"
+            return t("message.0310", value0=source_label, value1=count)
         if notice.kind == "cancelled":
-            return f"{source_label} 작업 중단 {count}건"
+            return t("message.0311", value0=source_label, value1=count)
         if notice.kind == "start":
-            return f"{source_label} 작업 {count}개 시작"
-        return f"{source_label} 상태 변경 {count}건"
+            return t("message.0312", value0=source_label, value1=count)
+        return t("message.0304", value0=source_label, value1=count)
 
     @staticmethod
     def _lifecycle_summary(source, kind, count):
         source_label = source_display_label(source)
         if count <= 1:
-            action = "시작했어요" if kind == "start" else "완료했어요"
-            return f"{source_label}가 작업을 {action}"
-        action = "시작했어요" if kind == "start" else "완료했어요"
-        return f"{source_label} 작업 {count}개를 {action}"
+            action = t("message.0314") if kind == "start" else t("message.0315")
+            return t("message.0313", value0=source_label, value1=action)
+        action = t("message.0314") if kind == "start" else t("message.0315")
+        return t("message.0305", value0=source_label, value1=count, value2=action)
 
 
 @dataclass

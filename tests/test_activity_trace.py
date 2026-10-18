@@ -55,7 +55,9 @@ class ProjectActivityTraceTests(unittest.TestCase):
         self.service.observe(self.payload("tool_end", event_id="call-1"))
         self.service.observe(self.payload("prompt"))
 
-        (rejected_event, rejected), (accepted_event, accepted) = self.records
+        (rejected_event, rejected), (accepted_event, accepted) = [
+            record for record in self.records if record[0] == "event_observed"
+        ]
         self.assertEqual(rejected_event, "event_observed")
         self.assertEqual(rejected["result"], "rejected")
         self.assertEqual(rejected["reason"], "missing_start")

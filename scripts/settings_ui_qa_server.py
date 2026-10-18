@@ -84,9 +84,12 @@ class IsolatedStartup:
 
 
 QA_CLAUDE_CODE_SESSION = "5c0de000-0000-4000-8000-000000000013"
+# A user-chosen title is user data in any UI language. English QA uses an
+# English title because history summaries mix titles with app fallbacks.
+QA_CONVERSATION_TITLES = {"ko": "QA 대화 제목", "en": "QA conversation title"}
 
 
-def write_claude_code_transcript(config_dir):
+def write_claude_code_transcript(config_dir, title):
     """A transcript shaped like Claude Code 2.1.286 output, with no real data."""
     folder = config_dir / "projects" / "C--qa-folder"
     folder.mkdir(parents=True)
@@ -113,7 +116,7 @@ def write_claude_code_transcript(config_dir):
                 usage=dict(input_tokens=12, output_tokens=34),
             ),
         ),
-        dict(type="custom-title", customTitle="QA 대화 제목"),
+        dict(type="custom-title", customTitle=title),
     )
     (folder / f"{QA_CLAUDE_CODE_SESSION}.jsonl").write_text(
         "".join(json.dumps(entry, ensure_ascii=False) + "\n" for entry in entries),
@@ -173,6 +176,8 @@ def main():
     parser.add_argument(
         "--edition", choices=("pet-only", "pet-assistant"), required=True
     )
+    parser.add_argument("--language", choices=("ko", "en"), default="ko")
+    parser.add_argument("--language-pack", type=Path)
     args = parser.parse_args()
     app = QApplication([])
     configure_application_font(app)
@@ -181,7 +186,9 @@ def main():
         root = Path(folder)
         # Never read the developer's ~/.claude; one isolated finished turn.
         os.environ["CLAUDE_CONFIG_DIR"] = str(root / "claude")
-        write_claude_code_transcript(root / "claude")
+        write_claude_code_transcript(
+            root / "claude", QA_CONVERSATION_TITLES[args.language]
+        )
         # The update row checks a local release server that announces v9.9.9.
         update_server = serve_update_test.serve(0, version="9.9.9")
         update_source = root / "update-source.json"
@@ -194,6 +201,26 @@ def main():
         os.environ["WATCHED_KETTLE_UPDATE_SOURCE"] = str(update_source)
         settings = QSettings(str(root / "settings.ini"), QSettings.Format.IniFormat)
         preferences = ApplicationPreferences(settings)
+        settings.setValue("app/languagePack", "official." + args.language)
+        from watched_kettle.application.localization import initialize_language
+
+        if args.language_pack is not None:
+            from watched_kettle.localization.packs import load_pack
+
+            pack = load_pack(args.language_pack)
+            destination = AppPaths(root).language_packs / "qa-community"
+            destination.mkdir(parents=True)
+            for name in ("manifest.json", "messages.json"):
+                shutil.copyfile(args.language_pack / name, destination / name)
+            settings.setValue("app/languagePack", pack.id)
+            # The runner copies the pack as an editable pack; opening the new
+            # folder must not show the isolated temp folder in Explorer.
+            from watched_kettle.application.settings_ui import core as settings_core
+
+            settings_core.QDesktopServices = type(
+                "QaDesktopServices", (), {"openUrl": staticmethod(lambda url: True)}
+            )
+        initialize_language(preferences, AppPaths(root))
         # The QA user already uses both tools (one switch per tool).
         preferences.save_claude_code_usage_enabled(True)
         settings.setValue(ACTIVATION_MIGRATION_KEY, 1)
@@ -278,6 +305,14 @@ def main():
             )
             host = runtime.center
         runtime.settings_vm.startup_registration = IsolatedStartup()
+        restart_requests = 0
+
+        def record_restart():
+            nonlocal restart_requests
+            restart_requests += 1
+
+        # UI command coverage only; detached relaunch has separate process tests.
+        host.restart = record_restart
         host._start_server()
         # The runner consumes this line privately and never logs the token.
         print(
@@ -382,7 +417,9 @@ def main():
                 # One running Claude Code turn in an isolated folder, through
                 # the same coordinator path a real hook event takes.
                 session = QA_CLAUDE_CODE_SESSION
-                runtime.projects.set_claude_code_title(session, "QA 대화 제목")
+                runtime.projects.set_claude_code_title(
+                    session, QA_CONVERSATION_TITLES[args.language]
+                )
                 runtime.coordinator.observe_agent_payload(
                     normalize_claude_code_hook(
                         dict(
@@ -450,6 +487,7 @@ def main():
                             visible=host.visible,
                             subscriptions=sorted(host.subscriptions),
                             revision=host.adapter.revision,
+                            restartRequests=restart_requests,
                             notices=[
                                 dict(id=n.record_id, confirmed=n.confirmed)
                                 for n in runtime.notification_service.snapshot.recent

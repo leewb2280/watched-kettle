@@ -1,5 +1,8 @@
 """Application startup and default pet selection."""
 
+from watched_kettle.localization import t
+
+import logging
 import signal
 import sys
 
@@ -7,7 +10,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from watched_kettle.app_preferences import ApplicationPreferences
 from watched_kettle.branding import APP_ICON_PATH, APPLICATION_ID, APPLICATION_NAME
@@ -29,6 +32,7 @@ from watched_kettle.integrations.windows_startup import WindowsStartupRegistrati
 from watched_kettle.ui.startup_recovery import StartupRecoveryDialog
 from watched_kettle.ui.fonts import configure_application_font
 from watched_kettle.application.paths import AppPaths, migrate_legacy_data_root
+from watched_kettle.application.restart import AppRestart, consume_restart_route
 from watched_kettle.application.logging import configure_logging, log_event
 
 
@@ -56,7 +60,7 @@ def prepare_codex_detection_notice(preferences, codex_detected):
         "source": "system",
         "event": "notification",
         "session_id": "codex-not-detected",
-        "message": ("Codex를 감지하지 못했어요 · 펫 기능은 그대로 사용할 수 있어요"),
+        "message": (t("message.0029")),
     }
 
 
@@ -156,6 +160,7 @@ def main(
     agent_controller_factory=None,
     codex_opener=None,
     on_started=None,
+    pet_only=False,
 ):
     if runtime_factory is None:
         from importlib import import_module
@@ -163,6 +168,7 @@ def main(
         runtime_factory = import_module(
             "watched_kettle.application.runtime"
         ).ApplicationRuntime
+    reopen_settings = consume_restart_route(sys.argv)
     app = QApplication(sys.argv)
     app.setApplicationName(APPLICATION_NAME)
     app.setOrganizationName(APPLICATION_ID)
@@ -187,6 +193,9 @@ def main(
 
     requested_pet_directory = Path(sys.argv[1]) if len(sys.argv) >= 2 else None
     preferences = ApplicationPreferences()
+    from watched_kettle.application.localization import initialize_language
+
+    initialize_language(preferences, paths)
     # Finish durable package operations before choosing the startup pet.
     from watched_kettle.pet.trash import PetTrashService
 
@@ -239,6 +248,9 @@ def main(
 
     instance_coordinator.quit_requested.connect(quit_for_installer)
     runtime = runtime_factory(app, pet, preferences, paths=paths)
+    restart = AppRestart(app, pet_only=pet_only)
+    settings_host = getattr(runtime, "center", None) or runtime.settings
+    settings_host.restart = restart.request
     runtime.start()
     codex_notice = None
     tool_enabled = getattr(runtime, "tool_enabled", None)
@@ -257,11 +269,13 @@ def main(
                     "source": "system",
                     "event": "notification",
                     "session_id": "startup-pet-recovery",
-                    "message": f"손상된 펫 대신 {pet.pet_display_name} 비서로 시작했어요",
+                    "message": t("message.0030", value0=pet.pet_display_name),
                 }
             )
     app.aboutToQuit.connect(instance_coordinator.close)
     pet.show()
+    if reopen_settings:
+        QTimer.singleShot(0, lambda: settings_host.open_route("app_startup"))
     if codex_notice is not None:
         QTimer.singleShot(
             750,
@@ -271,4 +285,15 @@ def main(
         # Measurement probes attach here so they observe the real startup path.
         on_started(app, pet, runtime)
 
-    sys.exit(app.exec())
+    exit_code = app.exec()
+    runtime.close()
+    pet.close()
+    instance_coordinator.close()
+    if restart.requested and exit_code == 0:
+        if not restart.launch():
+            log_event("application.app", "restart_failed", level=logging.ERROR)
+            QMessageBox.critical(
+                app.activeWindow(), APPLICATION_NAME, t("app.restart_failed")
+            )
+            exit_code = 1
+    sys.exit(exit_code)

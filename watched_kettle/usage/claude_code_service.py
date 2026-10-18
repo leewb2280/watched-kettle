@@ -8,6 +8,8 @@ samples arrive from the status line bridge (stage 13).
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta, timezone
 import logging
@@ -67,8 +69,6 @@ MAX_FILES = 4096
 # this often so 8 days of samples stay small.
 UNCHANGED_SAMPLE_SECONDS = 10 * 60
 NAME_SCAN_BYTES = 256 * 1024
-DEFAULT_TITLE = "Claude Code 대화"
-DEFAULT_PROJECT = "Claude Code 작업"
 _TASK_SORT = {
     "recent": ("completed_at", True),
     "top": ("total_tokens", True),
@@ -90,9 +90,7 @@ _COLUMN_FIELDS = (
 @dataclass(frozen=True)
 class ClaudeCodeUsageSnapshot:
     availability: UsageAvailability = field(
-        default_factory=lambda: UsageAvailability(
-            "starting", "기록을 준비하는 중입니다."
-        )
+        default_factory=lambda: UsageAvailability("starting", t("message.0342"))
     )
     projects: tuple = ()
     project_search: str = ""
@@ -201,7 +199,7 @@ class ClaudeCodeUsageService(QObject):
             self._publish(
                 availability=UsageAvailability(
                     "offline",
-                    "기록 저장소를 사용할 수 없어 Claude Code 기록을 모으지 않습니다.",
+                    t("message.0345"),
                 )
             )
             return
@@ -221,11 +219,7 @@ class ClaudeCodeUsageService(QObject):
             self.timer.stop()
             self._pass = None
             self._queue.clear()
-            self._publish(
-                availability=UsageAvailability(
-                    "disabled", "사용량 비서가 꺼져 있습니다."
-                )
-            )
+            self._publish(availability=UsageAvailability("disabled", t("message.0346")))
         else:
             self._schedule(0)
 
@@ -551,7 +545,7 @@ class ClaudeCodeUsageService(QObject):
         self._publish(
             selected_project_key="",
             selected_thread_hash="",
-            history_message="Claude Code 작업 기록을 지웠습니다. 이후 작업부터 다시 기록합니다.",
+            history_message=t("message.0341"),
         )
         self._refresh()
 
@@ -613,13 +607,9 @@ class ClaudeCodeUsageService(QObject):
             changes["import_remaining"] = remaining
         if ready is not None:
             changes["availability"] = (
-                UsageAvailability(
-                    "ready", "이 기기의 Claude Code 대화 기록에서 관측한 작업"
-                )
+                UsageAvailability("ready", t("message.0343"))
                 if ready
-                else UsageAvailability(
-                    "importing", "Claude Code 대화 기록을 읽는 중입니다."
-                )
+                else UsageAvailability("importing", t("message.0344"))
             )
         self._publish(**changes)
 
@@ -634,7 +624,7 @@ class ClaudeCodeUsageService(QObject):
         projects = []
         for key, group in groups.items():
             name = self._name(key)
-            titles = [self.titles.get(s, DEFAULT_TITLE) for s in group["sessions"]]
+            titles = [self.titles.get(s, t("message.0025")) for s in group["sessions"]]
             matched = sum(needle in t.casefold() for t in titles)
             if needle and needle not in name.casefold() and not matched:
                 continue
@@ -652,7 +642,7 @@ class ClaudeCodeUsageService(QObject):
         needle = search.casefold()
         rows = []
         for session, items in groups.items():
-            title = self.titles.get(session, DEFAULT_TITLE)
+            title = self.titles.get(session, t("message.0025"))
             if needle and needle not in title.casefold():
                 continue
             project = items[0].project_hash or "none"
@@ -678,8 +668,8 @@ class ClaudeCodeUsageService(QObject):
 
     def _name(self, project_key):
         if project_key in {"", "none"}:
-            return DEFAULT_PROJECT
-        return self.project_names.get(project_key, DEFAULT_PROJECT)
+            return t("message.0026")
+        return self.project_names.get(project_key, t("message.0026"))
 
     def _publish(self, **changes):
         self.snapshot = replace(self.snapshot, **changes)

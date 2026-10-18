@@ -131,10 +131,10 @@ Item {
                         const p = cell.provider
                         if (!cell.limited)
                             return Style.stateText(p)
-                        let first = Style.labelText(p.main) + (p.main.reset ? " · " + p.main.reset : "")
-                        let second = p.other ? p.other.label + " " + Style.percentText(p.other) : ""
+                        let first = Style.labelText(p.main) + (p.main.resetText ? " · " + p.main.resetText : "")
+                        let second = p.other ? p.other.remainingText : ""
                         if (p.state === "stale" && p.age)
-                            second += (second ? " · " : "") + p.age
+                            second += (second ? " · " : "") + p.sampleText
                         return second ? first + "\n" + second : first
                     }
                 }

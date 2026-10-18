@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+
 from collections import OrderedDict
 from typing import cast
 import base64
@@ -36,11 +37,12 @@ from watched_kettle.application.settings_ui.contracts import (
 from watched_kettle.application.logging import log_event
 from watched_kettle.application.settings_ui.pet_batch import PetBatchController
 from watched_kettle.application.update_check import (
-    FOUND_MESSAGE,
-    INSTALLING_MESSAGE,
     UpdateCheckSchedule,
     release_url_kind,
 )
+from watched_kettle.application.localization import packs_for
+from watched_kettle.localization import t
+from watched_kettle.localization.editing import copy_pack
 from watched_kettle.branding import APPLICATION_VERSION, PROJECT_ROOT
 from watched_kettle.config import (
     CODEX_MAX_PET_WIDTH,
@@ -76,10 +78,6 @@ THEME_UNITS = {
 }
 # Twice the largest CSS tile (110x120) so picker thumbnails stay sharp at 200%.
 CATALOG_THUMBNAIL_SIZE = (220, 240)
-PET_SIZE_DESCRIPTION = (
-    "원본 스프라이트 셀은 192×208px입니다. 80~224px는 표준 크기, "
-    "256~352px는 큰 화면용 확장 크기입니다."
-)
 
 
 def _choice_order(values):
@@ -91,7 +89,7 @@ def png_data(pixmap):
     data = QByteArray()
     buffer = QBuffer(data)
     buffer.open(QIODevice.OpenModeFlag.WriteOnly)
-    require(pixmap.save(buffer, "PNG"), "미리보기 이미지를 만들지 못했습니다.")
+    require(pixmap.save(buffer, "PNG"), t("message.0512"))
     require(data.size() <= 512 * 1024, code="response_limit")
     return "data:image/png;base64," + bytes(data.toBase64().data()).decode("ascii")
 
@@ -115,6 +113,7 @@ class CoreSettingsAdapter(QObject):
         self.revision = 0
         self.account_epoch = 0
         self.assistant = None
+        self.languages = packs_for(preferences)
         self.pet_batch = PetBatchController(self)
         self._thumbnails = OrderedDict()
         self.pet_importer = PetImporter(self.pet_vm.pet.user_pets_root)
@@ -136,7 +135,7 @@ class CoreSettingsAdapter(QObject):
         if self.updates.state == "installing":
             # The app is gone for the silent install, so the pet says it will
             # be back, as the settings window may be closed.
-            self.pet_vm.preview_bubble(INSTALLING_MESSAGE)
+            self.pet_vm.preview_bubble(t("message.0020"))
         self.changed.emit("settings")
 
     def _update_found(self, version):
@@ -144,7 +143,7 @@ class CoreSettingsAdapter(QObject):
         if self.preferences.load_update_announced_version() == version:
             return
         self.preferences.save_update_announced_version(version)
-        shown = self.pet_vm.announce(FOUND_MESSAGE.format(version=version))
+        shown = self.pet_vm.announce(t("message.0021").format(version=version))
         log_event("application.update", "announced", version=version, shown=shown)
 
     @staticmethod
@@ -178,7 +177,7 @@ class CoreSettingsAdapter(QObject):
             if settings.status() != QSettings.Status.NoError:
                 raise CommandError(
                     "save_failed",
-                    "화면에 적용했지만 저장하지 못했습니다. 권한과 디스크 상태를 확인한 뒤 다시 시도하세요.",
+                    t("message.0535"),
                 )
 
     def appearance(self):
@@ -213,8 +212,8 @@ class CoreSettingsAdapter(QObject):
     def snapshot(self) -> wire_types.SettingsSnapshot:
         s = self.pet_vm.refresh()
         screens = [
-            {"value": "current", "label": "펫이 있는 화면"},
-            {"value": "primary", "label": "주 화면"},
+            {"value": "current", "label": t("message.0519")},
+            {"value": "primary", "label": t("message.0520")},
         ]
         screens.extend(
             {"value": "specific:" + screen.name(), "label": screen.name()}
@@ -225,7 +224,7 @@ class CoreSettingsAdapter(QObject):
         controls = [
             control(
                 "width",
-                "펫 크기",
+                t("message.0521"),
                 s.pet_width,
                 "pet_size",
                 min=0,
@@ -233,75 +232,90 @@ class CoreSettingsAdapter(QObject):
                 step=1,
                 options=[dict(value=v, label=size_label(v)) for v in PET_WIDTH_OPTIONS],
                 presets=[
-                    dict(value=DEFAULT_PET_WIDTH, label="기본"),
-                    dict(value=FRAME_WIDTH, label="원본"),
-                    dict(value=CODEX_MAX_PET_WIDTH, label="표준 최대"),
-                    dict(value=EXTENDED_MAX_PET_WIDTH, label="확장 최대"),
+                    dict(value=DEFAULT_PET_WIDTH, label=t("message.0279")),
+                    dict(value=FRAME_WIDTH, label=t("message.0554")),
+                    dict(value=CODEX_MAX_PET_WIDTH, label=t("message.0555")),
+                    dict(value=EXTENDED_MAX_PET_WIDTH, label=t("message.0556")),
                 ],
-                description=PET_SIZE_DESCRIPTION,
-                group="외형·표시",
+                description=t("message.0028"),
+                groupId="pet_appearance",
+                group=t("message.0536"),
             ),
             control(
                 "always_on_top",
-                "항상 다른 창 위에 표시",
+                t("message.0522"),
                 s.always_on_top,
-                group="외형·표시",
+                groupId="pet_appearance",
+                group=t("message.0536"),
             ),
             control(
                 "opacity",
-                "펫 불투명도",
+                t("message.0523"),
                 s.opacity_percent,
                 "range",
                 min=50,
                 max=100,
                 step=5,
                 unit="%",
-                group="외형·표시",
+                groupId="pet_appearance",
+                group=t("message.0536"),
             ),
-            control("shadow", "발밑 그림자", s.shadow, group="외형·표시"),
+            control(
+                "shadow",
+                t("message.0524"),
+                s.shadow,
+                groupId="pet_appearance",
+                group=t("message.0536"),
+            ),
             control(
                 "fade",
-                "나타나고 사라질 때 부드럽게",
+                t("message.0525"),
                 s.fade,
-                group="외형·표시",
-                description="움직임 줄이기를 켜면 바로 나타나고 사라집니다.",
+                groupId="pet_appearance",
+                group=t("message.0536"),
+                description=t("message.0537"),
             ),
             control(
                 "activity_labels",
-                "펫 아래 현재 활동 표시",
+                t("message.0526"),
                 s.activity_labels_enabled,
-                group="외형·표시",
+                groupId="pet_appearance",
+                group=t("message.0536"),
             ),
             control(
                 "idle",
-                "일정 시간 후 혼자 행동하기",
+                t("message.0527"),
                 s.idle_activities_enabled,
-                group="동작·화면",
+                groupId="pet_behavior",
+                group=t("message.0538"),
             ),
             control(
                 "movement",
-                "가끔 화면 안에서 걷기",
+                t("message.0528"),
                 s.auto_movement_enabled,
-                group="동작·화면",
+                groupId="pet_behavior",
+                group=t("message.0538"),
             ),
             control(
                 "screen",
-                "이동 디스플레이",
+                t("message.0529"),
                 f"specific:{name}" if mode == "specific" else mode,
                 "select",
                 options=screens,
-                group="동작·화면",
+                groupId="pet_behavior",
+                group=t("message.0538"),
             ),
             control(
                 "look",
-                "마우스 반응 거리",
+                t("message.0530"),
                 s.look_range,
                 "range",
                 min=LOOK_RANGE_MIN,
                 max=LOOK_RANGE_MAX,
                 step=20,
                 unit="px",
-                group="동작·화면",
+                groupId="pet_behavior",
+                group=t("message.0538"),
             ),
         ]
         # Without a saved custom theme the "custom" mode falls back to the pet's
@@ -310,33 +324,28 @@ class CoreSettingsAdapter(QObject):
         bubble_controls = [
             control(
                 "bubble_theme",
-                "테마 선택",
+                t("message.0531"),
                 s.bubble_theme_mode,
                 "select",
                 options=[
                     dict(value=v, label=label)
                     for v, label in (
-                        ("character", "펫 기본 디자인"),
-                        ("default", "공통 기본 디자인"),
+                        ("character", t("message.0558")),
+                        ("default", t("message.0559")),
                         (
                             "custom",
-                            "내가 꾸민 디자인"
-                            if has_custom
-                            else "내가 꾸민 디자인 (아직 없음)",
+                            t("message.0562") if has_custom else t("message.0563"),
                         ),
                     )
                 ],
                 description=(
                     None
                     if has_custom
-                    else "말풍선 꾸미기에서 적용하면 내가 꾸민 디자인이 만들어져요."
-                    + (
-                        " 지금은 펫 기본 디자인으로 표시됩니다."
-                        if s.bubble_theme_mode == "custom"
-                        else ""
-                    )
+                    else t("message.0548")
+                    + (t("message.0557") if s.bubble_theme_mode == "custom" else "")
                 ),
-                group="디자인",
+                groupId="bubble_design",
+                group=t("message.0539"),
             )
         ]
         if self.assistant:
@@ -345,11 +354,15 @@ class CoreSettingsAdapter(QObject):
             muted = not s.bubbles_enabled
             bubble_controls += [
                 control(
-                    "bubbles", "말풍선 알림 표시", s.bubbles_enabled, group="알림 표시"
+                    "bubbles",
+                    t("message.0540"),
+                    s.bubbles_enabled,
+                    groupId="bubble_display",
+                    group=t("message.0544"),
                 ),
                 control(
                     "bubble_scale",
-                    "말풍선 배율",
+                    t("message.0541"),
                     s.bubble_scale,
                     "range",
                     min=80,
@@ -357,28 +370,30 @@ class CoreSettingsAdapter(QObject):
                     step=10,
                     unit="%",
                     disabled=muted,
-                    group="알림 표시",
+                    groupId="bubble_display",
+                    group=t("message.0544"),
                 ),
                 control(
                     "bubble_duration",
-                    "공통 표시 시간",
+                    t("message.0542"),
                     s.bubble_duration_seconds,
                     "range",
                     min=5,
                     max=60,
                     step=1,
-                    unit="초",
+                    unit=t("message.0545"),
                     disabled=muted,
-                    group="표시 시간",
+                    groupId="bubble_timing",
+                    group=t("message.0546"),
                 ),
             ]
             for key, value in asdict(s.bubble_duration_policy).items():
                 if key != "common":
                     label = {
-                        "result": "실패·중단",
-                        "general": "일반 알림",
-                        "schedule": "일정 알림",
-                        "completion": "완료 강조",
+                        "result": t("message.0549"),
+                        "general": t("message.0550"),
+                        "schedule": t("message.0034"),
+                        "completion": t("message.0551"),
                     }[key]
                     bubble_controls.append(
                         control(
@@ -389,17 +404,21 @@ class CoreSettingsAdapter(QObject):
                             min=5,
                             max=60,
                             step=1,
-                            unit="초",
+                            unit=t("message.0545"),
                             effectiveValue=s.bubble_duration_policy.seconds(key),
                             fallbackLabel=(
-                                "완료 기본값" if key == "completion" else "공통 시간"
+                                t("message.0560")
+                                if key == "completion"
+                                else t("message.0561")
                             ),
                             disabled=muted,
-                            group="표시 시간",
+                            groupId="bubble_timing",
+                            group=t("message.0546"),
                         )
                     )
         startup = self.settings_vm.startup_status()
         return dict(
+            language=self.languages.state(),
             version=APPLICATION_VERSION,
             revision=self.revision,
             epoch=self.account_epoch,
@@ -452,7 +471,7 @@ class CoreSettingsAdapter(QObject):
                     deletionReason=reason,
                 )
             )
-        require(len(entries) <= 256, "펫 목록이 너무 큽니다.")
+        require(len(entries) <= 256, t("message.0513"))
         return dict(
             entries=entries,
             order=list(order),
@@ -542,13 +561,11 @@ class CoreSettingsAdapter(QObject):
             None,
         )
         if entry is None:
-            raise CommandError("pet_missing", "펫을 찾을 수 없습니다.")
+            raise CommandError("pet_missing", t("message.0532"))
         try:
             cropped, content_bounds, crop_bounds = self._idle_cell(entry)
         except (OSError, ValueError) as error:
-            raise CommandError(
-                "pet_preview_failed", "펫 미리보기 이미지를 읽지 못했습니다."
-            ) from error
+            raise CommandError("pet_preview_failed", t("message.0543")) from error
         encoded = BytesIO()
         cropped.save(encoded, format="PNG")
         crop_left, crop_top, crop_right, crop_bottom = crop_bounds
@@ -620,7 +637,9 @@ class CoreSettingsAdapter(QObject):
             },
             labels={
                 "frame_style": {
-                    style: "기본" if style == "standard" else "캐릭터 장식"
+                    style: t("message.0279")
+                    if style == "standard"
+                    else t("message.0552")
                     for style in frame_styles
                 }
             },
@@ -644,17 +663,17 @@ class CoreSettingsAdapter(QObject):
     def _context(self, args):
         require(
             args.get("epoch", self.account_epoch) == self.account_epoch,
-            "계정이 변경됐습니다. 다시 불러오세요.",
+            t("message.0514"),
             "stale_context",
         )
         require(
             args.get("petId") == self.pet_vm.snapshot.pet_id,
-            "펫이 변경됐습니다. 다시 불러오세요.",
+            t("message.0515"),
             "stale_context",
         )
         require(
             args.get("revision") == self.revision,
-            "다른 곳에서 설정이 변경됐습니다. 다시 불러오세요.",
+            t("message.0516"),
             "conflict",
         )
 
@@ -682,8 +701,31 @@ class CoreSettingsAdapter(QObject):
         }:
             raise CommandError(
                 "batch_busy",
-                "일괄 작업이 진행 중입니다. 완료하거나 남은 작업을 중단하세요.",
+                t("message.0533"),
             )
+        if method in {"language.list", "language.refresh"}:
+            return (
+                self.languages.refresh()
+                if method.endswith("refresh")
+                else [pack.info() for pack in self.languages.packs]
+            )
+        if method == "language.bootstrap":
+            return self.languages.active.bootstrap(
+                "pet-assistant" if self.assistant else "pet-only"
+            )
+        if method == "language.open_folder":
+            if self.languages.root is None:
+                raise CommandError("unsupported", t("language.invalid"))
+            self.languages.root.mkdir(parents=True, exist_ok=True)
+            return dict(
+                opened=QDesktopServices.openUrl(
+                    QUrl.fromLocalFile(str(self.languages.root))
+                )
+            )
+        if method == "language.copy":
+            return self._copy_language(args)
+        if method == "settings.set" and args.get("key") == "languagePack":
+            return self._save_language(args)
         if method == "settings.snapshot":
             return self.snapshot()
         if method == "pet.catalog":
@@ -696,7 +738,7 @@ class CoreSettingsAdapter(QObject):
                     "pet_trash_failed",
                     str(error)
                     if isinstance(error, PetTrashError)
-                    else "휴지통을 읽지 못했습니다. 다시 시도하세요.",
+                    else t("message.0553"),
                 ) from error
         if method == "pet.preview":
             return self.pet_preview(args.get("petId"))
@@ -737,7 +779,7 @@ class CoreSettingsAdapter(QObject):
             update = self.updates.snapshot()
             require(
                 update["can_install"] and update["state"] in ("available", "error"),
-                "지금은 업데이트를 내려받을 수 없습니다.",
+                t("message.0564"),
             )
             self.updates.download()
             return dict(pending=True)
@@ -746,22 +788,20 @@ class CoreSettingsAdapter(QObject):
             return dict(pending=True)
         elif method == "update.open":
             url = self.updates.page_url
-            require(release_url_kind(url) is not None, "공식 배포 페이지가 없습니다.")
-            require(
-                QDesktopServices.openUrl(QUrl(url)), "배포 페이지를 열지 못했습니다."
-            )
+            require(release_url_kind(url) is not None, t("message.0565"))
+            require(QDesktopServices.openUrl(QUrl(url)), t("message.0566"))
             return dict(opened=True)
         elif method == "element.delete":
             reference = text(args.get("reference"))
             require(
                 self.pet_vm.bubble_editor_state.registry.delete(reference),
-                "이미지를 삭제하지 못했습니다.",
+                t("message.0567"),
             )
             self.pet_vm.refresh_bubble_elements()
         elif self.assistant:
             return self.assistant.execute(method, args)
         else:
-            raise CommandError("unsupported", "이 구성에서 제공하지 않는 명령입니다.")
+            raise CommandError("unsupported", t("message.0568"))
         self.revision += 1
         self.changed.emit("settings")
         self._sync()
@@ -773,7 +813,7 @@ class CoreSettingsAdapter(QObject):
             ids = {entry.id for entry in self.pet_vm.all_pets()}
             require(
                 len(ids) < 256 or (prepared and prepared.pet_id in ids),
-                "펫은 최대 256개까지 등록할 수 있습니다.",
+                t("message.0534"),
             )
             if prepared:
                 trashed = next(
@@ -886,17 +926,17 @@ class CoreSettingsAdapter(QObject):
             result = self.settings_vm.set_startup_enabled(boolean(value))
             require(
                 result.enabled == value,
-                "자동 시작 등록을 변경하지 못했습니다.",
+                t("message.0569"),
                 "startup_failed",
             )
         else:
-            raise CommandError("unsupported", "이 구성에서 제공하지 않는 설정입니다.")
+            raise CommandError("unsupported", t("message.0570"))
 
     def _change_pet_trash(self, method, args):
         self._context(args)
         require(
             args.get("epoch") == self.account_epoch,
-            "계정이 변경됐습니다. 다시 불러오세요.",
+            t("message.0514"),
             "stale_context",
         )
         service = self.pet_vm.packages
@@ -927,9 +967,7 @@ class CoreSettingsAdapter(QObject):
             self.changed.emit("settings")
             raise CommandError(
                 "pet_trash_failed",
-                str(error)
-                if isinstance(error, PetTrashError)
-                else "펫 파일에 접근하지 못했습니다. 저장 공간과 폴더 권한을 확인한 후 다시 시도하세요.",
+                str(error) if isinstance(error, PetTrashError) else t("message.0547"),
             ) from error
         self.revision += 1
         self.changed.emit("settings")
@@ -990,7 +1028,7 @@ class CoreSettingsAdapter(QObject):
                 choice(args.get("state"), {value for _, value in ACTION_TEST_STATES})
             )
         elif action == "preview":
-            self.pet_vm.preview_bubble("새로운 말풍선 디자인을 미리 확인해 보세요")
+            self.pet_vm.preview_bubble(t("message.0253"))
         elif action == "snooze" and self.assistant:
             self.pet_vm.snooze_bubbles(
                 choice(args.get("minutes"), (15, 30, 60)) * 60000
@@ -1009,7 +1047,7 @@ class CoreSettingsAdapter(QObject):
         changed = self.pet_vm.change_pet(pet_id)
         if not changed and pet_id in hidden:
             self.pet_vm.save_catalog_preferences(sort, order, hidden)
-        require(changed, "펫을 불러오지 못했습니다.", "pet_failed")
+        require(changed, t("message.0517"), "pet_failed")
 
     def cancel_pet_import(self, token=None):
         self.pet_importer.cancel(token)
@@ -1017,7 +1055,7 @@ class CoreSettingsAdapter(QObject):
             self.import_timer.stop()
 
     def prepare_pet_import(self, path):
-        require(not self.pet_batch.running, "일괄 작업이 진행 중입니다.", "batch_busy")
+        require(not self.pet_batch.running, t("message.0518"), "batch_busy")
         self.cancel_pet_import()
         try:
             prepared = self.pet_importer.prepare(path)
@@ -1043,3 +1081,65 @@ class CoreSettingsAdapter(QObject):
         self.revision += 1
         self.changed.emit("settings")
         return dict(id=element.reference)
+
+    def _save_language(self, args):
+        self._context(args)
+        try:
+            pack = self.languages.select(text(args.get("value"), 80))
+        except ValueError as error:
+            raise CommandError("invalid_argument", t("language.invalid")) from error
+        settings = self.preferences.settings
+        existed = settings.contains("app/languagePack")
+        previous = self.preferences.load_language_pack()
+        settings.setValue("app/languagePack", pack.id)
+        try:
+            self._sync()
+        except CommandError:
+            if existed:
+                settings.setValue("app/languagePack", previous)
+            else:
+                settings.remove("app/languagePack")
+            settings.sync()
+            raise
+        self.languages.selected = pack.id
+        self.revision += 1
+        self.changed.emit("settings")
+        return dict(saved=True, snapshot=self.snapshot())
+
+    def _copy_language(self, args):
+        """Copy the selected pack into a new editable user pack and select it."""
+        self._context(args)
+        if self.languages.root is None:
+            raise CommandError("unsupported", t("language.invalid"))
+        source_id = self.languages.selected or self.languages.active.pack_id
+        source = self.languages.find(source_id)
+        try:
+            pack_id = copy_pack(
+                self.languages,
+                source_id,
+                name=t("language.copy_name", name=source.name if source else source_id),
+                author=t("language.copy_author"),
+            )
+        except ValueError as error:
+            raise CommandError(
+                "invalid_argument",
+                t(
+                    "language.copy_limit"
+                    if str(error) == "too_many_packs"
+                    else "language.invalid"
+                ),
+            ) from error
+        except OSError as error:
+            log_event(
+                "settings.language",
+                "copy_failed",
+                level="warning",
+                error=type(error).__name__,
+            )
+            raise CommandError("save_failed", t("language.copy_failed")) from error
+        # A failed save keeps the new folder; it stays selectable from the list.
+        result = self._save_language({**args, "value": pack_id})
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.languages.root / pack_id)))
+        return dict(
+            result, id=pack_id, packs=[pack.info() for pack in self.languages.packs]
+        )

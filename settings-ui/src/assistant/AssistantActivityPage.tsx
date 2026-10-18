@@ -1,3 +1,4 @@
+import { t } from "../../localization.cjs";
 import { Check, ChevronRight, Ellipsis, Info } from "lucide-react";
 import { Empty, Heading, Section } from "../components";
 import {
@@ -38,17 +39,18 @@ export function AssistantActivityPage({
 >) {
   return (
     <div className="page">
-      <Heading
-        title="활동 기록"
-        subtitle="확인할 알림과 진행 중인 작업, 최근 활동을 모아 봅니다."
-      />
+      <Heading title={t("message.0593")} subtitle={t("message.0614")} />
       {!activity ? (
-        <Empty>활동을 불러오는 중입니다.</Empty>
+        <Empty>{t("message.0615")}</Empty>
       ) : (
         <>
           <Section
-            title="확인하지 않은 알림"
-            note={unconfirmed.length ? `${unconfirmed.length}건` : ""}
+            title={t("message.0616")}
+            note={
+              unconfirmed.length
+                ? t("message.0617", { value0: unconfirmed.length })
+                : ""
+            }
           >
             {unconfirmed.length ? (
               unconfirmed.slice(0, 5).map((row) => (
@@ -67,16 +69,22 @@ export function AssistantActivityPage({
             ) : (
               <p className="quiet-row">
                 <Check size={14} />
-                확인할 알림이 없어요.
+                {t("message.0618")}
               </p>
             )}
           </Section>
-          <Section title="진행 중">
+          <Section title={t("message.0445")}>
             {activity.projects.length ? (
               activity.projects.map((project) => (
                 <div className="project-activity" key={project.key}>
                   <div className="project-activity-heading">
-                    <h3>{project.label || "프로젝트"}</h3>
+                    <h3>
+                      {project.label ? (
+                        <span data-user-text>{project.label}</span>
+                      ) : (
+                        t("message.0619")
+                      )}
+                    </h3>
                     {project.source && <SourceTag name={project.source} />}
                     {project.summary && <span>{project.summary}</span>}
                   </div>
@@ -89,7 +97,11 @@ export function AssistantActivityPage({
                       }
                     >
                       <span className="record-summary">
-                        {row.title || "대화"}
+                        {row.title ? (
+                          <span data-user-text>{row.title}</span>
+                        ) : (
+                          t("message.0620")
+                        )}
                       </span>
                       <span className="pill">{row.label || row.state}</span>
                       <ChevronRight size={14} />
@@ -98,24 +110,24 @@ export function AssistantActivityPage({
                 </div>
               ))
             ) : (
-              <p className="quiet-row">진행 중인 작업이 없어요.</p>
+              <p className="quiet-row">{t("message.0621")}</p>
             )}
           </Section>
           <section className="section">
             <div className="section-heading">
               <div className="heading-title">
-                <h2>최근 활동</h2>
+                <h2>{t("message.0622")}</h2>
                 <span
                   className="info-tip"
                   role="note"
-                  aria-label="저장 안내"
-                  title="비서 알림·프로젝트 이벤트·작업 완료는 이번 실행에만 표시됩니다. Codex 작업 사용량 기록은 별도의 로컬 저장 정책을 따릅니다."
+                  aria-label={t("message.0623")}
+                  title={t("message.0624")}
                 >
                   <Info size={13} />
                 </span>
               </div>
               <details className="more-menu">
-                <summary aria-label="활동 기록 관리">
+                <summary aria-label={t("message.0625")}>
                   <Ellipsis size={16} />
                 </summary>
                 <div className="menu">
@@ -126,14 +138,14 @@ export function AssistantActivityPage({
                         .closest("details")
                         ?.removeAttribute("open");
                       setConfirming({
-                        title: "비서 알림 기록 지우기",
-                        body: "이번 실행의 비서 알림 기록을 지웁니다. 작업·프로젝트 기록은 유지됩니다.",
-                        label: "지우기",
+                        title: t("message.0626"),
+                        body: t("message.0627"),
+                        label: t("message.0628"),
                         run: () => call("activity.clear"),
                       });
                     }}
                   >
-                    비서 알림 기록 지우기
+                    {t("message.0626")}
                   </button>
                 </div>
               </details>
@@ -142,9 +154,9 @@ export function AssistantActivityPage({
               {!!allEntries.length && (
                 <div className="chip-row">
                   <Segmented
-                    label="활동 종류"
+                    label={t("message.0629")}
                     options={[
-                      ["", `전체 ${allEntries.length}`],
+                      ["", t("message.0630", { value0: allEntries.length })],
                       ...kinds.map(
                         (kind) =>
                           [
@@ -165,9 +177,9 @@ export function AssistantActivityPage({
                 </div>
               )}
               {!allEntries.length ? (
-                <Empty>아직 기록된 활동이 없습니다.</Empty>
+                <Empty>{t("message.0631")}</Empty>
               ) : !entries.length ? (
-                <Empty>이 종류의 활동이 없습니다.</Empty>
+                <Empty>{t("message.0632")}</Empty>
               ) : (
                 entries.slice(0, shown).map((entry, index, list) => {
                   const day = dayLabel(entry.occurred_at);
@@ -217,7 +229,9 @@ export function AssistantActivityPage({
                     className="text-button"
                     onClick={() => setShown((count) => count + ACTIVITY_PAGE)}
                   >
-                    {Math.min(ACTIVITY_PAGE, entries.length - shown)}건 더 보기
+                    {t("activity.more", {
+                      count: Math.min(ACTIVITY_PAGE, entries.length - shown),
+                    })}
                   </button>
                 </div>
               )}

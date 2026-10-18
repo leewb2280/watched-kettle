@@ -4,6 +4,8 @@ This module is a Python adaptation of the event normalization design from
 yangbuyiya/desktop-pet. See THIRD_PARTY_NOTICES.md for attribution.
 """
 
+from watched_kettle.localization import t
+
 from dataclasses import dataclass, replace
 
 from watched_kettle.state.agent_scope import normalize_agent_scope
@@ -17,7 +19,7 @@ from watched_kettle.state.event_names import (  # noqa: F401 - re-exported API
     normalize_agent_source,
     normalize_event_name,
     normalize_urgency,
-    source_display_label,
+    source_display_label as _source_display_label,
 )
 
 
@@ -329,12 +331,19 @@ def _pick_message(payload, fallback):
 def _default_message(source, state):
     label = source_display_label(source)
     messages = {
-        "review": f"{label}가 생각하고 있어요",
-        "running": f"{label}가 작업하고 있어요",
-        "waiting": f"{label}가 확인을 기다리고 있어요",
-        "waving": f"{label} 알림이 있어요",
-        "jumping": f"{label} 작업이 끝났어요",
-        "cancelled": f"{label} 작업이 중단됐어요",
-        "failed": f"{label} 작업에 문제가 생겼어요",
+        "review": t("message.0191", value0=label),
+        "running": t("message.0192", value0=label),
+        "waiting": t("message.0193", value0=label),
+        "waving": t("message.0194", value0=label),
+        "jumping": t("message.0195", value0=label),
+        "cancelled": t("message.0196", value0=label),
+        "failed": t("message.0197", value0=label),
     }
     return messages.get(state, "")
+
+
+def source_display_label(value):
+    source = normalize_agent_source(value)
+    return {"schedule": t("message.0205"), "system": t("message.0251")}.get(
+        source, _source_display_label(value)
+    )

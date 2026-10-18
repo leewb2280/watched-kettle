@@ -1,3 +1,4 @@
+from watched_kettle.localization import t
 import math
 
 
@@ -19,10 +20,10 @@ def is_pointer_near(
     idle/look switching near the boundary.
     """
     if enter_distance < 0 or exit_distance < 0:
-        raise ValueError("추적 거리는 0 이상이어야 합니다.")
+        raise ValueError(t("message.0156"))
 
     if enter_distance > exit_distance:
-        raise ValueError("진입 거리는 이탈 거리보다 클 수 없습니다.")
+        raise ValueError(t("message.0157"))
 
     limit = exit_distance if was_near else enter_distance
     return math.hypot(dx, dy) <= limit
@@ -62,14 +63,14 @@ def direction_index_from_vector(
     shown.
     """
     if deadzone < 0:
-        raise ValueError("deadzone은 0 이상이어야 합니다.")
+        raise ValueError(t("message.0158"))
 
     if max_distance is not None:
         if max_distance < 0:
-            raise ValueError("최대 추적 거리는 0 이상이어야 합니다.")
+            raise ValueError(t("message.0159"))
 
         if max_distance < deadzone:
-            raise ValueError("최대 추적 거리는 deadzone보다 작을 수 없습니다.")
+            raise ValueError(t("message.0160"))
 
     distance = math.hypot(dx, dy)
 

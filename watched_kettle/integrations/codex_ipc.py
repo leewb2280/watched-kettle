@@ -316,6 +316,9 @@ class CodexHookServer(QObject):
         known_scope = "unknown"
         if payload.get("source") == "codex":
             scope = payload.get("agent_scope", "unknown")
+            # Legacy hooks also claimed main without inspecting thread identity.
+            if transport != JSONL_TRANSPORT and scope == "main":
+                scope = "unknown"
             if self.log_monitor is not None:
                 known_scope = self.log_monitor.session_scope(payload["session_id"])
                 if known_scope != "unknown":
@@ -344,6 +347,7 @@ class CodexHookServer(QObject):
             payload.get("agent_scope", ""),
         )
         signature = (
+            payload.get("parent_session_id", ""),
             payload.get("outcome_reason", ""),
             payload.get("approval_actor", "unknown"),
             payload.get("compaction_phase", ""),

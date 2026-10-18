@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+from dataclasses import field as localized_field
+
 from math import isfinite
 
 from dataclasses import dataclass, field, replace
@@ -151,10 +154,10 @@ def _usage_duration_label(minutes):
     if minutes is None:
         return ""
     if minutes % 1440 == 0:
-        return f"{minutes // 1440}일 한도"
+        return t("message.0362", value0=minutes // 1440)
     if minutes % 60 == 0:
-        return f"{minutes // 60}시간 한도"
-    return f"{minutes}분 한도"
+        return t("message.0363", value0=minutes // 60)
+    return t("message.0360", value0=minutes)
 
 
 def usage_limit_options(buckets):
@@ -174,8 +177,8 @@ def usage_limit_options(buckets):
             not all(durations) or durations[0] == durations[1]
         )
         for slot, window, slot_label in (
-            ("primary", bucket.primary, "기본 구간"),
-            ("secondary", bucket.secondary, "추가 구간"),
+            ("primary", bucket.primary, t("message.0364")),
+            ("secondary", bucket.secondary, t("message.0365")),
         ):
             if window is None:
                 continue
@@ -516,7 +519,7 @@ def subtract_thread_usage(
 @dataclass(frozen=True)
 class UsageAvailability:
     state: str = "starting"
-    message: str = "사용량 서비스를 시작하는 중입니다."
+    message: str = localized_field(default_factory=lambda: t("message.0361"))
 
 
 @dataclass(frozen=True)
@@ -635,7 +638,7 @@ class UsageSnapshot:
             last_updated_at=None,
             availability=self.availability
             if self.availability.state == "offline"
-            else UsageAvailability("checking", "현재 계정 확인 중"),
+            else UsageAvailability("checking", t("message.0366")),
         )
 
 

@@ -11,6 +11,7 @@ import sys
 
 DISTRIBUTIONS = (
     "Pillow",
+    "Babel",
     "PySide6",
     "PySide6_Essentials",
     "PySide6_Addons",

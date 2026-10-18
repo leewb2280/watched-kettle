@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 from watched_kettle.usage.turn_measurement import (
     TaskObservation,
     TurnMeasurements,
@@ -95,7 +97,7 @@ class CodexUsageService(QObject):
         self.enabled = preferences.load_usage_enabled()
         self.quiet_summary_enabled = preferences.load_usage_quiet_summary_enabled()
         self.snapshot = UsageSnapshot(
-            availability=UsageAvailability("disabled", "사용량 비서가 꺼져 있습니다.")
+            availability=UsageAvailability("disabled", t("message.0346"))
             if not self.enabled
             else UsageAvailability()
         )
@@ -176,11 +178,7 @@ class CodexUsageService(QObject):
         self.day_timer.start()
         if not self.enabled:
             # Codex is off: no account probe, no auth.json polling, no app-server.
-            self._publish(
-                availability=UsageAvailability(
-                    "disabled", "사용량 비서가 꺼져 있습니다."
-                )
-            )
+            self._publish(availability=UsageAvailability("disabled", t("message.0346")))
             return
         if self.account_monitor is not None:
             already_running = self.account_monitor.running
@@ -188,18 +186,14 @@ class CodexUsageService(QObject):
             if already_running:
                 self.account_monitor.check(suspicious=True)
             return
-        self._publish(
-            availability=UsageAvailability(
-                "starting", "Codex 사용량에 연결하는 중입니다."
-            )
-        )
+        self._publish(availability=UsageAvailability("starting", t("message.0385")))
         self.client.start()
 
     def close(self):
         log_event("usage.service", "closed", state=self.snapshot.availability.state)
         if self.account_monitor is not None:
             self.account_monitor.close()
-        self._finish_refresh("cancelled", "새로고침이 취소되었습니다.")
+        self._finish_refresh("cancelled", t("message.0371"))
         self._reset_account("disabled")
         self.rate_timer.stop()
         self.usage_timer.stop()
@@ -218,20 +212,14 @@ class CodexUsageService(QObject):
         if self.enabled:
             self.start()
         else:
-            self._finish_refresh(
-                "cancelled", "사용량 비서가 꺼져 새로고침을 취소했습니다."
-            )
+            self._finish_refresh("cancelled", t("message.0373"))
             self._reset_account("disabled")
             self.rate_timer.stop()
             self.usage_timer.stop()
             self.client.close()
             if self.account_monitor is not None:
                 self.account_monitor.close()
-            self._publish(
-                availability=UsageAvailability(
-                    "disabled", "사용량 비서가 꺼져 있습니다."
-                )
-            )
+            self._publish(availability=UsageAvailability("disabled", t("message.0346")))
 
     def set_quiet_summary_enabled(self, enabled):
         self.quiet_summary_enabled = bool(enabled)
@@ -262,7 +250,7 @@ class CodexUsageService(QObject):
             self._usage_refresh_pending = False
             self._publish(
                 refresh=UsageRefreshState(
-                    self._refresh_serial, "refreshing", "verifying", "현재 계정 확인 중"
+                    self._refresh_serial, "refreshing", "verifying", t("message.0366")
                 )
             )
             self.refresh_timer.start()
@@ -271,16 +259,14 @@ class CodexUsageService(QObject):
                     self._refresh_serial, reason="manual"
                 )
                 if not accepted:
-                    self._finish_refresh(
-                        "error", "계정 확인 요청을 접수하지 못했습니다."
-                    )
+                    self._finish_refresh("error", t("message.0393"))
                 return accepted
         if not self.client.ready:
             if force:
-                self._refresh_phase("connecting", "사용량 조회에 연결하는 중입니다.")
+                self._refresh_phase("connecting", t("message.0386"))
                 self.client.start()
             return bool(force)
-        self._refresh_phase("account", "현재 계정 확인 중")
+        self._refresh_phase("account", t("message.0366"))
         return self._request("account/read", None, "account") is not None
 
     def _refresh_phase(self, phase, message):
@@ -322,9 +308,7 @@ class CodexUsageService(QObject):
     def _refresh_timeout(self):
         self._finish_refresh(
             "partial" if self._refresh_limits_ok else "error",
-            "한도 갱신 완료 · 상세 사용량 조회 시간 초과"
-            if self._refresh_limits_ok
-            else "새로고침 시간이 초과되었습니다. 다시 시도해 주세요.",
+            t("message.0374") if self._refresh_limits_ok else t("message.0375"),
         )
 
     def cancel_refresh(self, request_id):
@@ -341,7 +325,7 @@ class CodexUsageService(QObject):
                 state="started",
             )
             self._refresh_limits_ok = False
-            self._refresh_phase("verifying", "현재 계정 확인 중")
+            self._refresh_phase("verifying", t("message.0366"))
             self.account.invalidate()
             self.measurements.reset()
             self._usage_refresh_pending = False
@@ -377,14 +361,12 @@ class CodexUsageService(QObject):
                     account_checking=False,
                     availability=UsageAvailability(
                         "offline",
-                        "현재 계정을 확인하지 못했습니다. 자동으로 다시 확인합니다.",
+                        t("message.0403"),
                     ),
                 )
             else:
                 self._publish(account_checking=False)
-            self._finish_refresh(
-                "error", "현재 계정을 확인하지 못했습니다. 다시 시도해 주세요."
-            )
+            self._finish_refresh("error", t("message.0376"))
             return
         changed = previous is not None and previous.identity != check.identity
         if changed:
@@ -430,18 +412,12 @@ class CodexUsageService(QObject):
         if not changed and check.state == "available" and self.enabled:
             self._flush_recovery()
         if not self.enabled:
-            self._publish(
-                availability=UsageAvailability(
-                    "disabled", "사용량 비서가 꺼져 있습니다."
-                )
-            )
+            self._publish(availability=UsageAvailability("disabled", t("message.0346")))
             return
         if check.state != "available":
             self._reset_account(check.state, preserve_refresh=True)
             message = (
-                "Codex 로그인이 필요합니다."
-                if check.state == "signed_out"
-                else "현재 로그인 방식에서는 계정 사용량을 확인할 수 없습니다."
+                t("message.0377") if check.state == "signed_out" else t("message.0378")
             )
             self._publish(availability=UsageAvailability(check.state, message))
             self._finish_refresh(
@@ -452,9 +428,7 @@ class CodexUsageService(QObject):
             self._connecting_auth_generation = check.auth_generation
             self._refresh_phase(
                 "connecting",
-                "계정이 변경되어 다시 연결하고 있습니다"
-                if changed
-                else "사용량 조회에 연결하는 중입니다.",
+                t("message.0387") if changed else t("message.0386"),
             )
             self.client.start()
         elif was_checking or check.reason == "account_notification":
@@ -462,7 +436,7 @@ class CodexUsageService(QObject):
             # rather than issue another account/read that produces an update.
             self._account_supported = True
             self._account_identity = check.email_fingerprint
-            self._refresh_phase("limits", "사용량 한도 확인 중")
+            self._refresh_phase("limits", t("message.0372"))
             self._refresh_rate_limits()
         elif check.refresh_id or self.snapshot.availability.state != "available":
             self.refresh()
@@ -476,7 +450,7 @@ class CodexUsageService(QObject):
         ):
             self._publish(
                 clearing_history=False,
-                history_message="계정이 변경되어 삭제하지 않았습니다.",
+                history_message=t("message.0388"),
             )
             return False
         if not self.snapshot.account_hash:
@@ -500,9 +474,7 @@ class CodexUsageService(QObject):
             cleared = self.repository.clear(self.snapshot.account_hash, self._now())
         except (OSError, sqlite3.DatabaseError) as error:
             self._storage_failed(error)
-            self._publish(
-                clearing_history=False, history_message="기록을 지우지 못했습니다."
-            )
+            self._publish(clearing_history=False, history_message=t("message.0394"))
             return False
         if not hasattr(self.repository, "replace_threshold_markers"):
             self.preferences.save_usage_threshold_markers(())
@@ -522,7 +494,7 @@ class CodexUsageService(QObject):
             selected_thread_hash="",
             conversations_has_more=False,
             clearing_history=False,
-            history_message="현재 계정의 기록을 지웠습니다.",
+            history_message=t("message.0379"),
         )
         self._refresh_hourly_activity()
         return cleared
@@ -550,11 +522,11 @@ class CodexUsageService(QObject):
         try:
             cleared = self.repository.device.clear(self._now())
             self._refresh_hourly_activity()
-            self._publish(device_history_message="이 기기의 관측 기록을 지웠습니다.")
+            self._publish(device_history_message=t("message.0389"))
             return cleared
         except (OSError, sqlite3.DatabaseError) as error:
             self._storage_failed(error)
-            self._publish(device_history_message="기기 기록을 지우지 못했습니다.")
+            self._publish(device_history_message=t("message.0395"))
             return False
 
     def observe_agent_payload(self, payload):
@@ -643,9 +615,7 @@ class CodexUsageService(QObject):
 
     def _reset_account(self, state="starting", preserve_refresh=False):
         if not preserve_refresh:
-            self._finish_refresh(
-                "cancelled", "계정 상태가 변경되어 새로고침을 취소했습니다."
-            )
+            self._finish_refresh("cancelled", t("message.0380"))
         self.account.invalidate()
         self._account_supported = False
         self._account_identity = ""
@@ -683,7 +653,7 @@ class CodexUsageService(QObject):
             device_legacy_records=device_snapshot.device_legacy_records
             if self.enabled
             else (),
-            availability=UsageAvailability(state, "계정 사용량을 확인하고 있습니다."),
+            availability=UsageAvailability(state, t("message.0390")),
             storage_error=self.snapshot.storage_error,
             selected_quota_key=self.selected_limit_key,
         )
@@ -703,13 +673,13 @@ class CodexUsageService(QObject):
         if ready and self.enabled:
             self.rate_timer.start()
             self.usage_timer.start()
-            self._refresh_phase("account", "현재 계정 확인 중")
+            self._refresh_phase("account", t("message.0366"))
             self.refresh()
         else:
             self.rate_timer.stop()
             self.usage_timer.stop()
             if not self._reconnecting:
-                self._finish_refresh("error", "사용량 조회 연결이 종료되었습니다.")
+                self._finish_refresh("error", t("message.0391"))
 
     def _client_error_changed(self, message):
         if message and self.enabled and not self.client.ready:
@@ -720,7 +690,7 @@ class CodexUsageService(QObject):
                 error_code="connection_failed",
             )
             self._publish(availability=UsageAvailability("offline", str(message)))
-            self._finish_refresh("error", "사용량 조회에 연결하지 못했습니다.")
+            self._finish_refresh("error", t("message.0381"))
 
     def _request(self, method, params, kind, task_key=None):
         if kind in {"account", "limits", "usage"} and any(
@@ -748,9 +718,7 @@ class CodexUsageService(QObject):
             )
             self._finish_refresh(
                 "partial" if self._refresh_limits_ok else "error",
-                "한도 갱신 완료 · 상세 사용량 요청 접수 실패"
-                if self._refresh_limits_ok
-                else "새로고침 요청을 접수하지 못했습니다.",
+                t("message.0396") if self._refresh_limits_ok else t("message.0397"),
             )
         return request_id
 
@@ -806,43 +774,31 @@ class CodexUsageService(QObject):
                 self._usage_refresh_pending = False
             message = str(error.get("message", "")) if isinstance(error, dict) else ""
             if "authentication required" in message.casefold():
-                self._finish_refresh("signed_out", "Codex 로그인이 필요합니다.")
+                self._finish_refresh("signed_out", t("message.0377"))
                 self._reset_account("signed_out")
                 self._publish(
-                    availability=UsageAvailability(
-                        "signed_out", "Codex 로그인이 필요합니다."
-                    )
+                    availability=UsageAvailability("signed_out", t("message.0377"))
                 )
                 return
             if context.refresh_id:
                 timed_out = isinstance(error, dict) and error.get("code") == "timeout"
                 self._finish_refresh(
                     "partial" if self._refresh_limits_ok else "error",
-                    "한도 갱신 완료 · 상세 사용량 조회 실패"
+                    t("message.0398")
                     if self._refresh_limits_ok
-                    else (
-                        "새로고침 시간이 초과되었습니다."
-                        if timed_out
-                        else "사용량 정보를 갱신하지 못했습니다."
-                    ),
+                    else (t("message.0404") if timed_out else t("message.0399")),
                 )
-            self._publish(
-                availability=UsageAvailability(
-                    "offline", "사용량 정보를 갱신하지 못했습니다."
-                )
-            )
+            self._publish(availability=UsageAvailability("offline", t("message.0399")))
             return
         if kind == "account":
             self._handle_account(result)
         elif kind == "limits":
             if not parse_rate_limit_buckets(result):
-                self._finish_refresh(
-                    "error", "한도 응답이 비어 있어 갱신하지 못했습니다."
-                )
+                self._finish_refresh("error", t("message.0400"))
                 self._publish(
                     availability=UsageAvailability(
                         "offline",
-                        "한도 응답을 확인하지 못했습니다. 마지막 값을 유지합니다.",
+                        t("message.0407"),
                     )
                 )
                 return
@@ -854,45 +810,37 @@ class CodexUsageService(QObject):
             ):
                 self._finish_refresh(
                     "partial" if self._refresh_limits_ok else "error",
-                    "상세 사용량 응답을 확인할 수 없습니다.",
+                    t("message.0405"),
                 )
                 return
             self._handle_account_usage(result)
             if context.refresh_id:
-                self._finish_refresh("success", "업데이트 완료")
+                self._finish_refresh("success", t("message.0406"))
             if self._usage_refresh_pending:
                 self._refresh_account_usage()
 
     def _handle_account(self, result):
         if not isinstance(result, dict) or "account" not in result:
-            self._finish_refresh("error", "계정 응답을 확인할 수 없습니다.")
+            self._finish_refresh("error", t("message.0382"))
             return
         account = result.get("account") if isinstance(result, dict) else None
         if account is not None and (
             not isinstance(account, dict) or not account.get("type")
         ):
-            self._finish_refresh("error", "계정 응답을 확인할 수 없습니다.")
-            self._publish(
-                availability=UsageAvailability(
-                    "offline", "계정 응답을 확인할 수 없습니다."
-                )
-            )
+            self._finish_refresh("error", t("message.0382"))
+            self._publish(availability=UsageAvailability("offline", t("message.0382")))
             return
         if not isinstance(account, dict) or account.get("type") != "chatgpt":
             state = "signed_out" if not account else "unsupported_auth"
             self._finish_refresh(
                 "signed_out" if not account else "error",
-                "Codex 로그인이 필요합니다."
-                if not account
-                else "지원하지 않는 로그인 방식입니다.",
+                t("message.0377") if not account else t("message.0392"),
             )
             self._reset_account(state)
             self._publish(
                 availability=UsageAvailability(
                     state,
-                    "Codex 로그인이 필요합니다."
-                    if account is None
-                    else "현재 로그인 방식에서는 계정 사용량을 확인할 수 없습니다.",
+                    t("message.0377") if account is None else t("message.0378"),
                 )
             )
             return
@@ -920,7 +868,7 @@ class CodexUsageService(QObject):
             if self._verified_account is not None
             else str(account.get("planType") or ""),
         )
-        self._refresh_phase("limits", "사용량 한도 확인 중")
+        self._refresh_phase("limits", t("message.0372"))
         self._refresh_rate_limits()
 
     def _handle_limits(self, result, sparse=False):
@@ -988,9 +936,7 @@ class CodexUsageService(QObject):
             reset_credit_count=reset_credit_count,
             availability=UsageAvailability(
                 "available",
-                "Codex 한도를 받았습니다."
-                if account_hash
-                else "한도는 표시하지만 계정을 확인할 수 없어 이력 저장을 보류합니다.",
+                t("message.0401") if account_hash else t("message.0402"),
             ),
             last_updated_at=self._now(),
         )
@@ -1007,7 +953,7 @@ class CodexUsageService(QObject):
         self._initial_limits_received = True
         if not sparse:
             self._refresh_limits_ok = True
-            self._refresh_phase("usage", "상세 사용량 확인 중")
+            self._refresh_phase("usage", t("message.0383"))
             self._refresh_account_usage()
 
     def _handle_account_usage(self, result):
@@ -1544,8 +1490,4 @@ class CodexUsageService(QObject):
             return ()
 
     def _storage_failed(self, error):
-        self._publish(
-            storage_error=(
-                "사용량은 표시하지만 로컬 기록을 저장하지 못했습니다. (storage_operation_failed)"
-            )
-        )
+        self._publish(storage_error=(t("message.0384")))

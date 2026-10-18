@@ -1,34 +1,35 @@
+import { t } from "../../localization.cjs";
 import { Fields, Heading, Section, Switch } from "../components";
 import { UpdateRow } from "./UpdateRow";
+import { LanguageSettings } from "./LanguageSettings";
 
 import type { CoreSettingsState } from "./useCoreSettings";
 export function CoreAppPage({
   snapshot,
+  shell,
   change,
   appearanceChange,
   call,
 }: Pick<
   CoreSettingsState,
-  "snapshot" | "change" | "appearanceChange" | "call"
+  "snapshot" | "shell" | "change" | "appearanceChange" | "call"
 >) {
   return (
     <div className="page">
-      <Heading
-        title="앱 설정"
-        subtitle="시작, 화면 테마와 업데이트를 설정합니다."
-      />
-      <Section title="앱 시작">
+      <Heading title={t("message.0595")} subtitle={t("message.1076")} />
+      <LanguageSettings shell={shell} />
+      <Section title={t("message.1077")}>
         <div className="setting-row">
           <div>
-            <h3>Windows와 함께 시작</h3>
+            <h3>{t("message.1078")}</h3>
             <p>
               {snapshot.startup.matches_current_app
-                ? "현재 실행 파일과 연결되어 있어요."
-                : "설정 변경 시 현재 실행 경로로 등록합니다."}
+                ? t("message.1079")
+                : t("message.1080")}
             </p>
           </div>
           <Switch
-            label="Windows와 함께 시작"
+            label={t("message.1078")}
             value={snapshot.startup.enabled}
             disabled={!snapshot.startup.supported}
             change={(value) => change("startup", value)}
@@ -39,62 +40,63 @@ export function CoreAppPage({
         controls={[
           {
             key: "theme",
-            label: "테마",
+            label: t("message.1081"),
             kind: "select",
             value: snapshot.appearance.theme,
             options: [
-              { value: "system", label: "시스템 설정에 맞춤" },
-              { value: "light", label: "포슬린 · 라이트" },
-              { value: "dark", label: "그라파이트 · 다크" },
+              { value: "system", label: t("message.1082") },
+              { value: "light", label: t("message.1083") },
+              { value: "dark", label: t("message.1084") },
             ],
-            group: "화면과 색상",
+            groupId: "app_appearance",
+            group: t("message.1085"),
           },
           {
             key: "material",
-            label: "창 배경 재질",
+            label: t("message.1086"),
             kind: "select",
             value: snapshot.appearance.material,
             options: [
-              { value: "acrylic", label: "아크릴" },
-              { value: "mica", label: "미카" },
-              { value: "none", label: "단색" },
+              { value: "acrylic", label: t("message.0503") },
+              { value: "mica", label: t("message.1087") },
+              { value: "none", label: t("message.0502") },
             ],
-            group: "화면과 색상",
+            groupId: "app_appearance",
+            group: t("message.1085"),
           },
           {
             key: "lightOpacity",
-            label: "라이트 배경 농도",
+            label: t("message.1088"),
             kind: "range",
             value: snapshot.appearance.lightOpacity,
             min: 0,
             max: 100,
-            group: "화면과 색상",
+            groupId: "app_appearance",
+            group: t("message.1085"),
           },
           {
             key: "darkOpacity",
-            label: "다크 배경 농도",
+            label: t("message.1089"),
             kind: "range",
             value: snapshot.appearance.darkOpacity,
             min: 0,
             max: 100,
-            group: "화면과 색상",
+            groupId: "app_appearance",
+            group: t("message.1085"),
           },
           {
             key: "reduceMotion",
-            label: "움직임 줄이기",
+            label: t("message.1090"),
             kind: "bool",
             value: snapshot.appearance.reduceMotion,
-            group: "화면과 색상",
+            groupId: "app_appearance",
+            group: t("message.1085"),
           },
         ]}
         change={appearanceChange}
       />
-      <p className="footnote">
-        배경 재질과 농도는 상단·사이드바에 적용되며 본문은 불투명하게
-        유지됩니다. 고대비·투명 효과 끄기에서는 단색을 사용합니다. OS의 움직임
-        줄이기도 반영됩니다.
-      </p>
-      <Section title="버전과 업데이트">
+      <p className="footnote">{t("message.1091")}</p>
+      <Section title={t("message.1092")}>
         <UpdateRow
           version={snapshot.version}
           update={snapshot.update}
@@ -102,14 +104,11 @@ export function CoreAppPage({
         />
         <div className="setting-row">
           <div>
-            <h3>업데이트 자동 확인</h3>
-            <p>
-              하루에 한 번 새 버전이 있는지 확인하고, 있으면 펫이 알려 줘요.
-              설치는 직접 누를 때만 합니다.
-            </p>
+            <h3>{t("message.1093")}</h3>
+            <p>{t("message.1094")}</p>
           </div>
           <Switch
-            label="업데이트 자동 확인"
+            label={t("message.1093")}
             value={snapshot.update.auto_check}
             change={(value) => change("update_auto_check", value)}
           />

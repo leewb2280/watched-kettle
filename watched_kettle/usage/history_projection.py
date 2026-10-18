@@ -1,5 +1,7 @@
 """Stable task-history projection; changes unrelated to records do not reset selection."""
 
+from watched_kettle.localization import t
+
 
 def number(value):
     return "—" if value is None else f"{value:,}"
@@ -7,14 +9,14 @@ def number(value):
 
 def measurement_text(record, pending=()):
     if record.source_version < 3:
-        return "이전 기록 · 집계 제외"
+        return t("message.0355")
     if record.data_quality == "unavailable":
         return (
-            "확인 중"
+            t("message.0358")
             if (record.thread_hash, record.turn_hash) in pending
-            else "측정 불가"
+            else t("message.0359")
         )
-    return "부분 측정" if record.data_quality == "partial" else "측정됨"
+    return t("message.0356") if record.data_quality == "partial" else t("message.0357")
 
 
 class TaskHistoryProjection:
@@ -38,11 +40,11 @@ class TaskHistoryProjection:
             (
                 self._times[r.completed_at],
                 {
-                    "failed": "실패",
-                    "done": "완료",
-                    "completed": "완료",
-                    "aborted": "중단",
-                    "cancelled": "중단",
+                    "failed": t("message.0284"),
+                    "done": t("message.0319"),
+                    "completed": t("message.0319"),
+                    "aborted": t("message.0320"),
+                    "cancelled": t("message.0320"),
                 }.get(r.outcome, r.outcome),
                 measurement_text(r, snapshot.recovery_pending),
                 number(r.total_tokens),

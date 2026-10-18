@@ -10,6 +10,8 @@ graphical panel does not (measured 2026-10-03).
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 import base64
 import binascii
 from copy import deepcopy
@@ -114,7 +116,7 @@ class ClaudeCodeStatusLineInstaller:
                 "disabled",
                 detected,
                 True,
-                "Claude Code 설정에서 hook과 status line이 모두 꺼져 있습니다.",
+                t("message.0085"),
                 original,
             )
         if self._hooks._policy_blocks_user_hooks():
@@ -122,7 +124,7 @@ class ClaudeCodeStatusLineInstaller:
                 "blocked_by_policy",
                 detected,
                 True,
-                "관리자 정책이 사용자 status line 실행을 허용하지 않습니다.",
+                t("message.0086"),
                 original,
             )
         if is_managed_status_line(current):
@@ -131,23 +133,21 @@ class ClaudeCodeStatusLineInstaller:
                     "installed",
                     detected,
                     True,
-                    "Claude Code 한도를 받는 status line이 연결되어 있습니다.",
+                    t("message.0094"),
                     original,
                 )
             return self._status(
                 "drifted",
                 detected,
                 True,
-                "status line 실행 경로가 바뀌었습니다. 복구하면 다시 맞춥니다.",
+                t("message.0087"),
                 original,
             )
         return self._status(
             "not_installed",
             detected,
             True,
-            "사용자 status line이 있습니다. 연결하면 그대로 보여 주면서 한도를 받습니다."
-            if current
-            else "Claude Code 한도를 받는 status line이 연결되어 있지 않습니다.",
+            t("message.0088") if current else t("message.0089"),
             original,
         )
 
@@ -157,7 +157,7 @@ class ClaudeCodeStatusLineInstaller:
             return self._blocked("install", status, status.message)
         if self.command_error or not self.command:
             return self._blocked(
-                "install", status, self.command_error or "명령을 만들 수 없습니다."
+                "install", status, self.command_error or t("message.0095")
             )
         payload, _ = self._hooks._read_settings()
         current = payload.get("statusLine")
@@ -165,13 +165,11 @@ class ClaudeCodeStatusLineInstaller:
         warnings = []
         if current and not is_managed_status_line(current):
             sidecar = json.dumps({"original": current}, ensure_ascii=False, indent=2)
-            changes = ["기존 status line을 보관하고 그대로 보여 주도록 감쌈"]
+            changes = [t("message.0090")]
         else:
-            changes = ["Claude Code 하단 status line으로 한도 받기"]
+            changes = [t("message.0091")]
             if not current:
-                warnings.append(
-                    "원래 status line이 없어 CLI 하단에 짧은 한도 문구가 생깁니다."
-                )
+                warnings.append(t("message.0096"))
         base = {
             key: value
             for key, value in (current or {}).items()
@@ -183,13 +181,11 @@ class ClaudeCodeStatusLineInstaller:
         merged["statusLine"] = {"type": "command", "command": self.command, **base}
         settings_text = _dump_settings(merged) if merged != payload else None
         if settings_text is None and sidecar is None:
-            changes = ["변경 없음 · 이미 최신 상태"]
+            changes = [t("message.0065")]
         if status.state in {"disabled", "blocked_by_policy"}:
-            warnings.append(status.message + " 연결해도 실행되지 않습니다.")
-        warnings.append(
-            "CLI와 VS Code 터미널 모드에서만 갱신됩니다. VS Code 그래픽 패널은 status line을 실행하지 않습니다."
-        )
-        warnings.append("다른 Claude Code 설정은 보존합니다.")
+            warnings.append(status.message + t("message.0097"))
+        warnings.append(t("message.0083"))
+        warnings.append(t("message.0084"))
         return self._plan("install", status, changes, warnings, settings_text, sidecar)
 
     def preview_repair(self):
@@ -213,36 +209,32 @@ class ClaudeCodeStatusLineInstaller:
         payload, _ = self._hooks._read_settings()
         current = payload.get("statusLine")
         original = self._original()
-        warnings = ["다른 Claude Code 설정은 보존합니다."]
+        warnings = [t("message.0084")]
         settings_text = None
         if is_managed_status_line(current):
             restored = deepcopy(payload)
             if original is not None:
                 restored["statusLine"] = original
-                changes = ["보관한 원래 status line으로 되돌림"]
+                changes = [t("message.0098")]
             else:
                 restored.pop("statusLine")
-                changes = ["이 앱의 status line 제거"]
+                changes = [t("message.0099")]
             settings_text = _dump_settings(restored)
         else:
-            changes = ["변경 없음 · 이 앱의 status line이 연결되어 있지 않음"]
+            changes = [t("message.0092")]
             if original is not None and current:
-                warnings.append(
-                    "status line이 이후에 바뀌어 덮어쓰지 않습니다. 보관한 원래 설정만 정리합니다."
-                )
+                warnings.append(t("message.0100"))
         sidecar = "" if self.sidecar_path.exists() else None
         return self._plan("remove", status, changes, warnings, settings_text, sidecar)
 
     def apply(self, plan: HookChangePlan):
         if not plan.can_apply:
-            raise HookInstallError("적용할 수 없는 status line 변경 계획입니다.")
+            raise HookInstallError(t("message.0093"))
         if (
             _fingerprint(self.settings_path) != plan.hooks_fingerprint
             or _fingerprint(self.sidecar_path) != plan.config_fingerprint
         ):
-            raise StaleHookPlanError(
-                "Claude Code settings.json이 미리보기 후 변경되어 다시 확인해야 합니다."
-            )
+            raise StaleHookPlanError(t("message.0070"))
         changed, backups = [], []
         # The original line is saved before settings.json stops pointing at it.
         if plan.config_text:

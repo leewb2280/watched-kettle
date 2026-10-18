@@ -86,8 +86,9 @@ def delta_name(version, kind, edition, base):
     return f"WatchedKettle-{version}-{kind}-{edition}-from-{base}.zip"
 
 
-def installer_name(version, kind, edition):
-    return f"WatchedKettle-{version}-{kind}-{edition}-update-unsigned-setup.exe"
+def installer_name(version, kind, edition, signed=False):
+    suffix = "" if signed else "-unsigned"
+    return f"WatchedKettle-{version}-{kind}-{edition}-update{suffix}-setup.exe"
 
 
 def _kinds(channel):

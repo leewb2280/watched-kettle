@@ -1,5 +1,8 @@
 """Speech-bubble geometry, text fitting, and native window rendering."""
 
+from watched_kettle.localization import t
+from watched_kettle.localization.collections import MessageId, MessageMapping
+
 from PySide6.QtCore import QPoint, QRectF, Qt
 from watched_kettle.ui.speech_bubble_frame import content_padding
 from PySide6.QtGui import (
@@ -44,24 +47,28 @@ BUBBLE_TAIL_SIZE = 18
 BUBBLE_TAIL_HALF_BASE = 15
 BUBBLE_SHADOW_OFFSET = 2
 MAX_BUBBLE_LINES = 3
-NOTICE_ACCESSIBLE_LABELS = {
-    "error": "문제",
-    "waiting": "확인 필요",
-    "notification": "알림",
-    "done": "완료",
-    "cancelled": "중단",
-    "start": "시작",
-    "preview": "미리보기",
-}
-NOTICE_CATEGORY_LABELS = {
-    "error": "작업 문제",
-    "waiting": "확인 필요",
-    "notification": "알림",
-    "done": "작업 완료",
-    "cancelled": "작업 중단",
-    "start": "작업 시작",
-    "preview": "미리보기",
-}
+NOTICE_ACCESSIBLE_LABELS = MessageMapping(
+    {
+        "error": MessageId("message.0316"),
+        "waiting": MessageId("status.attention"),
+        "notification": MessageId("message.0318"),
+        "done": MessageId("message.0319"),
+        "cancelled": MessageId("message.0320"),
+        "start": MessageId("message.0322"),
+        "preview": MessageId("message.0323"),
+    }
+)
+NOTICE_CATEGORY_LABELS = MessageMapping(
+    {
+        "error": MessageId("message.0324"),
+        "waiting": MessageId("status.attention"),
+        "notification": MessageId("message.0318"),
+        "done": MessageId("message.0275"),
+        "cancelled": MessageId("message.0325"),
+        "start": MessageId("message.0326"),
+        "preview": MessageId("message.0323"),
+    }
+)
 CATEGORY_STYLES = {
     "error": ("#7f3434", "#ead0d0", "#fff3f2"),
     "waiting": ("#79551d", "#ead7b7", "#fff8e8"),
@@ -519,7 +526,7 @@ class SpeechBubbleWindow(QFrame):
 
     def _source_label(self):
         if self._notice_source == "preview":
-            return "미리보기"
+            return t("message.0323")
         value = source_display_label(self._notice_source)
         return value if self._notice_source else ""
 

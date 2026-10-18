@@ -119,7 +119,7 @@ class CodexStateProjectionTests(unittest.TestCase):
         self.send("prompt", agent_scope="unknown")
         self.send("ended", agent_scope="unknown")
         self.assertFalse(self.projects.completions)
-        self.send("done", agent_scope="main")
+        self.send("done", agent_scope="main", transport=helpers.JSONL_TRANSPORT)
         self.assertEqual(len(self.projects.completions), 1)
 
     def test_heartbeat_refreshes_pet_beyond_twelve_hours(self):

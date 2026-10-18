@@ -99,7 +99,7 @@ class CodexHookFilterTests(unittest.TestCase):
                 "source": "codex",
                 "event": "tool_end",
                 "session_id": "thr_123",
-                "agent_scope": "main",
+                "agent_scope": "unknown",
                 "tool_status": "succeeded",
                 "success": True,
             },
@@ -219,7 +219,7 @@ class CodexHookFilterTests(unittest.TestCase):
                         "source": "codex",
                         "event": "prompt",
                         "session_id": "one",
-                        "agent_scope": "main",
+                        "agent_scope": "unknown",
                     },
                     "queued",
                 )
@@ -354,7 +354,7 @@ class CodexLocalIpcTests(unittest.TestCase):
                     "source": "codex",
                     "event": "tool_start",
                     "session_id": "one",
-                    "agent_scope": "main",
+                    "agent_scope": "unknown",
                     "tool_status": "started",
                 }
             ],
@@ -373,7 +373,7 @@ class CodexLocalIpcTests(unittest.TestCase):
         )
         self.assertTrue(diagnostics["hook_config"]["valid"])
         self.assertEqual(diagnostics["hook_config"]["event_count"], 11)
-        self.assertEqual(self.pet.current_state, "running")
+        self.assertEqual(self.pet.current_state, "idle")  # identity is still unverified
         self.assertEqual(diagnostics["schedule_event_count"], 0)
         self.assertEqual(diagnostics["last_event"], "tool_start")
         self.assertEqual(
@@ -618,7 +618,7 @@ class CodexLocalIpcTests(unittest.TestCase):
                         "source": "codex",
                         "event": "prompt",
                         "session_id": "sandboxed",
-                        "agent_scope": "main",
+                        "agent_scope": "unknown",
                     }
                 ],
             )

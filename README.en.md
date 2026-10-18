@@ -2,7 +2,7 @@
 
 [한국어](README.md) · [English](README.en.md)
 
-[Roadmap](ROADMAP.md) · [0.15.5 release notes](docs/release-notes/v0.15.5.md) · [Release readiness](RELEASE_READINESS.md)
+[Roadmap](ROADMAP.md) · [0.15.6 release notes](docs/release-notes/v0.15.6.md) · [Release readiness](RELEASE_READINESS.md)
 
 **A desktop pet that keeps you posted on your coding agents**
 
@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Download%20latest%20for%20Windows-2563EB?style=for-the-badge" alt="Download the latest release for Windows" height="40">
 </a>
 
-Windows 10 or later · 64-bit · Korean app UI · Beta
+Windows 10 or later · 64-bit · Korean and English UI · Beta
 
 While Codex and Claude Code work, a small pet on your desktop shows their status.
 See completed tasks and requests for your attention in speech bubbles, and check your remaining usage limits in a widget.
@@ -42,7 +42,11 @@ You can also use the pet on its own, without connecting an agent.
    **Restart any Claude Code sessions that were already open**, then run a new task to check the status display.
 
 The app installs for the current user without administrator privileges. The installer and uninstaller offer Korean and English;
-the app itself currently has a Korean UI only.
+the app also supports both languages. Choose a language in App settings and restart.
+To translate the app or adjust its text, click **Copy as editable pack** on the same screen:
+the app creates a pack with every message and opens its folder. Edit `messages.json` and restart;
+untranslated messages appear in English. Community packs can also be installed from local files.
+See [Language packs](docs/language-packs.md).
 
 <details>
 <summary>Verify the installer's SHA-256</summary>

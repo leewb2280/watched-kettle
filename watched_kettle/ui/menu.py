@@ -1,3 +1,4 @@
+from watched_kettle.localization import t
 from dataclasses import dataclass
 from typing import Any
 
@@ -28,26 +29,26 @@ def show_pet_context_menu(
 ):
     menu = QMenu(parent)
 
-    status_action = menu.addAction(f"현재 상태: {current_state or 'idle'}")
+    status_action = menu.addAction(t("message.0258", value0=current_state or "idle"))
     status_action.setEnabled(False)
     menu.addSeparator()
 
-    idle_activity_action = menu.addAction("자동 행동")
+    idle_activity_action = menu.addAction(t("message.0259"))
     idle_activity_action.setCheckable(True)
     idle_activity_action.setChecked(idle_activities_enabled)
 
-    auto_movement_action = menu.addAction("자동 이동")
+    auto_movement_action = menu.addAction(t("message.0260"))
     auto_movement_action.setCheckable(True)
     auto_movement_action.setChecked(auto_movement_enabled)
 
-    always_on_top_action = menu.addAction("항상 위")
+    always_on_top_action = menu.addAction(t("message.0261"))
     always_on_top_action.setCheckable(True)
     always_on_top_action.setChecked(always_on_top)
 
-    usage_menu = menu.addMenu("사용량 위젯")
+    usage_menu = menu.addMenu(t("message.0262"))
     usage_menu.setEnabled(usage_widget_available)
     usage_menu.menuAction().setVisible(usage_widget_available)
-    usage_widget_action = usage_menu.addAction("위젯 표시")
+    usage_widget_action = usage_menu.addAction(t("message.0263"))
     usage_widget_action.setCheckable(True)
     usage_widget_action.setChecked(usage_widget_visible)
     usage_widget_action.setEnabled(usage_widget_available)
@@ -56,9 +57,9 @@ def show_pet_context_menu(
     shape_group.setExclusive(True)
     shape_actions = {}
     for key, label in (
-        ("rings", "링"),
-        ("bars", "두 줄 막대"),
-        ("chips", "작은 칩"),
+        ("rings", t("message.0269")),
+        ("bars", t("message.0270")),
+        ("chips", t("message.0271")),
     ):
         action = usage_menu.addAction(label)
         action.setCheckable(True)
@@ -67,30 +68,30 @@ def show_pet_context_menu(
         shape_group.addAction(action)
         shape_actions[action] = key
     usage_menu.addSeparator()
-    tasks_action = usage_menu.addAction("작업 상태 표시")
+    tasks_action = usage_menu.addAction(t("message.0264"))
     tasks_action.setCheckable(True)
     tasks_action.setChecked(usage_widget_tasks_visible)
     tasks_action.setEnabled(usage_widget_available)
-    today_action = usage_menu.addAction("오늘 흐름 표시")
+    today_action = usage_menu.addAction(t("message.0265"))
     today_action.setCheckable(True)
     today_action.setChecked(usage_widget_today_visible)
     today_action.setEnabled(usage_widget_available)
 
     usage_menu.addSeparator()
-    usage_settings_action = usage_menu.addAction("위젯 설정 열기")
+    usage_settings_action = usage_menu.addAction(t("message.0266"))
     usage_settings_action.setEnabled(usage_widget_available)
-    reset_usage_widget_action = usage_menu.addAction("펫 옆에 다시 붙이기")
+    reset_usage_widget_action = usage_menu.addAction(t("message.0267"))
     reset_usage_widget_action.setEnabled(
         usage_widget_available and usage_widget_position_customized
     )
 
     menu.addSeparator()
 
-    settings_action = menu.addAction("설정")
-    recenter_action = menu.addAction("화면 중앙으로 불러오기")
+    settings_action = menu.addAction(t("message.0225"))
+    recenter_action = menu.addAction(t("message.0268"))
 
     menu.addSeparator()
-    quit_action = menu.addAction("종료")
+    quit_action = menu.addAction(t("message.0226"))
 
     selected = (
         menu_executor(menu, global_position)

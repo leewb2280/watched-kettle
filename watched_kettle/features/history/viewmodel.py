@@ -1,5 +1,7 @@
 """Read-only merged local history projection."""
 
+from watched_kettle.localization import t
+
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -49,11 +51,11 @@ class HistoryViewModel(QObject):
             entries.append(
                 HistoryEntry(
                     record.completed_at,
-                    "Codex 작업",
+                    t("message.0441"),
                     record.outcome,
-                    f"추정 {record.total_tokens:,} 토큰"
+                    t("message.0442", value0=f"{record.total_tokens:,}")
                     if record.total_tokens is not None
-                    else "측정 불가",
+                    else t("message.0359"),
                     source="Codex",
                 )
             )
@@ -64,29 +66,31 @@ class HistoryViewModel(QObject):
             entries.append(
                 HistoryEntry(
                     record.completed_at,
-                    "Claude Code 작업",
+                    t("message.0026"),
                     {
-                        "completed": "완료",
-                        "cancelled": "중단",
-                        "running": "진행 중",
+                        "completed": t("message.0319"),
+                        "cancelled": t("message.0320"),
+                        "running": t("message.0445"),
                     }.get(record.outcome, record.outcome),
-                    f"관측 {record.total_tokens:,} 토큰"
+                    t("message.0443", value0=f"{record.total_tokens:,}")
                     if record.total_tokens is not None
-                    else "측정 불가",
+                    else t("message.0359"),
                     source="Claude Code",
                 )
             )
         for record in self.notifications.snapshot.recent:
             router = getattr(self, "router", None)
             managed = self.notifications.managed_delivery
-            category = {"usage": "사용량", "schedule": "일정", "system": "시스템"}.get(
-                record.category, "비서 알림"
-            )
+            category = {
+                "usage": t("message.0204"),
+                "schedule": t("message.0205"),
+                "system": t("message.0202"),
+            }.get(record.category, t("message.0440"))
             entries.append(
                 HistoryEntry(
                     record.recorded_at,
-                    category if managed else "비서 알림",
-                    ("확인" if record.confirmed else "미확인")
+                    category if managed else t("message.0440"),
+                    (t("message.0317") if record.confirmed else t("message.0444"))
                     if managed
                     else record.urgency,
                     record.message,
@@ -122,7 +126,7 @@ class HistoryViewModel(QObject):
                 entries.append(
                     HistoryEntry(
                         datetime.fromtimestamp(record.occurred_at, timezone.utc),
-                        "프로젝트 이벤트",
+                        t("message.0235"),
                         state_label(record.state, thread_source(record.thread_id)),
                         title,
                         self.router.register("thread", record.thread_id),
@@ -135,8 +139,8 @@ class HistoryViewModel(QObject):
                 entries.append(
                     HistoryEntry(
                         datetime.fromtimestamp(completion.occurred_at, timezone.utc),
-                        "작업 완료",
-                        "완료",
+                        t("message.0275"),
+                        t("message.0319"),
                         title,
                         self.router.register("thread", completion.thread_id)
                         if self.router

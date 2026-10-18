@@ -28,7 +28,7 @@ jobs:
   windows:
     name: windows (3.14)
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -66,6 +66,8 @@ jobs:
         run: |
           npm install --global pnpm@11.25.0
           pnpm --dir settings-ui install --frozen-lockfile --ignore-scripts
+          # English settings UI QA drives the real Electron runtime.
+          node settings-ui/node_modules/electron/install.js
       - name: Required checks
         if: steps.changes.outputs.docs_only != 'true'
         shell: pwsh
@@ -73,9 +75,9 @@ jobs:
           RUN_QUALITY: ${{ steps.changes.outputs.run_quality }}
         run: |
           if ($env:RUN_QUALITY -eq 'true') {
-            .\scripts\check.ps1 -Quality
+            .\scripts\check.ps1 -Quality -LanguageQa
           } else {
-            .\scripts\check.ps1
+            .\scripts\check.ps1 -LanguageQa
           }
       - uses: actions/upload-artifact@v7
         if: ${{ always() && steps.changes.outputs.run_quality == 'true' }}
@@ -84,4 +86,10 @@ jobs:
           path: |
             build/quality/coverage.*
             build/quality/mypy-advisory*.txt
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v7
+        if: ${{ failure() && steps.changes.outputs.docs_only != 'true' }}
+        with:
+          name: language-qa
+          path: dev-artifacts/language-qa/
           if-no-files-found: ignore

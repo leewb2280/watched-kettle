@@ -1,5 +1,7 @@
 """Bounded pet batch jobs on the Qt event loop, outside assistant state."""
 
+from watched_kettle.localization import t
+
 from copy import deepcopy
 import json
 import re
@@ -34,7 +36,7 @@ class PetBatchController(QObject):
     def _epoch(self, args):
         require(
             args.get("epoch") == self.adapter.account_epoch,
-            "계정이 변경됐습니다. 다시 불러오세요.",
+            t("message.0514"),
             "stale_context",
         )
 
@@ -81,7 +83,7 @@ class PetBatchController(QObject):
         )
         require(
             not job_id or job is not None,
-            "작업 정보가 만료됐습니다. 목록을 다시 확인하세요.",
+            t("message.0579"),
             "batch_missing",
         )
         return dict(job=self._public(job), snapshot=self.adapter.snapshot())
@@ -105,7 +107,7 @@ class PetBatchController(QObject):
             ):
                 require(
                     prior["_fingerprint"] == fingerprint,
-                    "같은 요청 키에 다른 작업을 보낼 수 없습니다.",
+                    t("message.0584"),
                     "duplicate_operation",
                 )
                 return dict(
@@ -115,7 +117,7 @@ class PetBatchController(QObject):
                 )
         require(
             not self.running,
-            "일괄 작업이 진행 중입니다. 완료하거나 남은 작업을 중단하세요.",
+            t("message.0533"),
             "batch_busy",
         )
         self.adapter._context(args)
@@ -126,17 +128,17 @@ class PetBatchController(QObject):
             duplicates = service.duplicate_ids()
             require(
                 all(value in entries for value in ids),
-                "펫 목록이 변경됐습니다. 다시 불러오세요.",
+                t("message.0173"),
                 "conflict",
             )
             for value in ids:
                 reason = service.deletion_reason(entries[value], duplicates)
-                require(not reason, reason or "선택할 수 없는 펫입니다.")
+                require(not reason, reason or t("message.0587"))
             current = vm.snapshot.pet_id
             if current in ids:
                 require(
                     replacement in entries and replacement not in ids,
-                    "선택 대상 밖의 대체 펫을 고르세요.",
+                    t("message.0585"),
                 )
                 ids = [current, *(value for value in ids if value != current)]
             names = {value: entries[value].display_name for value in ids}
@@ -144,13 +146,13 @@ class PetBatchController(QObject):
             records = {row["trashId"]: row for row in service.records()}
             require(
                 all(value in records for value in ids),
-                "휴지통 목록이 변경됐습니다. 다시 불러오세요.",
+                t("message.0581"),
                 "conflict",
             )
             states = {"trashed"} if action == "restore" else {"trashed", "deleting"}
             require(
                 all(records[value]["state"] in states for value in ids),
-                "처리할 수 없는 휴지통 항목이 있습니다. 다시 불러오세요.",
+                t("message.0582"),
             )
             names = {value: records[value]["name"] for value in ids}
         self.job = dict(
@@ -198,12 +200,12 @@ class PetBatchController(QObject):
             self._finish(
                 "cancelled",
                 "cancelled",
-                "남은 작업을 중단했어요. 완료한 항목은 유지됩니다.",
+                t("message.0583"),
             )
         return self.status(dict(epoch=args["epoch"], jobId=job_id))
 
     def shutdown(self):
-        self._finish("cancelled", "app_closed", "앱 종료로 남은 작업을 중단했습니다.")
+        self._finish("cancelled", "app_closed", t("message.0580"))
 
     def _step(self):
         job = self.job
@@ -219,7 +221,7 @@ class PetBatchController(QObject):
             self._finish(
                 "cancelled",
                 error.code,
-                "설정 또는 펫이 변경돼 남은 작업을 중단했어요. 목록을 다시 확인하세요.",
+                t("message.0586"),
             )
             return
         row = next((row for row in job["results"] if row["status"] == "pending"), None)
@@ -243,7 +245,7 @@ class PetBatchController(QObject):
                 code=code,
                 message=str(error)
                 if isinstance(error, PetTrashError)
-                else "파일에 접근하지 못했습니다. 잠금·권한·저장 공간을 확인하세요.",
+                else t("message.0588"),
             )
             if code == "replacement_failed":
                 self._finish("failed", code, row["message"])

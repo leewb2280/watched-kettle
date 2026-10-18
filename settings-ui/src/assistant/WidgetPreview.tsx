@@ -1,3 +1,4 @@
+import { t } from "../../localization.cjs";
 import { useEffect, useRef, useState } from "react";
 import { Section } from "../components";
 import { errorText } from "../errors";
@@ -41,7 +42,7 @@ export function WidgetPreview({ usage }: { usage: UsageResponse }) {
     return () => window.clearTimeout(timer);
   }, [usage, example, unfolded, chips]);
   return (
-    <Section title="미리보기">
+    <Section title={t("message.0323")}>
       <div className="widget-preview">
         <div className="widget-preview-stage">
           {preview ? (
@@ -49,33 +50,39 @@ export function WidgetPreview({ usage }: { usage: UsageResponse }) {
               src={preview.image}
               width={preview.width}
               height={preview.height}
-              alt="현재 설정의 사용량 위젯 미리보기"
+              alt={t("message.0960")}
             />
           ) : (
-            <span className="quiet-row">
-              {failed || "미리보기를 그리는 중입니다."}
-            </span>
+            <span className="quiet-row">{failed || t("message.0961")}</span>
           )}
         </div>
         <div className="widget-preview-options">
-          <span className="segmented" role="group" aria-label="미리보기 값">
+          <span
+            className="segmented"
+            role="group"
+            aria-label={t("message.0962")}
+          >
             <button aria-pressed={!example} onClick={() => setExample(false)}>
-              지금 값
+              {t("message.0963")}
             </button>
             <button aria-pressed={example} onClick={() => setExample(true)}>
-              예시 값
+              {t("message.0422")}
             </button>
           </span>
           {chips && (
-            <span className="segmented" role="group" aria-label="칩 모양">
+            <span
+              className="segmented"
+              role="group"
+              aria-label={t("message.0964")}
+            >
               <button
                 aria-pressed={!unfolded}
                 onClick={() => setUnfolded(false)}
               >
-                평소
+                {t("message.0965")}
               </button>
               <button aria-pressed={unfolded} onClick={() => setUnfolded(true)}>
-                마우스를 올렸을 때
+                {t("message.0966")}
               </button>
             </span>
           )}
@@ -84,10 +91,9 @@ export function WidgetPreview({ usage }: { usage: UsageResponse }) {
           {failed && preview
             ? failed
             : preview?.sample && !example
-              ? "아직 받은 한도가 없어 예시 값으로 보여 줍니다."
-              : "펫 옆 위젯과 같은 방식으로 그린 모습입니다. 설정을 바꾸면 바로 반영됩니다."}
-          {acrylic &&
-            " 아크릴은 실제 위젯에서만 뒤를 흐리게 비추므로, 미리보기는 어두운 바탕 위의 색으로 보여 줍니다."}
+              ? t("message.0967")
+              : t("message.0968")}
+          {acrylic && t("message.0969")}
         </p>
       </div>
     </Section>

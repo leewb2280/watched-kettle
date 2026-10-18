@@ -3,12 +3,14 @@ param(
     [switch]$Full,
     [switch]$DocsOnly,
     [switch]$Quality,
+    # English settings UI QA without packaging; -Full always includes it.
+    [switch]$LanguageQa,
     [ValidateSet("", "PrivateBeta", "Public")]
     [string]$BuildProfile = ""
 )
 
 $ErrorActionPreference = "Stop"
-if ($DocsOnly -and ($Full -or $Quality)) { throw "-DocsOnly cannot be combined with -Full or -Quality." }
+if ($DocsOnly -and ($Full -or $Quality -or $LanguageQa)) { throw "-DocsOnly cannot be combined with -Full, -Quality or -LanguageQa." }
 $projectRoot = Split-Path -Parent $PSScriptRoot
 # The public snapshot has no private pets, so it builds the Public profile by default.
 if (-not $BuildProfile) {
@@ -56,16 +58,31 @@ try {
     Invoke-Checked "Python compile" { & $python -m compileall -q watched_kettle scripts tests }
     Invoke-Checked "Project structure" { & $python -m scripts.validate_project }
     Invoke-Checked "Settings appearance and protocol policies" {
-        & node.exe --test settings-ui/scripts/appearance.test.cjs settings-ui/scripts/protocol.test.cjs
+        & node.exe --test settings-ui/scripts/appearance.test.cjs settings-ui/scripts/protocol.test.cjs settings-ui/scripts/localization.test.cjs settings-ui/scripts/localization-literals.test.cjs
     }
+    Invoke-Checked "Official language pack" { & $python -m scripts.language_pack check watched_kettle/localization/resources/en --official }
+    Invoke-Checked "Localization guards" { & $python -m scripts.localization_guard check }
     Invoke-Checked "Settings UI TypeScript" { & pnpm.cmd --dir settings-ui run check }
     $oldEdition = $env:WATCHED_KETTLE_EDITION
+    $oldLanguageQaRoot = $env:LANGUAGE_QA_ROOT
+    # Each run keeps its own screenshots instead of overwriting an earlier report.
+    $env:LANGUAGE_QA_ROOT = "dev-artifacts/language-qa/check-" + (Get-Date -Format "yyyyMMdd-HHmmss")
     try {
+        # pet-assistant builds last so a source run keeps the full settings window.
         foreach ($settingsEdition in @("pet-only", "pet-assistant")) {
             $env:WATCHED_KETTLE_EDITION = $settingsEdition
             Invoke-Checked "Settings UI $settingsEdition" { & pnpm.cmd --dir settings-ui exec vite build }
+            if ($Full -or $LanguageQa) {
+                # language-qa drives the build that was just made.
+                Invoke-Checked "English settings UI QA $settingsEdition" {
+                    & node.exe settings-ui/scripts/language-qa.cjs $settingsEdition en
+                }
+            }
         }
-    } finally { $env:WATCHED_KETTLE_EDITION = $oldEdition }
+    } finally {
+        $env:WATCHED_KETTLE_EDITION = $oldEdition
+        $env:LANGUAGE_QA_ROOT = $oldLanguageQaRoot
+    }
     $boundaryTargets = @(
         "watched_kettle/storage", "watched_kettle/usage",
         "watched_kettle/integrations/codex_log_worker.py", "watched_kettle/process_metrics.py",

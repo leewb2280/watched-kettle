@@ -135,8 +135,26 @@ def write_layout(path, layout):
     return layout
 
 
+# Same per-message ceiling as the pack validator, with UTF-8/JSON overhead.
+MAX_LANGUAGE_TEMPLATE_CHARS = 16384
+MAX_LANGUAGE_SNAPSHOT_BYTES = 4 * MAX_LANGUAGE_TEMPLATE_CHARS * 4 + 1024
+
+
+def _message(language, key, fallback, **values):
+    try:
+        return (language or {}).get(key, fallback).format_map(values)
+    except (KeyError, ValueError, TypeError, AttributeError, IndexError):
+        return fallback.format_map(values)
+
+
 def status_text(
-    payload, event, pet_connected=None, ide_name=None, columns=None, layout=None
+    payload,
+    event,
+    pet_connected=None,
+    ide_name=None,
+    columns=None,
+    layout=None,
+    language=None,
 ):
     """Short lines for users without their own status line.
 
@@ -152,11 +170,18 @@ def status_text(
     payload = payload if isinstance(payload, dict) else {}
     event = event if isinstance(event, dict) else {}
     layout = normalize_layout(layout) if layout is not None else _default_layout()
+    language = language or {}
+
+    def message(key, fallback, **values):
+        return _message(language, key, fallback, **values)
+
     texts = {
-        "pet": _color("펫 꺼짐", _YELLOW) if pet_connected is False else "",
+        "pet": _color(message("statusline.pet_off", "펫 꺼짐"), _YELLOW)
+        if pet_connected is False
+        else "",
         "ide": ide_name or "",
         "model": _model_text(payload),
-        "context": _context_text(payload.get("context_window")),
+        "context": _context_text(payload.get("context_window"), language),
         "five_hour": "",
         "seven_day": "",
     }
@@ -165,10 +190,17 @@ def status_text(
         reset = (
             _clock(event.get("five_hour_resets_at")) if layout["reset_times"] else ""
         )
-        texts["five_hour"] = f"5시간 {five:.0f}%{reset}"
+        texts["five_hour"] = message(
+            "statusline.five_hour",
+            "5시간 {percent}%{reset}",
+            percent=f"{five:.0f}",
+            reset=reset,
+        )
     seven = event.get("seven_day_percent")
     if isinstance(seven, (int, float)):
-        texts["seven_day"] = f"7일 {seven:.0f}%"
+        texts["seven_day"] = message(
+            "statusline.seven_day", "7일 {percent}%", percent=f"{seven:.0f}"
+        )
     lines = []
     for line in layout["lines"]:
         parts = [(_PRIORITY[item], texts[item]) for item in line if texts[item]]
@@ -243,7 +275,7 @@ def _tokens(value):
     return f"{value / 1000:.0f}k"
 
 
-def _context_text(window):
+def _context_text(window, language=None):
     """컨텍스트 10% (104k/1M), green below half, red from 80%."""
     if not isinstance(window, dict):
         return ""
@@ -251,7 +283,9 @@ def _context_text(window):
     if percent is None:
         return ""
     color = _GREEN if percent < 50 else _YELLOW if percent < 80 else _RED
-    text = f"컨텍스트 {percent:.0f}%"
+    text = _message(
+        language, "statusline.context", "컨텍스트 {percent}%", percent=f"{percent:.0f}"
+    )
     size = _number(window.get("context_window_size"))
     if size:
         # Same input-only sum as used_percentage; null right after /compact.

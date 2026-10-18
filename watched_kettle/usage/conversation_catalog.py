@@ -1,5 +1,7 @@
 """Read-only, generation-scoped display names on the usage worker thread."""
 
+from watched_kettle.localization import t
+
 from time import monotonic
 
 from PySide6.QtCore import QObject, QTimer, Signal
@@ -60,7 +62,7 @@ class UsageConversationCatalog(QObject):
         self.assignments, self.projectless, self.desktop_projects, self.roots = (
             _read_desktop_project_index(codex_home() / ".codex-global-state.json")
         )
-        self.status = "대화 제목·프로젝트 확인 중"
+        self.status = t("message.0347")
         self.request("project/list", {})
 
     def request(self, method, params):
@@ -73,7 +75,7 @@ class UsageConversationCatalog(QObject):
 
     def timeout(self):
         self.pending.clear()
-        self.status = "일부 이름 확인 불가 · 기록은 계속 표시합니다"
+        self.status = t("message.0348")
         self.changed.emit()
 
     def thread_request(self, archived=False, cursor=None):
@@ -106,7 +108,7 @@ class UsageConversationCatalog(QObject):
         title = (
             conversation_title(raw_name)[:512]
             if isinstance(raw_name, str) and raw_name.strip()
-            else f"제목 확인 불가 · {thread[:8]}"
+            else t("message.0349", value0=thread[:8])
         )
         key = (
             "unknown"
@@ -116,13 +118,13 @@ class UsageConversationCatalog(QObject):
             else "project:" + hash_identifier(project)
         )
         name = (
-            "프로젝트 확인 불가"
+            t("message.0350")
             if project is None
-            else "프로젝트 없음"
+            else t("message.0352")
             if project == ""
             else self.projects.get(project)
             or self.desktop_projects.get(project)
-            or "프로젝트 이름 확인 불가"
+            or t("message.0353")
         )
         return thread, (title, key, name)
 
@@ -155,7 +157,7 @@ class UsageConversationCatalog(QObject):
             for row in rows:
                 if isinstance(row, dict) and isinstance(row.get("id"), str):
                     self.projects[row["id"]] = safe_label(
-                        row.get("name"), "프로젝트 이름 확인 불가"
+                        row.get("name"), t("message.0353")
                     )
         else:
             labels = {}
@@ -176,7 +178,7 @@ class UsageConversationCatalog(QObject):
             or self.pages >= 100
             or (requested == "project/list" and len(self.projects) >= 1000)
         ):
-            self.status = "이름 조회 범위 초과 · 확인된 이름만 표시합니다"
+            self.status = t("message.0351")
             self.changed.emit()
             return
         if cursor:
@@ -190,5 +192,5 @@ class UsageConversationCatalog(QObject):
         elif not params.get("archived"):
             self.thread_request(archived=True)
         else:
-            self.status = "이 기기 로그 기준 · 제목은 Codex에서 확인"
+            self.status = t("message.0354")
             self.changed.emit()

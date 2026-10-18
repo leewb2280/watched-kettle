@@ -1,5 +1,7 @@
 """Account notification policy, independent of Qt and transport."""
 
+from watched_kettle.localization import t
+
 import sqlite3
 from watched_kettle.usage.contracts import UsageRepository
 from watched_kettle.usage.widget_presentation import _percent_text
@@ -71,7 +73,7 @@ class UsageNoticePolicy:
                     if alert:
                         urgency = "high" if threshold >= 90 else "normal"
                         remaining = window.remaining_percent
-                        text = f"Codex 잔여 {_percent_text(remaining)}"
+                        text = t("message.0369", value0=_percent_text(remaining))
                         if window.resets_at is not None:
                             reset_seconds = max(
                                 0,
@@ -83,11 +85,13 @@ class UsageNoticePolicy:
                             )
                             reset_minutes = reset_remainder // 60
                             if reset_hours:
-                                text += (
-                                    f" · {reset_hours}시간 {reset_minutes}분 후 초기화"
+                                text += t(
+                                    "message.0337",
+                                    value0=reset_hours,
+                                    value1=reset_minutes,
                                 )
                             else:
-                                text += f" · {reset_minutes}분 후 초기화"
+                                text += t("message.0338", value0=reset_minutes)
                         self._emit_notice(text, urgency, marker, f"{prefix}{reset_key}")
         if changed:
             if snapshot.account_hash:
@@ -131,12 +135,16 @@ class UsageNoticePolicy:
             for item in snapshot.daily_buckets[-7:]
             if item.tokens is not None
         ]
-        message = f"오늘 계정 에이전트 토큰 활동 {today.tokens:,}"
+        message = t("message.0367", value0=f"{today.tokens:,}")
         if known:
             average = sum(known) / len(known)
             if average:
                 change = (today.tokens - average) / average * 100
-                message += f" · 7일 평균보다 {abs(change):.0f}% {'많음' if change >= 0 else '적음'}"
+                message += t(
+                    "message.0368",
+                    value0=f"{abs(change):.0f}",
+                    value1=t("comparison.more" if change >= 0 else "comparison.less"),
+                )
         if snapshot.account_hash:
             try:
                 self.repository.mark_daily_summary_sent(

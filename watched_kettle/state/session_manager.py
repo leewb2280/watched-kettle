@@ -162,7 +162,10 @@ class AgentSessionManager:
                 "cancelled",
             }
         ) or decision.event == "background_wait"
-        if decision.source == "codex" and decision.agent_scope == "internal":
+        if decision.source == "codex" and decision.agent_scope in {
+            "internal",
+            "unknown",
+        }:
             quiet_lifecycle = True
         quiet_tool_failure = (
             decision.source in AGENT_SOURCES and decision.event == "tool_failed"
@@ -403,6 +406,6 @@ class AgentSessionManager:
 def counted_session(session):
     return session.source != "codex" or (
         not getattr(session, "uncertain", False)
-        and getattr(session, "agent_scope", "main") != "internal"
+        and getattr(session, "agent_scope", "main") not in {"internal", "unknown"}
         and session.state != "idle"
     )

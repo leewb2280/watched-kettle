@@ -6,9 +6,11 @@ from pathlib import Path
 
 from watched_kettle.app import resolve_startup_pet
 from watched_kettle.app_preferences import ApplicationPreferences
+from watched_kettle.localization import Translator, get_translator, set_translator
 from watched_kettle.pet.catalog import (
     discover_pets,
     discover_pets_in_roots,
+    localized_description,
     order_pet_entries,
     personalize_pet_catalog,
 )
@@ -57,6 +59,49 @@ class PetCatalogTests(unittest.TestCase):
             self.assertEqual(entries[0].id, "valid-id")
             self.assertEqual(entries[0].display_name, "Visible Name")
             self.assertEqual(entries[0].description, "")
+
+    def test_description_follows_the_active_language_pack(self):
+        manifest = {
+            "description": "작은 로봇",
+            "localizedDescriptions": {
+                "en": "Little robot",
+                "en-GB": "Little robot, GB",
+                "fr": "  ",
+                "de": 3,
+            },
+        }
+        original = get_translator()
+        self.addCleanup(set_translator, original)
+        for locale, expected in (
+            ("ko", "작은 로봇"),
+            ("en-US", "Little robot"),
+            ("en-GB", "Little robot, GB"),
+            ("fr-FR", "작은 로봇"),
+            ("de-DE", "작은 로봇"),
+        ):
+            with self.subTest(locale=locale):
+                set_translator(Translator(locale))
+                self.assertEqual(localized_description(manifest), expected)
+        set_translator(Translator("en-US"))
+        self.assertEqual(
+            localized_description({"description": "작은 로봇"}), "작은 로봇"
+        )
+        self.assertEqual(
+            localized_description({"localizedDescriptions": ["Little robot"]}), ""
+        )
+
+    def test_bundled_public_pets_describe_themselves_in_english(self):
+        # The bundled pet is the first screen an English install shows.
+        original = get_translator()
+        self.addCleanup(set_translator, original)
+        set_translator(Translator("en-US"))
+        root = Path(__file__).resolve().parents[1] / "pets"
+        for entry in discover_pets(root):
+            with self.subTest(pet=entry.id):
+                self.assertTrue(entry.description)
+                self.assertFalse(
+                    any("가" <= char <= "힣" for char in entry.description)
+                )
 
     def test_merges_user_and_bundled_roots_with_user_duplicate_first(self):
         with tempfile.TemporaryDirectory() as temporary_directory:

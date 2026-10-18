@@ -1,3 +1,4 @@
+from watched_kettle.localization import t
 # pet_loader.py
 
 import json
@@ -26,7 +27,7 @@ def load_pet(pet_directory: Path):
     json_path = pet_directory / "pet.json"
 
     if not json_path.exists():
-        raise FileNotFoundError(f"pet.json을 찾을 수 없습니다:\n{json_path}")
+        raise FileNotFoundError(t("message.0150", value0=json_path))
 
     if json_path.stat().st_size > 256 * 1024:
         raise ValueError("pet_metadata_too_large")
@@ -37,7 +38,7 @@ def load_pet(pet_directory: Path):
     manifest = json.loads(raw)
 
     if not isinstance(manifest, dict):
-        raise ValueError("pet.json의 최상위 값은 객체여야 합니다.")
+        raise ValueError(t("message.0151"))
 
     spritesheet_name = manifest.get(
         "spritesheetPath",
@@ -45,15 +46,15 @@ def load_pet(pet_directory: Path):
     )
 
     if not isinstance(spritesheet_name, str) or not spritesheet_name.strip():
-        raise ValueError("spritesheetPath는 비어 있지 않은 문자열이어야 합니다.")
+        raise ValueError(t("message.0152"))
 
     resolved_directory = pet_directory.resolve()
     spritesheet_path = (pet_directory / spritesheet_name).resolve()
     if not spritesheet_path.is_relative_to(resolved_directory):
-        raise ValueError("spritesheetPath는 펫 폴더 내부 파일이어야 합니다.")
+        raise ValueError(t("message.0153"))
 
     if not spritesheet_path.exists():
-        raise FileNotFoundError(f"spritesheet를 찾을 수 없습니다:\n{spritesheet_path}")
+        raise FileNotFoundError(t("message.0154", value0=spritesheet_path))
 
     with Image.open(spritesheet_path) as source:
         detect_sprite_version(source)
@@ -85,11 +86,7 @@ def detect_sprite_version(atlas: Image.Image):
     expected_width = FRAME_WIDTH * ATLAS_COLUMNS
 
     if width != expected_width:
-        raise ValueError(
-            "Spritesheet 가로 크기가 올바르지 않습니다.\n"
-            f"현재: {width}\n"
-            f"예상: {expected_width}"
-        )
+        raise ValueError(t("message.0155", value0=width, value1=expected_width))
 
     if height == FRAME_HEIGHT * 9:
         return 1, 9
@@ -97,12 +94,7 @@ def detect_sprite_version(atlas: Image.Image):
     if height == FRAME_HEIGHT * 11:
         return 2, 11
 
-    raise ValueError(
-        "지원하지 않는 Spritesheet 크기입니다.\n"
-        f"현재: {atlas.size}\n"
-        "V1 예상: (1536, 1872)\n"
-        "V2 예상: (1536, 2288)"
-    )
+    raise ValueError(t("message.0149", value0=atlas.size))
 
 
 def extract_frames(atlas: Image.Image):

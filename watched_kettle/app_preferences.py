@@ -81,6 +81,9 @@ class ApplicationPreferences:
         self.bubbles = BubblesPreferences(self.settings)
         self.catalog = CatalogPreferences(self.settings)
 
+    def load_language_pack(self):
+        return str(self.settings.value("app/languagePack", "") or "")
+
     def load_codex_not_detected_notice_shown(self):
         return self.settings.value(
             "codexNotDetectedNoticeShown",

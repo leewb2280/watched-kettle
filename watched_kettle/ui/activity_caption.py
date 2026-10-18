@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization.collections import MessageId, MessageMapping
+
 from PySide6.QtCore import QObject, QPoint, QRectF, Qt
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPalette, QPen
 from PySide6.QtWidgets import QApplication, QFrame, QLabel, QVBoxLayout
@@ -15,17 +17,19 @@ from watched_kettle.ui.bubble_models import source_display_label
 CAPTION_GAP = 4
 CAPTION_RADIUS = 12
 CAPTION_RESERVED_HEIGHT = 32
-ACTIVITY_MESSAGES = {
-    "idle": "",
-    "running-right": "오른쪽으로 걷는 중",
-    "running-left": "왼쪽으로 걷는 중",
-    "waving": "인사하는 중",
-    "jumping": "점프하는 중",
-    "failed": "풀이 죽어 있는 중",
-    "waiting": "확인을 기다리는 중",
-    "running": "작업을 돕는 중",
-    "review": "내용을 살펴보는 중",
-}
+ACTIVITY_MESSAGES = MessageMapping(
+    {
+        "idle": "",
+        "running-right": MessageId("message.0206"),
+        "running-left": MessageId("message.0207"),
+        "waving": MessageId("message.0208"),
+        "jumping": MessageId("message.0209"),
+        "failed": MessageId("message.0210"),
+        "waiting": MessageId("message.0211"),
+        "running": MessageId("message.0212"),
+        "review": MessageId("message.0213"),
+    }
+)
 
 
 def activity_message(state, sources=()):

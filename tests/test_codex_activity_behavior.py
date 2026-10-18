@@ -39,15 +39,16 @@ class CodexActivityBehaviorTests(unittest.TestCase):
         )
 
     def hook(self, event, session="main", **fields):
-        return self.controller.apply_payload(
-            normalize_codex_hook(
-                {
-                    "hook_event_name": event,
-                    "session_id": session,
-                    **fields,
-                }
-            )
+        payload = normalize_codex_hook(
+            {
+                "hook_event_name": event,
+                "session_id": session,
+                **fields,
+            }
         )
+        if payload["agent_scope"] == "unknown":
+            payload["agent_scope"] = "main"  # verified by the service in production
+        return self.controller.apply_payload(payload)
 
     def assert_state(self, state):
         self.assertEqual(self.controller.desired_state, state)

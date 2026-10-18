@@ -11,7 +11,7 @@ Item {
     Text {
         id: label
         anchors.centerIn: parent
-        text: "연결된 사용량이 없습니다"
+        text: widgetModel.labels.empty
         color: widgetModel.theme.float_muted
         font.pixelSize: parent.px(11)
         style: widgetModel.theme.halo ? Text.Outline : Text.Normal

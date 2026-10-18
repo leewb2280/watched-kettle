@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 from watched_kettle.features.notifications.models import NoticeRequest
 from watched_kettle.state.events import normalize_agent_source
 
@@ -43,7 +45,7 @@ class AppCoordinator:
             self.notification_service.submit(
                 NoticeRequest(
                     source="schedule",
-                    message=str(payload.get("message") or "일정 알림"),
+                    message=str(payload.get("message") or t("message.0034")),
                     urgency=str(payload.get("urgency") or "normal"),
                     session_id=str(payload.get("session_id") or "schedule"),
                     category="schedule",

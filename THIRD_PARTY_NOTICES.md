@@ -18,7 +18,7 @@ unmodified components. Their complete license texts are copied into the
 `licenses` folder beside the executable at build time, and
 `licenses/DEPENDENCIES.json` records the exact versions of each build.
 
-- Python 3.13 runtime — Python Software Foundation License
+- Python 3.14 runtime — Python Software Foundation License
   (`licenses/PYTHON_LICENSE.txt`)
 - PySide6, Shiboken6 6.11 and the Qt 6 libraries they load — GNU Lesser General
   Public License v3 (`licenses/PySide6*`, `licenses/shiboken6`). Qt is used
@@ -27,6 +27,8 @@ unmodified components. Their complete license texts are copied into the
   Qt and Qt for Python source code is available from https://code.qt.io.
 - Pillow 12 — MIT-CMU (HPND) License, including the notices of the image
   libraries Pillow bundles (`licenses/Pillow`)
+- Babel 2.17 — BSD-3-Clause License and Unicode CLDR data notices
+  (`licenses/Babel`)
 - PyInstaller 6 bootloader — GNU General Public License v2 or later with the
   PyInstaller bootloader exception, which permits distributing the bundled
   application under its own terms (`licenses/PyInstaller`)

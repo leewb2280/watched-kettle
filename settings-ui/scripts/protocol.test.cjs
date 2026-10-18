@@ -7,6 +7,8 @@ const { renderer, assistant } = require("../electron/commands.generated.cjs");
 
 test("native file and window commands cannot be sent by renderer", () => {
   for (const method of [
+    "language.bootstrap",
+    "language.open_folder",
     "file.import",
     "file.export",
     "file.pet.prepare",
@@ -76,6 +78,8 @@ test("the actual Electron IPC guard enforces exposure, edition and sender", asyn
   const bridge = rendererBridge();
   for (const method of [
     "file.pet.prepare",
+    "language.bootstrap",
+    "language.open_folder",
     "file.import",
     "window.state",
     "usage.snapshot",

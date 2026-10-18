@@ -52,6 +52,7 @@ class ControlBase(TypedDict):
     key: str
     label: str
     group: str
+    groupId: NotRequired[str]
     min: NotRequired[float]
     max: NotRequired[float]
     step: NotRequired[float]
@@ -138,6 +139,7 @@ class SettingsSnapshot(TypedDict):
     startup: Startup
     animations: list[Animation]
     update: UpdateState
+    language: LanguageState
 
 
 class Saved(TypedDict):
@@ -435,7 +437,13 @@ class DurationSetting(Context):
 
 
 class StringSetting(Context):
-    key: Literal["screen", "bubble_theme", "appearance:theme", "appearance:material"]
+    key: Literal[
+        "screen",
+        "bubble_theme",
+        "appearance:theme",
+        "appearance:material",
+        "languagePack",
+    ]
     value: str
 
 
@@ -481,8 +489,69 @@ class Route(TypedDict):
     filter: NotRequired[str]
 
 
+class LocalizedMessage(TypedDict):
+    value: str | dict[str, str]
+    plural: str
+
+
+class LocalizationBootstrap(TypedDict):
+    packId: str
+    locale: str
+    messages: dict[str, LocalizedMessage]
+
+
+class LanguageState(TypedDict):
+    current: str
+    selected: str
+    locale: str
+    restartRequired: bool
+    recovered: bool
+
+
+class LanguagePackProblem(TypedDict):
+    key: str
+    code: Literal[
+        "unknown",
+        "invalid_entry",
+        "invalid_revision",
+        "invalid_placeholder",
+        "invalid_plural",
+        "unexpected_plural",
+        "invalid_text",
+    ]
+
+
+class LanguagePackInfo(TypedDict):
+    id: str
+    name: str
+    locale: str
+    author: str
+    version: str
+    official: bool
+    error: str
+    translated: int
+    untranslated: int
+    total: int
+    outdated: int
+    issues: list[str]
+    problems: list[LanguagePackProblem]
+    problemCount: int
+    fallback: str
+    fallbackCount: int
+    selectable: bool
+
+
+LanguagePackList = list[LanguagePackInfo]
+
+
+class LanguagePackCopy(Mutation):
+    id: str
+    packs: LanguagePackList
+
+
 class Ready(TypedDict):
     connected: bool
+    localization: LocalizationBootstrap
     edition: NotRequired[Literal["pet-only", "pet-assistant"]]
     route: NotRequired[Route | None]
     appearance: EffectiveAppearance
@@ -559,6 +628,11 @@ class Command:
 
 
 COMMANDS = {
+    "language.list": Command("Empty", "LanguagePackList"),
+    "language.refresh": Command("Empty", "LanguagePackList"),
+    "language.bootstrap": Command("Empty", "LocalizationBootstrap", "main"),
+    "language.open_folder": Command("Empty", "Opened", "main"),
+    "language.copy": Command("Context", "LanguagePackCopy"),
     "settings.snapshot": Command("Empty", "SettingsSnapshot"),
     "settings.set": Command("SettingRequest", "Mutation"),
     "pet.catalog": Command("Empty", "PetCatalog"),
@@ -586,6 +660,7 @@ COMMANDS = {
     "update.cancel": Command("Empty", "Pending"),
     "update.open": Command("Empty", "Opened"),
     "app.quit": Command("Empty", "Accepted"),
+    "app.restart": Command("Empty", "Accepted"),
     "navigation.ack": Command("NavigationAck", "Confirmed"),
     "window.subscribe": Command("Topics", "Subscribed"),
     "window.visibility": Command("Visibility", "Visibility", "main"),

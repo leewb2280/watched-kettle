@@ -37,6 +37,7 @@ def main():
         runtime_factory=PetRuntime,
         agent_controller_factory=IdlePetController,
         on_started=on_started,
+        pet_only=True,
     )
 
 

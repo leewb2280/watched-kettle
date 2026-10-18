@@ -1,3 +1,4 @@
+import { t } from "../../localization.cjs";
 import { Check, Download, RotateCcw } from "lucide-react";
 import type { UpdateState } from "../types";
 
@@ -38,13 +39,13 @@ export function UpdateRow({
         onClick={() => call("update.download")}
       >
         <Download size={14} />
-        업데이트
+        {t("message.1143")}
       </button>
     );
   } else if (state === "downloading") {
     action = (
       <button className="button" onClick={() => call("update.cancel")}>
-        취소
+        {t("message.0650")}
       </button>
     );
   } else if (state === "error") {
@@ -56,7 +57,7 @@ export function UpdateRow({
         }
       >
         <RotateCcw size={14} />
-        다시 시도
+        {t("message.0331")}
       </button>
     );
   } else if (state !== "installing" && state !== "preparing") {
@@ -67,7 +68,7 @@ export function UpdateRow({
         onClick={() => call("update.check")}
       >
         <RotateCcw size={14} />
-        업데이트 확인
+        {t("message.0290")}
       </button>
     );
   }
@@ -85,7 +86,7 @@ export function UpdateRow({
                 className="text-button inline"
                 onClick={() => call("update.open")}
               >
-                변경 사항 보기
+                {t("message.1144")}
               </button>
             </>
           )}
@@ -97,7 +98,7 @@ export function UpdateRow({
             <div
               className="progress-track"
               role="progressbar"
-              aria-label="업데이트 내려받기"
+              aria-label={t("message.1145")}
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={percent}

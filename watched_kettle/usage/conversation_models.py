@@ -1,5 +1,7 @@
 """Content-free totals and display-only conversation labels."""
 
+from watched_kettle.localization import t
+
 from dataclasses import dataclass
 from datetime import datetime
 from functools import cmp_to_key
@@ -7,7 +9,6 @@ from PySide6.QtCore import QCollator, QLocale
 
 
 UNCLASSIFIED_PROJECT_KEY = "unclassified"
-UNCLASSIFIED_PROJECT_NAME = "미분류"
 _UNCLASSIFIED_SOURCE_KEYS = frozenset({"none", "unknown"})
 
 
@@ -77,8 +78,8 @@ def sort_projects(
 def label_for(labels, account, thread):
     title, project_key, project_name = labels.get(
         (account, thread),
-        (f"제목 확인 불가 · {thread[:8]}", "unknown", "프로젝트 확인 불가"),
+        (t("message.0349", value0=thread[:8]), "unknown", t("message.0350")),
     )
     if project_key in _UNCLASSIFIED_SOURCE_KEYS:
-        return title, UNCLASSIFIED_PROJECT_KEY, UNCLASSIFIED_PROJECT_NAME
+        return title, UNCLASSIFIED_PROJECT_KEY, t("message.0027")
     return title, project_key, project_name

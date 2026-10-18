@@ -1,3 +1,4 @@
+import { t } from "../../localization.cjs";
 import { Check, ChevronRight } from "lucide-react";
 import { Empty, Heading, Section } from "../components";
 import { HomeLink, SourceTag, time } from "./presentation";
@@ -26,17 +27,18 @@ export function AssistantHomePage({
 >) {
   return (
     <div className="page">
-      <Heading
-        title="홈"
-        subtitle="확인할 알림, 진행 중인 작업, 남은 한도와 연결 상태를 모아 봅니다."
-      />
+      <Heading title={t("message.0590")} subtitle={t("message.0655")} />
       {!usage || !activity || !integration ? (
-        <Empty>상태를 불러오는 중입니다.</Empty>
+        <Empty>{t("message.0656")}</Empty>
       ) : (
         <div className="home-grid">
           <Section
-            title="확인할 알림"
-            note={unconfirmed.length ? `${unconfirmed.length}건` : ""}
+            title={t("message.0657")}
+            note={
+              unconfirmed.length
+                ? t("message.0617", { value0: unconfirmed.length })
+                : ""
+            }
           >
             {unconfirmed.length ? (
               unconfirmed.slice(0, 3).map((row) => (
@@ -55,17 +57,21 @@ export function AssistantHomePage({
             ) : (
               <p className="quiet-row">
                 <Check size={14} />
-                확인할 알림이 없습니다.
+                {t("message.0658")}
               </p>
             )}
             <HomeLink
-              label="활동 기록 열기"
+              label={t("message.0659")}
               open={() => shell.navigate("activity")}
             />
           </Section>
           <Section
-            title="진행 중"
-            note={homeRows.length ? `${homeRows.length}개` : ""}
+            title={t("message.0445")}
+            note={
+              homeRows.length
+                ? t("message.0660", { value0: homeRows.length })
+                : ""
+            }
           >
             {homeRows.length ? (
               homeRows.slice(0, 4).map(({ project, row }, index) => (
@@ -78,9 +84,19 @@ export function AssistantHomePage({
                 >
                   <span
                     className="record-summary"
-                    title={`${project.label || "프로젝트"} · ${row.title || "대화"}`}
+                    title={`${project.label || t("message.0619")} · ${row.title || t("message.0620")}`}
                   >
-                    {project.label || "프로젝트"} · {row.title || "대화"}
+                    {project.label ? (
+                      <span data-user-text>{project.label}</span>
+                    ) : (
+                      t("message.0619")
+                    )}{" "}
+                    ·{" "}
+                    {row.title ? (
+                      <span data-user-text>{row.title}</span>
+                    ) : (
+                      t("message.0620")
+                    )}
                   </span>
                   {project.source && <SourceTag name={project.source} />}
                   <span className="pill">{row.label || row.state}</span>
@@ -88,26 +104,23 @@ export function AssistantHomePage({
                 </button>
               ))
             ) : (
-              <p className="quiet-row">진행 중인 작업이 없습니다.</p>
+              <p className="quiet-row">{t("message.0661")}</p>
             )}
             <HomeLink
-              label="활동 기록 열기"
+              label={t("message.0659")}
               open={() => shell.navigate("activity")}
             />
           </Section>
-          <Section title="남은 한도">
+          <Section title={t("message.0662")}>
             <QuotaGroups usage={usage} compact />
             <HomeLink
-              label="사용량 열기"
+              label={t("message.0663")}
               open={() => shell.navigate("usage")}
             />
           </Section>
-          <Section title="연결">
+          <Section title={t("message.0664")}>
             {!connections.length && (
-              <p className="quiet-row">
-                사용 중인 도구가 없습니다. 연결·진단에서 Codex나 Claude Code를
-                켤 수 있습니다.
-              </p>
+              <p className="quiet-row">{t("message.0665")}</p>
             )}
             {connections.map(([name, state]) => (
               <button

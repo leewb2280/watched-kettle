@@ -10,4 +10,5 @@ contextBridge.exposeInMainWorld("settings", {
     return () => ipcRenderer.removeListener("settings:event", listener);
   },
   ready: () => ipcRenderer.invoke("settings:ready"),
+  openLanguagePackFolder: () => ipcRenderer.invoke("settings:language-folder"),
 });

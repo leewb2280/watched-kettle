@@ -17,6 +17,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Settings UI dependency installation failed." }
     & $node "node_modules/electron/install.js"
     if ($LASTEXITCODE -ne 0) { throw "Pinned Electron runtime installation failed." }
+    & $python (Join-Path $PSScriptRoot "generate_language_locales.py") --check
+    if ($LASTEXITCODE -ne 0) { throw "Babel / Electron locale support list is stale." }
     if (Test-Path -LiteralPath $target) { throw "Settings UI destination must be new to prevent leftover edition files: $target" }
     New-Item -ItemType Directory -Path $target -Force | Out-Null
     Get-ChildItem -LiteralPath "node_modules/electron/dist" | Copy-Item -Destination $target -Recurse -Force
@@ -24,8 +26,8 @@ try {
     # Renaming keeps Electron's embedded icon, which the taskbar and window show.
     & $python (Join-Path $PSScriptRoot "set_exe_icon.py") (Join-Path $target "WatchedKettleSettings.exe") (Join-Path $projectRoot "assets\app_icon.ico")
     if ($LASTEXITCODE -ne 0) { throw "Settings executable icon replacement failed." }
-    # The UI is Korean-only; Chromium falls back to en-US for other system
-    # languages. The other 53 packs added ~48 MiB (stage 12 size target).
+    # Chromium UI resources cover the two official languages; community text
+    # packs use the application catalog. Keep the existing runtime size limit.
     $keptLocales = @("ko.pak", "en-US.pak")
     $localeRoot = Join-Path $target "locales"
     Get-ChildItem -LiteralPath $localeRoot -Filter "*.pak" |
@@ -50,6 +52,7 @@ try {
         throw "Assistant renderer code leaked into the pet-only bundle."
     }
     Copy-Item -LiteralPath "electron" -Destination $appRoot -Recurse
+    Copy-Item -LiteralPath "localization.cjs" -Destination $appRoot
     $utf8 = New-Object System.Text.UTF8Encoding($false)
     [IO.File]::WriteAllText((Join-Path $appRoot "package.json"), '{"name":"watched-kettle-settings","version":"1.0.0","main":"electron/main.cjs"}', $utf8)
     [IO.File]::WriteAllText((Join-Path $appRoot "edition.json"), (@{edition=$Edition} | ConvertTo-Json -Compress), $utf8)

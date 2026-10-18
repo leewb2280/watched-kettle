@@ -1,3 +1,5 @@
+import { t, locale } from "../../localization.cjs";
+import { LocalizedText } from "../LocalizedText";
 import { CircleCheck, CircleMinus, CircleX, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { DiagnosticValues } from "../types";
@@ -27,21 +29,23 @@ export const QUOTA_CRITICAL = 10;
 
 export const number = (value: unknown) =>
   typeof value === "number"
-    ? new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 1 }).format(value)
-    : "확인 불가";
+    ? new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(
+        value,
+      )
+    : t("message.0336");
 
 export const time = (value: string | number | null | undefined) =>
   value
-    ? new Date(value).toLocaleString("ko-KR", {
+    ? new Date(value).toLocaleString(locale(), {
         month: "short",
         day: "numeric",
         hour: "2-digit",
         minute: "2-digit",
       })
-    : "확인 불가";
+    : t("message.0336");
 
 export const clock = (value: string | number | null | undefined) =>
-  new Date(value!).toLocaleTimeString("ko-KR", {
+  new Date(value!).toLocaleTimeString(locale(), {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -57,9 +61,9 @@ export const dayLabel = (value: string | number | null | undefined) => {
   const startOf = (d: Date) =>
     new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const days = Math.round((startOf(new Date()) - startOf(date)) / 86400000);
-  if (days === 0) return "오늘";
-  if (days === 1) return "어제";
-  return date.toLocaleDateString("ko-KR", {
+  if (days === 0) return t("message.0846");
+  if (days === 1) return t("message.0847");
+  return date.toLocaleDateString(locale(), {
     month: "long",
     day: "numeric",
     weekday: "short",
@@ -74,72 +78,76 @@ export const isStale = (value: string | number | null | undefined) =>
 
 export const quotaTone = (remaining: unknown): [string, string] =>
   typeof remaining !== "number"
-    ? ["unknown", "확인 불가"]
+    ? ["unknown", t("message.0336")]
     : remaining >= QUOTA_LOW
-      ? ["ok", "여유"]
+      ? ["ok", t("message.0848")]
       : remaining >= QUOTA_CRITICAL
-        ? ["low", "주의"]
-        : ["critical", "부족"];
+        ? ["low", t("message.0849")]
+        : ["critical", t("message.0850")];
 
 export const outcomeLabels: Record<string, string> = {
-  done: "완료",
-  completed: "완료",
-  failed: "실패",
-  aborted: "중단",
-  cancelled: "중단",
-  running: "진행 중",
+  done: t("message.0319"),
+  completed: t("message.0319"),
+  failed: t("message.0284"),
+  aborted: t("message.0320"),
+  cancelled: t("message.0320"),
+  running: t("message.0445"),
 };
 
 export const qualityLabels: Record<string, string> = {
-  estimated: "측정됨",
-  measured: "측정됨",
-  partial: "부분 측정",
-  unavailable: "측정 불가",
+  estimated: t("message.0357"),
+  measured: t("message.0357"),
+  partial: t("message.0356"),
+  unavailable: t("message.0359"),
 };
 
 export const detailLabels: Record<string, string> = {
-  completed_at: "완료 시각",
-  outcome: "결과",
-  input_tokens: "입력 토큰",
-  net_new_input_tokens: "새 입력 토큰",
-  cached_input_tokens: "캐시 입력 토큰",
-  output_tokens: "출력 토큰",
-  total_tokens: "전체 토큰",
-  estimated_credits_micros: "예상 크레딧",
-  estimated_usd_micros: "예상 비용",
-  model: "모델",
-  reasoning_effort: "추론 수준",
-  speed: "속도",
-  data_quality: "관측 품질",
-  quality_reason: "품질 설명",
-  account_plan: "계정 플랜",
-  limit_name: "한도 이름",
-  plan_type: "플랜",
-  reached_type: "도달한 한도",
-  individual_limit: "개별 한도",
-  individual_used: "개별 사용량",
-  individual_remaining_percent: "개별 남은 비율",
-  individual_resets_at: "개별 초기화 시각",
-  lifetime_tokens: "계정 누적 토큰",
-  peak_daily_tokens: "최대 일일 토큰",
-  longest_running_turn_sec: "최장 작업 시간",
-  current_streak_days: "현재 연속 활동일",
-  longest_streak_days: "최장 연속 활동일",
-  credit_balance: "크레딧 잔액",
-  unlimited_credits: "무제한 크레딧",
-  has_credits: "크레딧 사용",
-  spend_control_reached: "지출 한도 도달",
+  completed_at: t("message.0851"),
+  outcome: t("message.0852"),
+  input_tokens: t("message.0853"),
+  net_new_input_tokens: t("message.0854"),
+  cached_input_tokens: t("message.0855"),
+  output_tokens: t("message.0856"),
+  total_tokens: t("message.0857"),
+  estimated_credits_micros: t("message.0858"),
+  estimated_usd_micros: t("message.0859"),
+  model: t("message.0860"),
+  reasoning_effort: t("message.0861"),
+  speed: t("message.0862"),
+  data_quality: t("message.0863"),
+  quality_reason: t("message.0864"),
+  account_plan: t("message.0865"),
+  limit_name: t("message.0866"),
+  plan_type: t("message.0867"),
+  reached_type: t("message.0868"),
+  individual_limit: t("message.0869"),
+  individual_used: t("message.0870"),
+  individual_remaining_percent: t("message.0871"),
+  individual_resets_at: t("message.0872"),
+  lifetime_tokens: t("message.0873"),
+  peak_daily_tokens: t("message.0874"),
+  longest_running_turn_sec: t("message.0875"),
+  current_streak_days: t("message.0876"),
+  longest_streak_days: t("message.0877"),
+  credit_balance: t("message.0878"),
+  unlimited_credits: t("message.0879"),
+  has_credits: t("message.0880"),
+  spend_control_reached: t("message.0881"),
 };
 
-export const precise = new Intl.NumberFormat("ko-KR", {
+export const precise = new Intl.NumberFormat(locale(), {
   maximumFractionDigits: 4,
 });
 
 export function formatDetail(key: string, value: unknown): string | null {
   if (value === null || value === undefined || value === "") return null;
-  if (typeof value === "boolean") return value ? "예" : "아니요";
+  if (typeof value === "boolean")
+    return value ? t("message.0882") : t("message.0883");
   if (key === "estimated_credits_micros")
-    return `${precise.format(Number(value) / 1e6)} 크레딧`;
+    return t("message.0884", {
+      count: Number(value) / 1e6,
+      value0: precise.format(Number(value) / 1e6),
+    });
   if (key === "estimated_usd_micros")
     return `$${precise.format(Number(value) / 1e6)}`;
   if (key.endsWith("_at")) return time(value as string | number);
@@ -147,8 +155,9 @@ export function formatDetail(key: string, value: unknown): string | null {
   if (key === "data_quality")
     return qualityLabels[String(value)] || String(value);
   if (key.endsWith("_percent")) return `${number(value)}%`;
-  if (key.endsWith("_sec")) return `${number(value)}초`;
-  if (key.endsWith("_days")) return `${number(value)}일`;
+  if (key.endsWith("_sec")) return t("message.0885", { value0: number(value) });
+  if (key.endsWith("_days"))
+    return t("message.0425", { value0: number(value) });
   return typeof value === "number" ? number(value) : String(value);
 }
 
@@ -158,7 +167,7 @@ export function Details({ value }: { value: DiagnosticValues }) {
     .filter(([key]) => detailLabels[key])
     .map(([key, v]) => [key, formatDetail(key, v)] as const)
     .filter(([, text]) => text !== null);
-  if (!rows.length) return <p className="footnote">표시할 정보가 없습니다.</p>;
+  if (!rows.length) return <p className="footnote">{t("message.0886")}</p>;
   return (
     <dl className="detail-list">
       {rows.map(([key, text]) => (
@@ -264,21 +273,25 @@ export function Pager({
 }) {
   if (!offset && !hasMore) return null;
   return (
-    <div className="pagination" role="group" aria-label={`${label} 페이지`}>
-      <span>{offset + 1}번째부터</span>
+    <div
+      className="pagination"
+      role="group"
+      aria-label={t("message.0887", { value0: label })}
+    >
+      <span>{t("usage.from", { count: offset + 1 })}</span>
       <button
         className="button compact"
         disabled={!offset}
         onClick={() => go(Math.max(0, offset - PAGE_SIZE))}
       >
-        이전 {PAGE_SIZE}건
+        {t("usage.previous_page", { count: PAGE_SIZE })}
       </button>
       <button
         className="button compact"
         disabled={!hasMore}
         onClick={() => go(offset + PAGE_SIZE)}
       >
-        다음 {PAGE_SIZE}건
+        {t("usage.next_page", { count: PAGE_SIZE })}
       </button>
     </div>
   );
@@ -312,9 +325,7 @@ export function HourRange({
       end <= 24 &&
       start < end;
     if (!valid) {
-      setMessage(
-        "시작은 0~23시, 종료는 1~24시이며 시작이 종료보다 빨라야 합니다.",
-      );
+      setMessage(t("message.0891"));
       setDraft([String(hours[0]), String(hours[1])]);
       return;
     }
@@ -344,15 +355,13 @@ export function HourRange({
   return (
     <div className={`setting-row hour-range ${disabled ? "is-disabled" : ""}`}>
       <div className="field-label">
-        <label>표시할 시간대</label>
+        <label>{t("message.0892")}</label>
         {message ? (
           <p className="field-description danger" role="alert">
             {message}
           </p>
         ) : (
-          <p className="field-description">
-            오늘 흐름 그래프에 표시할 하루 중 시간대입니다.
-          </p>
+          <p className="field-description">{t("message.0893")}</p>
         )}
       </div>
       <div
@@ -362,10 +371,13 @@ export function HourRange({
             commit();
         }}
       >
-        {input(0, "위젯 시작 시각", 0, 23)}
-        <span>시부터</span>
-        {input(1, "위젯 종료 시각", 1, 24)}
-        <span>시까지</span>
+        <LocalizedText
+          id="usage.hour_range"
+          values={{
+            start: input(0, t("message.0894"), 0, 23),
+            end: input(1, t("message.0896"), 1, 24),
+          }}
+        />
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+import { t, locale } from "../localization.cjs";
 // Usage overview trend charts (stage 14): bars with an optional reference
 // line, and a remaining-percent line with reset marks. One axis per chart;
 // series wear the provider's chart color, text stays in ink tokens.
@@ -10,13 +11,15 @@ const GAP = 2;
 const RADIUS = 4;
 const DAY_MS = 86400000;
 
-const compact = new Intl.NumberFormat("ko-KR", {
+const compact = new Intl.NumberFormat(locale(), {
   notation: "compact",
   maximumFractionDigits: 1,
 });
-const full = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 0 });
+const full = new Intl.NumberFormat(locale(), { maximumFractionDigits: 0 });
 export const tokens = (value: number | null | undefined) =>
-  value == null ? "기록 없음" : `${full.format(value)} 토큰`;
+  value == null
+    ? t("message.0945")
+    : t("message.1258", { count: value, value0: full.format(value) });
 export const shortTokens = (value: number | null | undefined) =>
   value == null ? "—" : compact.format(value);
 
@@ -318,7 +321,7 @@ export function BarLineChart({
         <div className="trend-legend" aria-hidden="true">
           <span>
             <i className="swatch-bar" />
-            토큰
+            {t("message.1259")}
           </span>
           <span>
             <i className={`swatch-${reference}`} />
@@ -439,7 +442,8 @@ export function RemainingChart({
             y={HEIGHT - 6}
             textAnchor={hour === 0 ? "start" : hour === 24 ? "end" : "middle"}
           >
-            {hour}시
+            {hour}
+            {t("message.1260")}
           </text>
         ))}
         {hovered && (
@@ -465,11 +469,11 @@ export function RemainingChart({
           x={x(hovered[0])}
           width={width}
           lines={[
-            new Date(hovered[0]).toLocaleTimeString("ko-KR", {
+            new Date(hovered[0]).toLocaleTimeString(locale(), {
               hour: "2-digit",
               minute: "2-digit",
             }),
-            `남은 한도 ${hovered[1]}%`,
+            t("message.1261", { value0: hovered[1] }),
           ]}
         />
       )}

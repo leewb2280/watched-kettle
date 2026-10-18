@@ -1,5 +1,7 @@
 """Pure presentation of immutable usage state; never performs worker I/O."""
 
+from watched_kettle.localization import t
+
 from watched_kettle.usage.models import UsageSnapshot
 
 
@@ -12,4 +14,8 @@ def format_tray_summary(snapshot: UsageSnapshot) -> str:
         for window in (bucket.primary, bucket.secondary)
         if window is not None and window.remaining_percent is not None
     ]
-    return f"잔여 {min(remaining):.0f}%" if remaining else "확인 불가"
+    return (
+        t("message.0370", value0=f"{min(remaining):.0f}")
+        if remaining
+        else t("message.0336")
+    )

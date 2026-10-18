@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -29,7 +31,7 @@ class StartupRecoveryDialog(QDialog):
         self.startup_error = startup_error
         self.initial_directory = Path(initial_directory)
         self.choice = StartupRecoveryChoice("quit")
-        self.setWindowTitle("Watched Kettle 복구")
+        self.setWindowTitle(t("message.0327"))
         self.setMinimumWidth(520)
         self.setWindowFlag(Qt.WindowType.WindowContextHelpButtonHint, False)
         self.setStyleSheet(
@@ -47,7 +49,7 @@ class StartupRecoveryDialog(QDialog):
         )
 
         layout = QVBoxLayout(self)
-        title = QLabel("작은 비서를 시작할 수 없어요")
+        title = QLabel(t("message.0328"))
         title.setObjectName("recoveryTitle")
         layout.addWidget(title)
 
@@ -55,10 +57,7 @@ class StartupRecoveryDialog(QDialog):
         message.setWordWrap(True)
         layout.addWidget(message)
 
-        guidance = QLabel(
-            "펫 파일을 복구한 뒤 다시 시도하거나, pet.json과 "
-            "spritesheet가 들어 있는 다른 펫 폴더를 선택하세요."
-        )
+        guidance = QLabel(t("message.0329"))
         guidance.setWordWrap(True)
         guidance.setObjectName("recoveryGuidance")
         layout.addWidget(guidance)
@@ -69,14 +68,14 @@ class StartupRecoveryDialog(QDialog):
         layout.addWidget(self.details)
 
         actions = QHBoxLayout()
-        quit_button = QPushButton("종료")
+        quit_button = QPushButton(t("message.0226"))
         quit_button.clicked.connect(self.reject)
         actions.addWidget(quit_button)
         actions.addStretch(1)
-        choose_button = QPushButton("다른 펫 폴더 선택…")
+        choose_button = QPushButton(t("message.0330"))
         choose_button.clicked.connect(self.choose_directory)
         actions.addWidget(choose_button)
-        retry_button = QPushButton("다시 시도")
+        retry_button = QPushButton(t("message.0331"))
         retry_button.setDefault(True)
         retry_button.clicked.connect(self.retry)
         actions.addWidget(retry_button)
@@ -89,7 +88,7 @@ class StartupRecoveryDialog(QDialog):
     def choose_directory(self):
         selected = QFileDialog.getExistingDirectory(
             self,
-            "펫 폴더 선택",
+            t("message.0332"),
             str(self.initial_directory),
         )
         if not selected:

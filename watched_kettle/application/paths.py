@@ -87,6 +87,10 @@ class AppPaths:
         return self.data_root / "pet-trash"
 
     @property
+    def language_packs(self):
+        return self.data_root / "language-packs"
+
+    @property
     def logs(self):
         """Directory containing bounded, privacy-filtered application logs."""
         return self.data_root / "logs"

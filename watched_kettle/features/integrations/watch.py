@@ -15,6 +15,8 @@ the tray and the settings home read the snapshot while it lasts
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 from dataclasses import dataclass
 
 from PySide6.QtCore import QObject, QTimer, Signal
@@ -41,8 +43,8 @@ class ConnectionAlert:
     def message(self):
         label = self.label
         if self.kind == "broken":
-            return f"{label} 연결이 풀렸어요. 눌러서 다시 연결해 주세요."
-        return f"{label}를 찾았어요. 연결하면 작업 상태를 알려 드려요."
+            return t("message.0453", value0=label)
+        return t("message.0452", value0=label)
 
 
 class ConnectionWatch(QObject):

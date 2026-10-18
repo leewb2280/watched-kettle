@@ -1,5 +1,7 @@
 """Display-only bubble values shared by the pet and optional assistant."""
 
+from watched_kettle.localization import t
+
 from dataclasses import dataclass
 
 from watched_kettle.ui import design_tokens
@@ -39,8 +41,8 @@ def source_display_label(value):
     return {
         "codex": "Codex",
         "claude_code": "Claude Code",
-        "schedule": "일정",
-        "system": "비서",
+        "schedule": t("message.0205"),
+        "system": t("message.0251"),
     }.get(source, source)
 
 

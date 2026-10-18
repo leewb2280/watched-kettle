@@ -4,6 +4,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 import os
 import unittest
+from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -25,6 +26,11 @@ class UsageWidgetQmlTests(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
         use_software_renderer()
+        from watched_kettle.ui.fonts import configure_application_font
+
+        old_font = cls.app.font()
+        cls.addClassCleanup(cls.app.setFont, old_font)
+        configure_application_font(cls.app)
 
     def setUp(self):
         self.window = QuickUsageWindow()
@@ -50,6 +56,180 @@ class UsageWidgetQmlTests(unittest.TestCase):
             if isinstance(item.property("text"), str):
                 found.append(item.property("text"))
         return found
+
+    def visual_items(self):
+        found, pending = [], [self.window.rootObject()]
+        while pending:
+            item = pending.pop()
+            found.append(item)
+            pending.extend(item.childItems())
+        return found
+
+    def visible_texts(self):
+        return [
+            item.property("text")
+            for item in self.visual_items()
+            if item.isVisible() and isinstance(item.property("text"), str)
+        ]
+
+    def test_compact_activity_dots_use_the_same_rules_for_each_provider(self):
+        from PySide6.QtCore import QPointF
+        from PySide6.QtGui import QColor
+
+        for theme in ("light", "dark"):
+            for running, attention, token in (
+                (0, 0, "float_muted"),
+                (2, 0, "status_running"),
+                (0, 1, "status_attention"),
+                (2, 1, "status_attention"),
+            ):
+                counts = {"running": running, "attention": attention}
+                for visible in (True, False, True):
+                    self.render(
+                        snapshot(
+                            codex(five_hour=9, seven_day=100),
+                            claude(five_hour=100, seven_day=80),
+                        ),
+                        layout="chips",
+                        theme=theme,
+                        activity={"codex": counts, "claude_code": counts},
+                        tasks_visible=visible,
+                    )
+                    self.window.grabWindow()
+                    dots = [
+                        item
+                        for item in self.visual_items()
+                        if item.objectName().startswith("activityDot_")
+                    ]
+                    self.assertEqual(len(dots), 2)
+                    self.assertEqual(
+                        {d.objectName() for d in dots},
+                        {"activityDot_codex", "activityDot_claude_code"},
+                    )
+                    for dot in dots:
+                        self.assertEqual(dot.isVisible(), visible)
+                        if visible:
+                            self.assertEqual(
+                                dot.property("color"),
+                                QColor(self.window.model.theme[token]),
+                            )
+                            self.assertEqual((dot.width(), dot.height()), (7, 7))
+                    self.assertEqual(
+                        dots[0].mapToScene(QPointF()).x(),
+                        dots[1].mapToScene(QPointF()).x(),
+                    )
+        self.assertEqual(self.warnings, [])
+
+    def test_compact_expansion_shows_activity_even_without_limits(self):
+        from watched_kettle.localization import (
+            Translator,
+            get_translator,
+            set_translator,
+        )
+        from watched_kettle.localization.catalog import RESOURCE_ROOT
+        from watched_kettle.localization.packs import load_pack
+
+        original = get_translator()
+        self.addCleanup(set_translator, original)
+        for translator, empty_text in (
+            (Translator(), "표시할 작업 없음"),
+            (
+                load_pack(RESOURCE_ROOT / "en", official=True).translator(),
+                "No tasks to show",
+            ),
+        ):
+            set_translator(translator)
+            for limited in (True, False):
+                buckets = (codex(), claude())
+                if not limited:
+                    buckets = tuple(
+                        replace(b, primary=None, secondary=None) for b in buckets
+                    )
+                for bucket in buckets:
+                    for counts in (
+                        {},
+                        {"running": 2},
+                        {"attention": 1},
+                        {"running": 2, "attention": 1},
+                    ):
+                        with self.subTest(
+                            locale=translator.locale, limited=limited, counts=counts
+                        ):
+                            for visible in (True, False):
+                                self.render(
+                                    snapshot(bucket, account=""),
+                                    layout="chips",
+                                    expanded=True,
+                                    tasks_visible=visible,
+                                    activity={bucket.limit_id: counts},
+                                )
+                                self.window.grabWindow()
+                                texts = self.visible_texts()
+                                provider = self.window.model.state["providers"][0]
+                                expected = [
+                                    provider["workingText"]
+                                    if counts.get("running")
+                                    else "",
+                                    provider["attentionText"]
+                                    if counts.get("attention")
+                                    else "",
+                                ]
+                                expected = [text for text in expected if text]
+                                summary = (
+                                    " · ".join(expected) if expected else empty_text
+                                )
+                                if visible:
+                                    self.assertIn(summary, texts)
+                                else:
+                                    self.assertNotIn(summary, texts)
+        self.assertEqual(self.warnings, [])
+
+    def test_english_text_is_complete_in_every_real_qml_layout(self):
+        from watched_kettle.localization import get_translator, set_translator
+        from watched_kettle.localization.catalog import RESOURCE_ROOT
+        from watched_kettle.localization.packs import load_pack
+        from watched_kettle.usage.widget_state import widget_state
+
+        original = get_translator()
+        self.addCleanup(set_translator, original)
+        set_translator(load_pack(RESOURCE_ROOT / "en", official=True).translator())
+        self.window.close()
+        self.window = QuickUsageWindow()
+        self.addCleanup(self.window.close)
+        self.window.engine().warnings.connect(
+            lambda items: self.warnings.extend(item.toString() for item in items)
+        )
+        now = datetime.now(timezone.utc)
+        old = now - timedelta(minutes=20)
+        bucket = replace(
+            codex(),
+            primary=replace(
+                codex().primary, resets_at=now + timedelta(hours=2, minutes=10)
+            ),
+        )
+        for layout in LAYOUTS:
+            for expanded in (False, True):
+                with self.subTest(layout=layout, expanded=expanded):
+                    with patch(
+                        "watched_kettle.ui.usage_widget.window.widget_state",
+                        side_effect=lambda data, **kwargs: widget_state(
+                            data, now=now, **kwargs
+                        ),
+                    ):
+                        self.render(
+                            snapshot(bucket, updated=old),
+                            layout=layout,
+                            expanded=expanded,
+                            emphasis="five_hour",
+                        )
+                    text = "\n".join(self.texts())
+                    self.assertFalse(any("\uac00" <= c <= "\ud7a3" for c in text), text)
+                    self.assertNotIn("message.", text)
+                    if layout != "chips" or expanded:
+                        self.assertIn("Resets in 2h 10m", text)
+                        self.assertIn("Sample from 20m ago", text)
+                        self.assertIn("left", text)
+        self.assertEqual(self.warnings, [])
 
     def test_size_setting_lays_out_larger_instead_of_stretching(self):
         # The software scene graph stretches a scaled rounded Rectangle from

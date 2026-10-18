@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 from dataclasses import dataclass
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -192,7 +194,11 @@ class TurnLogParser:
             deltas["input_tokens"],
             deltas["cached_input_tokens"],
             deltas["output_tokens"],
-            next(iter(models)) if len(models) == 1 else "복수 모델" if models else None,
+            next(iter(models))
+            if len(models) == 1
+            else t("message.0408")
+            if models
+            else None,
             next(iter(efforts)) if len(efforts) == 1 else None,
             any(deltas[key] is None for key in COUNTERS) or len(models) != 1,
         )

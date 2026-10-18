@@ -155,14 +155,20 @@ class CheckCommandTests(unittest.TestCase):
             return result, calls, state
 
     def assert_common(self, calls):
-        self.assertEqual(len(commands(calls, "node")), 1)
+        self.assertEqual(len(commands(calls, "node", "--test")), 1)
         self.assertEqual(
-            commands(calls, "node")[0]["arguments"],
+            commands(calls, "node", "--test")[0]["arguments"],
             [
                 "--test",
                 "settings-ui/scripts/appearance.test.cjs",
                 "settings-ui/scripts/protocol.test.cjs",
+                "settings-ui/scripts/localization.test.cjs",
+                "settings-ui/scripts/localization-literals.test.cjs",
             ],
+        )
+        self.assertEqual(
+            len(commands(calls, "python", "-m", "scripts.localization_guard", "check")),
+            1,
         )
         self.assertEqual(
             len(commands(calls, "pnpm", "--dir", "settings-ui", "run", "check")), 1
@@ -182,6 +188,24 @@ class CheckCommandTests(unittest.TestCase):
         self.assertEqual(set(strict[0]["arguments"][2:-1]), BOUNDARIES)
         self.assertEqual(strict[0]["arguments"][-1], "--follow-imports=silent")
 
+    def assert_language_qa(self, calls):
+        # Each English QA run drives the settings build made just before it.
+        qa = commands(calls, "node", "settings-ui/scripts/language-qa.cjs")
+        self.assertEqual(
+            [(call["arguments"][1:], call["edition"]) for call in qa],
+            [
+                (["pet-only", "en"], "pet-only"),
+                (["pet-assistant", "en"], "pet-assistant"),
+            ],
+        )
+        builds = commands(
+            calls, "pnpm", "--dir", "settings-ui", "exec", "vite", "build"
+        )
+        self.assertEqual(
+            [calls.index(call) for call in builds],
+            [calls.index(call) - 1 for call in qa],
+        )
+
     def test_normal_runs_tests_and_common_checks_once(self):
         result, calls, _ = self.run_check()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -191,6 +215,7 @@ class CheckCommandTests(unittest.TestCase):
         )
         self.assertFalse(commands(calls, "python", "-m", "coverage"))
         self.assertFalse(commands(calls, "package"))
+        self.assertFalse(commands(calls, "node", "settings-ui/scripts/language-qa.cjs"))
 
     def test_quality_substitutes_verbose_coverage_tests_and_restores_environment(self):
         result, calls, state = self.run_check(
@@ -229,7 +254,7 @@ class CheckCommandTests(unittest.TestCase):
         )
 
     def test_incompatible_options_fail_before_external_commands(self):
-        for extra in ("Quality", "Full"):
+        for extra in ("Quality", "Full", "LanguageQa"):
             with self.subTest(extra=extra):
                 result, calls, _ = self.run_check(
                     options={"DocsOnly": True, extra: True}
@@ -302,6 +327,38 @@ class CheckCommandTests(unittest.TestCase):
             [call["arguments"] for call in commands(calls, "package")],
             [["Public", "True"]],
         )
+        self.assert_language_qa(calls)
+
+    def test_language_qa_runs_english_qa_without_packaging(self):
+        result, calls, _ = self.run_check(options={"LanguageQa": True})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assert_common(calls)
+        self.assert_language_qa(calls)
+        self.assertFalse(commands(calls, "package"))
+
+    def test_language_qa_failure_stops_the_check(self):
+        result, calls, state = self.run_check(
+            options={"LanguageQa": True},
+            fail=("node", "settings-ui/scripts/language-qa.cjs pet-only*"),
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(state["edition"], "caller-edition")
+        self.assertFalse(commands(calls, "python", "-m", "unittest"))
+
+    def test_quality_workflows_run_english_qa_in_every_branch(self):
+        for path in (
+            ROOT / ".github/workflows/quality.yml",
+            ROOT / "docs/public/quality.yml",
+        ):
+            if not path.exists():
+                continue  # Public snapshots contain only the installed workflow.
+            with self.subTest(workflow=path):
+                text = path.read_text(encoding="utf-8")
+                self.assertIn("electron/install.js", text)
+                runs = re.findall(r"\\scripts\\check\.ps1([^\n]*)", text)
+                gated = [args for args in runs if "-DocsOnly" not in args]
+                self.assertEqual(len(gated), 2)
+                self.assertTrue(all("-LanguageQa" in args for args in gated))
 
 
 def upload_enabled(condition: str, *, quality: bool, successful: bool) -> bool:

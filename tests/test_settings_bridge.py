@@ -9,7 +9,7 @@ import re
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -76,7 +76,9 @@ class ElectronCommandAllowlistTests(unittest.TestCase):
             ]
         )
         namespaces = "|".join(sorted({name.split(".")[0] for name in allowed}))
-        literal = re.compile(rf'"((?:{namespaces})\.[a-z_.]+)"')
+        literal = re.compile(
+            rf'\b(?:request|command|call|read)\(\s*"((?:{namespaces})\.[a-z_.]+)"'
+        )
         sent = {
             name: source.name
             for source in Path("settings-ui/src").rglob("*.ts*")
@@ -163,6 +165,27 @@ class SettingsBridgeTests(unittest.TestCase):
             epoch=self.core.account_epoch,
             **args,
         )
+
+    def test_restart_command_requires_lifecycle_owner_and_rejects_busy_operations(self):
+        with self.assertRaises(CommandError) as unsupported:
+            self.host._execute("app.restart", {})
+        self.assertEqual(unsupported.exception.code, "unsupported")
+        restart = Mock()
+        self.host.restart = restart
+        for state in ("downloading", "preparing", "installing"):
+            with patch.object(
+                type(self.core.updates), "state", property(lambda _self: state)
+            ):
+                with self.assertRaises(CommandError) as busy:
+                    self.host._execute("app.restart", {})
+                self.assertEqual(busy.exception.code, "operation_busy")
+        with patch.object(self.core.pet_batch, "job", {}):
+            with self.assertRaises(CommandError) as busy:
+                self.host._execute("app.restart", {})
+            self.assertEqual(busy.exception.code, "operation_busy")
+        restart.assert_not_called()
+        self.assertEqual(self.host._execute("app.restart", {}), {"accepted": True})
+        restart.assert_called_once_with()
 
     def prepare_import(self, version=2):
         path = self.root / "웹 펫.png"

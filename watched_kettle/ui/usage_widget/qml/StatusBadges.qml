@@ -12,8 +12,8 @@ Row {
 
     Repeater {
         model: [
-            { count: badges.provider.attention, label: "확인", color: badges.theme.status_attention },
-            { count: badges.provider.running, label: "작업", color: badges.theme.status_running }
+            { count: badges.provider.attention, label: widgetModel.labels.attention, color: badges.theme.status_attention },
+            { count: badges.provider.running, label: widgetModel.labels.running, color: badges.theme.status_running }
         ]
         Rectangle {
             required property var modelData

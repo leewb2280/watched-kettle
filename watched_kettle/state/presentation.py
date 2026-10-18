@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 from dataclasses import dataclass
 import time
 
@@ -155,7 +157,9 @@ class ActivityPresentationPolicy:
     @classmethod
     def _waiting_notices(cls, aggregate, sessions=()):
         waiting_sessions = [
-            session for session in sessions if session.state == "waiting"
+            session
+            for session in sessions
+            if session.state == "waiting" and counted_session(session)
         ]
         if not waiting_sessions and aggregate.state == "waiting":
             waiting_sessions = [aggregate]
@@ -231,14 +235,14 @@ class ActivityPresentationPolicy:
     def _fallback_message(source, event):
         label = source_display_label(source)
         messages = {
-            "session_start": f"{label} 작업을 시작했어요",
-            "task_start": f"{label} 작업을 시작했어요",
-            "prompt": f"{label} 작업을 시작했어요",
-            "waiting": f"{label}가 확인을 기다리고 있어요",
-            "notification": f"{label} 알림이 있어요",
-            "done": f"{label} 작업이 끝났어요",
-            "cancelled": f"{label} 작업이 중단됐어요",
-            "tool_failed": f"{label} 작업에 문제가 생겼어요",
-            "failed": f"{label} 작업에 문제가 생겼어요",
+            "session_start": t("message.0198", value0=label),
+            "task_start": t("message.0198", value0=label),
+            "prompt": t("message.0198", value0=label),
+            "waiting": t("message.0193", value0=label),
+            "notification": t("message.0194", value0=label),
+            "done": t("message.0195", value0=label),
+            "cancelled": t("message.0196", value0=label),
+            "tool_failed": t("message.0197", value0=label),
+            "failed": t("message.0197", value0=label),
         }
         return messages.get(event, "")

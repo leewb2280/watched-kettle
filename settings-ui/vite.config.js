@@ -17,7 +17,10 @@ export default defineConfig({
       ),
     },
   },
-  build: { sourcemap: false },
+  build: {
+    sourcemap: false,
+    commonjsOptions: { include: [/node_modules/, /localization\.cjs$/] },
+  },
   // The bundled Pretendard fonts live in the repository-level assets folder.
   server: { fs: { allow: [".."] } },
 });

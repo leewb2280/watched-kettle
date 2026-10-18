@@ -1,3 +1,4 @@
+import { t } from "../localization.cjs";
 import { Check, Info, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Control, NumberControl, OptionalControl, Scalar } from "./types";
@@ -81,7 +82,11 @@ export function Modal({
     >
       <div className="modal-heading">
         <h2>{title}</h2>
-        <button className="icon-button" aria-label="닫기" onClick={close}>
+        <button
+          className="icon-button"
+          aria-label={t("message.0970")}
+          onClick={close}
+        >
           <X size={18} />
         </button>
       </div>
@@ -244,7 +249,7 @@ export function PetSize({
       {field.description && (
         <p className="pet-size-description">{field.description}</p>
       )}
-      <div className="pet-size-presets" aria-label="펫 크기 빠른 선택">
+      <div className="pet-size-presets" aria-label={t("message.0971")}>
         {field.presets?.map((preset) => (
           <button
             className="button compact"
@@ -314,8 +319,8 @@ export function OptionalNumber({
   };
   const displayValue = `${value}${field.unit ?? ""}`;
   const policyText = enabled
-    ? `개별 시간 · ${displayValue}`
-    : `${field.fallbackLabel ?? "기본값"} · ${
+    ? t("message.0972", { value0: displayValue })
+    : `${field.fallbackLabel ?? t("message.0973")} · ${
         field.effectiveValue ?? value
       }${field.unit ?? ""}`;
   return (
@@ -323,9 +328,9 @@ export function OptionalNumber({
       <div className="optional-number-heading">
         <span className="optional-number-policy">{policyText}</span>
         <span className="optional-number-toggle">
-          <span>개별 시간 사용</span>
+          <span>{t("message.0974")}</span>
           <Switch
-            label={`${field.label} 개별 시간 사용`}
+            label={t("message.0975", { value0: field.label })}
             value={enabled}
             change={toggle}
             disabled={field.disabled}
@@ -336,7 +341,7 @@ export function OptionalNumber({
         <input
           id={`field-${field.key}`}
           type="range"
-          aria-label={`${field.label} 표시 시간`}
+          aria-label={t("message.0976", { value0: field.label })}
           aria-valuetext={displayValue}
           min={field.min}
           max={field.max}
@@ -481,7 +486,7 @@ export function Field({
           >
             {!field.options?.some((option) => option.value === field.value) && (
               <option value={String(field.value ?? "")}>
-                {field.value || "선택 안 됨"}
+                {field.value || t("message.0977")}
               </option>
             )}
             {field.options?.map((option) => (
@@ -524,10 +529,19 @@ export function Fields({
 }) {
   return (
     <>
-      {[...new Set(controls.map((control) => control.group))].map((group) => (
-        <Section title={group} key={group} hideTitle={hideTitles}>
+      {[
+        ...new Set(controls.map((control) => control.groupId || control.group)),
+      ].map((group) => (
+        <Section
+          title={
+            controls.find((c) => (c.groupId || c.group) === group)?.group ||
+            group
+          }
+          key={group}
+          hideTitle={hideTitles}
+        >
           {controls
-            .filter((control) => control.group === group)
+            .filter((control) => (control.groupId || control.group) === group)
             .map((field) => (
               <Field
                 key={field.key}
@@ -572,7 +586,7 @@ export function Confirm({
   children,
   confirm,
   close,
-  label = "확인",
+  label = t("message.0317"),
   danger,
 }: {
   title: string;
@@ -589,7 +603,7 @@ export function Confirm({
       footer={
         <>
           <button className="button" onClick={close}>
-            취소
+            {t("message.0650")}
           </button>
           <button
             className={`button primary ${danger ? "destructive" : ""}`}

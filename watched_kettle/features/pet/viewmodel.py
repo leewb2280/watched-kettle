@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from watched_kettle.localization import t
+
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -104,7 +106,7 @@ class PetViewModel(QObject):
     def trash_pet(self, pet_id, replacement_id=None):
         entry = next((entry for entry in self.all_pets() if entry.id == pet_id), None)
         if entry is None:
-            raise PetTrashError("펫 목록이 변경됐습니다. 다시 불러오세요.")
+            raise PetTrashError(t("message.0173"))
         reason = self.packages.deletion_reason(entry)
         if reason:
             raise PetTrashError(reason)
@@ -112,14 +114,14 @@ class PetViewModel(QObject):
         hidden = self.pet.app_preferences.load_hidden_pet_ids()
         if pet_id == previous_id:
             if not replacement_id or replacement_id == pet_id:
-                raise PetTrashError("대신 사용할 펫을 선택하세요.")
+                raise PetTrashError(t("message.0460"))
             if replacement_id not in {entry.id for entry in self.all_pets()}:
-                raise PetTrashError("대신 사용할 펫을 찾을 수 없습니다.")
+                raise PetTrashError(t("message.0461"))
             self.pet.app_preferences.save_hidden_pet_ids(hidden - {replacement_id})
             if not self.change_pet(replacement_id):
                 self.pet.app_preferences.save_hidden_pet_ids(hidden)
                 raise PetTrashError(
-                    "대신 사용할 펫을 불러오지 못했습니다. 이동하지 않았습니다.",
+                    t("message.0462"),
                     code="replacement_failed",
                 )
         try:

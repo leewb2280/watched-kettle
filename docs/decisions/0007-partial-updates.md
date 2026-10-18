@@ -12,7 +12,7 @@
 
 ## 결정
 
-Release마다 통합 설치기와 함께 다음을 만든다. 이름의 `<kind>`는 공개판 `public`, 시험 채널 `public-update-test`다.
+Release마다 통합 설치기와 함께 다음을 만든다. 이름의 `<kind>`는 공개판 `public`, 시험 채널 `public-update-test`다. 코드 서명한 설치기는 이름에 `-unsigned`가 없고, 앱은 두 이름을 모두 받는다(공개 저장소의 `SIGNING.md`).
 
 | 파일 | 내용 |
 |---|---|

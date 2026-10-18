@@ -1,3 +1,4 @@
+import { t } from "../../localization.cjs";
 import { Download, RotateCcw } from "lucide-react";
 import { Empty, Heading, Section } from "../components";
 import type { IntegrationSetting } from "../types";
@@ -39,10 +40,7 @@ export function AssistantIntegrationPage({
 >) {
   return (
     <div className="page">
-      <Heading
-        title="연결·진단"
-        subtitle="Codex·Claude Code 작업 상태를 받는 연결을 확인합니다."
-      >
+      <Heading title={t("message.0594")} subtitle={t("message.0666")}>
         <button
           className="button compact"
           onClick={() =>
@@ -53,11 +51,11 @@ export function AssistantIntegrationPage({
           }
         >
           <RotateCcw size={14} />
-          새로고침
+          {t("message.0667")}
         </button>
       </Heading>
       {!integration || !hero ? (
-        <Empty>연결 상태를 확인하는 중입니다.</Empty>
+        <Empty>{t("message.0668")}</Empty>
       ) : (
         <>
           {codexActive ? (
@@ -100,7 +98,7 @@ export function AssistantIntegrationPage({
               openHelp={() => setTerminalHelp(true)}
             />
           )}
-          <Section title="앱 상태">
+          <Section title={t("message.0669")}>
             <CheckList
               checks={appChecks(
                 integration.diagnostics,
@@ -109,7 +107,7 @@ export function AssistantIntegrationPage({
             />
           </Section>
           <details className="advanced card">
-            <summary>고급 도구</summary>
+            <summary>{t("message.0670")}</summary>
             {(
               [
                 ...(codexActive ? [["Codex", "codex"]] : []),
@@ -118,27 +116,24 @@ export function AssistantIntegrationPage({
             ).map(([name, provider]) => (
               <div className="setting-row" key={provider}>
                 <div className="field-label">
-                  <label>{name} 연결 복구</label>
+                  <label>{t("connection.repair_title", { name })}</label>
                   <p className="field-description">
-                    이 앱의 hook을 다시 맞춥니다. 끄려면 위의 {name} 사용
-                    스위치를 씁니다.
+                    {t("connection.repair_note", { name })}
                   </p>
                 </div>
                 <button
                   className="button"
-                  aria-label={`${name} 복구 검토`}
+                  aria-label={t("message.0674", { value0: name })}
                   onClick={() => preview("repair", provider)}
                 >
-                  복구 검토
+                  {t("message.0675")}
                 </button>
               </div>
             ))}
             <div className="setting-row">
               <div className="field-label">
-                <label>진단 내보내기</label>
-                <p className="field-description">
-                  문제를 알릴 때 첨부할 수 있는 ZIP 파일입니다.
-                </p>
+                <label>{t("message.0676")}</label>
+                <p className="field-description">{t("message.0677")}</p>
               </div>
               <button
                 className="button"
@@ -147,8 +142,7 @@ export function AssistantIntegrationPage({
                   setBusy(true);
                   try {
                     const result = await window.settings!.file("export");
-                    if (!("cancelled" in result))
-                      notify("진단 ZIP을 저장했습니다.");
+                    if (!("cancelled" in result)) notify(t("message.0678"));
                   } catch (e) {
                     reportError(e);
                   } finally {
@@ -157,11 +151,11 @@ export function AssistantIntegrationPage({
                 }}
               >
                 <Download size={14} />
-                진단 내보내기
+                {t("message.0676")}
               </button>
             </div>
             <details className="diagnostics">
-              <summary>원본 상태 보기</summary>
+              <summary>{t("message.0679")}</summary>
               <pre>{JSON.stringify(integration.diagnostics, null, 2)}</pre>
             </details>
           </details>

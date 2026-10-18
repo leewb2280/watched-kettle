@@ -1,12 +1,14 @@
 """Pure token/quota/freshness text; reusable by preview and desktop widgets."""
 
+from watched_kettle.localization import t
+
 from datetime import datetime
 
 
 def compact_limit_label(option):
     if option is None:
-        return "한도 없음"
-    return option.name or option.limit_id or "한도"
+        return t("message.0411")
+    return option.name or option.limit_id or t("message.0412")
 
 
 def compact_limit_duration(option):
@@ -16,28 +18,31 @@ def compact_limit_duration(option):
     if minutes is None:
         return ""
     if minutes % 1440 == 0:
-        return f"{minutes // 1440}일 한도"
+        return t("message.0362", value0=minutes // 1440)
     if minutes % 60 == 0:
-        return f"{minutes // 60}시간 한도"
-    return f"{minutes}분 한도"
+        return t("message.0363", value0=minutes // 60)
+    return t("message.0360", value0=minutes)
 
 
 def widget_quota_change_text(snapshot):
     if snapshot.observed_today_percent_points is None:
         return _quota_change_text(snapshot)
-    return f"오늘 관측 {quota_decrease_text(snapshot.observed_today_percent_points)}"
+    return t(
+        "message.0409",
+        value0=quota_decrease_text(snapshot.observed_today_percent_points),
+    )
 
 
 def _percent_text(percent):
     if percent is None:
-        return "확인 불가"
+        return t("message.0336")
     return f"{float(percent):.1f}".rstrip("0").rstrip(".") + "%"
 
 
 def quota_decrease_text(value):
     """Present a positive observed consumption as a remaining-quota decrease."""
     if value is None:
-        return "관찰 대기"
+        return t("message.0413")
     value = max(0.0, float(value))
     if value == 0:
         return "0%p"
@@ -47,7 +52,7 @@ def quota_decrease_text(value):
 
 def compact_token_text(value):
     if value is None:
-        return "관찰 대기"
+        return t("message.0413")
     value = max(0, int(value))
     if value < 1_000:
         return f"{value:,}"
@@ -65,13 +70,17 @@ def compact_token_text(value):
 
 def _reset_label(resets_at):
     if resets_at is None:
-        return "초기화 시각 없음"
+        return t("message.0414")
     local = resets_at.astimezone()
     now = datetime.now(resets_at.tzinfo)
     seconds = max(0, int((resets_at - now).total_seconds()))
     hours, remainder = divmod(seconds, 3600)
     minutes = remainder // 60
-    relative = f"{hours}시간 {minutes}분 후" if hours else f"{minutes}분 후"
+    relative = (
+        t("message.0415", value0=hours, value1=minutes)
+        if hours
+        else t("message.0416", value0=minutes)
+    )
     return f"{local:%m/%d %H:%M} · {relative}"
 
 
@@ -79,8 +88,8 @@ def _quota_change_text(snapshot):
     count = max(0, int(snapshot.selected_quota_observation_count or 0))
     value = snapshot.observed_today_percent_points
     if value is None:
-        return "오늘 관찰 대기" if count == 0 else "기준 수집 중"
-    return f"오늘 {quota_decrease_text(value)}"
+        return t("message.0418") if count == 0 else t("message.0419")
+    return t("message.0410", value0=quota_decrease_text(value))
 
 
 def _latest_observation(snapshot):
@@ -98,12 +107,12 @@ def _latest_observation(snapshot):
 
 def _freshness_text(observed_at):
     if observed_at is None:
-        return "갱신 대기", True
+        return t("message.0420"), True
     now = datetime.now(observed_at.tzinfo) if observed_at.tzinfo else datetime.now()
     minutes = max(0, int((now - observed_at).total_seconds() // 60))
     if minutes < 2:
-        return "방금 갱신", False
-    return f"{minutes}분 전 갱신", minutes >= 15
+        return t("message.0421"), False
+    return t("message.0417", value0=minutes), minutes >= 15
 
 
 def _hour_bucket_value(buckets, hour, attribute):

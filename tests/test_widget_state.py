@@ -125,6 +125,25 @@ class WidgetStateTests(unittest.TestCase):
         counts = [(p["running"], p["attention"]) for p in result["providers"]]
         self.assertEqual(counts, [(0, 0), (1, 2)])
 
+    def test_task_visibility_is_distinct_from_an_empty_activity_report(self):
+        activity = {"codex": {"running": 2}, "claude_code": {"attention": 1}}
+        for visible in (True, False, True):
+            result = widget_state(
+                snapshot(codex(), claude()),
+                activity=activity,
+                tasks_visible=visible,
+                now=NOW,
+            )
+            self.assertEqual(result["tasksVisible"], visible)
+            counts = [(p["running"], p["attention"]) for p in result["providers"]]
+            self.assertEqual(counts, [(2, 0), (0, 1)] if visible else [(0, 0), (0, 0)])
+        self.assertEqual(
+            activity, {"codex": {"running": 2}, "claude_code": {"attention": 1}}
+        )
+        empty = widget_state(snapshot(codex()), activity={}, now=NOW)
+        self.assertTrue(empty["tasksVisible"])
+        self.assertEqual(empty["providers"][0]["noTasksText"], "표시할 작업 없음")
+
     def test_today_flow_marks_unobserved_hours_and_respects_the_range(self):
         hours = [None] * 24
         hours[9], hours[10], hours[11] = 0, 500, 1_000

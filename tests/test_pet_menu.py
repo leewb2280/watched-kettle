@@ -95,7 +95,7 @@ class PetMenuTests(unittest.TestCase):
         )
 
         def choose_shape(menu, _position):
-            return usage_action(menu, "작은 칩")
+            return usage_action(menu, "간단형")
 
         command = show_pet_context_menu(
             None,
