@@ -25,6 +25,9 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QDesktopServices
 
 from watched_kettle import settings_protocol as wire_types
+from watched_kettle.app_preferences import DOUBLE_CLICK_ACTIONS
+from watched_kettle.application.about import about_info, licenses_folder
+from watched_kettle.application.click_through import PET_LOCK
 from watched_kettle.application.settings_ui.contracts import (
     CommandError,
     boolean,
@@ -36,8 +39,10 @@ from watched_kettle.application.settings_ui.contracts import (
 )
 from watched_kettle.application.logging import log_event
 from watched_kettle.application.settings_ui.pet_batch import PetBatchController
+from watched_kettle.application.settings_ui.pet_import import PetImportController
 from watched_kettle.application.update_check import (
     UpdateCheckSchedule,
+    _version,
     release_url_kind,
 )
 from watched_kettle.application.localization import packs_for
@@ -63,6 +68,7 @@ from watched_kettle.pet.importer import (
     PetImporter,
 )
 from watched_kettle.pet.trash import PetTrashError
+from watched_kettle.preferences.hotkeys import format_hotkey
 from watched_kettle.ui.bubble_elements import BubbleElementError
 from watched_kettle.ui.bubble_theme_preview import BubbleThemePreview
 from watched_kettle.ui.pet_controls import ACTION_TEST_STATES, size_label
@@ -76,6 +82,8 @@ THEME_UNITS = {
     "maximum_width": "px",
     "horizontal_padding": "px",
 }
+# The pet is placed and shown a moment after startup.
+UPDATED_NOTICE_DELAY_MS = 5000
 # Twice the largest CSS tile (110x120) so picker thumbnails stay sharp at 200%.
 CATALOG_THUMBNAIL_SIZE = (220, 240)
 
@@ -103,6 +111,21 @@ def control(key, label, value, kind="bool", **extras):
     return dict(key=key, label=label, value=value, kind=kind, **extras)
 
 
+def hotkey_text(value):
+    """A shortcut the renderer recorded: canonical text, or "" to clear it."""
+    require(
+        isinstance(value, str) and (value == "" or format_hotkey(value) == value),
+        t("hotkey.invalid"),
+    )
+    return value
+
+
+def hotkey_status(shortcuts, name, value):
+    if shortcuts is not None:
+        return shortcuts.status(name)
+    return "unavailable" if value else "unassigned"
+
+
 class CoreSettingsAdapter(QObject):
     changed = Signal(str)
 
@@ -113,10 +136,13 @@ class CoreSettingsAdapter(QObject):
         self.revision = 0
         self.account_epoch = 0
         self.assistant = None
+        # The runtime's global lock shortcuts (application/click_through.py).
+        self.click_through = None
         self.languages = packs_for(preferences)
         self.pet_batch = PetBatchController(self)
         self._thumbnails = OrderedDict()
         self.pet_importer = PetImporter(self.pet_vm.pet.user_pets_root)
+        self.pet_import = PetImportController(self)
         self.import_timer = QTimer(self)
         self.import_timer.setSingleShot(True)
         self.import_timer.setTimerType(Qt.TimerType.PreciseTimer)
@@ -130,6 +156,36 @@ class CoreSettingsAdapter(QObject):
             self.updates, preferences, parent=self
         )
         self.update_schedule.start()
+        self._note_launched_version()
+
+    def _note_launched_version(self):
+        """After an update, tell once that the About page lists what's new."""
+        recorded = self.preferences.load_last_launched_version()
+        previous = _version(recorded)
+        if not recorded and (
+            self.preferences.load_update_last_check()
+            or self.preferences.load_update_announced_version()
+        ):
+            # 0.15.6 and earlier kept no launch record; an update check means
+            # an earlier version ran here, unlike a new install.
+            previous = (0, 0, 0)
+        if previous == _version(APPLICATION_VERSION):
+            return
+        # Saved before showing: a notice hidden by bubbles off is not replayed.
+        self.preferences.save_last_launched_version(APPLICATION_VERSION)
+        if previous is not None and previous < _version(APPLICATION_VERSION):
+            QTimer.singleShot(UPDATED_NOTICE_DELAY_MS, self, self._announce_updated)
+
+    def _announce_updated(self):
+        shown = self.pet_vm.announce(
+            t("about.updated_notice").format(version=APPLICATION_VERSION)
+        )
+        log_event(
+            "application.update",
+            "installed_announced",
+            version=APPLICATION_VERSION,
+            shown=shown,
+        )
 
     def _update_changed(self):
         if self.updates.state == "installing":
@@ -221,6 +277,7 @@ class CoreSettingsAdapter(QObject):
         )
         mode = self.pet_vm.pet.auto_movement_screen_mode
         name = self.pet_vm.pet.auto_movement_screen_name
+        hotkey = self.preferences.load_pet_click_through_hotkey()
         controls = [
             control(
                 "width",
@@ -317,7 +374,36 @@ class CoreSettingsAdapter(QObject):
                 groupId="pet_behavior",
                 group=t("message.0538"),
             ),
+            control(
+                "click_through",
+                t("click_through.pet"),
+                s.click_through,
+                groupId="pet_behavior",
+                group=t("message.0538"),
+                description=t("click_through.pet_description"),
+            ),
+            control(
+                "click_through_hotkey",
+                t("click_through.hotkey"),
+                hotkey,
+                "hotkey",
+                status=hotkey_status(self.click_through, PET_LOCK, hotkey),
+                groupId="pet_behavior",
+                group=t("message.0538"),
+                description=t("click_through.hotkey_description"),
+            ),
         ]
+        if self.assistant:
+            controls.append(
+                control(
+                    "click_through_bubbles",
+                    t("click_through.bubbles"),
+                    s.click_through_bubbles,
+                    groupId="pet_behavior",
+                    group=t("message.0538"),
+                    description=t("click_through.bubbles_description"),
+                )
+            )
         # Without a saved custom theme the "custom" mode falls back to the pet's
         # own design, so say so instead of letting the choice look ignored.
         has_custom = self.pet_vm.pet.custom_bubble_theme is not None
@@ -426,6 +512,7 @@ class CoreSettingsAdapter(QObject):
             pet=wire(s),
             controls=controls,
             bubbleControls=bubble_controls,
+            doubleClickAction=self.preferences.load_double_click_action(),
             appearance=self.appearance(),
             startup=dict(
                 supported=startup.supported,
@@ -441,6 +528,10 @@ class CoreSettingsAdapter(QObject):
                     self.updates.snapshot(),
                     auto_check=self.preferences.load_update_auto_check(),
                 ),
+            ),
+            about=cast(
+                wire_types.AboutInfo,
+                about_info("pet-assistant" if self.assistant else "pet-only"),
             ),
         )
 
@@ -747,6 +838,45 @@ class CoreSettingsAdapter(QObject):
             return dict(cancelled=True)
         if method == "pet.import.commit":
             return self._commit_pet_import(args)
+        if method.startswith("pet.import."):
+            try:
+                if method in {"pet.import.start", "pet.import.installed.start"}:
+                    require(not self.pet_batch.running, t("message.0518"), "batch_busy")
+                if method == "pet.import.start":
+                    return self.pet_import.start(command=text(args.get("command"), 512))
+                if method == "pet.import.status":
+                    return self.pet_import.status(text(args.get("jobId"), 80))
+                if method == "pet.import.stop":
+                    if text(args.get("jobId"), 80) == self.pet_import.job_id:
+                        self.cancel_pet_import()
+                    return dict(cancelled=True)
+                if method == "pet.import.installed":
+                    return self.pet_import.installed.scan()
+                if method == "pet.import.installed.thumbnail":
+                    return dict(
+                        image=png_bytes_data(
+                            self.pet_import.installed.thumbnail(
+                                text(args.get("id"), 80)
+                            )
+                        )
+                    )
+                if method == "pet.import.installed.start":
+                    return self.pet_import.start(
+                        path=self.pet_import.installed.path(text(args.get("id"), 80))
+                    )
+                if method == "pet.import.preview":
+                    data, count, interval = self.pet_importer.preview(
+                        text(args.get("token"), 80), text(args.get("state"), 30)
+                    )
+                    require(len(data) < 2 * 1024 * 1024, code="response_limit")
+                    return dict(
+                        image="data:image/png;base64,"
+                        + base64.b64encode(data).decode("ascii"),
+                        frames=count,
+                        interval=interval,
+                    )
+            except ValueError as error:
+                raise CommandError("pet_import_invalid", str(error)) from error
         if method == "bubble.editor":
             return self.editor()
         if method == "bubble.render":
@@ -790,6 +920,14 @@ class CoreSettingsAdapter(QObject):
             url = self.updates.page_url
             require(release_url_kind(url) is not None, t("message.0565"))
             require(QDesktopServices.openUrl(QUrl(url)), t("message.0566"))
+            return dict(opened=True)
+        elif method == "about.open_licenses":
+            folder = licenses_folder()
+            require(folder is not None, t("about.licenses_missing"))
+            require(
+                QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder))),
+                t("about.licenses_open_failed"),
+            )
             return dict(opened=True)
         elif method == "element.delete":
             reference = text(args.get("reference"))
@@ -872,9 +1010,11 @@ class CoreSettingsAdapter(QObject):
             "fade": self.pet_vm.set_fade,
             "idle": self.pet_vm.set_idle_activities_enabled,
             "movement": self.pet_vm.set_auto_movement_enabled,
+            "click_through": self.pet_vm.set_click_through,
         }
         if self.assistant:
             actions["bubbles"] = self.pet_vm.set_bubbles_enabled
+            actions["click_through_bubbles"] = self.pet_vm.set_click_through_bubbles
         if key in actions:
             actions[key](boolean(value))
         elif key == "opacity":
@@ -918,6 +1058,18 @@ class CoreSettingsAdapter(QObject):
             self.validate_appearance(appearance)
             self.preferences.settings.setValue(
                 "settingsUI/appearance", json.dumps(appearance)
+            )
+        elif key == "click_through_hotkey":
+            value = hotkey_text(value)
+            if self.click_through is None:
+                raise CommandError("unsupported", t("hotkey.unavailable"))
+            require(
+                not self.click_through.taken(PET_LOCK, value), t("hotkey.duplicate")
+            )
+            self.click_through.set_pet_hotkey(value)
+        elif key == "double_click_action":
+            self.preferences.save_double_click_action(
+                choice(value, DOUBLE_CLICK_ACTIONS)
             )
         elif key == "update_auto_check":
             self.preferences.save_update_auto_check(boolean(value))
@@ -1050,6 +1202,10 @@ class CoreSettingsAdapter(QObject):
         require(changed, t("message.0517"), "pet_failed")
 
     def cancel_pet_import(self, token=None):
+        if token is None or (
+            self.pet_importer.prepared and self.pet_importer.prepared.token == token
+        ):
+            self.pet_import.cancel()
         self.pet_importer.cancel(token)
         if self.pet_importer.prepared is None:
             self.import_timer.stop()

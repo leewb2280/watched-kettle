@@ -2,7 +2,7 @@
 
 [한국어](README.md) · [English](README.en.md)
 
-[Roadmap](ROADMAP.md) · [0.15.6 release notes](docs/release-notes/v0.15.6.md) · [Release readiness](RELEASE_READINESS.md)
+[Roadmap](ROADMAP.md) · [0.15.7 release notes](docs/release-notes/v0.15.7.md) · [Release readiness](RELEASE_READINESS.md)
 
 **A desktop pet that keeps you posted on your coding agents**
 
@@ -34,11 +34,11 @@ You can also use the pet on its own, without connecting an agent.
 1. **Download:** On the [latest Releases page](https://github.com/leewb2280/watched-kettle/releases/latest), download
    `WatchedKettle-<version>-public-unsigned-setup.exe` and its matching `.exe.sha256` file.
    Verify the SHA-256 as described below, then run the installer.
-2. **Choose an edition:** Select `펫만` (Pet only) for a desktop companion, or `펫 + 비서` (Pet + assistant) for task status and usage information too.
+2. **Choose an edition:** Select **Pet only** (`펫만`) for a desktop companion, or **Pet + assistant** (`펫 + 비서`) for task status and usage information too.
 3. **Choose your tools:** For Pet + assistant, select the Codex and/or Claude Code tools you use on this PC.
    Install and sign in to those tools separately first.
-4. **Launch and check:** Start Watched Kettle, right-click the pet, and open `설정` (Settings).
-   In the assistant edition, open `연결·진단` (Connections & diagnostics), check each selected tool, and click `연결 점검` (Check connection).
+4. **Launch and check:** Start Watched Kettle, right-click the pet, and open **Settings** (`설정`).
+   In the assistant edition, open **Connections & diagnostics** (`연결·진단`), check each selected tool, and click **Check connection** (`연결 점검`).
    **Restart any Claude Code sessions that were already open**, then run a new task to check the status display.
 
 The app installs for the current user without administrator privileges. The installer and uninstaller offer Korean and English;
@@ -87,7 +87,7 @@ Disconnecting, changing editions, or uninstalling removes only the managed entri
 ### Follow task status
 
 Pet + assistant shows working, needs attention, completed, and failed states through the pet's animation and project speech bubbles.
-Review past notifications in activity history, or pause notifications while you focus.
+Review past notifications on the **Notification history** page, or pause notifications while you focus.
 When using both tools, navy dots identify Codex and orange dots identify Claude Code.
 
 See [supported environments below](#supported-environments) for what happens when you click a conversation title.
@@ -95,8 +95,8 @@ Display timing and controls are covered in [project bubbles (Korean)](docs/user-
 
 ### Check remaining usage limits
 
-In Pet + assistant, the widget and `사용량` (Usage) page show remaining limits, reset times, and today's hourly activity.
-**Claude Code limit collection is off by default.** In `연결·진단` (Connections & diagnostics), turn on `Claude Code 사용` (Use Claude Code) and then `한도 가져오기` (Import limits).
+In Pet + assistant, the widget and **Usage** (`사용량`) page show remaining limits, reset times, and today's hourly activity.
+**Claude Code limit collection is off by default.** In **Connections & diagnostics** (`연결·진단`), turn on **Claude Code enabled** (`Claude Code 사용`) and then **Collect Claude Code limits** (`한도 가져오기`).
 It updates when you use Claude Code in a terminal; using only the VS Code extension panel does not update it.
 
 <img src="docs/public/images/settings-usage.png" alt="The Usage settings page showing remaining allowances and reset times" width="720">
@@ -111,6 +111,10 @@ The pet follows your pointer with its gaze, performs idle actions, and can optio
 Adjust its size, opacity, shadow, and always-on-top setting, or add your own pet.
 The app remembers your last pet and its position, restoring it to a safe location if your monitor arrangement changes.
 It also includes a tray menu, Windows startup, and duplicate-instance prevention.
+Double-clicking the pet opens the settings home; you can switch this to **Open Codex** or **Open Claude Code (VS Code)**.
+When the pet or widget covers another window, **lock** it so clicks pass through to the window behind, and toggle the lock with a global shortcut of your choice.
+Besides PNG/WebP images, pets can be imported from a pet ZIP or folder, a CodexPetDB or Pets Codex install command, or pets installed in Codex.
+The **About** page shows the version, what's new in it, and open-source licenses.
 
 Customize bubbles with colors, shapes, borders, photos, and stickers.
 See [customization (Korean)](docs/user-guide.md#꾸미기) for settings and the
@@ -143,26 +147,26 @@ Confirm that you downloaded it from this repository's Releases and check its SHA
 
 ### The pet is visible, but task status is missing
 
-Check that you installed `펫 + 비서` (Pet + assistant). Right-click the pet, open `설정 → 연결·진단` (Settings → Connections & diagnostics),
-and check the tool's connection state and `연결 점검` (Check connection) results.
+Check that you installed **Pet + assistant** (`펫 + 비서`). Right-click the pet, open **Settings → Connections & diagnostics** (`설정 → 연결·진단`),
+and check the tool's connection state and **Check connection** (`연결 점검`) results.
 Restart Claude Code sessions that were open before connecting. [First connection check (Korean)](docs/user-guide.md#첫-연결-확인)
 
 ### Why are Claude Code limits missing?
 
-In `연결·진단` (Connections & diagnostics), turn on both `Claude Code 사용` (Use Claude Code) and `한도 가져오기` (Import limits).
+In **Connections & diagnostics** (`연결·진단`), turn on both **Claude Code enabled** (`Claude Code 사용`) and **Collect Claude Code limits** (`한도 가져오기`).
 Limits arrive after the first response in a terminal session with a supported claude.ai Pro or Max subscription.
 The VS Code extension panel alone does not update them. [Limit details (Korean)](docs/support-claude-code.md#한도)
 
 ### Why does the pet stay when I close settings?
 
-The settings window's X only hides that window. To quit the app, choose `종료` (Quit) from the pet's or tray icon's right-click menu,
-or `펫 앱 종료` (Quit pet app) in settings. [How to quit (Korean)](docs/user-guide.md#앱-종료)
+The settings window's X only hides that window. To quit the app, choose **Quit** (`종료`) from the pet's or tray icon's right-click menu,
+or **Quit pet app** (`펫 앱 종료`) in settings. [How to quit (Korean)](docs/user-guide.md#앱-종료)
 
 ### What happens to my settings and history when I update or uninstall?
 
-In `앱 설정 → 버전과 업데이트` (App settings → Version & updates), click `업데이트 확인` (Check for updates).
-If a new release is available, click `업데이트` (Update) to download the installer, verify its SHA-256, install, and restart.
-With `업데이트 자동 확인` (Check for updates automatically, on by default), the app checks once a day and the pet tells you
+In **App settings → Version & updates** (`앱 설정 → 버전과 업데이트`), click **Check for updates** (`업데이트 확인`).
+If a new release is available, click **Update** (`업데이트`) to download the installer, verify its SHA-256, install, and restart.
+With **Check for updates automatically** (`업데이트 자동 확인`, on by default), the app checks once a day and the pet tells you
 about a new release; it installs only when you click. Your settings, custom pets, and edition choice are preserved.
 You can also run a newer installer directly to upgrade.
 
@@ -176,7 +180,8 @@ This app has no server of its own and stores its data on this PC. Task status an
 Account and task identifiers are stored as hashes. Prompts, responses, commands, tool output, file paths, and email addresses
 are not written to the usage database or logs.
 
-The app itself connects to the internet only to check for (when you click, and once a day if automatic checks are on) or install an update from GitHub.
+The app itself connects to the internet only to check for (when you click, and once a day if automatic checks are on) or install an update from GitHub,
+and to download a pet from a public pet service (CodexPetDB or Pets Codex) when you click **Download** for an install command in Import pet.
 Codex usage information is requested from a local Codex process; that process's external communication follows Codex's own behavior.
 The installation folder is `%LOCALAPPDATA%\Programs\WatchedKettle`; settings and custom pets are in `%LOCALAPPDATA%\WatchedKettle`.
 See [privacy and storage (Korean)](docs/privacy-and-storage.md) for retention and deletion details.

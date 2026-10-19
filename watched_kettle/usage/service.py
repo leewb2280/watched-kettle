@@ -1107,6 +1107,8 @@ class CodexUsageService(QObject):
         record = complete_measurement(task, None, self._now())
         try:
             self.repository.append(record)
+            if task.account_hash == self.snapshot.account_hash:
+                self.conversation_catalog.observe(task.thread_id)
             self._publish(**self._history_values(task.account_hash, latest=True))
             if record.turn_hash:
                 self._recovery_started_for = (
@@ -1171,6 +1173,8 @@ class CodexUsageService(QObject):
                 if evidence or reasons
                 else False
             )
+            for raw in {item.thread_id for item in evidence}:
+                self.conversation_catalog.observe(raw)
             history = (
                 self._history_values(scope[0], frozenset(pending), latest=True)
                 if changed

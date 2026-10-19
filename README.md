@@ -2,7 +2,7 @@
 
 [한국어](README.md) · [English](README.en.md)
 
-[로드맵](ROADMAP.md) · [0.15.6 패치노트](docs/release-notes/v0.15.6.md) · [배포 준비 상태](RELEASE_READINESS.md)
+[로드맵](ROADMAP.md) · [0.15.7 패치노트](docs/release-notes/v0.15.7.md) · [배포 준비 상태](RELEASE_READINESS.md)
 
 **코딩 에이전트의 작업 상태를 알려 주는 데스크톱 펫**
 
@@ -75,7 +75,7 @@ Get-Content -LiteralPath '.\WatchedKettle-<버전>-public-unsigned-setup.exe.sha
 | --- | --- | --- |
 | 데스크톱 펫·설정창·자동 시작 | ✅ | ✅ |
 | 작업 상태·프로젝트 말풍선·알림 | – | ✅ |
-| 사용량 위젯·활동 기록 | – | ✅ |
+| 사용량 위젯·알림 기록 | – | ✅ |
 | Codex·Claude Code 연결(hook) | 설치하지 않음 | 도구별로 선택해서 설치 |
 
 연결할 때 각 도구의 사용자 설정에 이 앱의 hook(작업 상태를 전달하는 연결 항목)만 추가합니다.
@@ -86,7 +86,7 @@ Get-Content -LiteralPath '.\WatchedKettle-<버전>-public-unsigned-setup.exe.sha
 ### 작업 상태 확인
 
 펫+비서 구성에서는 작업 중·확인 필요·완료·실패를 펫 동작과 프로젝트별 말풍선으로 확인합니다.
-활동 기록에서 지난 알림을 살펴보고, 집중하고 싶을 때는 알림을 잠시 쉴 수 있습니다.
+설정창 `알림 기록`에서 지난 알림을 살펴보고, 집중하고 싶을 때는 알림을 잠시 쉴 수 있습니다.
 두 도구를 함께 쓰면 Codex는 남색, Claude Code는 주황색 점으로 구분합니다.
 
 말풍선 제목을 눌렀을 때의 동작은 [아래 지원 범위](#지원-범위)를 참고하세요.
@@ -110,6 +110,10 @@ Get-Content -LiteralPath '.\WatchedKettle-<버전>-public-unsigned-setup.exe.sha
 크기·불투명도·그림자·항상 위를 조절하고 직접 만든 펫을 추가할 수 있습니다.
 마지막 펫과 위치를 기억하며, 모니터 구성이 바뀌면 안전한 위치로 복원합니다.
 트레이 메뉴, Windows 자동 시작, 중복 실행 방지도 제공합니다.
+펫을 더블클릭하면 설정창 홈을 엽니다. `Codex 열기`나 `Claude Code 열기 (VS Code)`로 바꿀 수 있습니다.
+펫이나 위젯이 다른 창을 가리면 **고정**해서 클릭이 뒤의 창으로 지나가게 하고, 원하는 전역 단축키로 켜고 끕니다.
+펫은 PNG/WebP 이미지 외에 펫 ZIP·폴더, CodexPetDB·Pets Codex의 설치 명령어, Codex에 설치된 펫에서 가져올 수 있습니다.
+설정창 `정보`에서 버전, 이번 버전의 새로운 기능, 오픈소스 라이선스를 확인합니다.
 
 말풍선은 색·모양·테두리·사진·스티커로 꾸밀 수 있습니다.
 자세한 설정은 [꾸미기](docs/user-guide.md#꾸미기), 직접 만든 패키지는
@@ -173,7 +177,8 @@ Codex·Claude Code 자체의 대화는 삭제하지 않고 이 앱의 연결 항
 계정과 작업 식별자는 해시로 저장하고, 프롬프트·응답·명령·도구 출력·파일 경로·이메일은
 사용량 DB와 로그에 남기지 않습니다.
 
-앱이 직접 인터넷에 연결하는 경우는 업데이트를 확인(누를 때와 자동 확인의 하루 한 번)하거나 설치할 때 GitHub에 요청하는 경우입니다.
+앱이 직접 인터넷에 연결하는 경우는 업데이트를 확인(누를 때와 자동 확인의 하루 한 번)하거나 설치할 때 GitHub에 요청하는 경우와,
+펫 가져오기에서 설치 명령어로 **다운로드**를 누를 때 공개 펫 서비스(CodexPetDB·Pets Codex)에서 펫을 받는 경우입니다.
 Codex 사용량은 로컬 Codex 프로그램에 요청하며, 그 프로그램의 외부 통신은 Codex의 동작을 따릅니다.
 설치 위치는 `%LOCALAPPDATA%\Programs\WatchedKettle`, 설정과 사용자 펫은 `%LOCALAPPDATA%\WatchedKettle`입니다.
 보관 범위와 삭제 방법은 [개인정보와 저장소](docs/privacy-and-storage.md)를 참고하세요.

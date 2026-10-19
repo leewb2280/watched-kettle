@@ -4,7 +4,8 @@ Turns are device-level observations read from local transcripts, so they are
 not keyed by an account. Each transcript file stores its own share of a turn
 (``part``); a subagent file adds tokens to its parent turn. Only hashes,
 timestamps, outcome, model and token counts are stored. Titles and folder names
-stay in the service's memory.
+stay in the service's memory. A session's turns all count for the project of
+its earliest main turn.
 """
 
 from __future__ import annotations
@@ -84,9 +85,25 @@ class ClaudeCodeTurnRow:
     model: str | None
 
 
+# A session belongs to the project of its earliest main turn. Each pass stores
+# the folder it saw first, so a session that later moved folders (or rows kept
+# from before worktrees joined their repository) would otherwise split.
 _TURNS = """
-    SELECT session_hash, turn_hash,
-        MAX(CASE WHEN part = 'main' THEN project_hash END) AS project_hash,
+    WITH session_project AS (
+        SELECT session_hash, project_hash FROM (
+            SELECT session_hash, project_hash,
+                ROW_NUMBER() OVER (
+                    PARTITION BY session_hash ORDER BY started_at_utc, turn_hash
+                ) AS n
+            FROM claude_code_turn_parts
+            WHERE part = 'main' AND project_hash != ''
+        ) WHERE n = 1
+    )
+    SELECT parts.session_hash, turn_hash,
+        COALESCE(
+            MAX(session_project.project_hash),
+            MAX(CASE WHEN part = 'main' THEN parts.project_hash END)
+        ) AS project_hash,
         MIN(started_at_utc) AS started_at_utc,
         MAX(completed_at_utc) AS completed_at_utc,
         MAX(CASE WHEN part = 'main' THEN outcome END) AS outcome,
@@ -96,9 +113,10 @@ _TURNS = """
         SUM(output_tokens) AS output_tokens,
         SUM(total_tokens) AS total_tokens,
         MAX(CASE WHEN part = 'main' THEN model END) AS model
-    FROM claude_code_turn_parts
+    FROM claude_code_turn_parts AS parts
+    LEFT JOIN session_project USING (session_hash)
     {where}
-    GROUP BY session_hash, turn_hash
+    GROUP BY parts.session_hash, turn_hash
     HAVING MAX(part = 'main') = 1
 """
 
@@ -183,7 +201,7 @@ class ClaudeCodeRepository:
     def turns(self, session_hash=None, project_hash=None, since=None):
         clauses, values = ["completed_at_utc >= ?"], [_utc(since or self.cutoff)]
         if session_hash is not None:
-            clauses.append("session_hash = ?")
+            clauses.append("parts.session_hash = ?")
             values.append(session_hash)
         query = _TURNS.format(where="WHERE " + " AND ".join(clauses))
         if project_hash is not None:

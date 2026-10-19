@@ -3,6 +3,7 @@
 from pathlib import Path
 from dataclasses import replace
 from watched_kettle.bubble_timing import BubbleDurationPolicy
+from watched_kettle.localization import t
 
 from PySide6.QtCore import QPoint, QPropertyAnimation, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QPainter, QRadialGradient
@@ -59,6 +60,7 @@ class DesktopPet(
 ):
     """Render and interact with one pet while runtime services stay external."""
 
+    double_click_requested = Signal()
     center_requested = Signal(str)
     controls_changed = Signal()
     usage_widget_visibility_requested = Signal(bool)
@@ -67,6 +69,7 @@ class DesktopPet(
     usage_widget_today_visibility_requested = Signal(bool)
     usage_widget_settings_requested = Signal()
     usage_widget_position_reset_requested = Signal()
+    usage_widget_click_through_requested = Signal(bool)
 
     def __init__(
         self,
@@ -76,7 +79,6 @@ class DesktopPet(
         user_pets_root=None,
         bubble_elements_root=None,
         agent_controller_factory=None,
-        codex_opener=None,
     ) -> None:
         super().__init__()
         self.placement_controller = PetPlacementController(self)
@@ -93,14 +95,6 @@ class DesktopPet(
         self.user_pets_root = Path(user_pets_root or self.pets_root)
         self.shared_settings = settings
         self.agent_controller_factory = agent_controller_factory
-        if codex_opener is None and agent_controller_factory is None:
-            # Keep source-mode DesktopPet behavior; pet-only passes an idle factory.
-            from importlib import import_module
-
-            codex_opener = import_module(
-                "watched_kettle.integrations.codex_launcher"
-            ).open_codex_new_conversation
-        self.codex_opener = codex_opener
         self.app_preferences = ApplicationPreferences(settings)
         (
             self.auto_movement_screen_mode,
@@ -116,6 +110,11 @@ class DesktopPet(
         self.opacity_percent = self.app_preferences.load_pet_opacity()
         self.shadow_enabled = self.app_preferences.load_pet_shadow()
         self.fade_enabled = self.app_preferences.load_pet_fade()
+        # Clicks pass through to the windows behind; tray and hotkey undo it.
+        self.click_through = self.app_preferences.load_pet_click_through()
+        self.click_through_bubbles = (
+            self.app_preferences.load_pet_click_through_bubbles()
+        )
         self._fade_animation = None
         self.activity_labels_enabled = (
             self.app_preferences.load_activity_labels_enabled()
@@ -134,6 +133,7 @@ class DesktopPet(
         self.usage_widget_tasks_visible = True
         self.usage_widget_today_visible = False
         self.usage_widget_position_customized = False
+        self.usage_widget_click_through = False
 
         # None으로 시작하는 이유:
         # 최초 set_state("idle") 호출이 무시되지 않게 하기 위함
@@ -221,6 +221,8 @@ class DesktopPet(
         window_flags = Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool
         if self.always_on_top:
             window_flags |= Qt.WindowType.WindowStaysOnTopHint
+        if self.click_through:
+            window_flags |= Qt.WindowType.WindowTransparentForInput
         self.setWindowFlags(window_flags)
 
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -505,6 +507,45 @@ class DesktopPet(
 
         if persist:
             self.preferences.save_always_on_top(enabled)
+        self.refresh_controls()
+
+    @property
+    def bubble_click_through(self):
+        """Whether actionable bubbles let clicks through as well."""
+        return self.click_through and self.click_through_bubbles
+
+    def set_click_through(self, enabled, persist=True):
+        enabled = bool(enabled)
+        if enabled == self.click_through:
+            return
+
+        was_visible = self.isVisible()
+        self.click_through = enabled
+        self.setWindowFlag(Qt.WindowType.WindowTransparentForInput, enabled)
+        if was_visible:
+            self.show()
+        # The release of a press cut off by the change never arrives.
+        self.dragging = False
+        self.last_mouse_x = None
+        self.direction_score = 0
+        self.bubble_controller.sync_click_through(self.bubble_click_through)
+
+        if persist:
+            self.app_preferences.save_pet_click_through(enabled)
+            if enabled:
+                self.bubble_controller.preview(t("click_through.locked_notice"))
+        self.refresh_controls()
+
+    def toggle_click_through(self):
+        self.set_click_through(not self.click_through)
+
+    def set_click_through_bubbles(self, enabled, persist=True):
+        self.click_through_bubbles = bool(enabled)
+        self.bubble_controller.sync_click_through(self.bubble_click_through)
+        if persist:
+            self.app_preferences.save_pet_click_through_bubbles(
+                self.click_through_bubbles
+            )
         self.refresh_controls()
 
     def reveal(self):
@@ -869,6 +910,7 @@ class DesktopPet(
             usage_widget_tasks_visible=self.usage_widget_tasks_visible,
             usage_widget_today_visible=self.usage_widget_today_visible,
             usage_widget_position_customized=(self.usage_widget_position_customized),
+            usage_widget_click_through=self.usage_widget_click_through,
         )
 
         if command is None:
@@ -882,6 +924,12 @@ class DesktopPet(
 
         elif command.name == "set_always_on_top":
             self.set_always_on_top(command.value)
+
+        elif command.name == "set_click_through":
+            self.set_click_through(command.value)
+
+        elif command.name == "set_usage_widget_click_through":
+            self.usage_widget_click_through_requested.emit(bool(command.value))
 
         elif command.name == "set_usage_widget_visible":
             self.usage_widget_visibility_requested.emit(bool(command.value))

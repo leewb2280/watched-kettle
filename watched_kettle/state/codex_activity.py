@@ -28,3 +28,13 @@ class CodexActivityObservation:
     uncertain: bool
     last_confirmed_at: float
     scope: str
+
+
+@dataclass(frozen=True)
+class CodexLiveToolStart:
+    """Internal proof from a new call in the collector's current live turn."""
+
+    thread_id: str
+    turn_id: str
+    call_id: str
+    recorded_at: float

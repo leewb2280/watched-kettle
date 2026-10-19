@@ -99,6 +99,23 @@ class TrayLifetimeTests(unittest.TestCase):
             finally:
                 tray.close()
 
+    def test_menu_groups_toggles_apart_from_windows_to_open(self):
+        groups = [[]]
+        for action in self.tray.menu.actions():
+            if action.isSeparator():
+                groups.append([])
+            elif action.isVisible():
+                groups[-1].append(action.text())
+        self.assertEqual(
+            groups[1:],
+            [
+                ["진행 중 프로젝트", "최근 알림"],
+                ["알림 잠시 쉬기", "펫 숨기기", "펫 고정", "위젯 고정"],
+                ["홈 열기", "사용량 보기", "설정", "업데이트 확인"],
+                ["종료"],
+            ],
+        )
+
     def counts(self):
         return (
             len(self.tray.menu.findChildren(QMenu)),
@@ -145,10 +162,10 @@ class TrayLifetimeTests(unittest.TestCase):
             self.tray.refresh()
             self.flush()
             if i % 1000 == 999:
-                # 26 fixed actions include the hidden connection and Claude
+                # 28 fixed actions include the hidden connection and Claude
                 # Code usage lines and the separators around the home and
                 # usage entries.
-                self.assertEqual(self.counts(), (7, 26, 0, 0))
+                self.assertEqual(self.counts(), (7, 28, 0, 0))
             if i == 4999:
                 warm = _resources().get("private_bytes")
         final = _resources().get("private_bytes")

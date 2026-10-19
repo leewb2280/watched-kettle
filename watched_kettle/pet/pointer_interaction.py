@@ -1,7 +1,5 @@
 """Mouse dragging, gestures, and V2 pointer-look behavior for DesktopPet."""
 
-from watched_kettle.localization import t
-
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QCursor
 
@@ -102,9 +100,7 @@ class PetPointerController:
                 self.window.wave_finish_timer.setSingleShot(True)
                 self.window.wave_finish_timer.timeout.connect(self.window.finish_waving)
             self.window.wave_finish_timer.start(1000)
-            opener = self.window.codex_opener
-            if opener is not None and not opener():
-                self.window.bubble_controller.preview(t("message.0161"))
+            self.window.double_click_requested.emit()
             event.accept()
 
     def finish_waving(self):

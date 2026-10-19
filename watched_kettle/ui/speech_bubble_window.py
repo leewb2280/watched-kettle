@@ -617,3 +617,6 @@ class SpeechBubbleWindow(QFrame):
         if was_visible:
             self.show()
             self.reposition()
+
+    def sync_click_through(self, enabled):
+        """Plain bubbles never take clicks; actionable ones override this."""

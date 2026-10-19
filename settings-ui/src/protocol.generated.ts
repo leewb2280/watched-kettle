@@ -8,7 +8,7 @@ export type Provider = "codex" | "claude_code";
 
 export type ElementKind = "pattern" | "ornament" | "photo" | "frame" | "sticker";
 
-export type Page = "home" | "pet" | "bubble" | "widget" | "usage" | "activity" | "integration" | "app";
+export type Page = "home" | "pet" | "bubble" | "widget" | "usage" | "activity" | "integration" | "app" | "about";
 
 export type Empty = { [key: string]: never };
 
@@ -32,9 +32,14 @@ export type EffectiveAppearance = Appearance & {
   highContrast: boolean;
 };
 
+export type DoubleClickAction = "settings_home" | "codex" | "claude" | "wave_only";
+
+export type HotkeyStatus = "unassigned" | "registered" | "in_use" | "invalid" | "unavailable";
+
 export type Option = {
   value: Scalar;
   label: string;
+  disabled?: boolean;
 };
 
 export type ControlBase = {
@@ -79,7 +84,13 @@ export type ColorControl = ControlBase & {
   value: string;
 };
 
-export type Control = BooleanControl | NumberControl | OptionalControl | SelectControl | ColorControl;
+export type HotkeyControl = ControlBase & {
+  kind: "hotkey";
+  value: string;
+  status: HotkeyStatus;
+};
+
+export type Control = BooleanControl | NumberControl | OptionalControl | SelectControl | ColorControl | HotkeyControl;
 
 export type Startup = {
   supported: boolean;
@@ -104,6 +115,29 @@ export type UpdateState = {
   auto_check: boolean;
 };
 
+export type AboutLinks = {
+  repository: string;
+  releaseNotes: string;
+  changelog: string;
+  issues: string;
+  license: string;
+};
+
+export type ThirdPartyNotice = {
+  name: string;
+  license: string;
+};
+
+export type AboutInfo = {
+  version: string;
+  edition: "pet-only" | "pet-assistant";
+  whatsNewVersion: string;
+  whatsNew: Array<string>;
+  links: AboutLinks;
+  thirdParty: Array<ThirdPartyNotice>;
+  licensesAvailable: boolean;
+};
+
 export type SettingsSnapshot = {
   version: string;
   revision: number;
@@ -112,11 +146,13 @@ export type SettingsSnapshot = {
   pet: PetSnapshot;
   controls: Array<Control>;
   bubbleControls: Array<Control>;
+  doubleClickAction: DoubleClickAction;
   appearance: Appearance;
   startup: Startup;
   animations: Array<Animation>;
   update: UpdateState;
   language: LanguageState;
+  about: AboutInfo;
 };
 
 export type Saved = {
@@ -238,6 +274,55 @@ export type PetPreparation = {
   name: string;
   thumbnail: string;
   spriteVersion: number;
+  description?: string;
+  source?: string;
+  warnings?: Array<string>;
+  omittedThemeReferences?: boolean;
+};
+
+export type PetImportJob = {
+  jobId: string;
+  state: "preparing" | "ready" | "error" | "cancelled";
+  received: number;
+  total: number;
+  error: string;
+  prepared?: PetPreparation;
+};
+
+export type ImportJobId = {
+  jobId: string;
+};
+
+export type ImportCommand = {
+  command: string;
+};
+
+export type InstalledPetId = {
+  id: string;
+};
+
+export type InstalledPet = {
+  id: string;
+  name: string;
+  description: string;
+  error: string;
+};
+
+export type InstalledPetList = Array<InstalledPet>;
+
+export type ImportThumbnail = {
+  image: string;
+};
+
+export type ImportPreviewRequest = {
+  token: string;
+  state: string;
+};
+
+export type ImportPreview = {
+  image: string;
+  frames: number;
+  interval: number;
 };
 
 export type Cancelled = {
@@ -370,7 +455,7 @@ export type PetAction = Context & {
 };
 
 export type BooleanSetting = Context & {
-  key: "always_on_top" | "activity_labels" | "shadow" | "fade" | "idle" | "movement" | "bubbles" | "update_auto_check" | "startup";
+  key: "always_on_top" | "activity_labels" | "shadow" | "fade" | "idle" | "movement" | "bubbles" | "update_auto_check" | "startup" | "click_through" | "click_through_bubbles";
   value: boolean;
 };
 
@@ -404,7 +489,17 @@ export type AppearanceSetting = Context & {
   value: Appearance;
 };
 
-export type SettingRequest = BooleanSetting | NumberSetting | DurationSetting | StringSetting | AppearanceNumber | AppearanceBoolean | AppearanceSetting;
+export type DoubleClickSetting = Context & {
+  key: "double_click_action";
+  value: DoubleClickAction;
+};
+
+export type HotkeySetting = Context & {
+  key: "click_through_hotkey";
+  value: string;
+};
+
+export type SettingRequest = DoubleClickSetting | HotkeySetting | BooleanSetting | NumberSetting | DurationSetting | StringSetting | AppearanceNumber | AppearanceBoolean | AppearanceSetting;
 
 export type NavigationAck = {
   navigationId: string;
@@ -745,6 +840,8 @@ export type PetSnapshot = {
   opacity_percent: number;
   shadow: boolean;
   fade: boolean;
+  click_through: boolean;
+  click_through_bubbles: boolean;
 };
 
 export type HistoryEntry = {
@@ -754,6 +851,7 @@ export type HistoryEntry = {
   summary: string;
   action_token: string;
   source: string;
+  group: "notice" | "attention" | "progress" | "completion";
 };
 
 export type NoticeRecord = {
@@ -1042,7 +1140,7 @@ export type WidgetPreviewRequest = {
 };
 
 export type UsageBoolean = Context & {
-  key: "quiet_summary" | "widget_visible" | "widget_tasks" | "widget_today";
+  key: "quiet_summary" | "widget_visible" | "widget_tasks" | "widget_today" | "widget_click_through";
   value: boolean;
 };
 
@@ -1052,7 +1150,7 @@ export type UsageNumber = Context & {
 };
 
 export type UsageString = Context & {
-  key: "widget_shape" | "widget_emphasis" | "widget_material" | "widget_theme" | "widget_color";
+  key: "widget_shape" | "widget_emphasis" | "widget_material" | "widget_theme" | "widget_color" | "widget_click_through_hotkey";
   value: string;
 };
 
@@ -1160,6 +1258,20 @@ export interface CommandMap {
 
   "pet.import.cancel": { args: Token; result: Cancelled };
 
+  "pet.import.start": { args: ImportCommand; result: PetImportJob };
+
+  "pet.import.status": { args: ImportJobId; result: PetImportJob };
+
+  "pet.import.stop": { args: ImportJobId; result: Cancelled };
+
+  "pet.import.installed": { args: Empty; result: InstalledPetList };
+
+  "pet.import.installed.thumbnail": { args: InstalledPetId; result: ImportThumbnail };
+
+  "pet.import.installed.start": { args: InstalledPetId; result: PetImportJob };
+
+  "pet.import.preview": { args: ImportPreviewRequest; result: ImportPreview };
+
   "pet.catalog.save": { args: CatalogSave; result: Mutation };
 
   "pet.trash.list": { args: Offset; result: PetTrashCatalog };
@@ -1198,6 +1310,8 @@ export interface CommandMap {
 
   "update.open": { args: Empty; result: Opened };
 
+  "about.open_licenses": { args: Empty; result: Opened };
+
   "app.quit": { args: Empty; result: Accepted };
 
   "app.restart": { args: Empty; result: Accepted };
@@ -1215,6 +1329,8 @@ export interface CommandMap {
   "file.import": { args: ImportElement; result: ElementImported };
 
   "file.pet.prepare": { args: FilePath; result: PetPreparation };
+
+  "file.pet.start": { args: FilePath; result: PetImportJob };
 
   "file.pet.cancel": { args: Empty; result: Cancelled };
 
@@ -1238,6 +1354,8 @@ export interface CommandMap {
 
   "activity.clear": { args: Context; result: AssistantMutation };
 
+  "activity.confirm_all": { args: Context; result: AssistantMutation };
+
   "activity.open": { args: Token; result: Opened };
 
   "integration.snapshot": { args: Empty; result: IntegrationResponse };
@@ -1250,7 +1368,7 @@ export interface CommandMap {
 
 }
 
-export type RendererCommand = "language.list" | "language.refresh" | "language.copy" | "settings.snapshot" | "settings.set" | "pet.catalog" | "pet.preview" | "pet.select" | "pet.import.commit" | "pet.import.cancel" | "pet.catalog.save" | "pet.trash.list" | "pet.trash.move" | "pet.trash.restore" | "pet.trash.delete" | "pet.trash.empty" | "pet.trash.batch.start" | "pet.trash.batch.status" | "pet.trash.batch.cancel" | "pet.action" | "bubble.editor" | "bubble.render" | "bubble.save" | "bubble.reset" | "element.delete" | "update.check" | "update.download" | "update.cancel" | "update.open" | "app.quit" | "app.restart" | "navigation.ack" | "window.subscribe" | "usage.snapshot" | "usage.widget_preview" | "usage.set" | "usage.query" | "usage.select" | "usage.move" | "usage.action" | "activity.snapshot" | "activity.clear" | "activity.open" | "integration.snapshot" | "integration.preview" | "integration.apply" | "integration.set";
+export type RendererCommand = "language.list" | "language.refresh" | "language.copy" | "settings.snapshot" | "settings.set" | "pet.catalog" | "pet.preview" | "pet.select" | "pet.import.commit" | "pet.import.cancel" | "pet.import.start" | "pet.import.status" | "pet.import.stop" | "pet.import.installed" | "pet.import.installed.thumbnail" | "pet.import.installed.start" | "pet.import.preview" | "pet.catalog.save" | "pet.trash.list" | "pet.trash.move" | "pet.trash.restore" | "pet.trash.delete" | "pet.trash.empty" | "pet.trash.batch.start" | "pet.trash.batch.status" | "pet.trash.batch.cancel" | "pet.action" | "bubble.editor" | "bubble.render" | "bubble.save" | "bubble.reset" | "element.delete" | "update.check" | "update.download" | "update.cancel" | "update.open" | "about.open_licenses" | "app.quit" | "app.restart" | "navigation.ack" | "window.subscribe" | "usage.snapshot" | "usage.widget_preview" | "usage.set" | "usage.query" | "usage.select" | "usage.move" | "usage.action" | "activity.snapshot" | "activity.clear" | "activity.confirm_all" | "activity.open" | "integration.snapshot" | "integration.preview" | "integration.apply" | "integration.set";
 
 export type Args<M extends RendererCommand> = CommandMap[M]['args'];
 
@@ -1258,6 +1376,6 @@ export type Result<M extends RendererCommand> = CommandMap[M]['result'];
 
 export type Request = <M extends RendererCommand>(method: M, ...args: {} extends Args<M> ? [args?: Args<M>] : [args: Args<M>]) => Promise<Result<M>>;
 
-export type FileResult<P extends 'pet' | 'import' | 'export'> = Cancelled | (P extends 'pet' ? PetPreparation : P extends 'import' ? ElementImported : Saved);
+export type FileResult<P extends 'pet' | 'pet-folder' | 'import' | 'export'> = Cancelled | (P extends 'pet' | 'pet-folder' ? PetImportJob : P extends 'import' ? ElementImported : Saved);
 
-export type FileRequest = <P extends 'pet' | 'import' | 'export'>(purpose: P, ...args: P extends 'import' ? [kind: ElementKind] : []) => Promise<FileResult<P>>;
+export type FileRequest = <P extends 'pet' | 'pet-folder' | 'import' | 'export'>(purpose: P, ...args: P extends 'import' ? [kind: ElementKind] : []) => Promise<FileResult<P>>;

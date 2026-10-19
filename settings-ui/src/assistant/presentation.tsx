@@ -22,6 +22,14 @@ export function SourceTag({ name }: { name: string }) {
 
 export const ACTIVITY_PAGE = 50;
 
+// Notice center filters, in chip order; Python sends the same stable IDs.
+export const ACTIVITY_GROUPS: Record<string, string> = {
+  notice: "activity.group.notice",
+  attention: "activity.group.attention",
+  progress: "activity.group.progress",
+  completion: "activity.group.completion",
+};
+
 // Remaining-quota tones; the card color carries meaning instead of order.
 export const QUOTA_LOW = 30;
 
@@ -177,60 +185,6 @@ export function Details({ value }: { value: DiagnosticValues }) {
         </div>
       ))}
     </dl>
-  );
-}
-
-export function TabList({
-  id,
-  label,
-  tabs,
-  value,
-  select,
-}: {
-  id: string;
-  label: string;
-  tabs: [string, string][];
-  value: string;
-  select: (key: string) => void;
-}) {
-  const refs = useRef<(HTMLButtonElement | null)[]>([]);
-  const index = tabs.findIndex(([key]) => key === value);
-  return (
-    <div
-      className="tabs"
-      role="tablist"
-      aria-label={label}
-      onKeyDown={(event) => {
-        const target = {
-          ArrowRight: index + 1,
-          ArrowLeft: index - 1,
-          Home: 0,
-          End: tabs.length - 1,
-        }[event.key];
-        if (target === undefined) return;
-        event.preventDefault();
-        const next = (target + tabs.length) % tabs.length;
-        select(tabs[next][0]);
-        refs.current[next]?.focus();
-      }}
-    >
-      {tabs.map(([key, text], i) => (
-        <button
-          key={key}
-          ref={(element) => {
-            refs.current[i] = element;
-          }}
-          id={`${id}-tab-${key}`}
-          role="tab"
-          aria-selected={value === key}
-          aria-controls={`${id}-panel`}
-          tabIndex={value === key ? 0 : -1}
-          onClick={() => select(key)}
-        >
-          {text}
-        </button>
-      ))}
-    </div>
   );
 }
 

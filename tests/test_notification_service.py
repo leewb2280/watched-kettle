@@ -43,6 +43,26 @@ class NotificationServiceTests(unittest.TestCase):
         self.assertFalse(service.submit(notice))
         self.assertEqual(len(service.snapshot.recent), 1)
 
+    def test_confirm_all_marks_every_pending_notice_and_ends_its_bubble(self):
+        service = NotificationService()
+        service.managed_delivery = True
+        for message in ("첫째", "둘째", "셋째"):
+            service.submit(NoticeRequest(source="system", message=message))
+        first, second, third = service.snapshot.recent
+        service.confirm(third.record_id)
+        service.shown(service.candidates()[0].record_id)
+        emitted = []
+        service.snapshot_changed.connect(emitted.append)
+
+        service.confirm_all()
+
+        self.assertEqual(len(emitted), 1)
+        self.assertTrue(all(r.confirmed for r in service.snapshot.recent))
+        self.assertEqual({r.delivery for r in service.snapshot.recent}, {"expired"})
+        self.assertEqual(service.candidates(), ())
+        service.confirm_all()
+        self.assertEqual(len(emitted), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

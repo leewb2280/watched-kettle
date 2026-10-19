@@ -1,5 +1,7 @@
 """widget preferences; existing QSettings keys are preserved."""
 
+from .hotkeys import format_hotkey
+
 from .models import (
     DEFAULT_USAGE_WIDGET_COLOR,
     DEFAULT_USAGE_WIDGET_OPACITY,
@@ -65,6 +67,18 @@ class WidgetPreferences:
 
     def save_usage_widget_detached(self, detached):
         self.settings.setValue("usage/widgetDetached", bool(detached))
+
+    def load_usage_widget_click_through(self):
+        return self.settings.value("usage/widgetClickThrough", False, type=bool)
+
+    def save_usage_widget_click_through(self, enabled):
+        self.settings.setValue("usage/widgetClickThrough", bool(enabled))
+
+    def load_usage_widget_click_through_hotkey(self):
+        return format_hotkey(self.settings.value("usage/widgetClickThroughHotkey", ""))
+
+    def save_usage_widget_click_through_hotkey(self, text):
+        self.settings.setValue("usage/widgetClickThroughHotkey", format_hotkey(text))
 
     def load_usage_widget_placement(self):
         return self.placement._load_saved_window_placement("usage/widgetPlacement")

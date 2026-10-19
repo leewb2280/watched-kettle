@@ -24,7 +24,13 @@ from watched_kettle.application.settings_ui.contracts import (
     wire,
     CommandError,
 )
-from watched_kettle.application.settings_ui.core import control, png_data
+from watched_kettle.application.click_through import WIDGET_LOCK
+from watched_kettle.application.settings_ui.core import (
+    control,
+    hotkey_status,
+    hotkey_text,
+    png_data,
+)
 from watched_kettle.app_preferences import USAGE_CHART_DAYS
 from watched_kettle.application.diagnostics import _safe_snapshot
 from watched_kettle.usage.models import usage_limit_groups, usage_limit_options
@@ -67,6 +73,7 @@ class AssistantSettingsAdapter:
         # Acrylic follows the app theme; a custom color or opacity does not apply.
         acrylic = vm.widget_material == "acrylic" and acrylic_available()
         limits = usage_limit_options(vm.snapshot.buckets)
+        hotkey = vm.widget_click_through_hotkey
         controls = [
             control(
                 "quiet_summary",
@@ -134,6 +141,27 @@ class AssistantSettingsAdapter:
                 group=t("message.0494"),
                 disabled=hidden,
                 description=t("message.0496"),
+            ),
+            control(
+                "widget_click_through",
+                t("click_through.widget"),
+                vm.widget_click_through,
+                groupId="widget",
+                group=t("message.0494"),
+                disabled=hidden,
+                description=t("click_through.widget_description"),
+            ),
+            control(
+                "widget_click_through_hotkey",
+                t("click_through.widget_hotkey"),
+                hotkey,
+                "hotkey",
+                status=hotkey_status(
+                    getattr(self.runtime, "click_through", None), WIDGET_LOCK, hotkey
+                ),
+                groupId="widget",
+                group=t("message.0494"),
+                description=t("click_through.hotkey_description"),
             ),
             control(
                 "widget_material",
@@ -303,6 +331,8 @@ class AssistantSettingsAdapter:
             self._usage_action(args)
         elif method == "activity.clear":
             self.runtime.notification_service.clear_history()
+        elif method == "activity.confirm_all":
+            self.runtime.notification_service.confirm_all()
         elif method == "activity.open":
             token = text(args.get("token"), 64)
             require(
@@ -460,9 +490,17 @@ class AssistantSettingsAdapter:
             "widget_visible": vm.set_widget_visible,
             "widget_tasks": vm.set_widget_tasks_visible,
             "widget_today": vm.set_widget_today_visible,
+            "widget_click_through": vm.set_widget_click_through,
         }
         if key in bools:
             bools[key](boolean(value))
+        elif key == "widget_click_through_hotkey":
+            value = hotkey_text(value)
+            shortcuts = getattr(self.runtime, "click_through", None)
+            if shortcuts is None:
+                raise CommandError("unsupported", t("hotkey.unavailable"))
+            require(not shortcuts.taken(WIDGET_LOCK, value), t("hotkey.duplicate"))
+            shortcuts.set_widget_hotkey(value)
         elif key == "widget_shape":
             vm.set_widget_shape(choice(value, ("rings", "bars", "chips")))
         elif key == "widget_emphasis":

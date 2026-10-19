@@ -110,3 +110,25 @@ test("the actual Electron IPC guard enforces exposure, edition and sender", asyn
     /허용되지 않은/,
   );
 });
+
+test("only repository links open in the default browser", () => {
+  const { externalLinkAllowed } = require("../electron/external.cjs");
+  for (const url of [
+    "https://github.com/leewb2280/watched-kettle",
+    "https://github.com/leewb2280/watched-kettle/releases/tag/v0.15.7",
+    "https://github.com/leewb2280/watched-kettle/blob/main/LICENSE",
+  ])
+    assert.equal(externalLinkAllowed(url), true, url);
+  for (const url of [
+    "http://github.com/leewb2280/watched-kettle",
+    "https://github.com/leewb2280/watched-kettle-evil",
+    "https://github.com/other/watched-kettle",
+    "https://github.com:8443/leewb2280/watched-kettle",
+    "https://user@github.com/leewb2280/watched-kettle",
+    "https://github.com.example/leewb2280/watched-kettle",
+    "file:///C:/Windows/System32/cmd.exe",
+    "javascript:alert(1)",
+    "not a url",
+  ])
+    assert.equal(externalLinkAllowed(url), false, url);
+});

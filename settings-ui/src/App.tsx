@@ -1,6 +1,7 @@
 import { t } from "../localization.cjs";
 import { AssistantPages } from "@assistant";
 import {
+  Bell,
   ChartNoAxesCombined,
   Check,
   ChevronRight,
@@ -8,7 +9,6 @@ import {
   Gauge,
   House,
   Info,
-  Layers,
   MessageCircle,
   PawPrint,
   PlugZap,
@@ -17,7 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Empty, Modal } from "./components";
+import { Empty, Heading, Modal } from "./components";
 import { CorePages } from "./CorePages";
 import { errorText } from "./errors";
 import type {
@@ -40,6 +40,7 @@ const labels: Record<Page, string> = {
   activity: t("message.0593"),
   integration: t("message.0594"),
   app: t("message.0595"),
+  about: t("about.nav"),
 };
 export function App() {
   const [snapshot, setSnapshot] = useState<SettingsSnapshot | null>(null);
@@ -262,23 +263,22 @@ export function App() {
       <div className="shell">
         <aside className="sidebar">
           <nav aria-label={t("message.0599")}>
+            {navButton("home", House)}
             {assistant && (
               <>
-                {navButton("home", House)}
                 <div className="nav-label separated">{t("message.0251")}</div>
                 {navButton("usage", ChartNoAxesCombined)}
-                {navButton("activity", Layers)}
+                {navButton("activity", Bell)}
                 {navButton("integration", PlugZap)}
               </>
             )}
-            <div className={`nav-label ${assistant ? "separated" : ""}`}>
-              {t("message.0600")}
-            </div>
+            <div className="nav-label separated">{t("message.0600")}</div>
             {navButton("pet", PawPrint)}
             {navButton("bubble", MessageCircle)}
             {assistant && navButton("widget", Gauge)}
           </nav>
           <div className="sidebar-bottom">
+            {navButton("about", Info)}
             <button
               className={`nav-item ${page === "app" ? "active" : ""}`}
               onClick={() => setPage("app")}
@@ -365,7 +365,17 @@ export function App() {
             </div>
           )}
           {shell ? (
-            <>
+            <div className={page === "home" ? "page home-page" : undefined}>
+              {page === "home" && (
+                <Heading
+                  title={t("message.0590")}
+                  subtitle={
+                    assistant
+                      ? t("home.subtitle_assistant")
+                      : t("home.subtitle")
+                  }
+                />
+              )}
               <CorePages shell={shell} page={page} />
               {assistant && (
                 <AssistantPages
@@ -374,7 +384,7 @@ export function App() {
                   page={page}
                 />
               )}
-            </>
+            </div>
           ) : (
             <Empty>
               <PawPrint size={32} />

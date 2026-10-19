@@ -5,7 +5,6 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from dataclasses import replace
-from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -745,27 +744,21 @@ class CompletionTests(unittest.TestCase):
 
     def test_history_is_only_existing_projection_and_open_does_not_dismiss(self):
         from watched_kettle.features.history.viewmodel import HistoryViewModel
-        from PySide6.QtCore import QObject, Signal
-
-        class Usage(QObject):
-            snapshot_changed = Signal(object)
-            snapshot = SimpleNamespace(recent_tasks=(), latest_tasks=())
 
         self.start()
         history = HistoryViewModel(
             self.controller.notifications,
-            Usage(),
             projects=self.projects,
             router=self.router,
         )
-        events = [r for r in history.snapshot.entries if r.kind == "프로젝트 이벤트"]
+        events = [r for r in history.snapshot.entries if r.group == "progress"]
         self.assertTrue(events)
         self.assertEqual(
             {r.summary for r in events}, {self.projects.metadata["a"].title}
         )
         self.event(event="done")
         history.refresh()
-        entries = [r for r in history.snapshot.entries if r.kind == "작업 완료"]
+        entries = [r for r in history.snapshot.entries if r.group == "completion"]
         self.assertEqual(len(entries), 1)
         self.assertEqual(entries[0].summary, self.projects.metadata["a"].title)
         self.assertTrue(self.router.open(entries[0].action_token))
@@ -773,26 +766,22 @@ class CompletionTests(unittest.TestCase):
         self.row().close_button.click()
         history.refresh()
         self.assertEqual(
-            len([r for r in history.snapshot.entries if r.kind == "작업 완료"]), 1
+            len([r for r in history.snapshot.entries if r.group == "completion"]), 1
         )
         self.assertFalse(hasattr(self.controller, "completion_dialog"))
         self.assertNotIn("completion", self.controller.card_windows)
 
-    def test_history_codex_tasks_ignore_usage_history_selection(self):
+    def test_history_groups_project_events_by_what_they_ask(self):
         from watched_kettle.features.history.viewmodel import HistoryViewModel
-        from PySide6.QtCore import QObject, Signal
 
-        latest = SimpleNamespace(
-            completed_at=datetime.now(timezone.utc), outcome="완료", total_tokens=10
+        self.start()
+        self.event(event="waiting")
+        history = HistoryViewModel(
+            self.controller.notifications, projects=self.projects, router=self.router
         )
-        selected = SimpleNamespace(
-            completed_at=datetime.now(timezone.utc), outcome="실패", total_tokens=99
+        events = [r for r in history.snapshot.entries if r.group != "notice"]
+        self.assertEqual(
+            [(r.group, r.kind, r.result) for r in events],
+            [("attention", "확인 필요", ""), ("progress", "작업 중", "")],
         )
-
-        class Usage(QObject):
-            snapshot_changed = Signal(object)
-            snapshot = SimpleNamespace(recent_tasks=(selected,), latest_tasks=(latest,))
-
-        history = HistoryViewModel(self.controller.notifications, Usage())
-        tasks = [r for r in history.snapshot.entries if r.kind == "Codex 작업"]
-        self.assertEqual([r.result for r in tasks], ["완료"])
+        self.assertTrue(all(r.action_token for r in events))

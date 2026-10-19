@@ -136,6 +136,8 @@ class FilePass:
             return
         if kind not in {"user", "assistant"}:
             return
+        # The first folder of this pass; a resumed pass may see a later one.
+        # The repository files the session under its earliest main turn.
         if not self.project_hash and isinstance(entry.get("cwd"), str):
             identity = project_identity(entry["cwd"])
             self.project_hash = identity.get("project_ref", "")

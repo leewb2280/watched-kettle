@@ -1,6 +1,6 @@
 import { t } from "../../localization.cjs";
 import { Check, ChevronRight } from "lucide-react";
-import { Empty, Heading, Section } from "../components";
+import { Empty, Section } from "../components";
 import { HomeLink, SourceTag, time } from "./presentation";
 
 import { QuotaGroups } from "./QuotaGroups";
@@ -26,8 +26,7 @@ export function AssistantHomePage({
   | "connections"
 >) {
   return (
-    <div className="page">
-      <Heading title={t("message.0590")} subtitle={t("message.0655")} />
+    <>
       {!usage || !activity || !integration ? (
         <Empty>{t("message.0656")}</Empty>
       ) : (
@@ -74,7 +73,7 @@ export function AssistantHomePage({
             }
           >
             {homeRows.length ? (
-              homeRows.slice(0, 4).map(({ project, row }, index) => (
+              homeRows.map(({ project, row }, index) => (
                 <button
                   className="thread-row"
                   key={`${project.key}-${index}`}
@@ -106,10 +105,6 @@ export function AssistantHomePage({
             ) : (
               <p className="quiet-row">{t("message.0661")}</p>
             )}
-            <HomeLink
-              label={t("message.0659")}
-              open={() => shell.navigate("activity")}
-            />
           </Section>
           <Section title={t("message.0662")}>
             <QuotaGroups usage={usage} compact />
@@ -137,6 +132,6 @@ export function AssistantHomePage({
           </Section>
         </div>
       )}
-    </div>
+    </>
   );
 }

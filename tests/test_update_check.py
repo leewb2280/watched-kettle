@@ -31,7 +31,7 @@ from watched_kettle.branding import (
     RELEASE_REPOSITORY,
     UPDATE_REPOSITORY,
 )
-from watched_kettle.ui.pet_tray import update_action_text
+from watched_kettle.ui.pet_tray import check_updates, update_action_text
 from tests.update_bundle_support import KIND, build_release
 from watched_kettle.localization import t
 
@@ -845,6 +845,26 @@ class UpdateCheckScheduleTests(unittest.TestCase):
         self.assertEqual(update_action_text(self.service), "업데이트 확인")
         self.service._state.update(state="available", version="9.9.9")
         self.assertEqual(update_action_text(self.service), "새 버전 받기 (v9.9.9)")
+
+    def test_the_tray_entry_opens_the_page_and_checks_once(self):
+        opened = []
+        for state, retry, checks in (
+            ("idle", "", [False]),
+            ("current", "", [False]),
+            ("error", "check", [False]),
+            ("error", "download", []),
+            ("checking", "", []),
+            ("available", "", []),
+            ("downloading", "", []),
+        ):
+            with self.subTest(state=state, retry=retry):
+                self.checks.clear()
+                self.service._state.update(state=state, retry=retry)
+                check_updates(self.service, lambda: opened.append(state))
+                self.assertEqual(opened[-1], state)
+                self.assertEqual(self.checks, checks)
+        check_updates(None, lambda: opened.append("none"))
+        self.assertEqual(opened[-1], "none")
 
     def test_a_clock_set_back_does_not_stop_the_checks(self):
         schedule = self.schedule(last_check=self.now + 30 * self.DAY)

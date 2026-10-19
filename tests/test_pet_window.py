@@ -220,43 +220,35 @@ class DesktopPetStateTests(unittest.TestCase):
         self.assertFalse(self.pet.double_click_waving)
         self.assertEqual(self.pet.current_state, "idle")
 
-    def test_left_double_click_waves_and_opens_codex(self):
+    def test_left_double_click_waves_and_requests_one_action(self):
         event = Mock()
         event.button.return_value = Qt.MouseButton.LeftButton
-
-        with patch.object(self.pet, "codex_opener", return_value=True) as open_codex:
-            self.pet.mouseDoubleClickEvent(event)
-
-        open_codex.assert_called_once_with()
+        action = Mock()
+        self.pet.double_click_requested.connect(action)
+        self.pet.mouseDoubleClickEvent(event)
+        action.assert_called_once_with()
         event.accept.assert_called_once_with()
         self.assertTrue(self.pet.double_click_waving)
         self.assertEqual(self.pet.current_state, "waving")
+        self.pet.double_click_requested.disconnect(action)
 
-    def test_right_double_click_does_not_open_codex(self):
+    def test_right_double_click_does_not_request_action(self):
         event = Mock()
         event.button.return_value = Qt.MouseButton.RightButton
-
-        with patch.object(self.pet, "codex_opener") as open_codex:
-            self.pet.mouseDoubleClickEvent(event)
-
-        open_codex.assert_not_called()
+        action = Mock()
+        self.pet.double_click_requested.connect(action)
+        self.pet.mouseDoubleClickEvent(event)
+        action.assert_not_called()
         event.accept.assert_not_called()
         self.assertFalse(self.pet.double_click_waving)
+        self.pet.double_click_requested.disconnect(action)
 
-    def test_codex_open_failure_shows_ui_only_notice(self):
+    def test_double_click_does_not_replace_project_bubbles_with_preview(self):
         event = Mock()
         event.button.return_value = Qt.MouseButton.LeftButton
-
-        with (
-            patch.object(self.pet, "codex_opener", return_value=False),
-            patch.object(self.pet.bubble_controller, "preview") as preview,
-        ):
+        with patch.object(self.pet.bubble_controller, "preview") as preview:
             self.pet.mouseDoubleClickEvent(event)
-
-        preview.assert_called_once_with(
-            "Codex 앱을 열 수 없어요. 설치 상태를 확인해 주세요."
-        )
-        self.assertTrue(self.pet.double_click_waving)
+        preview.assert_not_called()
         self.assertEqual(self.pet.current_state, "waving")
 
     def test_stale_wave_callback_does_not_override_new_state(self):
@@ -1200,6 +1192,71 @@ class DesktopPetStateTests(unittest.TestCase):
         self.assertFalse(
             bool(self.pet.windowFlags() & Qt.WindowType.WindowStaysOnTopHint)
         )
+
+    def test_click_through_passes_input_persists_and_survives_a_new_pet(self):
+        flag = Qt.WindowType.WindowTransparentForInput
+        preferences = ApplicationPreferences(self.settings)
+        self.pet.show()
+        self.pet.dragging = True
+        with patch.object(self.pet.bubble_controller, "preview") as preview:
+            self.pet.set_click_through(True)
+        self.assertTrue(self.pet.windowFlags() & flag)
+        self.assertTrue(self.pet.isVisible())
+        self.assertFalse(self.pet.dragging)
+        preview.assert_called_once()
+        self.assertTrue(preferences.load_pet_click_through())
+
+        restored = DesktopPet(fixture_pet(), settings=self.settings)
+        self.addCleanup(restored.close)
+        self.assertTrue(restored.click_through)
+        self.assertTrue(restored.windowFlags() & flag)
+
+        with patch.object(self.pet.bubble_controller, "preview") as preview:
+            self.pet.toggle_click_through()
+        preview.assert_not_called()
+        self.assertFalse(self.pet.windowFlags() & flag)
+        self.assertFalse(preferences.load_pet_click_through())
+
+    def test_action_bubbles_join_the_lock_only_when_chosen(self):
+        with patch.object(self.pet.bubble_controller, "sync_click_through") as sync:
+            self.pet.set_click_through(True, persist=False)
+            sync.assert_called_with(False)
+            self.pet.set_click_through_bubbles(True)
+            sync.assert_called_with(True)
+            self.pet.set_click_through(False, persist=False)
+            sync.assert_called_with(False)
+        self.assertTrue(
+            ApplicationPreferences(self.settings).load_pet_click_through_bubbles()
+        )
+        self.assertFalse(ApplicationPreferences(self.settings).load_pet_click_through())
+
+    def test_tray_unlocks_the_pet_and_widget(self):
+        tray = self.create_tray()
+        self.pet.set_click_through(True, persist=False)
+        tray.refresh()
+        self.assertTrue(tray.click_through_action.isChecked())
+        tray.click_through_action.trigger()
+        self.assertFalse(self.pet.click_through)
+        tray.widget_click_through_action.trigger()
+        self.assertTrue(
+            ApplicationPreferences(self.settings).load_usage_widget_click_through()
+        )
+        tray.refresh()
+        self.assertTrue(tray.widget_click_through_action.isChecked())
+
+    def test_menu_locks_the_pet_and_toggles_the_widget_lock(self):
+        requested = []
+        self.pet.usage_widget_click_through_requested.connect(requested.append)
+        for command in (
+            PetMenuCommand("set_click_through", True),
+            PetMenuCommand("set_usage_widget_click_through", True),
+        ):
+            with patch("watched_kettle.pet.window.show_pet_context_menu") as menu:
+                menu.return_value = command
+                event = Mock()
+                self.pet.contextMenuEvent(event)
+        self.assertTrue(self.pet.click_through)
+        self.assertEqual(requested, [True])
 
     def test_move_to_screen_center_uses_available_geometry(self):
         self.pet.move_to_screen_center()

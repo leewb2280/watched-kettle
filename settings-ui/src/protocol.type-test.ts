@@ -43,3 +43,33 @@ declare const core: ReturnType<
 >;
 // @ts-expect-error core helpers retain the required argument contract
 core.call("pet.select");
+
+// Every double-click choice is common to both editions; unknown ones are not.
+void window.settings?.request("settings.set", {
+  key: "double_click_action",
+  value: "codex",
+});
+void window.settings?.request("settings.set", {
+  key: "double_click_action",
+  value: "claude",
+});
+// @ts-expect-error only the listed double-click actions can be saved.
+void window.settings?.request("settings.set", {
+  key: "double_click_action",
+  value: "open_terminal",
+});
+
+// Lock shortcuts are text; the lock itself is a boolean setting.
+void window.settings?.request("settings.set", {
+  key: "click_through_hotkey",
+  value: "Ctrl+Alt+P",
+});
+void window.settings?.request("settings.set", {
+  key: "click_through",
+  value: true,
+});
+// @ts-expect-error a shortcut is never sent as a boolean.
+void window.settings?.request("settings.set", {
+  key: "click_through_hotkey",
+  value: true,
+});

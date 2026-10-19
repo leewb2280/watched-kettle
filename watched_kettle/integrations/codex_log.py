@@ -22,6 +22,7 @@ from watched_kettle.integrations.codex_paths import codex_home
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from watched_kettle.integrations.codex_hooks import sanitize_pet_event
+from watched_kettle.state.codex_activity import CodexLiveToolStart
 from watched_kettle.state.agent_scope import scope_from_session_source
 from watched_kettle.state.event_names import outcome_reason
 
@@ -150,6 +151,7 @@ class CodexLogMonitor(QObject):
         self._file_ids = {}
         self._active_turns = {}
         self._tool_turns = OrderedDict()
+        self._seen_live_calls = OrderedDict()
         self._last_heartbeats = {}
         self._turn_started_at = {}
         self._retired_turns = OrderedDict()
@@ -223,6 +225,7 @@ class CodexLogMonitor(QObject):
         self._file_ids.clear()
         self._active_turns.clear()
         self._tool_turns.clear()
+        self._seen_live_calls.clear()
         self._last_heartbeats.clear()
         self._turn_started_at.clear()
         self._retired_turns.clear()
@@ -348,6 +351,7 @@ class CodexLogMonitor(QObject):
                     self._active_turns[path] = snapshot.turn_id
                     for call in snapshot.active_tools:
                         self._tool_turns[(path, call)] = snapshot.turn_id
+                        self._remember_live_call(path, snapshot.turn_id, call)
                         while len(self._tool_turns) > 4096:
                             self._tool_turns.popitem(last=False)
                     self._last_heartbeats.pop(path, None)
@@ -737,7 +741,19 @@ class CodexLogMonitor(QObject):
             turn = self._tool_turns.pop((path, call_id), None)
             if turn and not event.get("turn_id"):
                 event["turn_id"] = turn
-        self._emit(event)
+        live_tool = None
+        if (
+            belongs
+            and event["event"] == "tool_start"
+            and call_id
+            and recorded_at is not None
+            and (path, active_turn) not in self._retired_turns
+            and self._remember_live_call(path, active_turn, call_id)
+        ):
+            live_tool = CodexLiveToolStart(
+                event["session_id"], active_turn, call_id, recorded_at.timestamp()
+            )
+        self._emit(event, live_tool)
         if event["event"] in {"done", "cancelled", "failed", "ended"} and record_turn:
             self._retire_turn(path, record_turn)
         if (
@@ -749,6 +765,15 @@ class CodexLogMonitor(QObject):
             self._pending_async_questions.setdefault(path, {}).clear()
             self._last_heartbeats.pop(path, None)
             self._pending_errors.pop(path, None)
+
+    def _remember_live_call(self, path, turn, call):
+        key = (path, turn, call)
+        if key in self._seen_live_calls:
+            return False
+        self._seen_live_calls[key] = None
+        while len(self._seen_live_calls) > 4096:
+            self._seen_live_calls.popitem(last=False)
+        return True
 
     def _retire_turn(self, path, turn):
         self._retired_turns[(path, turn)] = None
@@ -778,10 +803,12 @@ class CodexLogMonitor(QObject):
             }
         )
 
-    def _emit(self, event):
+    def _emit(self, event, live_tool=None):
         event = sanitize_pet_event(event)
         if event is None:
             return
+        if live_tool is not None:
+            event["_codex_live_tool"] = live_tool
         self.event_count += 1
         self.last_event = event["event"]
         self.last_detected_at = self._now()
@@ -813,6 +840,9 @@ class CodexLogMonitor(QObject):
         for key in tuple(self._tool_turns):
             if key[0] == path:
                 del self._tool_turns[key]
+        for key in tuple(self._seen_live_calls):
+            if key[0] == path:
+                del self._seen_live_calls[key]
         self._metadata_seen.discard(path)
         self._history_starts.pop(path, None)
         self._next_ordinals.pop(path, None)

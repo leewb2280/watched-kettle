@@ -184,6 +184,15 @@ class NotificationService(QObject):
         self._replace_record(record_id, confirmed=True)
         self.snapshot_changed.emit(self.snapshot)
 
+    def confirm_all(self):
+        pending = [r.record_id for r in self.snapshot.recent if not r.confirmed]
+        if not pending:
+            return
+        for record_id in pending:
+            self._finish(record_id)
+            self._replace_record(record_id, confirmed=True)
+        self.snapshot_changed.emit(self.snapshot)
+
     def pending_count(self, category):
         lane = "schedule" if category == "schedule" else "general"
         return sum(

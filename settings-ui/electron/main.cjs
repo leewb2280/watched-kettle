@@ -5,6 +5,7 @@ const {
   nativeTheme,
   dialog,
   screen,
+  shell,
 } = require("electron");
 const { join } = require("node:path");
 const { pathToFileURL } = require("node:url");
@@ -13,6 +14,7 @@ const { randomUUID } = require("node:crypto");
 const fs = require("node:fs");
 const os = require("node:os");
 const appearancePolicy = require("./appearance.cjs");
+const { externalLinkAllowed } = require("./external.cjs");
 const { t, setCatalog } = require("../localization.cjs");
 let localization;
 
@@ -131,16 +133,22 @@ ipcMain.handle("settings:language-folder", (event) => {
 ipcMain.handle("settings:file", async (event, purpose, kind) => {
   validSender(event);
   const elementKinds = ["pattern", "ornament", "photo", "frame", "sticker"];
-  if (purpose === "pet") {
+  if (purpose === "pet" || purpose === "pet-folder") {
     // Discard the previous preparation even if the new picker is cancelled.
     await request("file.pet.cancel");
     const selected = await dialog.showOpenDialog(window, {
       title: t("message.1268"),
-      properties: ["openFile"],
-      filters: [{ name: t("message.1269"), extensions: ["png", "webp"] }],
+      properties: [purpose === "pet-folder" ? "openDirectory" : "openFile"],
+      ...(purpose === "pet"
+        ? {
+            filters: [
+              { name: t("message.1269"), extensions: ["png", "webp", "zip"] },
+            ],
+          }
+        : {}),
     });
     if (selected.canceled) return { cancelled: true };
-    return request("file.pet.prepare", { path: selected.filePaths[0] });
+    return request("file.pet.start", { path: selected.filePaths[0] });
   }
   if (purpose === "import" && elementKinds.includes(kind)) {
     const selected = await dialog.showOpenDialog(window, {
@@ -224,7 +232,11 @@ async function createWindow() {
       sandbox: true,
     },
   });
-  window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    // Only the About page's repository links leave for the default browser.
+    if (externalLinkAllowed(url)) shell.openExternal(url).catch(() => {});
+    return { action: "deny" };
+  });
   window.webContents.on("will-navigate", (event) => event.preventDefault());
   window.webContents.session.setPermissionRequestHandler(
     (_wc, _permission, callback) => callback(false),

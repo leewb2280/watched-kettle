@@ -9,10 +9,11 @@ import shutil
 import sys
 import tempfile
 import threading
+from zipfile import ZipFile
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QObject, QSettings, QTimer, Signal
+from PySide6.QtCore import QObject, QProcess, QSettings, QTimer, Signal
 from PySide6.QtWidgets import QApplication
 from PIL import Image
 
@@ -87,6 +88,7 @@ QA_CLAUDE_CODE_SESSION = "5c0de000-0000-4000-8000-000000000013"
 # A user-chosen title is user data in any UI language. English QA uses an
 # English title because history summaries mix titles with app fallbacks.
 QA_CONVERSATION_TITLES = {"ko": "QA 대화 제목", "en": "QA conversation title"}
+QA_PENDING_NOTICES = {"ko": "확인 대기 알림", "en": "Pending QA notice"}
 
 
 def write_claude_code_transcript(config_dir, title):
@@ -184,6 +186,7 @@ def main():
     app.setQuitOnLastWindowClosed(False)
     with tempfile.TemporaryDirectory(prefix="watched-kettle-settings-qa-") as folder:
         root = Path(folder)
+        os.environ["CODEX_HOME"] = str(root / "codex")
         # Never read the developer's ~/.claude; one isolated finished turn.
         os.environ["CLAUDE_CONFIG_DIR"] = str(root / "claude")
         write_claude_code_transcript(
@@ -234,6 +237,24 @@ def main():
             json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
         )
         spritesheet_path = alternate_pet / manifest["spritesheetPath"]
+        installed_pet = root / "codex" / "pets" / "qa-installed"
+        shutil.copytree(alternate_pet, installed_pet)
+        # Unused fields and another installation's decoration reference make
+        # the import dialog show both omitted-information notices.
+        installed_manifest = dict(
+            manifest,
+            tags=["qa"],
+            bubbleTheme=dict(manifest.get("bubbleTheme", {}), pattern="user:qa"),
+        )
+        (installed_pet / "pet.json").write_text(
+            json.dumps(installed_manifest, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        import_archive = root / "qa-pet.zip"
+        with ZipFile(import_archive, "w") as archive:
+            for item in installed_pet.rglob("*"):
+                if item.is_file():
+                    archive.write(item, item.relative_to(installed_pet).as_posix())
         import_source = root / "웹 펫.png"
         with Image.open(Path("pets/mori-bot") / manifest["spritesheetPath"]) as atlas:
             atlas.save(import_source, format="PNG")
@@ -324,6 +345,8 @@ def main():
                     control=str(root / "control.json"),
                     petImportSource=str(import_source),
                     petImportInvalid=str(import_invalid),
+                    petImportFolder=str(installed_pet),
+                    petImportZip=str(import_archive),
                 )
             ),
             flush=True,
@@ -353,7 +376,34 @@ def main():
                 # The runner may still be writing; consume a complete command
                 # on the next tick instead of logging a transient callback error.
                 return
-            if data["action"] == "batch_fixture":
+            if data["action"] == "double_click":
+                from unittest.mock import patch
+                from PySide6.QtCore import Qt
+                from watched_kettle.integrations.windows_apps import AppOpenResult
+
+                class DoubleClickEvent:
+                    def button(self):
+                        return Qt.MouseButton.LeftButton
+
+                    def accept(self):
+                        pass
+
+                with (
+                    patch.object(
+                        host.process,
+                        "state",
+                        return_value=QProcess.ProcessState.Running,
+                    ),
+                    patch.dict(
+                        runtime.pet_actions.openers,
+                        {
+                            action: lambda: AppOpenResult(True)
+                            for action in ("codex", "claude")
+                        },
+                    ),
+                ):
+                    pet.mouseDoubleClickEvent(DoubleClickEvent())
+            elif data["action"] == "batch_fixture":
                 count = min(60, max(1, int(data.get("count", 55))))
                 base = Path("pets/mori-bot")
                 manifest = json.loads((base / "pet.json").read_text(encoding="utf-8"))
@@ -413,6 +463,14 @@ def main():
 
                 with patch.object(host, "_launch"):
                     host.open_target(ActionTarget("notice", record.record_id))
+            elif data["action"] == "pending_notices":
+                # Unopened notices for the notice center's confirm-all button;
+                # more than five also fold behind "show more".
+                for number in range(1, int(data.get("count", 2)) + 1):
+                    message = f"{QA_PENDING_NOTICES[args.language]} {number}"
+                    runtime.notification_service.submit(
+                        NoticeRequest(source="qa", message=message, category="system")
+                    )
             elif data["action"] == "claude_code":
                 # One running Claude Code turn in an isolated folder, through
                 # the same coordinator path a real hook event takes.
@@ -485,6 +543,9 @@ def main():
                     json.dumps(
                         dict(
                             visible=host.visible,
+                            route=host.route,
+                            doubleClickAction=preferences.load_double_click_action(),
+                            petState=pet.current_state,
                             subscriptions=sorted(host.subscriptions),
                             revision=host.adapter.revision,
                             restartRequests=restart_requests,

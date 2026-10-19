@@ -7,16 +7,9 @@ import {
   RotateCcw,
   Search,
 } from "lucide-react";
-import { Empty, Fields, Heading, Section } from "../components";
+import { Empty, Fields, Heading, Section, TabList } from "../components";
 import type { Control, Provider, UsageSetting } from "../types";
-import {
-  Details,
-  number,
-  Pager,
-  Segmented,
-  TabList,
-  time,
-} from "./presentation";
+import { Details, number, Pager, Segmented, time } from "./presentation";
 import { QuotaGroups } from "./QuotaGroups";
 import { Trends } from "./Trends";
 import type { AssistantSettingsState } from "./useAssistantSettings";
@@ -119,7 +112,11 @@ export function AssistantUsagePage({
                 className="availability-item"
                 data-state={u.availability.state}
               >
-                <span className="small-dot" />
+                <span
+                  className="small-dot"
+                  role="img"
+                  aria-label={u.availability.message}
+                />
                 <strong>Codex</strong>
                 {[
                   u.account_email,

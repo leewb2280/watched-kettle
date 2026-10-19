@@ -386,6 +386,40 @@ export function PetManagerDialog({
     setDragId(null);
     setDropAt(null);
   };
+  // Shared by the pet list and the trash: it sits with the other row tools.
+  const selectTools = (
+    <>
+      {selecting && (
+        <label className="manager-select-all">
+          <input
+            ref={selectAll}
+            type="checkbox"
+            aria-label={t("message.1185")}
+            checked={
+              selectable.length > 0 && selected.length === selectable.length
+            }
+            disabled={busy || !selectable.length}
+            onChange={(event) =>
+              setSelected(event.target.checked ? [...selectable] : [])
+            }
+          />
+          {t("message.1185")}
+        </label>
+      )}
+      <button
+        className="button compact"
+        disabled={busy || !selectable.length}
+        aria-pressed={selecting}
+        onClick={() => {
+          resetOrderEditing();
+          setSelecting(!selecting);
+          clearSelection(false);
+        }}
+      >
+        {selecting ? t("message.1183") : t("message.1184")}
+      </button>
+    </>
+  );
   return (
     <>
       <Modal
@@ -500,38 +534,6 @@ export function PetManagerDialog({
         }
       >
         <div className="pet-manager" aria-busy={busy}>
-          <div className="batch-select-tools">
-            <button
-              className="button compact"
-              disabled={busy || !selectable.length}
-              aria-pressed={selecting}
-              onClick={() => {
-                resetOrderEditing();
-                setSelecting(!selecting);
-                clearSelection(false);
-              }}
-            >
-              {selecting ? t("message.1183") : t("message.1184")}
-            </button>
-            {selecting && (
-              <label>
-                <input
-                  ref={selectAll}
-                  type="checkbox"
-                  aria-label={t("message.1185")}
-                  checked={
-                    selectable.length > 0 &&
-                    selected.length === selectable.length
-                  }
-                  disabled={busy || !selectable.length}
-                  onChange={(event) =>
-                    setSelected(event.target.checked ? [...selectable] : [])
-                  }
-                />
-                {t("message.1185")}
-              </label>
-            )}
-          </div>
           <div className="manager-toolbar">
             {view === "owned" ? (
               <>
@@ -692,14 +694,14 @@ export function PetManagerDialog({
                   </button>
                 ))}
               </div>
-              {!selecting && (
-                <div className="manager-order-tools">
+              <div className="manager-order-tools">
+                {!selecting && (
                   <label>
                     {t("message.1204")}{" "}
                     <select
                       aria-label={t("message.1204")}
                       value={catalog.sort}
-                      disabled={busy || selecting}
+                      disabled={busy}
                       onChange={(event) => {
                         resetOrderEditing();
                         void save({
@@ -711,16 +713,21 @@ export function PetManagerDialog({
                       <option value="custom">{t("message.0709")}</option>
                     </select>
                   </label>
-                  <button
-                    className="button compact"
-                    aria-pressed={editing}
-                    disabled={busy || !canEdit || rows.length < 2}
-                    onClick={() => setEditing(!editing)}
-                  >
-                    {editing ? t("message.1205") : t("message.1206")}
-                  </button>
+                )}
+                <div className="manager-row-tools">
+                  {selectTools}
+                  {!selecting && (
+                    <button
+                      className="button compact"
+                      aria-pressed={editing}
+                      disabled={busy || !canEdit || rows.length < 2}
+                      onClick={() => setEditing(!editing)}
+                    >
+                      {editing ? t("message.1205") : t("message.1206")}
+                    </button>
+                  )}
                 </div>
-              )}
+              </div>
               <p className="manager-help">
                 {selecting
                   ? t("message.1207")
@@ -985,12 +992,15 @@ export function PetManagerDialog({
           ) : (
             <>
               <p className="manager-help">{t("message.1231")}</p>
-              <p className="manager-trash-summary">
-                {t("pet.trash_summary", {
-                  count: trash.total,
-                  size: size(trash.totalBytes),
-                })}
-              </p>
+              <div className="manager-order-tools">
+                <p className="manager-trash-summary">
+                  {t("pet.trash_summary", {
+                    count: trash.total,
+                    size: size(trash.totalBytes),
+                  })}
+                </p>
+                <div className="manager-row-tools">{selectTools}</div>
+              </div>
               {!trash.entries.length ? (
                 <div className="manager-empty">
                   <Trash2 size={28} />

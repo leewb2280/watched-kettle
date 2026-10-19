@@ -27,6 +27,8 @@ PET_FORBIDDEN = (
     "PySide6.QtQuick",
     "PySide6.QtQml",
 )
+# Explicit user-triggered app launch is common; agent readers remain forbidden.
+PET_ALLOWED = frozenset({"watched_kettle.integrations.codex_launcher"})
 ALL_FORBIDDEN = ("watched_kettle.features.tasks",)
 # The hook bridge starts on every Codex tool call (ADR 0004). inspect pulls in
 # PyInstaller's inspect runtime hook, so the spec excludes it explicitly.
@@ -91,7 +93,8 @@ def check_edition_modules(toc_path, edition):
     unexpected = sorted(
         name
         for name in modules
-        if any(
+        if not (edition == "pet-only" and name in PET_ALLOWED)
+        and any(
             name == prefix
             or name.startswith(prefix + ".")
             or (prefix.endswith("_") and name.startswith(prefix))

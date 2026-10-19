@@ -25,6 +25,7 @@ import subprocess
 from PySide6.QtCore import QUrl
 
 from watched_kettle.integrations.claude_code_transcript import locate_transcript
+from watched_kettle.integrations.vscode_launcher import installed_vscode
 
 
 CLAUDE_CODE_EXTENSION = "anthropic.claude-code"
@@ -88,19 +89,6 @@ def open_url(url, shell_open, console=None, popen=subprocess.Popen):
         except OSError:
             pass
     return bool(shell_open(url))
-
-
-def installed_vscode():
-    """Whether the stable VS Code registered its ``vscode`` URI scheme."""
-    if os.name != "nt":
-        return False
-    try:
-        import winreg
-
-        with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, "vscode"):
-            return True
-    except OSError:
-        return False
 
 
 def session_url(session_id):

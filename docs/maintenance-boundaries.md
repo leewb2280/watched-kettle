@@ -36,6 +36,9 @@
 | `settings_protocol.py`와 생성기 | Qt 독립 DTO·명령 노출 명세에서 TS 타입·Electron 목록을 생성한다. 제품 상태를 소유하지 않는다. 생성물 최신성은 계약 검사에서 대조한다. |
 | `CoreSettingsAdapter.execute` | 구성·일괄 작업 제한과 명령 선택을 소유한다. 펫·일반 설정·테마 처리를 비공개 메서드에 위임하고, 기존의 조회·변경·부분 실패별 저장·revision·신호 순서를 유지한다. |
 | `AssistantSettingsAdapter.execute` | 계정 epoch 확인과 비서 명령 선택을 소유한다. 조회·탐색·변경 처리를 위임하고 기존 usage/activity 신호를 전달한다. |
+| 펫·위젯 고정 단축키 | `application/click_through.py`가 두 runtime에서 한 번 만들어져 전역 단축키(`integrations/windows_hotkeys.py`)를 등록·해제하고, 눌리면 펫·위젯의 고정을 토글한다. 위젯 단축키는 비서 runtime만 연결한다. runtime 종료 때 UI보다 먼저 해제한다. |
+| 공통 더블클릭 조정 | `application/pet_actions.py`가 설정 조회·홈/앱 열기만 수행한다. 앱 열기는 `integrations/windows_apps.py`의 공통 창 활성화를 Codex·VS Code launcher가 함께 쓴다. 두 runtime이 펫 신호를 한 번 연결하고 종료 때 해제한다. 수집 스위치와 독립적인 사용자 동작이며 활동 상태·큐를 소유하지 않는다. |
+| 공통 홈 | App이 공통 페이지 컨테이너를 유지하고 공통 펫 영역·선택적 비서 영역을 합성한다. 기존 상위 훅·snapshot·명령 큐를 재생성하지 않는다. |
 | `App` | 공통 설정 snapshot·계정 문맥·직렬 명령 큐의 유일한 소유자다. 화면 분리로 큐를 추가하지 않는다. |
 | `core/useCoreSettings` | 펫 목록·미리보기 요청 세대와 선택 화면 상태를 소유한다. 페이지·표시 여부 변화의 기존 취소 조건을 유지한다. |
 | `core/useBubbleEditor` | 초안·원본 revision·미리보기 요청 세대·편집 오류를 소유한다. 명시적 적용 때만 저장 명령을 보내고, 충돌 후 재불러오기 정책을 유지한다. 화면 전환에도 같은 상위 훅 인스턴스를 사용한다. |

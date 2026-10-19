@@ -37,8 +37,6 @@ export function useCoreSettings(shell: Shell, page: Page) {
 
   const [petTab, setPetTab] = useState(petTabs[0]);
 
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
-
   const {
     editor,
     setEditor,
@@ -139,12 +137,6 @@ export function useCoreSettings(shell: Shell, page: Page) {
 
   const openCatalogManager = () => setManager(true);
 
-  const selectTab = (index: number) => {
-    const next = (index + petTabs.length) % petTabs.length;
-    setPetTab(petTabs[next]);
-    tabRefs.current[next]?.focus();
-  };
-
   const loadPetPreview = async (petId: string) => {
     const sequence = ++petPreviewSequence.current;
     setPetPreview(null);
@@ -163,17 +155,19 @@ export function useCoreSettings(shell: Shell, page: Page) {
   };
 
   useEffect(() => {
-    if (shell.visible && page === "pet") {
+    if (shell.visible && (page === "pet" || page === "home")) {
       let cancelled = false;
       const petId = snapshot.pet.pet_id;
       const sequence = ++petPreviewSequence.current;
       setPetPreview(null);
-      window
-        .settings!.request("pet.catalog")
-        .then((value) => {
-          if (!cancelled) setCatalog(value);
-        })
-        .catch(fail);
+      if (page === "pet") {
+        window
+          .settings!.request("pet.catalog")
+          .then((value) => {
+            if (!cancelled) setCatalog(value);
+          })
+          .catch(fail);
+      }
       window
         .settings!.request("pet.preview", { petId })
         .then((value) => {
@@ -220,8 +214,6 @@ export function useCoreSettings(shell: Shell, page: Page) {
     call,
     displaySizeLabel,
     petTab,
-    selectTab,
-    tabRefs,
     setPetTab,
     change,
     movementScreen,

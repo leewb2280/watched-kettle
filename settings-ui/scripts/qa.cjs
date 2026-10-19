@@ -335,6 +335,123 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       .getByRole("heading", { name: "펫", exact: true, level: 1 })
       .waitFor();
     metrics.coldOpenMs = Math.round(performance.now() - start);
+    const controlGesture = async () => {
+      await fs.writeFile(
+        connection.control,
+        JSON.stringify({ action: "double_click" }),
+      );
+      await until(async () =>
+        fs.access(connection.control).then(
+          () => false,
+          () => true,
+        ),
+      );
+    };
+    await page.getByRole("button", { name: "홈", exact: true }).click();
+    await page
+      .getByRole("heading", { name: "홈", exact: true, level: 1 })
+      .waitFor();
+    await page.getByRole("heading", { name: "나의 펫", exact: true }).waitFor();
+    await page.locator(".pet-home-summary img").waitFor();
+    assert.equal(await page.locator("h1").count(), 1);
+    await page.screenshot({ path: path.join(out, "common-home.png") });
+    // A pet gesture: it lives on the pet page's behavior tab.
+    await page
+      .getByRole("button", { name: "펫", exact: true })
+      .first()
+      .click();
+    await page.getByRole("tab", { name: "동작·화면", exact: true }).click();
+    const doubleClick = page.getByLabel("더블클릭 동작", { exact: true });
+    assert.equal(await doubleClick.inputValue(), "settings_home");
+    assert.equal(await doubleClick.locator("option").count(), 4);
+    assert.equal(
+      await doubleClick.locator('option[value="claude"]').isDisabled(),
+      false,
+    );
+    for (const value of ["codex", "claude", "wave_only", "settings_home"]) {
+      await doubleClick.selectOption(value);
+      await until(
+        async () =>
+          (
+            await page.evaluate(() =>
+              window.settings.request("settings.snapshot"),
+            )
+          ).doubleClickAction === value,
+      );
+      await pause(120);
+    }
+    await page.screenshot({
+      path: path.join(out, "double-click-settings.png"),
+    });
+    await page.getByRole("tab", { name: "외형·표시", exact: true }).click();
+    await controlGesture();
+    await page
+      .getByRole("heading", { name: "홈", exact: true, level: 1 })
+      .waitFor();
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0].close(),
+    );
+    await pause(250);
+    await controlGesture();
+    await until(async () =>
+      app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0].isVisible(),
+      ),
+    );
+    await page
+      .getByRole("heading", { name: "홈", exact: true, level: 1 })
+      .waitFor();
+    metrics.doubleClick = {
+      commonHome: true,
+      choices: 4,
+      claudeDisabled: true,
+      gestureOpensHome: true,
+      hiddenReopen: true,
+    };
+    await page.getByRole("button", { name: "정보", exact: true }).click();
+    await page
+      .getByRole("heading", { name: "정보", exact: true, level: 1 })
+      .waitFor();
+    await page
+      .locator("main")
+      .getByText(edition === "pet-assistant" ? "펫 + 비서" : "펫만")
+      .first()
+      .waitFor();
+    assert.ok((await page.locator(".about-list li").count()) >= 5);
+    assert.equal(
+      await page
+        .getByRole("button", { name: "라이선스 폴더 열기", exact: true })
+        .isDisabled(),
+      true,
+    );
+    // A repository link goes to the default browser, never a new window.
+    await app.evaluate(({ shell }) => {
+      globalThis.qaOpened = [];
+      shell.openExternal = async (url) => globalThis.qaOpened.push(url);
+    });
+    await page
+      .getByRole("link", { name: "전체 패치노트", exact: true })
+      .click();
+    await until(async () =>
+      app.evaluate(() => globalThis.qaOpened.length === 1),
+    );
+    const opened = await app.evaluate(() => globalThis.qaOpened[0]);
+    assert.match(
+      opened,
+      /^https:\/\/github\.com\/leewb2280\/watched-kettle\/releases\/tag\/v/,
+    );
+    assert.equal(
+      await app.evaluate(
+        ({ BrowserWindow }) => BrowserWindow.getAllWindows().length,
+      ),
+      1,
+    );
+    await page.screenshot({ path: path.join(out, "about.png") });
+    metrics.about = { externalLink: true, licensesDisabled: true };
+    await page.getByRole("button", { name: "펫", exact: true }).click();
+    await page
+      .getByRole("heading", { name: "펫", exact: true, level: 1 })
+      .waitFor();
     if (process.env.SETTINGS_QA_FOCUS === "pet-batch") {
       await testPetBatch({ page, app, connection, out, metrics });
       await page.getByRole("button", { name: "앱 설정", exact: true }).click();
@@ -690,7 +807,7 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       1,
     );
     const moveToScreen = page.getByRole("button", {
-      name: "지금 이 화면으로 옮기기",
+      name: "선택한 디스플레이로 옮기기",
       exact: true,
     });
     const movementScreenValue = async () =>
@@ -1949,12 +2066,19 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       assert.equal(await page.locator(".home-connection").count(), 2);
       await page.screenshot({ path: path.join(out, "home.png") });
       await page
-        .getByRole("button", { name: "활동 기록", exact: true })
+        .getByRole("button", { name: "알림 기록", exact: true })
         .click();
       await page
         .getByRole("heading", { name: "최근 활동", exact: true })
         .waitFor();
       await page.getByText("확인할 알림이 없어요.").waitFor();
+      // The info tip opens from the keyboard, not only on hover.
+      const infoTip = page.locator(".info-tip").first();
+      assert.equal(await infoTip.getAttribute("tabindex"), "0");
+      await infoTip.focus();
+      await infoTip.locator(".info-tip-text").waitFor({ state: "visible" });
+      await page.screenshot({ path: path.join(out, "activity-info-tip.png") });
+      await infoTip.blur();
       await page
         .getByRole("button", { name: "연결·진단", exact: true })
         .click();
@@ -2202,17 +2326,42 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
         );
       });
       await page
-        .getByRole("button", { name: "활동 기록", exact: true })
+        .getByRole("button", { name: "알림 기록", exact: true })
         .click();
-      await page
-        .locator(".project-activity-heading .source-tag", {
-          hasText: "Claude Code",
-        })
-        .waitFor();
       await page
         .locator(".record-row .source-tag", { hasText: "Claude Code" })
         .first()
         .waitFor();
+      // Running conversations live on home; the notice center keeps events.
+      assert.equal(await page.locator(".project-activity").count(), 0);
+      const kinds = page.getByRole("group", { name: "활동 종류" });
+      await kinds.getByRole("button", { name: /^상태 변화 \d+$/ }).click();
+      await page
+        .locator(".record-row .source-tag", { hasText: "Claude Code" })
+        .first()
+        .waitFor();
+      assert.equal(
+        await page.locator(".record-row", { hasText: "연결 검증 알림" }).count(),
+        0,
+      );
+      await kinds.getByRole("button", { name: /^전체 \d+$/ }).click();
+      await page
+        .locator(".record-row", { hasText: "연결 검증 알림" })
+        .first()
+        .waitFor();
+      await fs.writeFile(
+        connection.control,
+        JSON.stringify({ action: "pending_notices" }),
+      );
+      await page.getByRole("button", { name: "모두 확인", exact: true }).click();
+      await page.getByText("확인할 알림이 없어요.").waitFor();
+      assert.ok(
+        (
+          await page.evaluate(() =>
+            window.settings.request("activity.snapshot"),
+          )
+        ).notices.every((notice) => notice.confirmed),
+      );
       await page.screenshot({ path: path.join(out, "activity-claude.png") });
       // Home lists the running row straight in its card; it keeps the card's
       // padding instead of touching the border.
@@ -2234,7 +2383,7 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       );
       await page.screenshot({ path: path.join(out, "home-running.png") });
       await page
-        .getByRole("button", { name: "활동 기록", exact: true })
+        .getByRole("button", { name: "알림 기록", exact: true })
         .click();
       await fs.writeFile(
         connection.control,

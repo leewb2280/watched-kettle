@@ -13,6 +13,7 @@ class RouteId(str, Enum):
     PET_SETTINGS = "pet_settings"
     APP_STARTUP = "app_startup"
     WIDGET_SETTINGS = "widget_settings"
+    ABOUT = "about"
 
     # Source-compatible names for callers that only need the representative route.
     NOTIFICATIONS = NOTIFICATIONS_HISTORY

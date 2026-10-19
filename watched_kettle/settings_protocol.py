@@ -15,7 +15,15 @@ Scalar = str | int | float | bool | None
 Provider = Literal["codex", "claude_code"]
 ElementKind = Literal["pattern", "ornament", "photo", "frame", "sticker"]
 Page = Literal[
-    "home", "pet", "bubble", "widget", "usage", "activity", "integration", "app"
+    "home",
+    "pet",
+    "bubble",
+    "widget",
+    "usage",
+    "activity",
+    "integration",
+    "app",
+    "about",
 ]
 
 
@@ -43,9 +51,14 @@ class EffectiveAppearance(Appearance):
     highContrast: bool
 
 
+DoubleClickAction = Literal["settings_home", "codex", "claude", "wave_only"]
+HotkeyStatus = Literal["unassigned", "registered", "in_use", "invalid", "unavailable"]
+
+
 class Option(TypedDict):
     value: Scalar
     label: str
+    disabled: NotRequired[bool]
 
 
 class ControlBase(TypedDict):
@@ -90,8 +103,19 @@ class ColorControl(ControlBase):
     value: str
 
 
+class HotkeyControl(ControlBase):
+    kind: Literal["hotkey"]
+    value: str
+    status: HotkeyStatus
+
+
 Control = (
-    BooleanControl | NumberControl | OptionalControl | SelectControl | ColorControl
+    BooleanControl
+    | NumberControl
+    | OptionalControl
+    | SelectControl
+    | ColorControl
+    | HotkeyControl
 )
 
 
@@ -127,6 +151,29 @@ class UpdateState(TypedDict):
     auto_check: bool
 
 
+class AboutLinks(TypedDict):
+    repository: str
+    releaseNotes: str
+    changelog: str
+    issues: str
+    license: str
+
+
+class ThirdPartyNotice(TypedDict):
+    name: str
+    license: str
+
+
+class AboutInfo(TypedDict):
+    version: str
+    edition: Literal["pet-only", "pet-assistant"]
+    whatsNewVersion: str
+    whatsNew: list[str]
+    links: AboutLinks
+    thirdParty: list[ThirdPartyNotice]
+    licensesAvailable: bool
+
+
 class SettingsSnapshot(TypedDict):
     version: str
     revision: int
@@ -135,11 +182,13 @@ class SettingsSnapshot(TypedDict):
     pet: PetSnapshot
     controls: list[Control]
     bubbleControls: list[Control]
+    doubleClickAction: DoubleClickAction
     appearance: Appearance
     startup: Startup
     animations: list[Animation]
     update: UpdateState
     language: LanguageState
+    about: AboutInfo
 
 
 class Saved(TypedDict):
@@ -262,6 +311,56 @@ class PetPreparation(TypedDict):
     name: str
     thumbnail: str
     spriteVersion: int
+    description: NotRequired[str]
+    source: NotRequired[str]
+    warnings: NotRequired[list[str]]
+    omittedThemeReferences: NotRequired[bool]
+
+
+class PetImportJob(TypedDict):
+    jobId: str
+    state: Literal["preparing", "ready", "error", "cancelled"]
+    received: int
+    total: int
+    error: str
+    prepared: NotRequired[PetPreparation]
+
+
+class ImportJobId(TypedDict):
+    jobId: str
+
+
+class ImportCommand(TypedDict):
+    command: str
+
+
+class InstalledPetId(TypedDict):
+    id: str
+
+
+class InstalledPet(TypedDict):
+    id: str
+    name: str
+    description: str
+    error: str
+
+
+InstalledPetList = list[InstalledPet]
+
+
+class ImportThumbnail(TypedDict):
+    image: str
+
+
+class ImportPreviewRequest(TypedDict):
+    token: str
+    state: str
+
+
+class ImportPreview(TypedDict):
+    image: str
+    frames: int
+    interval: int
 
 
 class Cancelled(TypedDict):
@@ -417,6 +516,8 @@ class BooleanSetting(Context):
         "bubbles",
         "update_auto_check",
         "startup",
+        "click_through",
+        "click_through_bubbles",
     ]
     value: bool
 
@@ -462,8 +563,20 @@ class AppearanceSetting(Context):
     value: Appearance
 
 
+class DoubleClickSetting(Context):
+    key: Literal["double_click_action"]
+    value: DoubleClickAction
+
+
+class HotkeySetting(Context):
+    key: Literal["click_through_hotkey"]
+    value: str
+
+
 SettingRequest = (
-    BooleanSetting
+    DoubleClickSetting
+    | HotkeySetting
+    | BooleanSetting
     | NumberSetting
     | DurationSetting
     | StringSetting
@@ -640,6 +753,13 @@ COMMANDS = {
     "pet.select": Command("SelectPet", "Mutation"),
     "pet.import.commit": Command("RegisterPet", "PetRegistration"),
     "pet.import.cancel": Command("Token", "Cancelled"),
+    "pet.import.start": Command("ImportCommand", "PetImportJob"),
+    "pet.import.status": Command("ImportJobId", "PetImportJob"),
+    "pet.import.stop": Command("ImportJobId", "Cancelled"),
+    "pet.import.installed": Command("Empty", "InstalledPetList"),
+    "pet.import.installed.thumbnail": Command("InstalledPetId", "ImportThumbnail"),
+    "pet.import.installed.start": Command("InstalledPetId", "PetImportJob"),
+    "pet.import.preview": Command("ImportPreviewRequest", "ImportPreview"),
     "pet.catalog.save": Command("CatalogSave", "Mutation"),
     "pet.trash.list": Command("Offset", "PetTrashCatalog"),
     "pet.trash.move": Command("TrashMove", "TrashMutation"),
@@ -659,6 +779,7 @@ COMMANDS = {
     "update.download": Command("Empty", "Pending"),
     "update.cancel": Command("Empty", "Pending"),
     "update.open": Command("Empty", "Opened"),
+    "about.open_licenses": Command("Empty", "Opened"),
     "app.quit": Command("Empty", "Accepted"),
     "app.restart": Command("Empty", "Accepted"),
     "navigation.ack": Command("NavigationAck", "Confirmed"),
@@ -668,6 +789,7 @@ COMMANDS = {
     "window.restore": Command("Empty", "WindowState", "main"),
     "file.import": Command("ImportElement", "ElementImported", "main"),
     "file.pet.prepare": Command("FilePath", "PetPreparation", "main"),
+    "file.pet.start": Command("FilePath", "PetImportJob", "main"),
     "file.pet.cancel": Command("Empty", "Cancelled", "main"),
     "file.export": Command("FilePath", "Saved", "main", "pet-assistant"),
 }
@@ -878,6 +1000,8 @@ class PetSnapshot(TypedDict):
     opacity_percent: int
     shadow: bool
     fade: bool
+    click_through: bool
+    click_through_bubbles: bool
 
 
 class HistoryEntry(TypedDict):
@@ -887,6 +1011,7 @@ class HistoryEntry(TypedDict):
     summary: str
     action_token: str
     source: str
+    group: Literal["notice", "attention", "progress", "completion"]
 
 
 class NoticeRecord(TypedDict):
@@ -1176,7 +1301,13 @@ class WidgetPreviewRequest(TypedDict, total=False):
 
 
 class UsageBoolean(Context):
-    key: Literal["quiet_summary", "widget_visible", "widget_tasks", "widget_today"]
+    key: Literal[
+        "quiet_summary",
+        "widget_visible",
+        "widget_tasks",
+        "widget_today",
+        "widget_click_through",
+    ]
     value: bool
 
 
@@ -1192,6 +1323,7 @@ class UsageString(Context):
         "widget_material",
         "widget_theme",
         "widget_color",
+        "widget_click_through_hotkey",
     ]
     value: str
 
@@ -1311,6 +1443,9 @@ COMMANDS.update(
             "Empty", "ActivityResponse", edition="pet-assistant"
         ),
         "activity.clear": Command(
+            "Context", "AssistantMutation", edition="pet-assistant"
+        ),
+        "activity.confirm_all": Command(
             "Context", "AssistantMutation", edition="pet-assistant"
         ),
         "activity.open": Command("Token", "Opened", edition="pet-assistant"),

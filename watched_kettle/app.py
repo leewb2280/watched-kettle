@@ -158,7 +158,6 @@ def main(
     *,
     runtime_factory=None,
     agent_controller_factory=None,
-    codex_opener=None,
     on_started=None,
     pet_only=False,
 ):
@@ -220,7 +219,6 @@ def main(
             ),
             "user_pets_root": paths.user_pets,
             "agent_controller_factory": agent_controller_factory,
-            "codex_opener": codex_opener,
         },
     )
     if startup_result is None:

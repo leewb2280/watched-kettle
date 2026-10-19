@@ -6,7 +6,6 @@ import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 
 from watched_kettle.features.agent_activity.service import AgentActivityService
@@ -477,22 +476,18 @@ class ClaudeCodePresentationTests(unittest.TestCase):
         self.assertEqual(router.label("thread", SESSION), "대화 열기")
 
     def test_history_names_the_source_and_folder(self):
-        class Usage(QObject):
-            snapshot_changed = Signal(object)
-            snapshot = SimpleNamespace(recent_tasks=(), latest_tasks=())
-
         projects = ProjectActivityService()
         projects.observe(claude("UserPromptSubmit"))
         projects.observe(claude("Stop", background_tasks=[]))
         router = NotificationActionRouter(opener=lambda _url: False)
         history = HistoryViewModel(
-            NotificationService(), Usage(), projects=projects, router=router
+            NotificationService(), projects=projects, router=router
         )
 
-        entries = {entry.kind: entry for entry in history.snapshot.entries}
-        for kind in ("프로젝트 이벤트", "작업 완료"):
-            self.assertEqual(entries[kind].source, "Claude Code")
-            self.assertEqual(entries[kind].summary, "kettle-demo · Claude Code 대화")
+        entries = {entry.group: entry for entry in history.snapshot.entries}
+        for group in ("progress", "completion"):
+            self.assertEqual(entries[group].source, "Claude Code")
+            self.assertEqual(entries[group].summary, "kettle-demo · Claude Code 대화")
 
 
 if __name__ == "__main__":

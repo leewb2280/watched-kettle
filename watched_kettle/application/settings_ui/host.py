@@ -32,7 +32,7 @@ from watched_kettle.integrations.windows_zorder import allow_foreground
 
 
 ROUTES = {
-    # The assistant home; the pet-only edition falls back to the pet page.
+    # Both editions share the settings home.
     "overview": "home",
     "home": "home",
     "widget_settings": "widget",
@@ -50,6 +50,7 @@ ROUTES = {
     "preferences": "app",
     "startup": "app",
     "bubble": "bubble",
+    "about": "about",
 }
 # A hidden renderer still holds ~225 MiB; a cold reopen takes ~0.5 s (ADR 0004).
 HIDDEN_RETIRE_MS = 5 * 60 * 1000
@@ -117,7 +118,7 @@ class SettingsWindowHost(QObject):
             if str(raw) in {"pet", "bubble", "app", "activity", "integration", "widget"}
             else "pet",
         )
-        assistant_pages = {"home", "usage", "widget", "activity", "integration"}
+        assistant_pages = {"usage", "widget", "activity", "integration"}
         if not self.adapter.assistant and page in assistant_pages:
             page = "pet"
         self.route = dict(page=page, section=section, navigationId="")
@@ -366,6 +367,11 @@ class SettingsWindowHost(QObject):
             )
         if method == "file.pet.prepare":
             return self.adapter.prepare_pet_import(Path(text(args.get("path"), 32768)))
+        if method == "file.pet.start":
+            require(not self.adapter.pet_batch.running)
+            return self.adapter.pet_import.start(
+                path=Path(text(args.get("path"), 32768))
+            )
         if method == "file.pet.cancel":
             self.adapter.cancel_pet_import()
             return dict(cancelled=True)
@@ -480,11 +486,14 @@ class SettingsWindowHost(QObject):
             )
             self.invalidated.clear()
 
-    def _show_error(self, message):
+    def show_action_error(self, message):
+        self._show_error(message, title=t("double_click.open_failed_title"))
+
+    def _show_error(self, message, title=None):
         if self.error_dialog:
             self.error_dialog.close()
         self.error_dialog = QMessageBox()
-        self.error_dialog.setWindowTitle(t("message.0573"))
+        self.error_dialog.setWindowTitle(title or t("message.0573"))
         self.error_dialog.setText(message)
         self.error_dialog.show()
 

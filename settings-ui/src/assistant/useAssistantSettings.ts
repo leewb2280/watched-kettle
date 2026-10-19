@@ -13,7 +13,7 @@ import type {
 } from "../types";
 import { assistantCommands } from "./commands";
 import { claudeHeroes, heroFor } from "./Connections";
-import { ACTIVITY_PAGE, Confirmation } from "./presentation";
+import { ACTIVITY_GROUPS, ACTIVITY_PAGE, Confirmation } from "./presentation";
 import { useAssistantSnapshots } from "./useAssistantSnapshots";
 import { useNavigationAck } from "./useNavigationAck";
 import { useUsageHistory } from "./useUsageHistory";
@@ -121,12 +121,14 @@ export function useAssistantSettings(shell: Shell, page: Page) {
 
   const allEntries: HistoryEntry[] = activity?.entries || [];
 
-  const kinds = [...new Set<string>(allEntries.map((entry) => entry.kind))];
-
-  if (filter && !kinds.includes(filter)) kinds.push(filter);
+  // A filter chosen by navigation stays visible even when it matches nothing.
+  const groups = Object.keys(ACTIVITY_GROUPS).filter(
+    (group) =>
+      group === filter || allEntries.some((entry) => entry.group === group),
+  );
 
   const entries = allEntries.filter(
-    (entry) => !filter || entry.kind === filter,
+    (entry) => !filter || entry.group === filter,
   );
 
   const unconfirmed: NoticeRecord[] = (activity?.notices || [])
@@ -218,7 +220,7 @@ export function useAssistantSettings(shell: Shell, page: Page) {
     openConversation,
     widgetVisible,
     allEntries,
-    kinds,
+    groups,
     filter,
     setFilter,
     setShown,

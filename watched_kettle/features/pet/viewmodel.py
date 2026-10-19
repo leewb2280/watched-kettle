@@ -45,6 +45,8 @@ class PetSnapshot:
     opacity_percent: int = 100
     shadow: bool = False
     fade: bool = True
+    click_through: bool = False
+    click_through_bubbles: bool = False
 
 
 @dataclass(frozen=True)
@@ -184,6 +186,14 @@ class PetViewModel(QObject):
         self.pet.set_always_on_top(value)
         self.refresh()
 
+    def set_click_through(self, value):
+        self.pet.set_click_through(value)
+        self.refresh()
+
+    def set_click_through_bubbles(self, value):
+        self.pet.set_click_through_bubbles(value)
+        self.refresh()
+
     def set_bubbles_enabled(self, value):
         self.pet.set_bubbles_enabled(value)
         self.refresh()
@@ -311,6 +321,8 @@ class PetViewModel(QObject):
             opacity_percent=self.pet.opacity_percent,
             shadow=self.pet.shadow_enabled,
             fade=self.pet.fade_enabled,
+            click_through=self.pet.click_through,
+            click_through_bubbles=self.pet.click_through_bubbles,
             idle_activities_enabled=self.pet.activity_controller.enabled,
             auto_movement_enabled=self.pet.movement_controller.enabled,
             pet_width=self.pet.pet_width,

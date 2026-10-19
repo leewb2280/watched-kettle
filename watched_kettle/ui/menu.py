@@ -25,6 +25,7 @@ def show_pet_context_menu(
     usage_widget_tasks_visible=True,
     usage_widget_today_visible=False,
     usage_widget_position_customized=False,
+    usage_widget_click_through=False,
     menu_executor=None,
 ):
     menu = QMenu(parent)
@@ -44,6 +45,9 @@ def show_pet_context_menu(
     always_on_top_action = menu.addAction(t("message.0261"))
     always_on_top_action.setCheckable(True)
     always_on_top_action.setChecked(always_on_top)
+
+    # The menu only opens while the pet takes clicks, so this only locks it.
+    click_through_action = menu.addAction(t("click_through.pet"))
 
     usage_menu = menu.addMenu(t("message.0262"))
     usage_menu.setEnabled(usage_widget_available)
@@ -76,6 +80,10 @@ def show_pet_context_menu(
     today_action.setCheckable(True)
     today_action.setChecked(usage_widget_today_visible)
     today_action.setEnabled(usage_widget_available)
+    widget_click_through_action = usage_menu.addAction(t("click_through.widget"))
+    widget_click_through_action.setCheckable(True)
+    widget_click_through_action.setChecked(usage_widget_click_through)
+    widget_click_through_action.setEnabled(usage_widget_available)
 
     usage_menu.addSeparator()
     usage_settings_action = usage_menu.addAction(t("message.0266"))
@@ -113,6 +121,13 @@ def show_pet_context_menu(
         return PetMenuCommand(
             "set_always_on_top",
             always_on_top_action.isChecked(),
+        )
+    if selected == click_through_action:
+        return PetMenuCommand("set_click_through", True)
+    if selected == widget_click_through_action:
+        return PetMenuCommand(
+            "set_usage_widget_click_through",
+            widget_click_through_action.isChecked(),
         )
     if selected == usage_widget_action:
         return PetMenuCommand(

@@ -9,7 +9,9 @@ import {
   Plus,
   RotateCcw,
 } from "lucide-react";
-import { Fields, Heading } from "../components";
+import { Fields, Heading, TabList } from "../components";
+import type { Control } from "../types";
+import { doubleClickOptions } from "./doubleClick";
 import { petTabs, petTabLabels } from "./petCatalog";
 import type { CoreSettingsState } from "./useCoreSettings";
 export function CorePetPage({
@@ -27,8 +29,6 @@ export function CorePetPage({
   call,
   displaySizeLabel,
   petTab,
-  selectTab,
-  tabRefs,
   setPetTab,
   change,
   movementScreen,
@@ -51,8 +51,6 @@ export function CorePetPage({
   | "call"
   | "displaySizeLabel"
   | "petTab"
-  | "selectTab"
-  | "tabRefs"
   | "setPetTab"
   | "change"
   | "movementScreen"
@@ -140,48 +138,27 @@ export function CorePetPage({
           </div>
         </section>
         <div className="pet-controls">
-          <div
-            className="tabs"
-            role="tablist"
-            aria-label={t("message.1121")}
-            onKeyDown={(event) => {
-              const index = petTabs.indexOf(petTab);
-              const target = {
-                ArrowRight: index + 1,
-                ArrowLeft: index - 1,
-                Home: 0,
-                End: petTabs.length - 1,
-              }[event.key];
-              if (target === undefined) return;
-              event.preventDefault();
-              selectTab(target);
-            }}
-          >
-            {petTabs.map((label, index) => (
-              <button
-                key={label}
-                ref={(element) => {
-                  tabRefs.current[index] = element;
-                }}
-                id={`pet-tab-${index}`}
-                role="tab"
-                aria-selected={petTab === label}
-                aria-controls="pet-tabpanel"
-                tabIndex={petTab === label ? 0 : -1}
-                onClick={() => setPetTab(label)}
-              >
-                {petTabLabels[label]}
-              </button>
-            ))}
-          </div>
+          <TabList
+            id="pet"
+            label={t("message.1121")}
+            tabs={petTabs.map((key) => [key, petTabLabels[key]])}
+            value={petTab}
+            select={setPetTab}
+          />
           <div
             role="tabpanel"
-            id="pet-tabpanel"
-            aria-labelledby={`pet-tab-${petTabs.indexOf(petTab)}`}
+            id="pet-panel"
+            aria-labelledby={`pet-tab-${petTab}`}
           >
             <Fields
               key={snapshot.pet.pet_id}
-              controls={snapshot.controls.filter((c) => c.groupId === petTab)}
+              controls={snapshot.controls.flatMap((c) =>
+                c.groupId !== petTab
+                  ? []
+                  : c.key === "look"
+                    ? [c, doubleClickControl(snapshot.doubleClickAction, c)]
+                    : [c],
+              )}
               change={change}
               hideTitles
               fieldExtras={
@@ -346,4 +323,19 @@ export function CorePetPage({
       </div>
     </div>
   );
+}
+
+// A pet gesture, so it sits with the pet's behavior after the mouse range;
+// the renderer owns its options like the app page used to.
+function doubleClickControl(value: string, look: Control): Control {
+  return {
+    key: "double_click_action",
+    label: t("double_click.label"),
+    kind: "select",
+    value,
+    groupId: look.groupId,
+    group: look.group,
+    options: doubleClickOptions(),
+    description: t("double_click.description"),
+  };
 }

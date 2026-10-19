@@ -1,3 +1,5 @@
+import { CoreHomePage } from "./core/CoreHomePage";
+import { CoreAboutPage } from "./core/CoreAboutPage";
 import { CoreAppPage } from "./core/CoreAppPage";
 import { CoreBubblePage } from "./core/CoreBubblePage";
 import { CoreDialogs } from "./core/CoreDialogs";
@@ -9,9 +11,11 @@ export function CorePages({ shell, page }: { shell: Shell; page: Page }) {
   const state = useCoreSettings(shell, page);
   return (
     <>
+      {page === "home" && <CoreHomePage {...state} />}
       {page === "pet" && <CorePetPage {...state} />}
       {page === "bubble" && <CoreBubblePage {...state} />}
       {page === "app" && <CoreAppPage {...state} />}
+      {page === "about" && <CoreAboutPage {...state} />}
       <CoreDialogs {...state} />
     </>
   );

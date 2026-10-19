@@ -2,6 +2,7 @@
 
 import json
 from watched_kettle.application.settings_store import open_settings
+from watched_kettle.preferences.hotkeys import format_hotkey
 
 
 from watched_kettle.preferences.models import (
@@ -72,6 +73,9 @@ USAGE_CHART_DAYS = (7, 14, 30)
 PET_OPACITY_MIN = 50
 
 
+DOUBLE_CLICK_ACTIONS = ("settings_home", "codex", "claude", "wave_only")
+
+
 class ApplicationPreferences:
     def __init__(self, settings=None):
         self.settings = settings if settings is not None else open_settings()
@@ -83,6 +87,34 @@ class ApplicationPreferences:
 
     def load_language_pack(self):
         return str(self.settings.value("app/languagePack", "") or "")
+
+    def load_double_click_action(self):
+        value = self.settings.value("pet/doubleClickAction", "settings_home")
+        return value if value in DOUBLE_CLICK_ACTIONS else "settings_home"
+
+    def save_double_click_action(self, value):
+        if value not in DOUBLE_CLICK_ACTIONS:
+            raise ValueError("unsupported double-click action")
+        self.settings.setValue("pet/doubleClickAction", value)
+
+    # Click-through belongs to the app, so it survives switching pets.
+    def load_pet_click_through(self):
+        return self.settings.value("pet/clickThrough", False, type=bool)
+
+    def save_pet_click_through(self, enabled):
+        self.settings.setValue("pet/clickThrough", bool(enabled))
+
+    def load_pet_click_through_bubbles(self):
+        return self.settings.value("pet/clickThroughBubbles", False, type=bool)
+
+    def save_pet_click_through_bubbles(self, enabled):
+        self.settings.setValue("pet/clickThroughBubbles", bool(enabled))
+
+    def load_pet_click_through_hotkey(self):
+        return format_hotkey(self.settings.value("pet/clickThroughHotkey", ""))
+
+    def save_pet_click_through_hotkey(self, text):
+        self.settings.setValue("pet/clickThroughHotkey", format_hotkey(text))
 
     def load_codex_not_detected_notice_shown(self):
         return self.settings.value(
@@ -118,6 +150,12 @@ class ApplicationPreferences:
 
     def save_update_announced_version(self, version):
         self.settings.setValue("updates/announcedVersion", str(version))
+
+    def load_last_launched_version(self):
+        return str(self.settings.value("updates/lastLaunchedVersion", "") or "")
+
+    def save_last_launched_version(self, version):
+        self.settings.setValue("updates/lastLaunchedVersion", str(version))
 
     def load_claude_code_timeouts(self):
         """Return (work, waiting) inactivity minutes for Claude Code sessions."""
@@ -329,6 +367,18 @@ class ApplicationPreferences:
 
     def load_usage_widget_legacy_offset(self):
         return self.widget.load_usage_widget_legacy_offset()
+
+    def load_usage_widget_click_through(self):
+        return self.widget.load_usage_widget_click_through()
+
+    def save_usage_widget_click_through(self, enabled):
+        return self.widget.save_usage_widget_click_through(enabled)
+
+    def load_usage_widget_click_through_hotkey(self):
+        return self.widget.load_usage_widget_click_through_hotkey()
+
+    def save_usage_widget_click_through_hotkey(self, text):
+        return self.widget.save_usage_widget_click_through_hotkey(text)
 
     def load_usage_widget_detached(self):
         return self.widget.load_usage_widget_detached()

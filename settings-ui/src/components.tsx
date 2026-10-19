@@ -1,7 +1,13 @@
 import { t } from "../localization.cjs";
 import { Check, Info, X } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { Control, NumberControl, OptionalControl, Scalar } from "./types";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import type {
+  Control,
+  HotkeyControl,
+  NumberControl,
+  OptionalControl,
+  Scalar,
+} from "./types";
 
 export function Section({
   title,
@@ -31,14 +37,20 @@ export function Switch({
   value,
   change,
   disabled,
+  id,
+  describedBy,
 }: {
   label: string;
   value: boolean;
   change: (v: boolean) => void;
   disabled?: boolean;
+  id?: string;
+  describedBy?: string;
 }) {
   return (
     <button
+      id={id}
+      aria-describedby={describedBy}
       disabled={disabled}
       role="switch"
       aria-label={label}
@@ -48,6 +60,24 @@ export function Switch({
     >
       <span />
     </button>
+  );
+}
+// A small "i" whose text shows on hover and on keyboard focus.
+export function InfoTip({ label, text }: { label: string; text: string }) {
+  const id = useId();
+  return (
+    <span
+      className="info-tip"
+      tabIndex={0}
+      role="img"
+      aria-label={label}
+      aria-describedby={id}
+    >
+      <Info size={13} aria-hidden="true" />
+      <span className="info-tip-text" role="tooltip" id={id}>
+        {text}
+      </span>
+    </span>
   );
 }
 export function Modal({
@@ -433,6 +463,126 @@ export function NumberInput({
     </span>
   );
 }
+// The spelling Python's preferences.hotkeys accepts: Ctrl or Alt, then one key.
+const HOTKEY_KEY = /^(?:[A-Z0-9]|F(?:[1-9]|1[0-9]|2[0-4]))$/;
+const MODIFIER_KEYS = new Set(["Control", "Alt", "Shift", "Meta", "AltGraph"]);
+
+export function hotkeyFromEvent(event: KeyboardEvent): string | null {
+  const code = event.code;
+  const key = code.startsWith("Key")
+    ? code.slice(3)
+    : code.startsWith("Digit")
+      ? code.slice(5)
+      : code;
+  if (
+    !HOTKEY_KEY.test(key) ||
+    !(event.ctrlKey || event.altKey) ||
+    event.metaKey
+  )
+    return null;
+  return [
+    event.ctrlKey && "Ctrl",
+    event.altKey && "Alt",
+    event.shiftKey && "Shift",
+    key,
+  ]
+    .filter(Boolean)
+    .join("+");
+}
+
+function HotkeyInput({
+  field,
+  change,
+}: {
+  field: HotkeyControl;
+  change: (value: Scalar | undefined) => void;
+}) {
+  const [recording, setRecording] = useState(false);
+  const [rejected, setRejected] = useState(false);
+  useEffect(() => {
+    if (!recording) return;
+    // Capture on window so the app's own Alt+number shortcuts stay quiet.
+    const record = (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (MODIFIER_KEYS.has(event.key)) return;
+      if (
+        event.key === "Escape" &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !event.shiftKey
+      ) {
+        setRecording(false);
+        return;
+      }
+      const text = hotkeyFromEvent(event);
+      setRejected(text === null);
+      if (text === null) return;
+      setRecording(false);
+      change(text);
+    };
+    const stop = () => setRecording(false);
+    window.addEventListener("keydown", record, true);
+    window.addEventListener("blur", stop);
+    return () => {
+      window.removeEventListener("keydown", record, true);
+      window.removeEventListener("blur", stop);
+    };
+  }, [recording, change]);
+  const status =
+    rejected || field.status === "invalid"
+      ? t("hotkey.invalid")
+      : field.status === "in_use"
+        ? t("hotkey.in_use")
+        : field.status === "unavailable"
+          ? t("hotkey.unavailable")
+          : "";
+  return (
+    <span
+      className="hotkey-input"
+      role="group"
+      aria-labelledby={`field-${field.key}-label`}
+    >
+      <span className="hotkey-row">
+        <kbd
+          id={`field-${field.key}`}
+          className={
+            recording ? "is-recording" : field.value ? undefined : "is-empty"
+          }
+          aria-live="polite"
+        >
+          {recording
+            ? t("hotkey.recording")
+            : field.value || t("hotkey.unassigned")}
+        </kbd>
+        <button
+          className="button"
+          disabled={field.disabled || recording}
+          onClick={() => {
+            setRejected(false);
+            setRecording(true);
+          }}
+        >
+          {field.value ? t("hotkey.change") : t("hotkey.assign")}
+        </button>
+        {field.value && !recording && (
+          <button
+            className="text-button"
+            disabled={field.disabled}
+            onClick={() => change("")}
+          >
+            {t("hotkey.clear")}
+          </button>
+        )}
+      </span>
+      {status && (
+        <small className="hotkey-status" role="status">
+          {status}
+        </small>
+      )}
+    </span>
+  );
+}
 export function Field({
   field,
   change,
@@ -442,6 +592,10 @@ export function Field({
   change: (value: Scalar | undefined) => void;
   extra?: ReactNode;
 }) {
+  const described =
+    field.description && field.kind !== "pet_size"
+      ? `field-${field.key}-description`
+      : undefined;
   return (
     <div
       className={`setting-row ${
@@ -452,15 +606,26 @@ export function Field({
     >
       {field.description && field.kind !== "pet_size" ? (
         <div className="field-label">
-          <label htmlFor={`field-${field.key}`}>{field.label}</label>
-          <p className="field-description">{field.description}</p>
+          <label id={`field-${field.key}-label`} htmlFor={`field-${field.key}`}>
+            {field.label}
+          </label>
+          <p
+            id={`field-${field.key}-description`}
+            className="field-description"
+          >
+            {field.description}
+          </p>
         </div>
       ) : (
-        <label htmlFor={`field-${field.key}`}>{field.label}</label>
+        <label id={`field-${field.key}-label`} htmlFor={`field-${field.key}`}>
+          {field.label}
+        </label>
       )}
       <div className="row-control">
         {field.kind === "bool" ? (
           <Switch
+            id={`field-${field.key}`}
+            describedBy={described}
             label={field.label}
             value={field.value}
             change={change}
@@ -474,6 +639,7 @@ export function Field({
           <select
             id={`field-${field.key}`}
             aria-label={field.label}
+            aria-describedby={described}
             disabled={field.disabled}
             value={String(field.value ?? "")}
             onChange={(event) =>
@@ -490,7 +656,11 @@ export function Field({
               </option>
             )}
             {field.options?.map((option) => (
-              <option key={String(option.value)} value={String(option.value)}>
+              <option
+                key={String(option.value)}
+                value={String(option.value)}
+                disabled={option.disabled}
+              >
                 {option.label}
               </option>
             ))}
@@ -504,11 +674,76 @@ export function Field({
           />
         ) : field.kind === "optional_number" ? (
           <OptionalNumber field={field} change={change} />
+        ) : field.kind === "hotkey" ? (
+          <HotkeyInput field={field} change={change} />
         ) : (
           <NumberInput field={field} change={change} />
         )}
         {extra}
       </div>
+    </div>
+  );
+}
+// One tab strip for every screen: click or arrow keys, Home and End select
+// and focus a tab. The panel is `${id}-panel`, labelled by `${id}-tab-${key}`.
+export function TabList({
+  id,
+  label,
+  tabs,
+  value,
+  select,
+  className = "tabs",
+  tabClassName,
+  disabled,
+}: {
+  id: string;
+  label: string;
+  tabs: [string, string][];
+  value: string;
+  select: (key: string) => void;
+  className?: string;
+  tabClassName?: string;
+  disabled?: boolean;
+}) {
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const index = tabs.findIndex(([key]) => key === value);
+  return (
+    <div
+      className={className}
+      role="tablist"
+      aria-label={label}
+      onKeyDown={(event) => {
+        const target = {
+          ArrowRight: index + 1,
+          ArrowLeft: index - 1,
+          Home: 0,
+          End: tabs.length - 1,
+        }[event.key];
+        if (target === undefined || disabled) return;
+        event.preventDefault();
+        const next = (target + tabs.length) % tabs.length;
+        select(tabs[next][0]);
+        refs.current[next]?.focus();
+      }}
+    >
+      {tabs.map(([key, text], i) => (
+        <button
+          key={key}
+          ref={(element) => {
+            refs.current[i] = element;
+          }}
+          id={`${id}-tab-${key}`}
+          className={tabClassName}
+          role="tab"
+          aria-selected={value === key}
+          aria-controls={`${id}-panel`}
+          tabIndex={value === key ? 0 : -1}
+          disabled={disabled}
+          onClick={() => select(key)}
+        >
+          {text}
+        </button>
+      ))}
     </div>
   );
 }

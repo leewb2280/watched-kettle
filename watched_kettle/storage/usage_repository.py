@@ -36,6 +36,7 @@ from watched_kettle.usage.conversation_models import (
     ProjectUsageSummary,
     ProjectPage,
     sort_projects,
+    ThreadProjectRelation,
 )
 
 
@@ -129,6 +130,9 @@ class SqliteUsageRepository:
         self.activity_retention_days = int(activity_retention_days)
         self.maximum_activity_samples = int(maximum_activity_samples)
         self.thread_labels = {}
+        self.thread_projects = {}
+        self.project_names = {}
+        self._project_accounts = set()
 
     def set_thread_labels(self, account, labels):
         changed = False
@@ -141,6 +145,77 @@ class SqliteUsageRepository:
 
     def clear_thread_labels(self):
         self.thread_labels.clear()
+        self.thread_projects.clear()
+        self.project_names.clear()
+        self._project_accounts.clear()
+
+    def set_project_names(self, account, names):
+        changed = False
+        for key, name in names.items():
+            if self.project_names.get((account, key)) != name:
+                self.project_names[(account, key)] = name
+                changed = True
+        return changed
+
+    def retained_threads(self, account):
+        require_account(account)
+        cutoff = (
+            datetime.now(timezone.utc) - timedelta(days=self.retention_days)
+        ).isoformat()
+        return tuple(
+            row[0]
+            for row in self.connection.execute(
+                """SELECT thread_hash FROM usage_task_records WHERE account_hash=?
+                   AND (source_version<3 OR completed_at_utc>=?)
+                   GROUP BY thread_hash ORDER BY MAX(completed_at_utc) DESC""",
+                (account, cutoff),
+            )
+        )
+
+    def load_thread_projects(self, account):
+        require_account(account)
+        if account not in self._project_accounts:
+            for row in self.connection.execute(
+                "SELECT * FROM usage_thread_projects WHERE account_hash=?", (account,)
+            ):
+                self.thread_projects[(account, row["thread_hash"])] = (
+                    ThreadProjectRelation(
+                        row["project_key"],
+                        row["evidence"],
+                        datetime.fromisoformat(row["checked_at_utc"]),
+                    )
+                )
+            self._project_accounts.add(account)
+        return {
+            thread: value
+            for (owner, thread), value in self.thread_projects.items()
+            if owner == account
+        }
+
+    def save_thread_projects(self, account, relations):
+        require_account(account)
+        self.load_thread_projects(account)
+        # Memory remains useful even when the optional cache cannot be written.
+        self.thread_projects.update(
+            {(account, thread): value for thread, value in relations.items()}
+        )
+        with self.connection:
+            self.connection.executemany(
+                """INSERT INTO usage_thread_projects VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT(account_hash, thread_hash) DO UPDATE SET
+                   project_key=excluded.project_key, evidence=excluded.evidence,
+                   checked_at_utc=excluded.checked_at_utc""",
+                [
+                    (
+                        account,
+                        thread,
+                        value.project_key,
+                        value.evidence,
+                        value.checked_at.isoformat(),
+                    )
+                    for thread, value in relations.items()
+                ],
+            )
 
     def project_summaries(self, account_hash, search=""):
         require_account(account_hash)
@@ -194,6 +269,7 @@ class SqliteUsageRepository:
         )
 
     def _register_labels(self, account_hash):
+        self.load_thread_projects(account_hash)
         for index, name in enumerate(
             ("usage_title", "usage_project_key", "usage_project_name")
         ):
@@ -201,7 +277,11 @@ class SqliteUsageRepository:
                 name,
                 1,
                 lambda thread, i=index: label_for(
-                    self.thread_labels, account_hash, thread
+                    self.thread_labels,
+                    account_hash,
+                    thread,
+                    self.thread_projects,
+                    self.project_names,
                 )[i],
             )
 
@@ -670,6 +750,7 @@ class SqliteUsageRepository:
         with self.connection:
             for table in (
                 "usage_task_records",
+                "usage_thread_projects",
                 "usage_threshold_state",
                 "usage_daily_summary_state",
                 "usage_activity_samples",
@@ -690,12 +771,23 @@ class SqliteUsageRepository:
                    cleared_before_utc=excluded.cleared_before_utc""",
                 (account_hash, cleared_at.isoformat()),
             )
+        self.thread_projects = {
+            key: value
+            for key, value in self.thread_projects.items()
+            if key[0] != account_hash
+        }
+        self.thread_labels = {
+            key: value
+            for key, value in self.thread_labels.items()
+            if key[0] != account_hash
+        }
         return True
 
     def clear_all_for_maintenance(self):
         with self.connection:
             for table in (
                 "usage_task_records",
+                "usage_thread_projects",
                 "usage_threshold_state",
                 "usage_daily_summary_state",
                 "usage_activity_samples",
@@ -703,6 +795,7 @@ class SqliteUsageRepository:
                 "usage_import_state",
             ):
                 self.connection.execute(f"DELETE FROM {table}")
+        self.clear_thread_labels()
         return True
 
     def load_threshold_markers(self, account_hash):
@@ -846,6 +939,21 @@ class SqliteUsageRepository:
             self._prune(row[0])
             self._prune_activity(row[0])
             self._prune_local_activity(row[0])
+        with self.connection:
+            self.connection.execute(
+                """DELETE FROM usage_thread_projects AS p WHERE NOT EXISTS (
+                   SELECT 1 FROM usage_task_records AS r WHERE
+                   r.account_hash=p.account_hash AND r.thread_hash=p.thread_hash)"""
+            )
+        retained = {
+            (r[0], r[1])
+            for r in self.connection.execute(
+                "SELECT account_hash, thread_hash FROM usage_thread_projects"
+            )
+        }
+        self.thread_projects = {
+            key: value for key, value in self.thread_projects.items() if key in retained
+        }
 
     def _prune_local_activity(self, account_hash):
         cutoff = (
@@ -913,10 +1021,50 @@ class VolatileUsageRepository:
         self.quota_samples = []
         self.clear_watermarks = {}
         self.thread_labels = {}
+        self.thread_projects = {}
+        self.project_names = {}
+        self._project_accounts = set()
+        self._saved_projects = {}
 
     set_thread_labels = SqliteUsageRepository.set_thread_labels
     clear_thread_labels = SqliteUsageRepository.clear_thread_labels
+    set_project_names = SqliteUsageRepository.set_project_names
     query_projects = SqliteUsageRepository.query_projects
+
+    def retained_threads(self, account):
+        require_account(account)
+        cutoff = self._now() - timedelta(days=90)
+        return tuple(
+            dict.fromkeys(
+                r.thread_hash
+                for r in sorted(
+                    self.records, key=lambda r: r.completed_at, reverse=True
+                )
+                if r.account_hash == account
+                and (r.source_version < 3 or r.completed_at >= cutoff)
+            )
+        )
+
+    def load_thread_projects(self, account):
+        require_account(account)
+        self.thread_projects.update(
+            {
+                key: value
+                for key, value in self._saved_projects.items()
+                if key[0] == account
+            }
+        )
+        return {
+            thread: value
+            for (owner, thread), value in self.thread_projects.items()
+            if owner == account
+        }
+
+    def save_thread_projects(self, account, relations):
+        require_account(account)
+        values = {(account, thread): value for thread, value in relations.items()}
+        self.thread_projects.update(values)
+        self._saved_projects.update(values)
 
     def project_summaries(self, account_hash, search=""):
         groups: dict[str, list[ConversationUsage]] = {}
@@ -949,6 +1097,7 @@ class VolatileUsageRepository:
         thread_hash=None,
         project_key=None,
     ):
+        self.load_thread_projects(account_hash)
         groups: dict[str, list[TaskUsageRecord]] = {}
         cutoff = self._now() - timedelta(days=90)
         for r in self.records:
@@ -960,7 +1109,13 @@ class VolatileUsageRepository:
                 groups.setdefault(r.thread_hash, []).append(r)
         summaries = []
         for thread, rows in groups.items():
-            title, key, name = label_for(self.thread_labels, account_hash, thread)
+            title, key, name = label_for(
+                self.thread_labels,
+                account_hash,
+                thread,
+                self.thread_projects,
+                self.project_names,
+            )
             if project_key is not None and project_key != key:
                 continue
             if search and search.casefold() not in (title + "\0" + name).casefold():
@@ -1298,6 +1453,21 @@ class VolatileUsageRepository:
 
     def clear(self, account_hash, cleared_at=None):
         require_account(account_hash)
+        self._saved_projects = {
+            key: value
+            for key, value in self._saved_projects.items()
+            if key[0] != account_hash
+        }
+        self.thread_projects = {
+            key: value
+            for key, value in self.thread_projects.items()
+            if key[0] != account_hash
+        }
+        self.thread_labels = {
+            key: value
+            for key, value in self.thread_labels.items()
+            if key[0] != account_hash
+        }
         self.records = [
             item
             for item in self.records

@@ -1187,13 +1187,6 @@
       "context": "watched_kettle\\pet\\look_direction.py:72",
       "domain": "core"
     },
-    "message.0161": {
-      "value": "Codex 앱을 열 수 없어요. 설치 상태를 확인해 주세요.",
-      "revision": 1,
-      "variables": {},
-      "context": "watched_kettle\\pet\\pointer_interaction.py:106",
-      "domain": "core"
-    },
     "message.0162": {
       "value": "렌더링 캐시 크기는 1 이상이어야 합니다.",
       "revision": 1,
@@ -1913,22 +1906,22 @@
       "domain": "core"
     },
     "message.0259": {
-      "value": "자동 행동",
-      "revision": 1,
+      "value": "혼자 행동하기",
+      "revision": 2,
       "variables": {},
       "context": "watched_kettle\\ui\\menu.py:35",
       "domain": "core"
     },
     "message.0260": {
-      "value": "자동 이동",
-      "revision": 1,
+      "value": "화면 안에서 걷기",
+      "revision": 2,
       "variables": {},
       "context": "watched_kettle\\ui\\menu.py:39",
       "domain": "core"
     },
     "message.0261": {
-      "value": "항상 위",
-      "revision": 1,
+      "value": "항상 위에 표시",
+      "revision": 2,
       "variables": {},
       "context": "watched_kettle\\ui\\menu.py:43",
       "domain": "core"
@@ -1969,15 +1962,15 @@
       "domain": "core"
     },
     "message.0267": {
-      "value": "펫 옆에 다시 붙이기",
-      "revision": 1,
+      "value": "펫 옆으로 되돌리기",
+      "revision": 2,
       "variables": {},
       "context": "watched_kettle\\ui\\menu.py:82",
       "domain": "core"
     },
     "message.0268": {
-      "value": "화면 중앙으로 불러오기",
-      "revision": 1,
+      "value": "화면 가운데로 불러오기",
+      "revision": 2,
       "variables": {},
       "context": "watched_kettle\\ui\\menu.py:90",
       "domain": "core"
@@ -2153,13 +2146,6 @@
         "value0": "string"
       },
       "context": "watched_kettle\\ui\\pet_tray.py:12",
-      "domain": "core"
-    },
-    "message.0292": {
-      "value": "펫 설정",
-      "revision": 1,
-      "variables": {},
-      "context": "watched_kettle\\ui\\pet_tray.py:33",
       "domain": "core"
     },
     "message.0293": {
@@ -3303,24 +3289,6 @@
       "context": "watched_kettle\\features\\history\\viewmodel.py:52",
       "domain": "core"
     },
-    "message.0442": {
-      "value": "추정 {value0} 토큰",
-      "revision": 1,
-      "variables": {
-        "value0": "string"
-      },
-      "context": "watched_kettle\\features\\history\\viewmodel.py:54",
-      "domain": "core"
-    },
-    "message.0443": {
-      "value": "관측 {value0} 토큰",
-      "revision": 1,
-      "variables": {
-        "value0": "string"
-      },
-      "context": "watched_kettle\\features\\history\\viewmodel.py:73",
-      "domain": "core"
-    },
     "message.0444": {
       "value": "미확인",
       "revision": 1,
@@ -4369,8 +4337,8 @@
       "domain": "core"
     },
     "message.0593": {
-      "value": "활동 기록",
-      "revision": 1,
+      "value": "알림 기록",
+      "revision": 3,
       "variables": {},
       "context": "settings-ui\\src\\App.tsx",
       "domain": "core"
@@ -4516,15 +4484,15 @@
       "domain": "core"
     },
     "message.0614": {
-      "value": "확인할 알림과 진행 중인 작업, 최근 활동을 모아 봅니다.",
-      "revision": 1,
+      "value": "확인할 알림과 이번 실행의 작업 이벤트를 모아 봅니다.",
+      "revision": 2,
       "variables": {},
       "context": "settings-ui\\src\\assistant\\AssistantActivityPage.tsx",
       "domain": "assistant"
     },
     "message.0615": {
-      "value": "활동을 불러오는 중입니다.",
-      "revision": 1,
+      "value": "알림을 불러오는 중입니다.",
+      "revision": 2,
       "variables": {},
       "context": "settings-ui\\src\\assistant\\AssistantActivityPage.tsx",
       "domain": "assistant"
@@ -4566,13 +4534,6 @@
       "context": "settings-ui\\src\\assistant\\AssistantActivityPage.tsx",
       "domain": "assistant"
     },
-    "message.0621": {
-      "value": "진행 중인 작업이 없어요.",
-      "revision": 1,
-      "variables": {},
-      "context": "settings-ui\\src\\assistant\\AssistantActivityPage.tsx",
-      "domain": "assistant"
-    },
     "message.0622": {
       "value": "최근 활동",
       "revision": 1,
@@ -4588,15 +4549,15 @@
       "domain": "assistant"
     },
     "message.0624": {
-      "value": "비서 알림·프로젝트 이벤트·작업 완료는 이번 실행에만 표시됩니다. Codex 작업 사용량 기록은 별도의 로컬 저장 정책을 따릅니다.",
-      "revision": 1,
+      "value": "알림·이벤트·작업 완료는 이번 실행에만 남습니다. 작업별 토큰 기록은 사용량에서 봅니다.",
+      "revision": 2,
       "variables": {},
       "context": "settings-ui\\src\\assistant\\AssistantActivityPage.tsx",
       "domain": "assistant"
     },
     "message.0625": {
-      "value": "활동 기록 관리",
-      "revision": 1,
+      "value": "알림 기록 관리",
+      "revision": 2,
       "variables": {},
       "context": "settings-ui\\src\\assistant\\AssistantActivityPage.tsx",
       "domain": "assistant"
@@ -4799,13 +4760,6 @@
       "context": "settings-ui\\src\\assistant\\AssistantDialogs.tsx",
       "domain": "assistant"
     },
-    "message.0655": {
-      "value": "확인할 알림, 진행 중인 작업, 남은 한도와 연결 상태를 모아 봅니다.",
-      "revision": 1,
-      "variables": {},
-      "context": "settings-ui\\src\\assistant\\AssistantHomePage.tsx",
-      "domain": "assistant"
-    },
     "message.0656": {
       "value": "상태를 불러오는 중입니다.",
       "revision": 1,
@@ -4828,8 +4782,8 @@
       "domain": "assistant"
     },
     "message.0659": {
-      "value": "활동 기록 열기",
-      "revision": 1,
+      "value": "알림 기록 열기",
+      "revision": 3,
       "variables": {},
       "context": "settings-ui\\src\\assistant\\AssistantHomePage.tsx",
       "domain": "assistant"
@@ -5299,8 +5253,8 @@
       "domain": "assistant"
     },
     "message.0732": {
-      "value": "펫 옆으로 위치 복원",
-      "revision": 1,
+      "value": "펫 옆으로 되돌리기",
+      "revision": 2,
       "variables": {},
       "context": "settings-ui\\src\\assistant\\AssistantWidgetPage.tsx",
       "domain": "assistant"
@@ -8014,8 +7968,8 @@
       "domain": "core"
     },
     "message.1122": {
-      "value": "지금 이 화면으로 옮기기",
-      "revision": 1,
+      "value": "선택한 디스플레이로 옮기기",
+      "revision": 2,
       "variables": {},
       "context": "settings-ui\\src\\core\\CorePetPage.tsx",
       "domain": "core"
@@ -8249,10 +8203,10 @@
       "domain": "core"
     },
     "message.1155": {
-      "value": "웹 펫 설정에서 다운로드한 PNG 또는 WebP 스프라이트를 선택하세요. 최대 20MiB이며, V1·V2 규격을 지원합니다.",
-      "revision": 1,
+      "value": "PNG/WebP 이미지, ZIP·펫 폴더, 설치 명령어 또는 Codex에 설치된 펫을 가져옵니다. 추가한 뒤 사용할 펫을 선택하세요.",
+      "revision": 2,
       "variables": {},
-      "context": "settings-ui\\src\\PetImportDialog.tsx",
+      "context": "Pet import sources and preview",
       "domain": "core"
     },
     "message.1156": {
@@ -8981,8 +8935,8 @@
       "domain": "core"
     },
     "message.1269": {
-      "value": "펫 스프라이트",
-      "revision": 1,
+      "value": "펫 이미지·ZIP",
+      "revision": 2,
       "variables": {},
       "context": "settings-ui\\electron\\main.cjs",
       "domain": "core"
@@ -9467,6 +9421,55 @@
       "context": "Complete sentence / reorderable slots",
       "domain": "assistant"
     },
+    "activity.group.notice": {
+      "value": "알림",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\assistant\\AssistantActivityPage.tsx",
+      "domain": "assistant"
+    },
+    "activity.group.attention": {
+      "value": "확인 필요",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\assistant\\AssistantActivityPage.tsx",
+      "domain": "assistant"
+    },
+    "activity.group.progress": {
+      "value": "상태 변화",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\assistant\\AssistantActivityPage.tsx",
+      "domain": "assistant"
+    },
+    "activity.group.completion": {
+      "value": "완료",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\assistant\\AssistantActivityPage.tsx",
+      "domain": "assistant"
+    },
+    "activity.mark_all_read": {
+      "value": "모두 확인",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\assistant\\AssistantActivityPage.tsx",
+      "domain": "assistant"
+    },
+    "activity.read": {
+      "value": "확인함",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\features\\history\\viewmodel.py; state of a notification already marked as read, shown at the end of a row",
+      "domain": "assistant"
+    },
+    "activity.collapse": {
+      "value": "접기",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\assistant\\AssistantActivityPage.tsx",
+      "domain": "assistant"
+    },
     "bubble.snooze_remaining": {
       "value": "약 {count}분 남음",
       "revision": 1,
@@ -9789,6 +9792,704 @@
       "variables": {},
       "context": "Application restart and language settings",
       "domain": "core"
+    },
+    "home.subtitle": {
+      "value": "펫을 꾸미고 자주 쓰는 설정을 확인합니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\App.tsx",
+      "domain": "core"
+    },
+    "home.subtitle_assistant": {
+      "value": "펫과 알림, 진행 중인 대화, 사용량, 연결 상태를 한눈에 확인합니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\App.tsx; Home subtitle in the pet + assistant edition",
+      "domain": "core"
+    },
+    "home.my_pet": {
+      "value": "나의 펫",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\CoreHomePage.tsx",
+      "domain": "core"
+    },
+    "home.double_click_wave": {
+      "value": "더블클릭: 손 흔들기",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\CoreHomePage.tsx",
+      "domain": "core"
+    },
+    "home.double_click_with_action": {
+      "value": "더블클릭: 손 흔들기 + {action}",
+      "revision": 1,
+      "variables": {
+        "action": "string"
+      },
+      "context": "settings-ui\\src\\core\\CoreHomePage.tsx; action is a double_click.* option label",
+      "domain": "core"
+    },
+    "home.customize_pet": {
+      "value": "펫 꾸미기",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\CoreHomePage.tsx",
+      "domain": "core"
+    },
+    "double_click.label": {
+      "value": "더블클릭 동작",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\CoreAppPage.tsx",
+      "domain": "core"
+    },
+    "double_click.description": {
+      "value": "손 흔들기와 함께 실행할 동작을 선택합니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\CoreAppPage.tsx",
+      "domain": "core"
+    },
+    "double_click.settings_home": {
+      "value": "설정창 홈",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\doubleClick.ts",
+      "domain": "core"
+    },
+    "double_click.codex": {
+      "value": "Codex 열기",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\doubleClick.ts",
+      "domain": "core"
+    },
+    "double_click.claude": {
+      "value": "Claude Code 열기 (VS Code)",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\doubleClick.ts; brings the VS Code window forward",
+      "domain": "core"
+    },
+    "double_click.wave_only": {
+      "value": "손 흔들기만",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\doubleClick.ts",
+      "domain": "core"
+    },
+    "double_click.open_failed_title": {
+      "value": "앱을 열지 못했습니다",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\settings_ui\\host.py",
+      "domain": "core"
+    },
+    "launcher.unsupported": {
+      "value": "이 환경에서는 {app} 창을 열 수 없습니다.",
+      "revision": 1,
+      "variables": {
+        "app": "string"
+      },
+      "context": "watched_kettle\\integrations launchers; app is a product name such as Codex or VS Code",
+      "domain": "core"
+    },
+    "launcher.not_found": {
+      "value": "{app} 앱을 찾지 못했습니다. 설치 상태를 확인해 주세요.",
+      "revision": 1,
+      "variables": {
+        "app": "string"
+      },
+      "context": "watched_kettle\\integrations launchers; app is a product name",
+      "domain": "core"
+    },
+    "launcher.activate_failed": {
+      "value": "{app} 창을 앞으로 가져오지 못했습니다. 작업 표시줄에서 열어 주세요.",
+      "revision": 1,
+      "variables": {
+        "app": "string"
+      },
+      "context": "watched_kettle\\integrations launchers; app is a product name",
+      "domain": "core"
+    },
+    "launcher.start_failed": {
+      "value": "{app} 앱을 실행하지 못했습니다. 설치 상태를 확인해 주세요.",
+      "revision": 1,
+      "variables": {
+        "app": "string"
+      },
+      "context": "watched_kettle\\integrations launchers; app is a product name",
+      "domain": "core"
+    },
+    "launcher.access_failed": {
+      "value": "{app} 앱에 접근하지 못했습니다. 설치 상태와 실행 권한을 확인해 주세요.",
+      "revision": 1,
+      "variables": {
+        "app": "string"
+      },
+      "context": "watched_kettle\\integrations launchers; app is a product name",
+      "domain": "core"
+    },
+    "click_through.pet": {
+      "value": "펫 고정",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet menu, tray menu and pet settings; locking lets clicks pass through the pet",
+      "domain": "core"
+    },
+    "click_through.widget": {
+      "value": "위젯 고정",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet menu, tray menu and widget settings; locking lets clicks pass through the usage widget",
+      "domain": "core"
+    },
+    "click_through.pet_description": {
+      "value": "클릭이 펫을 지나 뒤에 있는 창으로 갑니다. 트레이 메뉴나 단축키로 풀 수 있습니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\settings_ui\\core.py",
+      "domain": "core"
+    },
+    "click_through.widget_description": {
+      "value": "클릭이 위젯을 지나 뒤에 있는 창으로 갑니다. 트레이 메뉴, 펫 메뉴나 단축키로 풀 수 있습니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\settings_ui\\assistant.py",
+      "domain": "assistant"
+    },
+    "click_through.hotkey": {
+      "value": "펫 고정 단축키",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\settings_ui\\core.py",
+      "domain": "core"
+    },
+    "click_through.widget_hotkey": {
+      "value": "위젯 고정 단축키",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\settings_ui\\assistant.py",
+      "domain": "assistant"
+    },
+    "click_through.hotkey_description": {
+      "value": "어느 앱에서든 누르면 고정을 켜고 끕니다. Ctrl이나 Alt를 함께 눌러야 합니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\settings_ui\\core.py and assistant.py",
+      "domain": "core"
+    },
+    "click_through.bubbles": {
+      "value": "고정할 때 버튼 말풍선도 통과",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\settings_ui\\core.py",
+      "domain": "assistant"
+    },
+    "click_through.bubbles_description": {
+      "value": "펫을 고정하는 동안 버튼이 있는 말풍선도 클릭할 수 없습니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\settings_ui\\core.py",
+      "domain": "assistant"
+    },
+    "click_through.locked_notice": {
+      "value": "펫을 고정했어요. 트레이 메뉴나 단축키로 풀 수 있어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\pet\\window.py speech bubble",
+      "domain": "core"
+    },
+    "hotkey.assign": {
+      "value": "단축키 지정",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\components.tsx hotkey field button",
+      "domain": "core"
+    },
+    "hotkey.change": {
+      "value": "바꾸기",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\components.tsx hotkey field button",
+      "domain": "core"
+    },
+    "hotkey.clear": {
+      "value": "지우기",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\components.tsx hotkey field button",
+      "domain": "core"
+    },
+    "hotkey.recording": {
+      "value": "키를 누르세요 (Esc: 취소)",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\components.tsx while recording a shortcut",
+      "domain": "core"
+    },
+    "hotkey.unassigned": {
+      "value": "지정 안 함",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\components.tsx",
+      "domain": "core"
+    },
+    "hotkey.in_use": {
+      "value": "다른 앱이 이미 쓰는 단축키입니다. 다른 조합을 지정해 주세요.",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\components.tsx hotkey status",
+      "domain": "core"
+    },
+    "hotkey.invalid": {
+      "value": "Ctrl이나 Alt와 함께 문자, 숫자 또는 F1–F24 키를 눌러 주세요.",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\components.tsx and watched_kettle\\application\\settings_ui\\core.py",
+      "domain": "core"
+    },
+    "hotkey.unavailable": {
+      "value": "이 환경에서는 단축키를 등록할 수 없습니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\components.tsx and settings adapters",
+      "domain": "core"
+    },
+    "hotkey.duplicate": {
+      "value": "펫 고정과 위젯 고정에 같은 단축키를 쓸 수 없습니다. 다른 조합을 지정해 주세요.",
+      "revision": 1,
+      "variables": {},
+      "context": "settings adapters, when the other lock already uses the shortcut",
+      "domain": "core"
+    },
+    "about.nav": {
+      "value": "정보",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\App.tsx; menu and page title",
+      "domain": "core"
+    },
+    "about.subtitle": {
+      "value": "버전과 새로운 기능, 저장소와 라이선스를 확인합니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\CoreAboutPage.tsx",
+      "domain": "core"
+    },
+    "about.app_section": {
+      "value": "앱 정보",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\CoreAboutPage.tsx",
+      "domain": "core"
+    },
+    "about.copyright": {
+      "value": "© 2026 leewb2280 · MIT 라이선스",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\CoreAboutPage.tsx",
+      "domain": "core"
+    },
+    "about.unofficial": {
+      "value": "비공식 프로젝트입니다. OpenAI 또는 Anthropic이 만들거나 승인한 제품이 아니며 두 회사와 관계가 없습니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\CoreAboutPage.tsx",
+      "domain": "core"
+    },
+    "about.whats_new": {
+      "value": "새로운 기능 (v{version})",
+      "revision": 1,
+      "variables": {
+        "version": "string"
+      },
+      "context": "settings-ui\\src\\core\\CoreAboutPage.tsx",
+      "domain": "core"
+    },
+    "about.release_notes": {
+      "value": "전체 패치노트",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\CoreAboutPage.tsx; link to the GitHub release of this version",
+      "domain": "core"
+    },
+    "about.changelog": {
+      "value": "변경 이력",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\CoreAboutPage.tsx; link to CHANGELOG.md",
+      "domain": "core"
+    },
+    "about.links_section": {
+      "value": "링크",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\CoreAboutPage.tsx",
+      "domain": "core"
+    },
+    "about.repository": {
+      "value": "GitHub 저장소",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\CoreAboutPage.tsx",
+      "domain": "core"
+    },
+    "about.issues": {
+      "value": "버그 제보·제안",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\CoreAboutPage.tsx; link to GitHub Issues",
+      "domain": "core"
+    },
+    "about.license": {
+      "value": "라이선스 전문",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\CoreAboutPage.tsx; link to LICENSE",
+      "domain": "core"
+    },
+    "about.third_party_section": {
+      "value": "오픈소스 라이선스",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\CoreAboutPage.tsx",
+      "domain": "core"
+    },
+    "about.third_party_note": {
+      "value": "앱에 포함된 구성 요소입니다. 각 라이선스 전문은 설치 폴더의 licenses 폴더에 있습니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\CoreAboutPage.tsx",
+      "domain": "core"
+    },
+    "about.open_licenses": {
+      "value": "라이선스 폴더 열기",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\CoreAboutPage.tsx",
+      "domain": "core"
+    },
+    "about.licenses_source_run": {
+      "value": "소스에서 실행하면 licenses 폴더가 없습니다. 저장소의 THIRD_PARTY_NOTICES.md를 참고하세요.",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\CoreAboutPage.tsx",
+      "domain": "core"
+    },
+    "about.licenses_missing": {
+      "value": "라이선스 폴더를 찾지 못했습니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\settings_ui\\core.py",
+      "domain": "core"
+    },
+    "about.licenses_open_failed": {
+      "value": "라이선스 폴더를 열지 못했습니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\settings_ui\\core.py",
+      "domain": "core"
+    },
+    "about.updated_notice": {
+      "value": "업데이트를 마쳤어요 (v{version}). 설정 → 정보에서 새로운 기능을 볼 수 있어요.",
+      "revision": 1,
+      "variables": {
+        "version": "string"
+      },
+      "context": "watched_kettle\\application\\settings_ui\\core.py; pet speech bubble once after an update",
+      "domain": "core"
+    },
+    "whats_new.0157.double_click": {
+      "value": "펫을 더블클릭하면 설정창 홈이 열려요. 앱 설정에서 Codex 열기·Claude Code 열기(VS Code)·손 흔들기만으로 바꿀 수 있어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\about.py; 0.15.7 highlight",
+      "domain": "core"
+    },
+    "whats_new.0157.open_app": {
+      "value": "Codex·Claude Code 열기는 새 대화를 만들지 않고 가장 앞에 있던 창을 다시 띄워요.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\about.py; 0.15.7 highlight",
+      "domain": "core"
+    },
+    "whats_new.0157.click_through": {
+      "value": "펫과 사용량 위젯을 따로 고정하면 클릭이 뒤에 있는 창으로 통과해요. 전역 단축키로도 켜고 끌 수 있어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\about.py; 0.15.7 highlight",
+      "domain": "core"
+    },
+    "whats_new.0157.claude_projects": {
+      "value": "Claude Code 기록에서 대화 도중 작업 폴더가 바뀌어도 대화를 시작한 프로젝트로 묶어 보여 줘요.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\about.py; 0.15.7 highlight",
+      "domain": "core"
+    },
+    "whats_new.0157.about": {
+      "value": "설정창에 정보 메뉴가 생겼어요. 새로운 기능·저장소·라이선스를 여기서 볼 수 있어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\about.py; 0.15.7 highlight",
+      "domain": "core"
+    },
+    "whats_new.0157.notifications": {
+      "value": "설정창 활동 기록이 알림 기록으로 바뀌었어요. 확인하지 않은 알림을 한 번에 확인하고 종류별로 거를 수 있어요.",
+      "revision": 2,
+      "variables": {},
+      "context": "watched_kettle\\application\\about.py; 0.15.7 highlight",
+      "domain": "core"
+    },
+    "pet.import.invalid_package": {
+      "value": "펫 패키지의 파일·규격을 확인하세요. 안전한 PNG/WebP와 pet.json이 필요합니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.command_invalid": {
+      "value": "지원하는 펫 설치 명령 하나를 입력하세요. 추가 옵션이나 다른 명령은 사용할 수 없습니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.cancelled": {
+      "value": "펫 가져오기가 취소됐습니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.network_failed": {
+      "value": "펫을 다운로드하지 못했습니다. 연결 상태를 확인하고 다시 시도하세요.",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.integrity_failed": {
+      "value": "다운로드한 펫의 검증에 실패했습니다. 출처의 패키지를 확인하세요.",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.not_found": {
+      "value": "펫을 찾지 못했습니다. 명령을 확인하거나 파일로 가져오세요.",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.rate_limited": {
+      "value": "출처의 요청 한도에 도달했습니다. 잠시 뒤 다시 시도하세요.",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.busy": {
+      "value": "이전 가져오기를 정리하고 있습니다. 잠시 뒤 다시 시도하세요.",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.input": {
+      "value": "가져올 위치",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.file_tab": {
+      "value": "파일·폴더",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.command_tab": {
+      "value": "설치 명령어",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.installed_tab": {
+      "value": "Codex에 설치된 펫",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.command_help": {
+      "value": "CodexPetDB 또는 Pets Codex에서 복사한 설치 명령을 붙여 넣으세요. 명령을 해석해 직접 다운로드하며 별도 CLI 설치는 필요하지 않습니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.fetch": {
+      "value": "다운로드",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.search": {
+      "value": "설치된 펫 검색",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.refresh": {
+      "value": "새로고침",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.empty": {
+      "value": "Codex 사용자 폴더에서 펫을 찾지 못했습니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.folder": {
+      "value": "폴더 선택",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.animation": {
+      "value": "동작 미리보기",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.direction": {
+      "value": "바라보는 방향",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.look": {
+      "value": "16방향 바라보기",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.pause": {
+      "value": "일시 정지",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.play": {
+      "value": "재생",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.idle": {
+      "value": "대기",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.running_right": {
+      "value": "오른쪽 달리기",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.running_left": {
+      "value": "왼쪽 달리기",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.waving": {
+      "value": "손 흔들기",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.jumping": {
+      "value": "뛰기",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.failed": {
+      "value": "실패",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.waiting": {
+      "value": "확인 대기",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.running": {
+      "value": "작업 중",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "pet.import.review": {
+      "value": "검토",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
+    },
+    "whats_new.0157.pet_import": {
+      "value": "펫 가져오기에서 ZIP·펫 폴더, CodexPetDB·Pets Codex 설치 명령어, Codex에 설치된 펫도 받을 수 있어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\about.py; 0.15.7 highlight",
+      "domain": "core"
+    },
+    "pet.import.omitted_fields": {
+      "value": "이 앱에서 쓰지 않는 패키지 항목 {count}개는 가져오지 않습니다:",
+      "revision": 1,
+      "variables": {
+        "count": "number"
+      },
+      "context": "Pet import sources and preview; followed by the field names",
+      "domain": "core",
+      "plural": "count"
+    },
+    "pet.import.omitted_theme": {
+      "value": "다른 설치 환경의 장식을 가리키는 말풍선 설정은 쓸 수 없어 기본값으로 바꿨습니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "Pet import sources and preview",
+      "domain": "core"
     }
   },
   "retiredIds": [
@@ -9841,6 +10542,14 @@
     "widget.remaining",
     "widget.reset",
     "widget.sample",
-    "language.pending"
+    "language.pending",
+    "message.0161",
+    "message.0655",
+    "pet.import.omitted",
+    "message.0442",
+    "message.0443",
+    "message.0621",
+    "message.0292",
+    "double_click.group"
   ]
 }

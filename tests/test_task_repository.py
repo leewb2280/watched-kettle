@@ -145,12 +145,13 @@ class TaskRepositoryTests(unittest.TestCase):
             con.execute("ALTER TABLE reviewed_tasks DROP COLUMN origin_key")
             con.execute("ALTER TABLE reviewed_tasks DROP COLUMN summary_payload")
             con.execute("ALTER TABLE task_exclusions DROP COLUMN project_key")
-            # A real v6 database also predates the version 8 Claude Code tables.
+            # A real v6 database predates both the v8 provider and v9 cache tables.
             for table in (
                 "claude_code_turn_parts",
                 "claude_code_files",
                 "claude_code_state",
                 "claude_code_quota_samples",
+                "usage_thread_projects",
             ):
                 con.execute(f"DROP TABLE {table}")
             con.execute("DELETE FROM schema_migrations WHERE version>=7")

@@ -13,6 +13,13 @@ _UNCLASSIFIED_SOURCE_KEYS = frozenset({"none", "unknown"})
 
 
 @dataclass(frozen=True)
+class ThreadProjectRelation:
+    project_key: str
+    evidence: str
+    checked_at: datetime
+
+
+@dataclass(frozen=True)
 class ConversationUsage:
     thread_hash: str
     title: str
@@ -75,11 +82,17 @@ def sort_projects(
     return records
 
 
-def label_for(labels, account, thread):
+def label_for(labels, account, thread, relations=None, project_names=None):
     title, project_key, project_name = labels.get(
         (account, thread),
         (t("message.0349", value0=thread[:8]), "unknown", t("message.0350")),
     )
+    relation = (relations or {}).get((account, thread))
+    if relation is not None:
+        if project_key != relation.project_key:
+            project_name = t("message.0353")
+        project_key = relation.project_key
+    project_name = (project_names or {}).get((account, project_key), project_name)
     if project_key in _UNCLASSIFIED_SOURCE_KEYS:
         return title, UNCLASSIFIED_PROJECT_KEY, t("message.0027")
     return title, project_key, project_name

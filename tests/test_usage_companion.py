@@ -7,7 +7,17 @@ from types import SimpleNamespace
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QEvent, QObject, QPoint, QPointF, QRect, QSize, Qt, Signal
+from PySide6.QtCore import (
+    QCoreApplication,
+    QEvent,
+    QObject,
+    QPoint,
+    QPointF,
+    QRect,
+    QSize,
+    Qt,
+    Signal,
+)
 from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import QApplication, QFrame
 
@@ -61,6 +71,7 @@ class FakeUsageViewModel(QObject):
         self.widget_legacy_offset = None
         self.widget_detached = False
         self.widget_placement = None
+        self.widget_click_through = False
         self.claude_code_snapshot = None
 
     def _publish(self):
@@ -81,6 +92,13 @@ class FakeUsageViewModel(QObject):
     def set_widget_today_visible(self, visible):
         self.widget_today_visible = bool(visible)
         self._publish()
+
+    def set_widget_click_through(self, enabled):
+        self.widget_click_through = bool(enabled)
+        self._publish()
+
+    def toggle_widget_click_through(self):
+        self.set_widget_click_through(not self.widget_click_through)
 
     def detach_widget(self, placement):
         self.widget_placement = placement
@@ -127,6 +145,14 @@ class UsageCompanionTests(unittest.TestCase):
         controller = UsageCompanionController(
             pet, FakePetViewModel(), usage_vm, lambda: opened.append(True), **kwargs
         )
+        # Delete the Qt objects here, on the GUI thread: left to the garbage
+        # collector they may be freed later from a worker thread's Python code.
+        self.addCleanup(
+            QCoreApplication.sendPostedEvents, None, QEvent.Type.DeferredDelete
+        )
+        self.addCleanup(pet.deleteLater)
+        self.addCleanup(controller.deleteLater)
+        self.addCleanup(controller.window.deleteLater)
         self.addCleanup(pet.close)
         self.addCleanup(controller.close)
         self.app.processEvents()

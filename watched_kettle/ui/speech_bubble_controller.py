@@ -356,6 +356,14 @@ class PetBubbleController(QObject):
             window.sync_always_on_top(enabled)
         self.reposition()
 
+    def sync_click_through(self, enabled):
+        windows = {self._fallback_window}
+        windows.update(entry.window for entry in self._entries.values())
+        windows.update(self._window_pool)
+        for window in windows:
+            window.sync_click_through(enabled)
+        self.reposition()
+
     def close(self):
         self._snooze_timer.stop()
         for key in tuple(self._entries):

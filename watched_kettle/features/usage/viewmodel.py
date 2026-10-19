@@ -121,6 +121,14 @@ class UsageViewModel(QObject):
         return self.preferences.load_usage_widget_detached()
 
     @property
+    def widget_click_through(self):
+        return self.preferences.load_usage_widget_click_through()
+
+    @property
+    def widget_click_through_hotkey(self):
+        return self.preferences.load_usage_widget_click_through_hotkey()
+
+    @property
     def widget_placement(self):
         return self.preferences.load_usage_widget_placement()
 
@@ -211,6 +219,17 @@ class UsageViewModel(QObject):
 
     def set_widget_visible(self, visible):
         self.preferences.save_usage_widget_visible(bool(visible))
+        self.snapshot_changed.emit(self.snapshot)
+
+    def set_widget_click_through(self, enabled):
+        self.preferences.save_usage_widget_click_through(bool(enabled))
+        self.snapshot_changed.emit(self.snapshot)
+
+    def toggle_widget_click_through(self):
+        self.set_widget_click_through(not self.widget_click_through)
+
+    def set_widget_click_through_hotkey(self, text):
+        self.preferences.save_usage_widget_click_through_hotkey(text)
         self.snapshot_changed.emit(self.snapshot)
 
     def set_widget_shape(self, shape):

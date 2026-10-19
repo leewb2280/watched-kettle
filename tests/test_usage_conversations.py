@@ -167,9 +167,13 @@ class UsageConversationsTests(unittest.TestCase):
             return_value=index,
         ):
             self.service.set_conversation_query()
-        project_id = self.client.requests[-1][0]
+        project_id = next(
+            rid for rid, method, _ in self.client.requests if method == "project/list"
+        )
         self.client.respond(project_id, {"data": [{"id": "p", "name": "Demo_app"}]})
-        first = self.client.requests[-1][0]
+        first = next(
+            rid for rid, method, _ in self.client.requests if method == "thread/list"
+        )
         self.client.respond(
             first,
             {
@@ -205,16 +209,23 @@ class UsageConversationsTests(unittest.TestCase):
         self.assertNotIn("실제 제목", "\n".join(self.repo.connection.iterdump()))
 
     def test_catalog_repeated_cursor_and_errors_are_bounded(self):
+        self.fill()
         self.client.ready = True
         self.service.set_conversation_query()
-        self.client.respond(self.client.requests[-1][0], error={"code": "unsupported"})
-        self.assertEqual(self.client.requests[-1][1], "thread/list")
-        for _ in range(2):
+        catalog = self.service.conversation_catalog
+        project = next(
+            rid for rid, method, _ in self.client.requests if method == "project/list"
+        )
+        self.client.respond(project, error={"code": "unsupported"})
+        for _ in range(4):
             self.client.respond(
                 self.client.requests[-1][0], {"data": [], "nextCursor": "same"}
             )
-        self.assertFalse(self.service.conversation_catalog.pending)
-        self.assertIn("확인 불가", self.service.conversation_catalog.status)
+        self.assertFalse(catalog.pending)
+        before = len(self.client.requests)
+        catalog.tick()
+        self.assertEqual(len(self.client.requests), before)
+        self.assertIn("확인 불가", catalog.status)
 
     def test_volatile_aggregates_match_sqlite(self):
         self.fill()

@@ -26,6 +26,9 @@ ROADMAP_STAGE = re.compile(r"^#{2,3}\s+(\d+(?:\.\d+)?)\.\s", re.MULTILINE)
 VERSION_ASSIGNMENT = re.compile(
     r'^APPLICATION_VERSION\s*=\s*["\']([^"\']+)["\']', re.MULTILINE
 )
+WHATS_NEW_ASSIGNMENT = re.compile(
+    r'^WHATS_NEW_VERSION\s*=\s*["\']([^"\']+)["\']', re.MULTILINE
+)
 # Partial updates replace only runtime folders, so a release whose installer
 # or launcher changed must ship as a full installer (docs/decisions/0007).
 INSTALLER_REVISION_FILE = Path("packaging") / "installer-revision.json"
@@ -108,6 +111,16 @@ def validate_version_source() -> list[str]:
     version = match.group(1)
     if re.fullmatch(r"\d+\.\d+\.\d+", version) is None:
         return [f"watched_kettle/branding.py: invalid version {version!r}"]
+    # The About page's highlights must describe the version being built.
+    about = (PROJECT_ROOT / "watched_kettle" / "application" / "about.py").read_text(
+        encoding="utf-8"
+    )
+    whats_new = WHATS_NEW_ASSIGNMENT.search(about)
+    if whats_new is None or whats_new.group(1) != version:
+        return [
+            "watched_kettle/application/about.py: WHATS_NEW_VERSION must be "
+            f"{version}; update what's new for this version (docs/releasing.md)"
+        ]
 
     # These are mirrors for people reading the repository. Requiring the code-owned
     # value here keeps them useful without turning either document into a second source.

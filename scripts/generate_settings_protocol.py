@@ -114,8 +114,8 @@ def outputs():
             "export type Args<M extends RendererCommand> = CommandMap[M]['args'];",
             "export type Result<M extends RendererCommand> = CommandMap[M]['result'];",
             "export type Request = <M extends RendererCommand>(method: M, ...args: {} extends Args<M> ? [args?: Args<M>] : [args: Args<M>]) => Promise<Result<M>>;",
-            "export type FileResult<P extends 'pet' | 'import' | 'export'> = Cancelled | (P extends 'pet' ? PetPreparation : P extends 'import' ? ElementImported : Saved);",
-            "export type FileRequest = <P extends 'pet' | 'import' | 'export'>(purpose: P, ...args: P extends 'import' ? [kind: ElementKind] : []) => Promise<FileResult<P>>;",
+            "export type FileResult<P extends 'pet' | 'pet-folder' | 'import' | 'export'> = Cancelled | (P extends 'pet' | 'pet-folder' ? PetImportJob : P extends 'import' ? ElementImported : Saved);",
+            "export type FileRequest = <P extends 'pet' | 'pet-folder' | 'import' | 'export'>(purpose: P, ...args: P extends 'import' ? [kind: ElementKind] : []) => Promise<FileResult<P>>;",
         ]
     )
     exposed = {"renderer": public, "assistant": assistant}

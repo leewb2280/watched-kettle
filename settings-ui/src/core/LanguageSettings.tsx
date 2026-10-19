@@ -79,6 +79,10 @@ export function LanguageSettings({ shell }: { shell: Shell }) {
     shell.snapshot.update.state,
   );
   const selected = packs.find((pack) => pack.id === state.selected);
+  // Translation counts are for pack authors; a complete official pack
+  // shows only who made it and its version.
+  const complete = (pack: LanguagePackInfo) =>
+    pack.official && pack.translated === pack.total && !pack.outdated;
   const fallbackName = (pack: LanguagePackInfo) =>
     packs.find((row) => row.id === pack.fallback)?.name || pack.fallback;
   return (
@@ -115,12 +119,17 @@ export function LanguageSettings({ shell }: { shell: Shell }) {
       <div className="language-details">
         {selected && (
           <p className="footnote">
-            {selected.author} · {selected.version} ·{" "}
-            {t("language.coverage", {
-              done: selected.translated,
-              total: selected.total,
-              review: selected.outdated,
-            })}
+            {selected.author} · {selected.version}
+            {!complete(selected) && (
+              <>
+                {" · "}
+                {t("language.coverage", {
+                  done: selected.translated,
+                  total: selected.total,
+                  review: selected.outdated,
+                })}
+              </>
+            )}
             {selected.fallbackCount > 0 && (
               <>
                 <br />

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from watched_kettle.state.codex_activity import CodexLiveToolStart
 from watched_kettle.integrations.codex_paths import codex_home
 import time
 
@@ -308,6 +309,11 @@ class CodexHookServer(QObject):
             self.disabled_sources.add(source)
 
     def _deliver_payload(self, payload, transport):
+        # Internal collector evidence never crosses the JSON hook boundary.
+        payload = dict(payload)
+        live_tool = payload.pop("_codex_live_tool", None)
+        if transport == JSONL_TRANSPORT and isinstance(live_tool, CodexLiveToolStart):
+            payload["_codex_live_tool"] = live_tool
         if payload.get("source") in self.disabled_sources:
             # A hook left behind after the tool was switched off.
             self.disabled_source_drop_count += 1
@@ -353,6 +359,7 @@ class CodexHookServer(QObject):
             payload.get("compaction_phase", ""),
             payload.get("tool_status", ""),
             payload.get("success"),
+            isinstance(payload.get("_codex_live_tool"), CodexLiveToolStart),
             # A status line update with new numbers is not a duplicate.
             payload.get("five_hour_percent"),
             payload.get("seven_day_percent"),

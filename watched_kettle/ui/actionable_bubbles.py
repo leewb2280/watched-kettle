@@ -74,6 +74,8 @@ class ActionableBubbleWindow(SpeechBubbleWindow):
         self.content_layout.insertWidget(0, self.header)
         self.summary_label.installEventFilter(self)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
+        if getattr(self.pet, "bubble_click_through", False):
+            self.setWindowFlag(Qt.WindowType.WindowTransparentForInput, True)
         self.project_rows = ProjectBubbleRows(
             router,
             projects.dismiss_rows if projects is not None else lambda _ids: None,
@@ -108,6 +110,15 @@ class ActionableBubbleWindow(SpeechBubbleWindow):
         if event.button() == Qt.MouseButton.LeftButton:
             self.activate()
         super().mouseReleaseEvent(event)
+
+    def sync_click_through(self, enabled):
+        flag = Qt.WindowType.WindowTransparentForInput
+        if bool(self.windowFlags() & flag) == bool(enabled):
+            return
+        was_visible = self.isVisible()
+        self.setWindowFlag(flag, bool(enabled))
+        if was_visible:
+            self.show()
 
     def activate(self, token=""):
         primary = bool(self.content and (not token or token == self.content.token))
@@ -899,3 +910,8 @@ class ActionableBubbleController(PetBubbleController):
         for window in self.card_windows.values():
             window.sync_always_on_top(enabled)
         super().sync_always_on_top(enabled)
+
+    def sync_click_through(self, enabled):
+        for window in self.card_windows.values():
+            window.sync_click_through(enabled)
+        super().sync_click_through(enabled)

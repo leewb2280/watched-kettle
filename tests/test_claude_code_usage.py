@@ -242,6 +242,39 @@ class ServiceTests(unittest.TestCase):
             [t.turn_hash for t in snapshot.latest_tasks], [hash_identifier("p4")]
         )
 
+    def move_to_another_folder(self):
+        """Later turns run elsewhere; the second append resumes at such a turn."""
+        self.drain()
+        other = "C:/work/other"
+        write(
+            self.transcript,
+            [user("p4", 0, cwd=other), assistant("m5", 0, 2, "end_turn", "r5")],
+        )
+        self.drain()
+        write(
+            self.transcript,
+            [user("p5", -1, cwd=other), assistant("m6", -1, 3, "end_turn", "r6")],
+        )
+        return self.drain()
+
+    def test_a_session_stays_in_the_project_it_started_in(self):
+        snapshot = self.move_to_another_folder()
+
+        self.assertEqual([p.name for p in snapshot.projects], ["kettle-demo"])
+        self.assertEqual(snapshot.projects[0].conversation_count, 1)
+        self.assertEqual(snapshot.conversations[0].task_count, 5)
+        key = snapshot.projects[0].project_key
+        self.assertEqual(len(self.repository.turns(project_hash=key)), 5)
+
+    def test_the_project_name_survives_a_restart(self):
+        self.move_to_another_folder()
+        self.service.close()
+        self.service = ClaudeCodeUsageService(self.repository, config_dir=self.config)
+
+        snapshot = self.drain()
+
+        self.assertEqual([p.name for p in snapshot.projects], ["kettle-demo"])
+
     def test_disabled_service_reads_nothing(self):
         self.service.set_enabled(False)
         self.service.tick()

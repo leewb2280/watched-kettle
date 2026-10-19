@@ -253,6 +253,14 @@ class QuickUsageWindow(QQuickView):
     def sync_always_on_top(self, enabled):
         self.setFlag(Qt.WindowType.WindowStaysOnTopHint, bool(enabled))
 
+    def sync_click_through(self, enabled):
+        flag = Qt.WindowType.WindowTransparentForInput
+        if bool(self.flags() & flag) == bool(enabled):
+            return
+        self.setFlag(flag, bool(enabled))
+        # The release of a press cut off by the change never arrives.
+        self._clear_press()
+
     def apply_snapshot(self, snapshot, *, scale_percent=100, **_options):
         context = self.context() if self.context else {}
         state = widget_state(

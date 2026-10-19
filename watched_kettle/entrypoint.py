@@ -86,14 +86,10 @@ def main():
         from watched_kettle.app import main as app_main
         from watched_kettle.application.runtime import ApplicationRuntime
         from watched_kettle.state.controller import PetAgentController
-        from watched_kettle.integrations.codex_launcher import (
-            open_codex_new_conversation,
-        )
 
         return app_main(
             runtime_factory=ApplicationRuntime,
             agent_controller_factory=PetAgentController,
-            codex_opener=open_codex_new_conversation,
             on_started=on_started,
         )
 

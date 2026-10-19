@@ -644,10 +644,6 @@
     "sourceRevision": 1,
     "value": "The maximum tracking distance cannot be smaller than the deadzone."
   },
-  "message.0161": {
-    "sourceRevision": 1,
-    "value": "Could not open Codex. Check that it is installed."
-  },
   "message.0162": {
     "sourceRevision": 1,
     "value": "The rendering cache size must be at least 1."
@@ -1037,15 +1033,15 @@
     "value": "Status: {value0}"
   },
   "message.0259": {
-    "sourceRevision": 1,
+    "sourceRevision": 2,
     "value": "Idle activities"
   },
   "message.0260": {
-    "sourceRevision": 1,
-    "value": "Auto movement"
+    "sourceRevision": 2,
+    "value": "Walk around the screen"
   },
   "message.0261": {
-    "sourceRevision": 1,
+    "sourceRevision": 2,
     "value": "Always on top"
   },
   "message.0262": {
@@ -1069,11 +1065,11 @@
     "value": "Open widget settings"
   },
   "message.0267": {
-    "sourceRevision": 1,
-    "value": "Attach beside pet"
+    "sourceRevision": 2,
+    "value": "Move back beside pet"
   },
   "message.0268": {
-    "sourceRevision": 1,
+    "sourceRevision": 2,
     "value": "Bring to screen center"
   },
   "message.0269": {
@@ -1167,10 +1163,6 @@
   "message.0291": {
     "sourceRevision": 1,
     "value": "Get new version (v{value0})"
-  },
-  "message.0292": {
-    "sourceRevision": 1,
-    "value": "Pet settings"
   },
   "message.0293": {
     "sourceRevision": 1,
@@ -1780,17 +1772,9 @@
     "sourceRevision": 1,
     "value": "Codex tasks"
   },
-  "message.0442": {
-    "sourceRevision": 1,
-    "value": "Estimated tokens: {value0}"
-  },
-  "message.0443": {
-    "sourceRevision": 1,
-    "value": "Observed tokens: {value0}"
-  },
   "message.0444": {
     "sourceRevision": 1,
-    "value": "Unconfirmed"
+    "value": "Unread"
   },
   "message.0445": {
     "sourceRevision": 1,
@@ -2381,8 +2365,8 @@
     "value": "Bubbles"
   },
   "message.0593": {
-    "sourceRevision": 1,
-    "value": "Activity"
+    "sourceRevision": 3,
+    "value": "Notification history"
   },
   "message.0594": {
     "sourceRevision": 1,
@@ -2465,12 +2449,12 @@
     "value": "If a save error appears, check again. Usage and activity information depends on the installed edition and connection status."
   },
   "message.0614": {
-    "sourceRevision": 1,
-    "value": "View notifications that need attention, active tasks, and recent activity."
+    "sourceRevision": 2,
+    "value": "View notifications that need attention and task events from this app session."
   },
   "message.0615": {
-    "sourceRevision": 1,
-    "value": "Loading activity."
+    "sourceRevision": 2,
+    "value": "Loading notifications."
   },
   "message.0616": {
     "sourceRevision": 1,
@@ -2492,10 +2476,6 @@
     "sourceRevision": 1,
     "value": "Conversation"
   },
-  "message.0621": {
-    "sourceRevision": 1,
-    "value": "No active tasks."
-  },
   "message.0622": {
     "sourceRevision": 1,
     "value": "Recent activity"
@@ -2505,12 +2485,12 @@
     "value": "Storage"
   },
   "message.0624": {
-    "sourceRevision": 1,
-    "value": "Assistant notifications, project events, and completions are shown only for this app session. Codex task usage history follows a separate local storage policy."
+    "sourceRevision": 2,
+    "value": "Notifications, events, and completions are kept only for this app session. Per-task token history is in Usage."
   },
   "message.0625": {
-    "sourceRevision": 1,
-    "value": "Manage activity"
+    "sourceRevision": 2,
+    "value": "Manage notifications"
   },
   "message.0626": {
     "sourceRevision": 1,
@@ -2624,10 +2604,6 @@
     "sourceRevision": 1,
     "value": "These changes cannot be applied right now. Review the information above."
   },
-  "message.0655": {
-    "sourceRevision": 1,
-    "value": "View notifications, active tasks, remaining limits, and connection status."
-  },
   "message.0656": {
     "sourceRevision": 1,
     "value": "Loading status."
@@ -2641,8 +2617,8 @@
     "value": "No notifications need attention."
   },
   "message.0659": {
-    "sourceRevision": 1,
-    "value": "Open activity"
+    "sourceRevision": 3,
+    "value": "Open notification history"
   },
   "message.0660": {
     "sourceRevision": 1,
@@ -2901,8 +2877,8 @@
     "value": "Reset content"
   },
   "message.0732": {
-    "sourceRevision": 1,
-    "value": "Restore position beside pet"
+    "sourceRevision": 2,
+    "value": "Move back beside pet"
   },
   "message.0733": {
     "sourceRevision": 1,
@@ -4411,8 +4387,8 @@
     "value": "Pet settings tabs"
   },
   "message.1122": {
-    "sourceRevision": 1,
-    "value": "Move to this screen now"
+    "sourceRevision": 2,
+    "value": "Move to the selected display"
   },
   "message.1123": {
     "sourceRevision": 1,
@@ -4543,8 +4519,8 @@
     "value": "Add"
   },
   "message.1155": {
-    "sourceRevision": 1,
-    "value": "Select a PNG or WebP sprite downloaded from web pet settings. Supports V1 and V2, up to 20 MiB."
+    "sourceRevision": 2,
+    "value": "Import a PNG/WebP image, ZIP or pet folder, install command, or a pet installed in Codex. After adding it, select the pet to use."
   },
   "message.1156": {
     "sourceRevision": 1,
@@ -4949,8 +4925,8 @@
     "value": "Choose pet sprite"
   },
   "message.1269": {
-    "sourceRevision": 1,
-    "value": "Pet sprite"
+    "sourceRevision": 2,
+    "value": "Pet image or ZIP"
   },
   "message.1270": {
     "sourceRevision": 1,
@@ -5220,6 +5196,34 @@
     "value": "Show {count} more",
     "sourceRevision": 1
   },
+  "activity.group.notice": {
+    "value": "Notifications",
+    "sourceRevision": 1
+  },
+  "activity.group.attention": {
+    "value": "Needs attention",
+    "sourceRevision": 1
+  },
+  "activity.group.progress": {
+    "value": "Status changes",
+    "sourceRevision": 1
+  },
+  "activity.group.completion": {
+    "value": "Completed",
+    "sourceRevision": 1
+  },
+  "activity.mark_all_read": {
+    "value": "Mark all as read",
+    "sourceRevision": 1
+  },
+  "activity.read": {
+    "sourceRevision": 1,
+    "value": "Read"
+  },
+  "activity.collapse": {
+    "value": "Show less",
+    "sourceRevision": 1
+  },
   "bubble.snooze_remaining": {
     "value": {
       "one": "About {count} minute left",
@@ -5375,5 +5379,396 @@
   "app.restart_busy": {
     "sourceRevision": 1,
     "value": "Wait for the current operation to finish before restarting the app."
+  },
+  "home.subtitle": {
+    "sourceRevision": 1,
+    "value": "Customize your pet and check frequently used settings."
+  },
+  "home.subtitle_assistant": {
+    "sourceRevision": 1,
+    "value": "See your pet, notifications, ongoing conversations, usage, and connections at a glance."
+  },
+  "home.my_pet": {
+    "sourceRevision": 1,
+    "value": "My pet"
+  },
+  "home.double_click_wave": {
+    "sourceRevision": 1,
+    "value": "Double-click: Wave"
+  },
+  "home.double_click_with_action": {
+    "sourceRevision": 1,
+    "value": "Double-click: Wave + {action}"
+  },
+  "home.customize_pet": {
+    "sourceRevision": 1,
+    "value": "Customize pet"
+  },
+  "double_click.label": {
+    "sourceRevision": 1,
+    "value": "Double-click action"
+  },
+  "double_click.description": {
+    "sourceRevision": 1,
+    "value": "Choose what happens along with the wave."
+  },
+  "double_click.settings_home": {
+    "sourceRevision": 1,
+    "value": "Settings home"
+  },
+  "double_click.codex": {
+    "sourceRevision": 1,
+    "value": "Open Codex"
+  },
+  "double_click.claude": {
+    "sourceRevision": 1,
+    "value": "Open Claude Code (VS Code)"
+  },
+  "double_click.wave_only": {
+    "sourceRevision": 1,
+    "value": "Wave only"
+  },
+  "double_click.open_failed_title": {
+    "sourceRevision": 1,
+    "value": "Couldn't open the app"
+  },
+  "launcher.unsupported": {
+    "sourceRevision": 1,
+    "value": "{app} can't be opened in this environment."
+  },
+  "launcher.not_found": {
+    "sourceRevision": 1,
+    "value": "Couldn't find {app}. Check that it is installed."
+  },
+  "launcher.activate_failed": {
+    "sourceRevision": 1,
+    "value": "Couldn't bring {app} to the front. Open it from the taskbar."
+  },
+  "launcher.start_failed": {
+    "sourceRevision": 1,
+    "value": "Couldn't start {app}. Check that it is installed."
+  },
+  "launcher.access_failed": {
+    "sourceRevision": 1,
+    "value": "Couldn't access {app}. Check the installation and permissions."
+  },
+  "click_through.pet": {
+    "sourceRevision": 1,
+    "value": "Lock pet"
+  },
+  "click_through.widget": {
+    "sourceRevision": 1,
+    "value": "Lock widget"
+  },
+  "click_through.pet_description": {
+    "sourceRevision": 1,
+    "value": "Clicks pass through the pet to the window behind it. Unlock it from the tray menu or with the shortcut."
+  },
+  "click_through.widget_description": {
+    "sourceRevision": 1,
+    "value": "Clicks pass through the widget to the window behind it. Unlock it from the tray menu, the pet menu, or with the shortcut."
+  },
+  "click_through.hotkey": {
+    "sourceRevision": 1,
+    "value": "Pet lock shortcut"
+  },
+  "click_through.widget_hotkey": {
+    "sourceRevision": 1,
+    "value": "Widget lock shortcut"
+  },
+  "click_through.hotkey_description": {
+    "sourceRevision": 1,
+    "value": "Press it in any app to lock or unlock. It must include Ctrl or Alt."
+  },
+  "click_through.bubbles": {
+    "sourceRevision": 1,
+    "value": "Let clicks pass through bubbles with buttons too"
+  },
+  "click_through.bubbles_description": {
+    "sourceRevision": 1,
+    "value": "While the pet is locked, bubbles with buttons can't be clicked either."
+  },
+  "click_through.locked_notice": {
+    "sourceRevision": 1,
+    "value": "The pet is locked. Unlock it from the tray menu or with the shortcut."
+  },
+  "hotkey.assign": {
+    "sourceRevision": 1,
+    "value": "Set shortcut"
+  },
+  "hotkey.change": {
+    "sourceRevision": 1,
+    "value": "Change"
+  },
+  "hotkey.clear": {
+    "sourceRevision": 1,
+    "value": "Clear"
+  },
+  "hotkey.recording": {
+    "sourceRevision": 1,
+    "value": "Press keys (Esc to cancel)"
+  },
+  "hotkey.unassigned": {
+    "sourceRevision": 1,
+    "value": "Not set"
+  },
+  "hotkey.in_use": {
+    "sourceRevision": 1,
+    "value": "Another app already uses this shortcut. Choose a different one."
+  },
+  "hotkey.invalid": {
+    "sourceRevision": 1,
+    "value": "Press Ctrl or Alt together with a letter, a digit, or F1–F24."
+  },
+  "hotkey.unavailable": {
+    "sourceRevision": 1,
+    "value": "Shortcuts can't be registered in this environment."
+  },
+  "hotkey.duplicate": {
+    "sourceRevision": 1,
+    "value": "The pet lock and the widget lock can't share a shortcut. Choose a different combination."
+  },
+  "about.nav": {
+    "sourceRevision": 1,
+    "value": "About"
+  },
+  "about.subtitle": {
+    "sourceRevision": 1,
+    "value": "Check the version, what's new, the repository and licenses."
+  },
+  "about.app_section": {
+    "sourceRevision": 1,
+    "value": "App"
+  },
+  "about.copyright": {
+    "sourceRevision": 1,
+    "value": "© 2026 leewb2280 · MIT License"
+  },
+  "about.unofficial": {
+    "sourceRevision": 1,
+    "value": "This is an unofficial project. It is not made or endorsed by OpenAI or Anthropic and is not affiliated with either company."
+  },
+  "about.whats_new": {
+    "sourceRevision": 1,
+    "value": "What's new (v{version})"
+  },
+  "about.release_notes": {
+    "sourceRevision": 1,
+    "value": "Full release notes"
+  },
+  "about.changelog": {
+    "sourceRevision": 1,
+    "value": "Changelog"
+  },
+  "about.links_section": {
+    "sourceRevision": 1,
+    "value": "Links"
+  },
+  "about.repository": {
+    "sourceRevision": 1,
+    "value": "GitHub repository"
+  },
+  "about.issues": {
+    "sourceRevision": 1,
+    "value": "Report a bug or suggest an idea"
+  },
+  "about.license": {
+    "sourceRevision": 1,
+    "value": "License text"
+  },
+  "about.third_party_section": {
+    "sourceRevision": 1,
+    "value": "Open source licenses"
+  },
+  "about.third_party_note": {
+    "sourceRevision": 1,
+    "value": "Components bundled with the app. Full license texts are in the licenses folder inside the install folder."
+  },
+  "about.open_licenses": {
+    "sourceRevision": 1,
+    "value": "Open licenses folder"
+  },
+  "about.licenses_source_run": {
+    "sourceRevision": 1,
+    "value": "There is no licenses folder when running from source. See THIRD_PARTY_NOTICES.md in the repository."
+  },
+  "about.licenses_missing": {
+    "sourceRevision": 1,
+    "value": "Could not find the licenses folder."
+  },
+  "about.licenses_open_failed": {
+    "sourceRevision": 1,
+    "value": "Could not open the licenses folder."
+  },
+  "about.updated_notice": {
+    "sourceRevision": 1,
+    "value": "Updated to v{version}. See what's new in Settings → About."
+  },
+  "whats_new.0157.double_click": {
+    "sourceRevision": 1,
+    "value": "Double-clicking the pet opens the settings home. Change it to Open Codex, Open Claude Code (VS Code) or Wave only in App settings."
+  },
+  "whats_new.0157.open_app": {
+    "sourceRevision": 1,
+    "value": "Open Codex and Open Claude Code bring back the front-most window instead of starting a new conversation."
+  },
+  "whats_new.0157.click_through": {
+    "sourceRevision": 1,
+    "value": "Lock the pet and the usage widget separately so clicks pass through to the window behind. A global shortcut can toggle it too."
+  },
+  "whats_new.0157.claude_projects": {
+    "sourceRevision": 1,
+    "value": "Claude Code history keeps a conversation in the project it started in, even when its working folder changes."
+  },
+  "whats_new.0157.about": {
+    "sourceRevision": 1,
+    "value": "The settings window has a new About page with what's new, the repository and licenses."
+  },
+  "whats_new.0157.notifications": {
+    "sourceRevision": 2,
+    "value": "Activity in the settings window is now Notification history. Mark all unread notifications as read at once and filter by type."
+  },
+  "pet.import.invalid_package": {
+    "sourceRevision": 1,
+    "value": "Check the pet package files and format. A safe PNG/WebP and pet.json are required."
+  },
+  "pet.import.command_invalid": {
+    "sourceRevision": 1,
+    "value": "Enter one supported pet install command. Extra options and other commands are not supported."
+  },
+  "pet.import.cancelled": {
+    "sourceRevision": 1,
+    "value": "Pet import was cancelled."
+  },
+  "pet.import.network_failed": {
+    "sourceRevision": 1,
+    "value": "The pet could not be downloaded. Check your connection and try again."
+  },
+  "pet.import.integrity_failed": {
+    "sourceRevision": 1,
+    "value": "The downloaded pet failed validation. Check the package at its source."
+  },
+  "pet.import.not_found": {
+    "sourceRevision": 1,
+    "value": "The pet was not found. Check the command or import a file."
+  },
+  "pet.import.rate_limited": {
+    "sourceRevision": 1,
+    "value": "The source request limit was reached. Try again later."
+  },
+  "pet.import.busy": {
+    "sourceRevision": 1,
+    "value": "The previous import is finishing. Try again shortly."
+  },
+  "pet.import.input": {
+    "sourceRevision": 1,
+    "value": "Import source"
+  },
+  "pet.import.file_tab": {
+    "sourceRevision": 1,
+    "value": "File or folder"
+  },
+  "pet.import.command_tab": {
+    "sourceRevision": 1,
+    "value": "Install command"
+  },
+  "pet.import.installed_tab": {
+    "sourceRevision": 1,
+    "value": "Pets installed in Codex"
+  },
+  "pet.import.command_help": {
+    "sourceRevision": 1,
+    "value": "Paste an install command from CodexPetDB or Pets Codex. The app reads the command and downloads the pet directly; no CLI installation is needed."
+  },
+  "pet.import.fetch": {
+    "sourceRevision": 1,
+    "value": "Download"
+  },
+  "pet.import.search": {
+    "sourceRevision": 1,
+    "value": "Search installed pets"
+  },
+  "pet.import.refresh": {
+    "sourceRevision": 1,
+    "value": "Refresh"
+  },
+  "pet.import.empty": {
+    "sourceRevision": 1,
+    "value": "No pets were found in the Codex user folder."
+  },
+  "pet.import.folder": {
+    "sourceRevision": 1,
+    "value": "Choose folder"
+  },
+  "pet.import.animation": {
+    "sourceRevision": 1,
+    "value": "Animation preview"
+  },
+  "pet.import.direction": {
+    "sourceRevision": 1,
+    "value": "Look direction"
+  },
+  "pet.import.look": {
+    "sourceRevision": 1,
+    "value": "Look in 16 directions"
+  },
+  "pet.import.pause": {
+    "sourceRevision": 1,
+    "value": "Pause"
+  },
+  "pet.import.play": {
+    "sourceRevision": 1,
+    "value": "Play"
+  },
+  "pet.import.idle": {
+    "sourceRevision": 1,
+    "value": "Idle"
+  },
+  "pet.import.running_right": {
+    "sourceRevision": 1,
+    "value": "Run right"
+  },
+  "pet.import.running_left": {
+    "sourceRevision": 1,
+    "value": "Run left"
+  },
+  "pet.import.waving": {
+    "sourceRevision": 1,
+    "value": "Wave"
+  },
+  "pet.import.jumping": {
+    "sourceRevision": 1,
+    "value": "Jump"
+  },
+  "pet.import.failed": {
+    "sourceRevision": 1,
+    "value": "Failed"
+  },
+  "pet.import.waiting": {
+    "sourceRevision": 1,
+    "value": "Waiting for input"
+  },
+  "pet.import.running": {
+    "sourceRevision": 1,
+    "value": "Running"
+  },
+  "pet.import.review": {
+    "sourceRevision": 1,
+    "value": "Review"
+  },
+  "whats_new.0157.pet_import": {
+    "sourceRevision": 1,
+    "value": "Pet import also takes ZIP files, pet folders, CodexPetDB and Pets Codex install commands, and pets installed in Codex."
+  },
+  "pet.import.omitted_fields": {
+    "sourceRevision": 1,
+    "value": {
+      "one": "{count} package field this app does not use will not be imported:",
+      "other": "{count} package fields this app does not use will not be imported:"
+    }
+  },
+  "pet.import.omitted_theme": {
+    "sourceRevision": 1,
+    "value": "Bubble settings that point to decorations from another installation cannot be used and were reset to the defaults."
   }
 }

@@ -1,5 +1,8 @@
 """Core application lifecycle with no assistant services or imports."""
 
+from watched_kettle.application.click_through import ClickThroughHotkeys
+from watched_kettle.application.pet_actions import PetDoubleClickActions
+
 from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QSystemTrayIcon
 
@@ -32,6 +35,14 @@ class PetRuntime(QObject):
             self.pet_vm, self.settings_vm, preferences, app, self
         )
         self.settings = SettingsWindowHost(adapter, self)
+        self.click_through = ClickThroughHotkeys(preferences, pet, self)
+        adapter.click_through = self.click_through
+        self.pet_actions = PetDoubleClickActions(
+            pet,
+            preferences,
+            lambda: self.settings.open_route("home"),
+            self.settings.show_action_error,
+        )
         self.tray = (
             PetSystemTray(
                 self.pet_vm,
@@ -44,6 +55,7 @@ class PetRuntime(QObject):
             if require_tray or QSystemTrayIcon.isSystemTrayAvailable()
             else None
         )
+        self.click_through.release_without_tray(self.tray is not None)
         pet.center_requested.connect(self.settings.open_route)
         app.aboutToQuit.connect(self.close)
         self._closed = False
@@ -55,7 +67,9 @@ class PetRuntime(QObject):
         if self._closed:
             return
         self._closed = True
+        self.click_through.close()
         if self.tray is not None:
             self.tray.close()
+        self.pet_actions.close()
         self.settings.shutdown()
         self.pet.save_window_placement()

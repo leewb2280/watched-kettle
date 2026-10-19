@@ -81,6 +81,7 @@ class SettingsProtocolTests(unittest.TestCase):
         forbidden = {
             "file.import",
             "file.pet.prepare",
+            "file.pet.start",
             "file.pet.cancel",
             "file.export",
             "window.visibility",

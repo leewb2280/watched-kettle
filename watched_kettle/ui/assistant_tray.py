@@ -10,7 +10,7 @@ from watched_kettle.application.routes import RouteId
 from watched_kettle.ui import design_tokens
 from watched_kettle.ui.bubble_models import source_mark_color
 from watched_kettle.ui.pet_controls import tray_status_text
-from watched_kettle.ui.pet_tray import update_action_text
+from watched_kettle.ui.pet_tray import check_updates, update_action_text
 
 TRAY_ICON_SIZES = (16, 20, 24, 32, 48)
 
@@ -132,11 +132,6 @@ class AssistantSystemTray(QObject):
         self.projects_menu = self.menu.addMenu(t("message.0219"))
         self.recent_menu = self.menu.addMenu(t("message.0220"))
         self.menu.addSeparator()
-        home = self.menu.addAction(t("message.0221"))
-        home.triggered.connect(lambda: open_route(RouteId.OVERVIEW))
-        usage = self.menu.addAction(t("message.0200"))
-        usage.triggered.connect(lambda: open_route(RouteId.USAGE))
-        self.menu.addSeparator()
         self._categories = {
             name: self.recent_menu.addMenu(label)
             for name, label in (
@@ -162,8 +157,27 @@ class AssistantSystemTray(QObject):
         resume.triggered.connect(pet_vm.resume_bubbles)
         self.visibility_action = self.menu.addAction(t("message.0224"))
         self.visibility_action.triggered.connect(pet_vm.toggle_visibility)
+        # The way back when a locked pet or widget no longer takes clicks.
+        self.click_through_action = self.menu.addAction(t("click_through.pet"))
+        self.click_through_action.setCheckable(True)
+        self.click_through_action.triggered.connect(
+            lambda checked: pet_vm.set_click_through(checked)
+        )
+        self.widget_click_through_action = self.menu.addAction(
+            t("click_through.widget")
+        )
+        self.widget_click_through_action.setCheckable(True)
+        self.widget_click_through_action.triggered.connect(
+            lambda checked: usage_vm.set_widget_click_through(checked)
+        )
+        self.menu.addSeparator()
+        home = self.menu.addAction(t("message.0221"))
+        home.triggered.connect(lambda: open_route(RouteId.OVERVIEW))
+        usage = self.menu.addAction(t("message.0200"))
+        usage.triggered.connect(lambda: open_route(RouteId.USAGE))
         settings = self.menu.addAction(t("message.0225"))
         settings.triggered.connect(lambda: open_route(RouteId.PET_SETTINGS))
+        self.updates = updates
         self.update_action = self.menu.addAction(update_action_text(updates))
         self.update_action.triggered.connect(self._check_updates)
         if updates is not None:
@@ -183,7 +197,7 @@ class AssistantSystemTray(QObject):
         self.tray.show()
 
     def _check_updates(self):
-        self.open_route(RouteId.APP_STARTUP)
+        check_updates(self.updates, lambda: self.open_route(RouteId.APP_STARTUP))
 
     def request_refresh(self):
         if not self._closed and not self._refresh_timer.isActive():
@@ -255,7 +269,8 @@ class AssistantSystemTray(QObject):
                             record.record_id,
                         )
                     )
-            for record in reversed(projects.recent):
+            # The menu keeps its short list; the settings window shows the rest.
+            for record in reversed(projects.recent[-20:]):
                 categories["events"].append(
                     row(
                         ("event", record.thread_id, record.state, record.occurred_at),
@@ -406,6 +421,12 @@ class AssistantSystemTray(QObject):
             self._set_text(
                 self.visibility_action,
                 t("message.0224") if pet.visible else t("message.0234"),
+            )
+            self.click_through_action.setChecked(
+                bool(getattr(pet, "click_through", False))
+            )
+            self.widget_click_through_action.setChecked(
+                bool(getattr(self.usage_vm, "widget_click_through", False))
             )
             connection = connection_action_text(
                 self.connections.snapshot if self.connections is not None else ()

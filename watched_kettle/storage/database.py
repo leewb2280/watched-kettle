@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 
 def migrate_task_storage(connection: sqlite3.Connection) -> None:
@@ -377,6 +377,22 @@ class DatabaseManager:
                 connection.execute(
                     "INSERT INTO schema_migrations VALUES (?, ?)",
                     (8, datetime.now(timezone.utc).isoformat()),
+                )
+
+            if 9 in pending:
+                connection.execute(
+                    """CREATE TABLE usage_thread_projects (
+                        account_hash TEXT NOT NULL,
+                        thread_hash TEXT NOT NULL,
+                        project_key TEXT NOT NULL,
+                        evidence TEXT NOT NULL,
+                        checked_at_utc TEXT NOT NULL,
+                        PRIMARY KEY (account_hash, thread_hash)
+                    )"""
+                )
+                connection.execute(
+                    "INSERT INTO schema_migrations VALUES (?, ?)",
+                    (9, datetime.now(timezone.utc).isoformat()),
                 )
 
     def _partial_repairs(self, connection, applied, pending):

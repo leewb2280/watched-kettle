@@ -26,9 +26,10 @@ const labels = english
       app: "App settings",
       home: "Home",
       usage: "Usage",
-      activity: "Activity",
+      activity: "Notification history",
       integration: "Connections & diagnostics",
       widget: "Widget",
+      about: "About",
     }
   : {
       pet: "펫",
@@ -36,9 +37,10 @@ const labels = english
       app: "앱 설정",
       home: "홈",
       usage: "사용량",
-      activity: "활동 기록",
+      activity: "알림 기록",
       integration: "연결·진단",
       widget: "위젯",
+      about: "정보",
     };
 // Language names in the pack picker and user-owned values (pet, project and
 // conversation names, paths) keep the text they were given in any language.
@@ -205,6 +207,7 @@ async function until(fn, timeout = 15000) {
       korean: ["건"],
       clipped: ["A long label that cannot fit"],
     });
+    // App settings stays last: the language checks below start on it.
     const tabs =
       edition === "pet-assistant"
         ? [
@@ -215,9 +218,10 @@ async function until(fn, timeout = 15000) {
             "widget",
             "pet",
             "bubble",
+            "about",
             "app",
           ]
-        : ["pet", "bubble", "app"];
+        : ["pet", "bubble", "about", "app"];
     for (const id of tabs) {
       await page
         .getByRole("button", { name: labels[id], exact: true })
@@ -243,6 +247,199 @@ async function until(fn, timeout = 15000) {
       await assertText(page.locator("main"), id);
       await page.screenshot({ path: path.join(out, id + ".png") });
       if (id === "pet") {
+        if (!communityManifest) {
+          await page
+            .getByRole("button", {
+              name: english ? "Import pet" : "펫 가져오기",
+              exact: false,
+            })
+            .click();
+          const importer = page.getByRole("dialog");
+          await importer.waitFor();
+          const importBefore = await page.evaluate(() =>
+            window.settings.request("settings.snapshot"),
+          );
+          for (const tabName of [
+            english ? "File or folder" : "파일·폴더",
+            english ? "Install command" : "설치 명령어",
+            english ? "Pets installed in Codex" : "Codex에 설치된 펫",
+          ]) {
+            await importer
+              .getByRole("tab", { name: tabName, exact: true })
+              .click();
+            await page.waitForTimeout(150);
+            await assertText(importer, "pet import " + tabName);
+          }
+          await importer
+            .getByRole("button", { name: /Mori Bot QA Alt/ })
+            .click();
+          await importer
+            .getByLabel(english ? "Pet name" : "펫 이름", { exact: true })
+            .waitFor();
+          const animation = importer.getByLabel(
+            english ? "Animation preview" : "동작 미리보기",
+            { exact: true },
+          );
+          for (const state of [
+            "idle",
+            "running-right",
+            "running-left",
+            "waving",
+            "jumping",
+            "failed",
+            "waiting",
+            "running",
+            "review",
+          ]) {
+            await animation.selectOption(state);
+          }
+          await assertText(importer, "pet import preview");
+          await page.screenshot({
+            path: path.join(out, "pet-import-preview.png"),
+          });
+          for (const factor of [1.5, 2]) {
+            await app.evaluate(
+              ({ BrowserWindow }, value) =>
+                BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(
+                  value,
+                ),
+              factor,
+            );
+            await assertText(importer, "pet import zoom " + factor);
+            assert.equal(
+              await importer.evaluate(
+                (node) => node.scrollWidth > node.clientWidth,
+              ),
+              false,
+            );
+            assert.equal(
+              await importer.evaluate((node) => {
+                const box = node.getBoundingClientRect();
+                return (
+                  box.left >= 0 &&
+                  box.right <= innerWidth + 1 &&
+                  box.top >= 0 &&
+                  box.bottom <= innerHeight + 1
+                );
+              }),
+              true,
+              "import dialog must fit the zoomed viewport",
+            );
+            // Electron zoom changes CSS metrics used by Playwright's screenshot
+            // clip. Capture the webContents surface to retain the full window.
+            const png = await app.evaluate(async ({ BrowserWindow }) =>
+              (await BrowserWindow.getAllWindows()[0].webContents.capturePage())
+                .toPNG()
+                .toString("base64"),
+            );
+            await fs.writeFile(
+              path.join(out, "pet-import-zoom-" + factor + ".png"),
+              Buffer.from(png, "base64"),
+            );
+          }
+          await app.evaluate(({ BrowserWindow }) =>
+            BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(1),
+          );
+          for (const [purpose, source] of [
+            ["pet-folder", connection.petImportFolder],
+            ["pet", connection.petImportZip],
+          ]) {
+            await importer
+              .getByRole("tab", {
+                name: english ? "File or folder" : "파일·폴더",
+                exact: true,
+              })
+              .click();
+            await app.evaluate(({ dialog }, file) => {
+              if (!globalThis.qaImportPicker)
+                globalThis.qaImportPicker = dialog.showOpenDialog;
+              dialog.showOpenDialog = async () => ({
+                canceled: false,
+                filePaths: [file],
+              });
+            }, source);
+            await importer
+              .getByRole("button", {
+                name:
+                  purpose === "pet-folder"
+                    ? english
+                      ? "Choose folder"
+                      : "폴더 선택"
+                    : english
+                      ? "Choose another file"
+                      : "다른 파일 선택",
+                exact: true,
+              })
+              .click();
+            await importer
+              .getByLabel(english ? "Pet name" : "펫 이름", { exact: true })
+              .waitFor();
+            await assertText(importer, "pet import " + purpose);
+            if (purpose === "pet-folder") {
+              await importer
+                .getByText(
+                  english
+                    ? "1 package field this app does not use will not be imported:"
+                    : "이 앱에서 쓰지 않는 패키지 항목 1개는 가져오지 않습니다:",
+                )
+                .waitFor();
+              await importer
+                .getByText(
+                  english
+                    ? "Bubble settings that point to decorations from another installation cannot be used and were reset to the defaults."
+                    : "다른 설치 환경의 장식을 가리키는 말풍선 설정은 쓸 수 없어 기본값으로 바꿨습니다.",
+                )
+                .waitFor();
+              await page.screenshot({
+                path: path.join(out, "pet-import-omitted.png"),
+              });
+            }
+          }
+          await app.evaluate(({ dialog }) => {
+            dialog.showOpenDialog = globalThis.qaImportPicker;
+          });
+          await importer
+            .getByRole("tab", {
+              name: english ? "Install command" : "설치 명령어",
+              exact: true,
+            })
+            .click();
+          await importer
+            .getByRole("textbox", {
+              name: english ? "Install command" : "설치 명령어",
+              exact: true,
+            })
+            .fill("npx petscodex install cat --force");
+          await importer
+            .getByRole("button", {
+              name: english ? "Download" : "다운로드",
+              exact: true,
+            })
+            .click();
+          await importer.getByRole("alert").waitFor();
+          await assertText(importer, "pet import invalid command");
+          assert.equal(
+            (
+              await page.evaluate(() =>
+                window.settings.request("settings.snapshot"),
+              )
+            ).pet.pet_id,
+            importBefore.pet.pet_id,
+          );
+          assert.equal(
+            await importer.evaluate(
+              (node) => node.scrollWidth > node.clientWidth,
+            ),
+            false,
+          );
+          await importer
+            .getByRole("button", {
+              name: english ? "Cancel" : "취소",
+              exact: true,
+            })
+            .last()
+            .click();
+        }
         await page
           .getByRole("button", {
             name: english ? "Manage pets" : "펫 관리",
@@ -267,6 +464,58 @@ async function until(fn, timeout = 15000) {
             exact: true,
           })
           .last()
+          .click();
+        await page
+          .getByRole("tab", {
+            name: english ? "Behavior" : "동작·화면",
+            exact: true,
+          })
+          .click();
+        const shortcut = page.locator(".hotkey-input").first();
+        await shortcut.scrollIntoViewIfNeeded();
+        await shortcut
+          .getByRole("button", {
+            name: english ? "Set shortcut" : "단축키 지정",
+            exact: true,
+          })
+          .click();
+        await shortcut
+          .getByText(
+            english ? "Press keys (Esc to cancel)" : "키를 누르세요 (Esc: 취소)",
+          )
+          .waitFor();
+        await assertText(page.locator("main"), "pet shortcut recording");
+        await page.keyboard.press("Shift+P");
+        assert.equal(
+          await shortcut.locator("kbd").getAttribute("class"),
+          "is-recording",
+        );
+        await shortcut.locator(".hotkey-status").waitFor();
+        await assertText(page.locator("main"), "pet shortcut rejected");
+        await page.keyboard.press("Control+Alt+F9");
+        await shortcut.getByText("Ctrl+Alt+F9").waitFor();
+        assert.equal(await shortcut.locator("kbd").getAttribute("class"), null);
+        await assertText(page.locator("main"), "pet shortcut assigned");
+        await page.screenshot({ path: path.join(out, "pet-shortcut.png") });
+        await shortcut
+          .getByRole("button", {
+            name: english ? "Clear" : "지우기",
+            exact: true,
+          })
+          .click();
+        await shortcut
+          .getByText(english ? "Not set" : "지정 안 함", { exact: true })
+          .waitFor();
+        // Unassigned reads as plain text, not as a second button.
+        assert.equal(
+          await shortcut.locator("kbd").getAttribute("class"),
+          "is-empty",
+        );
+        await page
+          .getByRole("tab", {
+            name: english ? "Appearance" : "외형·표시",
+            exact: true,
+          })
           .click();
       }
       if (id === "bubble") {
@@ -295,6 +544,22 @@ async function until(fn, timeout = 15000) {
             exact: true,
           })
           .click();
+      }
+      if (id === "about") {
+        // Links leave only through the main process's repository allowlist.
+        const links = await page
+          .locator("main a")
+          .evaluateAll((nodes) =>
+            nodes.map((node) => [node.getAttribute("href"), node.target]),
+          );
+        assert.ok(links.length >= 5, "about links");
+        for (const [href, target] of links) {
+          assert.match(
+            href,
+            /^https:\/\/github\.com\/leewb2280\/watched-kettle(\/|$)/,
+          );
+          assert.equal(target, "_blank", href);
+        }
       }
       if (id === "app" && communityManifest) {
         await page
@@ -429,6 +694,7 @@ async function until(fn, timeout = 15000) {
       ]) {
         await control({ action });
       }
+      await control({ action: "pending_notices", count: 7 });
       metrics.filledPages = [];
       for (const id of ["home", "usage", "activity", "integration", "widget"]) {
         await page
@@ -446,6 +712,39 @@ async function until(fn, timeout = 15000) {
         );
         await assertText(page.locator("main"), id + " with data");
         await page.screenshot({ path: path.join(out, id + "-data.png") });
+        if (id === "activity") {
+          await page
+            .getByRole("button", {
+              name: english ? /^Show \d+ more$/ : /^\d+건 더 보기$/,
+              exact: true,
+            })
+            .click();
+          await page
+            .getByRole("button", {
+              name: english ? "Show less" : "접기",
+              exact: true,
+            })
+            .waitFor();
+          await assertText(page.locator("main"), "notifications expanded");
+          await page.screenshot({
+            path: path.join(out, "activity-expanded.png"),
+          });
+          await page
+            .getByRole("button", {
+              name: english ? "Mark all as read" : "모두 확인",
+              exact: true,
+            })
+            .click();
+          await page
+            .getByText(
+              english
+                ? "No notifications need your attention."
+                : "확인할 알림이 없어요.",
+              { exact: true },
+            )
+            .waitFor();
+          await assertText(page.locator("main"), "notifications confirmed");
+        }
         if (id === "usage") {
           // History rows and the conversation dialog show token counts.
           const title = english ? "QA conversation title" : "QA 대화 제목";
@@ -610,7 +909,9 @@ async function until(fn, timeout = 15000) {
           wideSelection.width,
       ) < 1,
     );
-    await page.screenshot({ path: path.join(out, "language-restart-wide.png") });
+    await page.screenshot({
+      path: path.join(out, "language-restart-wide.png"),
+    });
     await app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()[0].setSize(720, 600),
     );

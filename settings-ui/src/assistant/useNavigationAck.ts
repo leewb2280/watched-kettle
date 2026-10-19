@@ -56,16 +56,8 @@ export function useNavigationAck(
         return;
       }
     }
-    if (route.filter)
-      setFilter(
-        (
-          {
-            usage: t("message.0204"),
-            schedule: t("message.0205"),
-            system: t("message.0202"),
-          } as Record<string, string>
-        )[route.filter] || "",
-      );
+    // Bubble footers name a notice category; the center filters by group.
+    if (route.filter) setFilter("notice");
     const id = route.navigationId;
     let timer = requestAnimationFrame(() => {
       timer = requestAnimationFrame(() => {

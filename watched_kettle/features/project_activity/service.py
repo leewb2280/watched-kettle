@@ -27,6 +27,7 @@ from watched_kettle.state.events import approval_actor, build_decision
 from watched_kettle.state.session_manager import DEFAULT_INACTIVITY_LIMITS
 from watched_kettle.state.codex_activity import (
     CodexActivityObservation,
+    CodexLiveToolStart,
     CodexTurnOutcome,
     CodexTurnTarget,
 )
@@ -61,6 +62,13 @@ TOOL_STALE_SECONDS = 180
 COMPACTION_GRACE_SECONDS = 600
 COMPLETION_RETENTION_SECONDS = 300
 MAX_UNCONFIRMED_COMPLETIONS = 4096
+# The missing-ID slot cannot collide with any explicit sanitized request ID.
+_UNIDENTIFIED_REQUEST_ID = ""
+# Recent events that ask the user to look are kept apart from progress, so a
+# burst of running/review changes cannot push a failure or a request out.
+ATTENTION_STATES = frozenset({"permission", "waiting", "failed"})
+RECENT_PROGRESS_LIMIT = 20
+RECENT_ATTENTION_LIMIT = 50
 # Claude Code sessions share this service with Codex threads. The prefix keeps
 # their keys apart and tells navigation that no Codex deep link exists.
 CLAUDE_CODE_THREAD_PREFIX = "claude_code:"
@@ -188,6 +196,7 @@ class Activity:
     compaction_turn_id: str = ""
     compaction_last_stamp: float = 0
     source: str = "codex"
+    unidentified_permission_at: float | None = None
     # Claude Code background tasks the turn waits for (state "background").
     background_count: int = 0
     revision: int = 0
@@ -197,6 +206,14 @@ class Activity:
     recovered: bool = False
     hidden_uncertain: bool = False
     suppressed_by_parent: bool = False
+
+
+@dataclass(frozen=True)
+class StoredTurnClosure:
+    activity: Activity | None
+    closed_at: float
+    generation: int
+    known_calls: frozenset[str]
 
 
 @dataclass(frozen=True)
@@ -247,6 +264,14 @@ class ProjectCard:
     def running(self):
         return sum(
             row.state in {"running", "review"} and not row.uncertain
+            for row in self.rows
+        )
+
+    @property
+    def working(self):
+        """Widget work includes neutral approval processing, without double labels."""
+        return sum(
+            row.state in {"running", "review", "permission"} and not row.uncertain
             for row in self.rows
         )
 
@@ -357,6 +382,9 @@ class ProjectActivityService(QObject):
         self.recent: tuple[ActivityRecord, ...] = ()
         self._seen: OrderedDict[tuple, float] = OrderedDict()
         self._retired: OrderedDict[tuple, None] = OrderedDict()
+        self._stored_closures: OrderedDict[tuple[str, str], StoredTurnClosure] = (
+            OrderedDict()
+        )
         self._sequence = 0
         self._revision = 0
         self._project_order: dict[str, int] = {}
@@ -508,6 +536,7 @@ class ProjectActivityService(QObject):
         self._completion_phase = ()
         keep_keys(self._seen, lambda item: item[0])
         keep_keys(self._retired, lambda item: item[0])
+        keep_keys(self._stored_closures, lambda item: item[0])
         claude_prefixes = ("project:claude_code:", "unassigned:claude_code")
         for key in tuple(self._project_order):
             if key.startswith(claude_prefixes) == (source == "claude_code"):
@@ -633,11 +662,18 @@ class ProjectActivityService(QObject):
             return
         # New activity invalidates the candidate before any scope promotion.
         self._publish_completion(record)
-        self.recent = (
-            *self.recent,
-            ActivityRecord(thread, "done", record.occurred_at),
-        )[-20:]
+        self._remember(ActivityRecord(thread, "done", record.occurred_at))
         self._trace("completion_confirmed", thread_ref=trace_ref(thread), scope="main")
+
+    def _remember(self, record):
+        kept, counts = [], {True: 0, False: 0}
+        for item in reversed((*self.recent, record)):
+            attention = item.state in ATTENTION_STATES
+            limit = RECENT_ATTENTION_LIMIT if attention else RECENT_PROGRESS_LIMIT
+            if counts[attention] < limit:
+                counts[attention] += 1
+                kept.append(item)
+        self.recent = tuple(reversed(kept))
 
     def _defer_completion(self, record):
         self._unconfirmed_completions[record.thread_id] = record
@@ -887,14 +923,52 @@ class ProjectActivityService(QObject):
                 and unconfirmed.expires_at > self.now()
             ):
                 self._publish_completion(unconfirmed)
-                self.recent = (
-                    *self.recent,
-                    ActivityRecord(thread, "done", unconfirmed.occurred_at),
-                )[-20:]
+                self._remember(ActivityRecord(thread, "done", unconfirmed.occurred_at))
             self.changed.emit()
             # This enriches an ended turn's card only. Do not replay its pet
             # animation or pass a terminal event to a newer animation session.
             return False
+        live_tool = self._live_tool_evidence(payload, thread, turn, event, stamp)
+        resumed_stored = False
+        closure = self._stored_closures.get((thread, turn))
+        if (
+            closure is not None
+            and closure.activity is not None
+            and live_tool is not None
+            and closure.generation == self.generation
+            and stamp > closure.closed_at
+            and decision.event_id not in closure.known_calls
+            and (current is None or current.turn_id == turn)
+        ):
+            current = closure.activity
+            self.activities[thread] = current
+            self._retired.pop((thread, turn), None)
+            for identity in tuple(self._seen):
+                if identity[:2] == (thread, turn) and identity[2] in {
+                    "done",
+                    "failed",
+                    "cancelled",
+                    "ended",
+                    "session_end",
+                    "idle",
+                }:
+                    del self._seen[identity]
+            self._stored_closures[(thread, turn)] = replace(closure, activity=None)
+            # Preserve other pending requests and their own return correlations.
+            for call in (
+                current.active_tools
+                | current.waits
+                | current.permissions
+                | current.question_waits
+            ):
+                self._tool_turns[(thread, call)] = turn
+            while len(self._tool_turns) > 4096:
+                self._tool_turns.popitem(last=False)
+            self._trace_stored_resolution(thread, turn, "live_tool_recovered")
+            active = True
+            resumed_stored = True
+        if decision.terminal and turn:
+            self._stored_closures.pop((thread, turn), None)
         if not active:
             if starts:
                 if (
@@ -936,7 +1010,7 @@ class ProjectActivityService(QObject):
             # late events are still rejected below (BA-02).
             turn = current.turn_id
         if event in {"tool_end", "tool_failed", "permission_resolved"}:
-            call = decision.event_id or "legacy"
+            call = decision.event_id or _UNIDENTIFIED_REQUEST_ID
             if (
                 current is None
                 or not active
@@ -985,6 +1059,7 @@ class ProjectActivityService(QObject):
             # A hook start followed by its identified log confirmation is one run.
             if not current.turn_id and turn:
                 current.turn_id = turn
+                self._forget_other_stored_closures(thread, turn)
                 self._confirm_scope(thread, decision.agent_scope)
                 self._revise(current)
                 for key in tuple(self._tool_turns):
@@ -996,6 +1071,12 @@ class ProjectActivityService(QObject):
                 if self._confirm_scope(thread, decision.agent_scope):
                     self.changed.emit()
                 return False
+        clears_unidentified = bool(
+            current is not None
+            and current.unidentified_permission_at is not None
+            and live_tool is not None
+            and stamp > current.unidentified_permission_at
+        )
         identity = (
             thread,
             turn or (current.turn_id if current else ""),
@@ -1015,13 +1096,17 @@ class ProjectActivityService(QObject):
             event == "permission"
             and current is not None
             and decision.approval_actor != "unknown"
-            and (decision.event_id or "legacy") in current.permission_actors
-            and current.permission_actors.get(decision.event_id or "legacy")
+            and (decision.event_id or _UNIDENTIFIED_REQUEST_ID)
+            in current.permission_actors
+            and current.permission_actors.get(
+                decision.event_id or _UNIDENTIFIED_REQUEST_ID
+            )
             != decision.approval_actor
         )
         if (
             stable_event
             and not actor_changed
+            and not clears_unidentified
             and previous is not None
             and (turn or at - previous < 2)
         ):
@@ -1082,6 +1167,8 @@ class ProjectActivityService(QObject):
         current.last_confirmed_at = self.wall_now()
         current.recovered = False
         self._revise(current)
+        if new_activity:
+            self._forget_other_stored_closures(thread, current.turn_id)
         self._confirm_scope(thread, decision.agent_scope)
         resumes = (
             event
@@ -1114,7 +1201,11 @@ class ProjectActivityService(QObject):
             current.permissions.clear()
             current.permission_actors.clear()
             current.active_tools.clear()
-        if new_activity or event in {"prompt", "task_start", "session_start"}:
+        if (
+            new_activity
+            or resumed_stored
+            or event in {"prompt", "task_start", "session_start"}
+        ):
             previous_completion = self.pending_completions.get(thread)
             if previous_completion is not None:
                 self._diagnose_completion_removed(
@@ -1128,8 +1219,12 @@ class ProjectActivityService(QObject):
                 else record
                 for record in self.completions
             )
+        if clears_unidentified:
+            current.permissions.discard(_UNIDENTIFIED_REQUEST_ID)
+            current.permission_actors.pop(_UNIDENTIFIED_REQUEST_ID, None)
+            current.unidentified_permission_at = None
         if event == "permission":
-            call = decision.event_id or "legacy"
+            call = decision.event_id or _UNIDENTIFIED_REQUEST_ID
             current.waits.discard(call)
             current.permissions.discard(call)
             actor = approval_actor(payload)
@@ -1140,28 +1235,38 @@ class ProjectActivityService(QObject):
                 current.waits.add(call)
             elif actor == "unknown":
                 current.permissions.add(call)
+            if not decision.event_id:
+                current.unidentified_permission_at = (
+                    stamp or self.wall_now() if actor == "unknown" else None
+                )
         elif event == "permission_resolved":
-            current.permission_actors.pop(decision.event_id or "legacy", None)
-            current.waits.discard(decision.event_id or "legacy")
-            current.permissions.discard(decision.event_id or "legacy")
+            current.permission_actors.pop(
+                decision.event_id or _UNIDENTIFIED_REQUEST_ID, None
+            )
+            current.waits.discard(decision.event_id or _UNIDENTIFIED_REQUEST_ID)
+            current.permissions.discard(decision.event_id or _UNIDENTIFIED_REQUEST_ID)
         elif event == "waiting":
-            current.waits.add(decision.event_id or "legacy")
+            current.waits.add(decision.event_id or _UNIDENTIFIED_REQUEST_ID)
         elif event == "question_wait":
             current.question_waits.add(decision.event_id)
         elif event == "question_resolved":
             self._tool_turns.pop((thread, decision.event_id), None)
             current.question_waits.discard(decision.event_id)
         elif event == "tool_start":
-            current.active_tools.add(decision.event_id or "legacy")
-            current.waits.discard("legacy")
+            current.active_tools.add(decision.event_id or _UNIDENTIFIED_REQUEST_ID)
+            current.waits.discard(_UNIDENTIFIED_REQUEST_ID)
         elif event in {"tool_end", "tool_failed"}:
             if decision.event_id not in current.question_waits:
-                self._tool_turns.pop((thread, decision.event_id or "legacy"), None)
-            current.waits.discard("legacy")
+                self._tool_turns.pop(
+                    (thread, decision.event_id or _UNIDENTIFIED_REQUEST_ID), None
+                )
+            current.waits.discard(_UNIDENTIFIED_REQUEST_ID)
             current.waits.discard(decision.event_id)
-            current.permissions.discard(decision.event_id or "legacy")
-            current.active_tools.discard("legacy")
-            current.permission_actors.pop(decision.event_id or "legacy", None)
+            current.permissions.discard(decision.event_id or _UNIDENTIFIED_REQUEST_ID)
+            current.active_tools.discard(_UNIDENTIFIED_REQUEST_ID)
+            current.permission_actors.pop(
+                decision.event_id or _UNIDENTIFIED_REQUEST_ID, None
+            )
             if decision.event_id:
                 current.active_tools.discard(decision.event_id)
         if decision.terminal:
@@ -1179,6 +1284,7 @@ class ProjectActivityService(QObject):
             current.question_waits.clear()
             current.permissions.clear()
             current.permission_actors.clear()
+            current.unidentified_permission_at = None
             current.active_tools.clear()
             current.expires = at + self.duration
             current.terminal_at = at
@@ -1228,7 +1334,9 @@ class ProjectActivityService(QObject):
             )
             current.expires = 0
         if event in {"tool_start", "waiting", "question_wait", "permission"}:
-            self._tool_turns[(thread, decision.event_id or "legacy")] = current.turn_id
+            self._tool_turns[
+                (thread, decision.event_id or _UNIDENTIFIED_REQUEST_ID)
+            ] = current.turn_id
             while len(self._tool_turns) > 4096:
                 self._tool_turns.popitem(last=False)
         if current.state != old_state:
@@ -1236,10 +1344,7 @@ class ProjectActivityService(QObject):
         if decision.agent_scope == "main" and (
             current.state != old_state or new_activity
         ):
-            self.recent = (
-                *self.recent,
-                ActivityRecord(thread, current.state, time.time()),
-            )[-20:]
+            self._remember(ActivityRecord(thread, current.state, time.time()))
         if decision.source == "codex":
             self._bound_unverified(thread)
         self.changed.emit()
@@ -1311,10 +1416,9 @@ class ProjectActivityService(QObject):
                 )
             )
         if current.scope == "main":
-            self.recent = (
-                *self.recent,
-                ActivityRecord(current.thread_id, event, current.last_confirmed_at),
-            )[-20:]
+            self._remember(
+                ActivityRecord(current.thread_id, event, current.last_confirmed_at)
+            )
         self.changed.emit()
 
     def _drop_terminal_activity(self, current):
@@ -1357,6 +1461,9 @@ class ProjectActivityService(QObject):
         for item in self.activities.values():
             if item.source != "codex" or not item.turn_id or item.scope == "internal":
                 continue
+            closure = self._stored_closures.get((item.thread_id, item.turn_id))
+            if closure is not None and closure.activity is None:
+                continue
             ended = item.state == "ended" and item.expires > now
             silence = now - (
                 item.compaction_since
@@ -1395,12 +1502,31 @@ class ProjectActivityService(QObject):
             or outcome.state not in {"done", "failed", "cancelled"}
         ):
             return None
+        closure = self._stored_closures.get((target.thread_id, target.turn_id))
+        if (
+            closure is not None
+            and closure.activity is None
+            and current.state != "ended"
+        ):
+            self._trace_stored_resolution(
+                target.thread_id, target.turn_id, "stored_conflict_ignored"
+            )
+            return None
+        saved = replace(
+            current,
+            waits=set(current.waits),
+            question_waits=set(current.question_waits),
+            permissions=set(current.permissions),
+            permission_actors=dict(current.permission_actors),
+            active_tools=set(current.active_tools),
+        )
         if (
             current.recovered
             or current.hidden_uncertain
             or current.suppressed_by_parent
         ):
             self._drop_terminal_activity(current)
+            self._remember_stored_closure(saved)
             return None
         payload = dict(
             source="codex",
@@ -1413,7 +1539,68 @@ class ProjectActivityService(QObject):
         if current.state == "ended":
             self._enrich_ended(current, outcome.state, payload)
             return None
-        return payload if self.observe(payload) else None
+        if self.observe(payload):
+            self._remember_stored_closure(saved)
+            return payload
+        return None
+
+    @staticmethod
+    def _live_tool_evidence(payload, thread, turn, event, stamp):
+        evidence = payload.get("_codex_live_tool")
+        if (
+            payload.get("source") == "codex"
+            and event == "tool_start"
+            and turn
+            and stamp
+            and isinstance(evidence, CodexLiveToolStart)
+            and (
+                evidence.thread_id,
+                evidence.turn_id,
+                evidence.call_id,
+                evidence.recorded_at,
+            )
+            == (thread, turn, payload.get("event_id"), stamp)
+        ):
+            return evidence
+        return None
+
+    def _remember_stored_closure(self, activity):
+        key = (activity.thread_id, activity.turn_id)
+        self._stored_closures[key] = StoredTurnClosure(
+            activity,
+            self.wall_now(),
+            self.generation,
+            frozenset(
+                activity.active_tools
+                | activity.waits
+                | activity.question_waits
+                | activity.permissions
+                | {
+                    key[3]
+                    for key in self._seen
+                    if key[:2] == (activity.thread_id, activity.turn_id) and key[3]
+                }
+            ),
+        )
+        self._stored_closures.move_to_end(key)
+        while len(self._stored_closures) > 4096:
+            self._stored_closures.popitem(last=False)
+
+    def _forget_other_stored_closures(self, thread, turn):
+        for key in tuple(self._stored_closures):
+            if key[0] == thread and key[1] != turn:
+                del self._stored_closures[key]
+
+    @diagnostic_guard
+    def _trace_stored_resolution(self, thread, turn, reason):
+        self.activity_diagnostics.emit(
+            "stored_turn_resolution",
+            source="codex",
+            thread_ref=trace_ref(thread),
+            turn_ref=trace_ref(turn),
+            reason=reason,
+            generation=self.generation,
+        )
 
     def dismiss_rows(self, identifiers):
         self.dismiss_completions(identifiers)

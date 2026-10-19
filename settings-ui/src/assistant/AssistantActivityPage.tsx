@@ -1,7 +1,9 @@
 import { t } from "../../localization.cjs";
-import { Check, ChevronRight, Ellipsis, Info } from "lucide-react";
-import { Empty, Heading, Section } from "../components";
+import { useState } from "react";
+import { Check, ChevronRight, Ellipsis } from "lucide-react";
+import { Empty, Heading, InfoTip } from "../components";
 import {
+  ACTIVITY_GROUPS,
   ACTIVITY_PAGE,
   clock,
   dayLabel,
@@ -11,13 +13,16 @@ import {
 } from "./presentation";
 
 import type { AssistantSettingsState } from "./useAssistantSettings";
+
+const UNCONFIRMED_PREVIEW = 5;
+
 export function AssistantActivityPage({
   activity,
   unconfirmed,
   call,
   setConfirming,
   allEntries,
-  kinds,
+  groups,
   filter,
   setFilter,
   setShown,
@@ -30,13 +35,15 @@ export function AssistantActivityPage({
   | "call"
   | "setConfirming"
   | "allEntries"
-  | "kinds"
+  | "groups"
   | "filter"
   | "setFilter"
   | "setShown"
   | "entries"
   | "shown"
 >) {
+  const [expanded, setExpanded] = useState(false);
+  const hidden = unconfirmed.length - UNCONFIRMED_PREVIEW;
   return (
     <div className="page">
       <Heading title={t("message.0593")} subtitle={t("message.0614")} />
@@ -44,87 +51,69 @@ export function AssistantActivityPage({
         <Empty>{t("message.0615")}</Empty>
       ) : (
         <>
-          <Section
-            title={t("message.0616")}
-            note={
-              unconfirmed.length
-                ? t("message.0617", { value0: unconfirmed.length })
-                : ""
-            }
-          >
-            {unconfirmed.length ? (
-              unconfirmed.slice(0, 5).map((row) => (
+          <section className="section">
+            <div className="section-heading">
+              <div className="heading-title">
+                <h2>{t("message.0616")}</h2>
+                {!!unconfirmed.length && (
+                  <span className="heading-note">
+                    {t("message.0617", { value0: unconfirmed.length })}
+                  </span>
+                )}
+              </div>
+              {!!unconfirmed.length && (
                 <button
-                  className="record-row"
-                  key={row.record_id}
-                  onClick={() =>
-                    call("activity.open", { token: row.action_token })
-                  }
+                  className="text-button"
+                  onClick={() => call("activity.confirm_all")}
                 >
-                  <span className="record-time">{time(row.recorded_at)}</span>
-                  <span className="record-summary">{row.message}</span>
-                  <ChevronRight size={14} />
+                  {t("activity.mark_all_read")}
                 </button>
-              ))
-            ) : (
-              <p className="quiet-row">
-                <Check size={14} />
-                {t("message.0618")}
-              </p>
-            )}
-          </Section>
-          <Section title={t("message.0445")}>
-            {activity.projects.length ? (
-              activity.projects.map((project) => (
-                <div className="project-activity" key={project.key}>
-                  <div className="project-activity-heading">
-                    <h3>
-                      {project.label ? (
-                        <span data-user-text>{project.label}</span>
-                      ) : (
-                        t("message.0619")
-                      )}
-                    </h3>
-                    {project.source && <SourceTag name={project.source} />}
-                    {project.summary && <span>{project.summary}</span>}
-                  </div>
-                  {(project.rows || []).map((row, j: number) => (
+              )}
+            </div>
+            <div className="card">
+              {unconfirmed.length ? (
+                unconfirmed
+                  .slice(0, expanded ? undefined : UNCONFIRMED_PREVIEW)
+                  .map((row) => (
                     <button
-                      className="thread-row"
-                      key={j}
+                      className="record-row"
+                      key={row.record_id}
                       onClick={() =>
                         call("activity.open", { token: row.action_token })
                       }
                     >
-                      <span className="record-summary">
-                        {row.title ? (
-                          <span data-user-text>{row.title}</span>
-                        ) : (
-                          t("message.0620")
-                        )}
+                      <span className="record-time">
+                        {time(row.recorded_at)}
                       </span>
-                      <span className="pill">{row.label || row.state}</span>
+                      <span className="record-summary">{row.message}</span>
                       <ChevronRight size={14} />
                     </button>
-                  ))}
+                  ))
+              ) : (
+                <p className="quiet-row">
+                  <Check size={14} />
+                  {t("message.0618")}
+                </p>
+              )}
+              {hidden > 0 && (
+                <div className="section-footer">
+                  <button
+                    className="text-button"
+                    onClick={() => setExpanded((value) => !value)}
+                  >
+                    {expanded
+                      ? t("activity.collapse")
+                      : t("activity.more", { count: hidden })}
+                  </button>
                 </div>
-              ))
-            ) : (
-              <p className="quiet-row">{t("message.0621")}</p>
-            )}
-          </Section>
+              )}
+            </div>
+          </section>
           <section className="section">
             <div className="section-heading">
               <div className="heading-title">
                 <h2>{t("message.0622")}</h2>
-                <span
-                  className="info-tip"
-                  role="note"
-                  aria-label={t("message.0623")}
-                  title={t("message.0624")}
-                >
-                  <Info size={13} />
-                </span>
+                <InfoTip label={t("message.0623")} text={t("message.0624")} />
               </div>
               <details className="more-menu">
                 <summary aria-label={t("message.0625")}>
@@ -157,20 +146,21 @@ export function AssistantActivityPage({
                     label={t("message.0629")}
                     options={[
                       ["", t("message.0630", { value0: allEntries.length })],
-                      ...kinds.map(
-                        (kind) =>
+                      ...groups.map(
+                        (group) =>
                           [
-                            kind,
-                            `${kind} ${
-                              allEntries.filter((entry) => entry.kind === kind)
-                                .length
+                            group,
+                            `${t(ACTIVITY_GROUPS[group])} ${
+                              allEntries.filter(
+                                (entry) => entry.group === group,
+                              ).length
                             }`,
                           ] as [string, string],
                       ),
                     ]}
                     value={filter}
-                    select={(kind) => {
-                      setFilter(kind);
+                    select={(group) => {
+                      setFilter(group);
                       setShown(ACTIVITY_PAGE);
                     }}
                   />
@@ -200,7 +190,11 @@ export function AssistantActivityPage({
                     </>
                   );
                   return (
-                    <div key={index}>
+                    <div
+                      key={`${entry.group}-${entry.occurred_at}-${
+                        entry.action_token || index
+                      }`}
+                    >
                       {(index === 0 ||
                         dayLabel(list[index - 1].occurred_at) !== day) && (
                         <div className="day-label">{day}</div>

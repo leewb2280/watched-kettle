@@ -5,6 +5,9 @@ from __future__ import annotations
 import logging
 import os
 
+from watched_kettle.application.click_through import ClickThroughHotkeys
+from watched_kettle.application.pet_actions import PetDoubleClickActions
+
 from PySide6.QtCore import QObject, QTimer
 from PySide6.QtWidgets import QSystemTrayIcon
 
@@ -224,7 +227,6 @@ class ApplicationRuntime(QObject):
             self.connection_watch.announce_ready.connect(self._announce_connection)
             # A switch or repair is checked again at once.
             self.integrations_vm.snapshot_changed.connect(self.connection_watch.check)
-            self._codex_opener = getattr(pet, "codex_opener", None)
             self.settings_vm = SettingsViewModel(
                 self.pet_vm,
                 self.usage_vm,
@@ -233,7 +235,6 @@ class ApplicationRuntime(QObject):
             )
             self.history_vm = HistoryViewModel(
                 self.notification_service,
-                self.usage_vm,
                 parent=self,
                 projects=self.projects,
                 router=self.action_router,
@@ -241,6 +242,12 @@ class ApplicationRuntime(QObject):
             self.notification_service.bind_navigation(self.projects, self.action_router)
             self.projects.changed.connect(self.history_vm.refresh)
             self.center = self._electron_center()
+            self.pet_actions = PetDoubleClickActions(
+                pet,
+                preferences,
+                lambda: self.center.open_route("home"),
+                self.center.show_action_error,
+            )
             self.usage_companion = UsageCompanionController(
                 pet,
                 self.pet_vm,
@@ -252,6 +259,9 @@ class ApplicationRuntime(QObject):
                 activity=self._widget_activity,
                 open_settings=lambda: self.center.open_route(RouteId.WIDGET_SETTINGS),
             )
+            self.click_through = ClickThroughHotkeys(preferences, pet, self)
+            self.click_through.bind_widget(self.usage_companion.toggle_click_through)
+            self.center.adapter.click_through = self.click_through
             # Task counts and the app theme live outside the usage snapshot.
             self.projects.changed.connect(self.usage_companion.refresh)
             self.center.adapter.changed.connect(self._settings_changed)
@@ -275,6 +285,9 @@ class ApplicationRuntime(QObject):
                 )
                 if require_tray or QSystemTrayIcon.isSystemTrayAvailable()
                 else _NullTray()
+            )
+            self.click_through.release_without_tray(
+                not isinstance(self.tray, _NullTray)
             )
             self.coordinator = AppCoordinator(
                 self.codex_server,
@@ -435,7 +448,7 @@ class ApplicationRuntime(QObject):
         counts = {}
         for card in self.projects.cards:
             entry = counts.setdefault(card.source, {"running": 0, "attention": 0})
-            entry["running"] += card.running
+            entry["running"] += card.working
             entry["attention"] += card.waiting
         return counts
 
@@ -517,8 +530,6 @@ class ApplicationRuntime(QObject):
         if tool == "codex":
             self.turn_status_monitor.set_enabled(enabled)
             self.metadata_service.set_enabled(enabled, started=self._started)
-            # Double-clicking the pet opens Codex only while Codex is in use.
-            self.pet.codex_opener = self._codex_opener if enabled else None
             if not enabled:
                 self.codex_log_monitor.close()
             elif self._started:
@@ -574,6 +585,8 @@ class ApplicationRuntime(QObject):
             timer.stop()
         log_event("application.runtime", "closing")
         for name, method in (
+            ("click_through", "close"),
+            ("pet_actions", "close"),
             ("connection_watch", "close"),
             ("tray", "close"),
             ("usage_companion", "close"),

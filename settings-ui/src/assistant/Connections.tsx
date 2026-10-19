@@ -6,11 +6,10 @@ import {
   CircleCheck,
   CircleMinus,
   CircleX,
-  Info,
   TriangleAlert,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { Modal, Switch } from "../components";
+import { InfoTip, Modal, Switch } from "../components";
 import type {
   ClaudeIntegration,
   Diagnostics,
@@ -720,18 +719,14 @@ export function ClaudeCodeSection({
           <div className="field-label">
             <div className="heading-title">
               <label>{t("message.0832")}</label>
-              <span
-                className="info-tip"
-                role="note"
-                aria-label={t("message.0833")}
-                title={[
+              <InfoTip
+                label={t("message.0833")}
+                text={[
                   t("message.0834"),
                   t("message.0835"),
                   t("message.0836"),
                 ].join("\n")}
-              >
-                <Info size={13} />
-              </span>
+              />
             </div>
             <p className="field-description">
               {t("message.0837")}

@@ -126,7 +126,7 @@ class PetMenuTests(unittest.TestCase):
         self.assertEqual(command, PetMenuCommand("show_usage_settings"))
 
         def choose_reset(menu, _position):
-            return usage_action(menu, "펫 옆에 다시 붙이기")
+            return usage_action(menu, "펫 옆으로 되돌리기")
 
         command = show_pet_context_menu(
             None,
@@ -141,6 +141,40 @@ class PetMenuTests(unittest.TestCase):
             menu_executor=choose_reset,
         )
         self.assertEqual(command, PetMenuCommand("reset_usage_widget_position"))
+
+    def test_context_menu_locks_pet_and_toggles_widget_lock(self):
+        def choose(text, submenu=None):
+            def executor(menu, _position):
+                actions = menu.actions()
+                if submenu is not None:
+                    actions = next(
+                        item.menu() for item in actions if item.text() == submenu
+                    ).actions()
+                action = next(item for item in actions if item.text() == text)
+                if action.isCheckable():
+                    action.setChecked(not action.isChecked())
+                return action
+
+            return executor
+
+        command = show_pet_context_menu(
+            None, QPoint(), "idle", True, False, True, menu_executor=choose("펫 고정")
+        )
+        self.assertEqual(command, PetMenuCommand("set_click_through", True))
+        command = show_pet_context_menu(
+            None,
+            QPoint(),
+            "idle",
+            True,
+            False,
+            True,
+            usage_widget_available=True,
+            usage_widget_click_through=True,
+            menu_executor=choose("위젯 고정", "사용량 위젯"),
+        )
+        self.assertEqual(
+            command, PetMenuCommand("set_usage_widget_click_through", False)
+        )
 
     def test_usage_widget_menu_is_disabled_with_usage_assistant(self):
         states = {}
@@ -174,7 +208,7 @@ class PetMenuTests(unittest.TestCase):
         self.assertFalse(states["submenu"])
         self.assertFalse(states["위젯 표시"])
         self.assertFalse(states["링"])
-        self.assertFalse(states["펫 옆에 다시 붙이기"])
+        self.assertFalse(states["펫 옆으로 되돌리기"])
 
     def test_tray_uses_readable_codex_and_notification_status(self):
         self.assertEqual(

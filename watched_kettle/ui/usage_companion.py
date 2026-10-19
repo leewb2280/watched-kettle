@@ -113,6 +113,10 @@ class UsageCompanionController(QObject):
         self._connect_pet_signal(
             "usage_widget_position_reset_requested", self._reset_widget_position
         )
+        self._connect_pet_signal(
+            "usage_widget_click_through_requested",
+            usage_viewmodel.set_widget_click_through,
+        )
         pet.installEventFilter(self)
         self._watched_screens = []
         app = QApplication.instance()
@@ -128,6 +132,10 @@ class UsageCompanionController(QObject):
         self._render(usage_viewmodel.snapshot)
         self._sync_menu_state()
         self._sync_visibility()
+        self.window.sync_click_through(usage_viewmodel.widget_click_through)
+
+    def toggle_click_through(self):
+        self.usage_viewmodel.toggle_widget_click_through()
 
     def _widget_context(self):
         vm = self.usage_viewmodel
@@ -248,6 +256,7 @@ class UsageCompanionController(QObject):
         self._render(snapshot)
         self._sync_menu_state()
         self._sync_visibility()
+        self.window.sync_click_through(self.usage_viewmodel.widget_click_through)
 
     def _pet_changed(self, snapshot):
         self.window.sync_always_on_top(snapshot.always_on_top)
@@ -262,6 +271,7 @@ class UsageCompanionController(QObject):
         self.pet.usage_widget_tasks_visible = self.usage_viewmodel.widget_tasks_visible
         self.pet.usage_widget_today_visible = self.usage_viewmodel.widget_today_visible
         self.pet.usage_widget_position_customized = self.usage_viewmodel.widget_detached
+        self.pet.usage_widget_click_through = self.usage_viewmodel.widget_click_through
 
     def _sync_visibility(self):
         visible = (

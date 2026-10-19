@@ -229,6 +229,17 @@ class ProjectTests(unittest.TestCase):
         self.assertEqual(tuple(c.key for c in self.projects.cards), before)
         self.assertEqual(len(self.projects.recent), 20)
 
+    def test_recent_requests_are_not_pushed_out_by_progress(self):
+        self.event("asking")
+        self.event("asking", "waiting")
+        for index in range(25):
+            self.event(str(index))
+            self.meta(str(index), str(index))
+        states = [r.state for r in self.projects.recent]
+        self.assertEqual(states.count("waiting"), 1)
+        self.assertEqual(len(states), 21)
+        self.assertEqual(self.projects.recent[0].thread_id, "asking")
+
     def test_heartbeat_refreshes_running_and_stale_limits_are_state_specific(self):
         projects = ProjectActivityService(
             now=self.clock,
@@ -460,6 +471,24 @@ class CardTests(unittest.TestCase):
         self.pet.close()
         self.app.processEvents()
         self.screen.stop()
+
+    def test_action_cards_take_clicks_unless_the_lock_includes_bubbles(self):
+        flag = Qt.WindowType.WindowTransparentForInput
+        window = self.controller._new_card_window()
+        self.addCleanup(window.deleteLater)
+        self.assertFalse(window.windowFlags() & flag)
+        self.pet.bubble_click_through = True
+        locked = self.controller._new_card_window()
+        self.addCleanup(locked.deleteLater)
+        self.assertTrue(locked.windowFlags() & flag)
+        window.show()
+        window.sync_click_through(True)
+        self.assertTrue(window.windowFlags() & flag)
+        self.assertTrue(window.isVisible())
+        window.sync_click_through(False)
+        self.assertFalse(window.windowFlags() & flag)
+        self.controller.sync_click_through(True)
+        self.assertFalse(self.controller._fallback_window.isVisible())
 
     def test_runtime_then_pet_shutdown_after_deferred_window_deletion(self):
         from shiboken6 import isValid

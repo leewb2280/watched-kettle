@@ -19,6 +19,7 @@ from PySide6.QtNetwork import QLocalSocket
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
+from watched_kettle.application.click_through import ClickThroughHotkeys
 from watched_kettle.application.paths import AppPaths
 from watched_kettle.application.runtime import ApplicationRuntime
 from watched_kettle.application.settings_ui.contracts import (
@@ -29,8 +30,10 @@ from watched_kettle.application.settings_ui.core import CoreSettingsAdapter
 from watched_kettle.application.settings_ui.host import SettingsWindowHost
 from watched_kettle.app_preferences import ApplicationPreferences
 from watched_kettle.app import resolve_startup_pet
+from watched_kettle.branding import APPLICATION_VERSION
 from watched_kettle.features.pet.viewmodel import PetViewModel
 from watched_kettle.features.settings.core_viewmodel import CoreSettingsViewModel
+from watched_kettle.localization import t
 from watched_kettle.features.notifications.models import NoticeRequest
 from watched_kettle.features.notifications.actions import ActionTarget
 from watched_kettle.pet.bubble_theme import BUBBLE_THEME_LIMITS
@@ -44,6 +47,10 @@ from watched_kettle.integrations.claude_code_install import (
 )
 from watched_kettle.integrations.claude_code_status_line_install import (
     ClaudeCodeStatusLineInstaller,
+)
+from watched_kettle.integrations.windows_hotkeys import (
+    ERROR_HOTKEY_ALREADY_REGISTERED,
+    GlobalHotkeys,
 )
 from watched_kettle.integrations.windows_startup import StartupRegistrationStatus
 
@@ -202,6 +209,193 @@ class SettingsBridgeTests(unittest.TestCase):
         data.update(id=pet_id, displayName="추가한 펫 " + pet_id)
         path.write_text(json.dumps(data), encoding="utf-8")
         return destination
+
+    def test_pet_lock_and_shortcut_are_common_but_action_bubbles_are_not(self):
+        api = Mock()
+        api.RegisterHotKey.return_value = True
+        shortcuts = ClickThroughHotkeys(
+            self.preferences,
+            self.pet,
+            hotkeys=GlobalHotkeys(
+                api=api, last_error=lambda: ERROR_HOTKEY_ALREADY_REGISTERED
+            ),
+        )
+        self.addCleanup(shortcuts.close)
+        self.core.click_through = shortcuts
+
+        def controls():
+            return {c["key"]: c for c in self.core.snapshot()["controls"]}
+
+        self.assertEqual(controls()["click_through_hotkey"]["status"], "unassigned")
+        self.assertNotIn("click_through_bubbles", controls())
+        result = self.core.execute(
+            "settings.set", self.context(key="click_through", value=True)
+        )
+        self.assertTrue(result["snapshot"]["pet"]["click_through"])
+        self.assertTrue(self.pet.click_through)
+
+        self.core.execute(
+            "settings.set",
+            self.context(key="click_through_hotkey", value="Ctrl+Alt+P"),
+        )
+        self.assertEqual(controls()["click_through_hotkey"]["value"], "Ctrl+Alt+P")
+        self.assertEqual(controls()["click_through_hotkey"]["status"], "registered")
+        api.RegisterHotKey.return_value = False
+        self.core.execute(
+            "settings.set",
+            self.context(key="click_through_hotkey", value="Ctrl+Alt+L"),
+        )
+        self.assertEqual(controls()["click_through_hotkey"]["status"], "in_use")
+        self.assertEqual(self.preferences.load_pet_click_through_hotkey(), "Ctrl+Alt+L")
+        for value in ("Shift+P", "ctrl+alt+p", 5, None):
+            with self.assertRaises(CommandError):
+                self.core.execute(
+                    "settings.set",
+                    self.context(key="click_through_hotkey", value=value),
+                )
+        self.core.execute(
+            "settings.set", self.context(key="click_through_hotkey", value="")
+        )
+        self.assertEqual(controls()["click_through_hotkey"]["status"], "unassigned")
+        with self.assertRaises(CommandError):
+            self.core.execute(
+                "settings.set", self.context(key="click_through_bubbles", value=True)
+            )
+
+    def test_pet_shortcut_toggles_the_lock(self):
+        api = Mock()
+        api.RegisterHotKey.return_value = True
+        hotkeys = GlobalHotkeys(api=api)
+        shortcuts = ClickThroughHotkeys(self.preferences, self.pet, hotkeys=hotkeys)
+        self.addCleanup(shortcuts.close)
+        shortcuts.set_pet_hotkey("Ctrl+Alt+P")
+        hotkeys.triggered.emit("pet_lock")
+        self.assertTrue(self.pet.click_through)
+        hotkeys.triggered.emit("pet_lock")
+        self.assertFalse(self.pet.click_through)
+        shortcuts.close()
+        hotkeys.triggered.emit("pet_lock")
+        self.assertFalse(self.pet.click_through)
+
+    def test_saved_lock_waits_for_a_tray_or_shortcut_to_undo_it(self):
+        api = Mock()
+        api.RegisterHotKey.return_value = True
+        shortcuts = ClickThroughHotkeys(
+            self.preferences, self.pet, hotkeys=GlobalHotkeys(api=api)
+        )
+        self.addCleanup(shortcuts.close)
+        self.pet.set_click_through(True)
+        shortcuts.release_without_tray(True)
+        self.assertTrue(self.pet.click_through)
+        shortcuts.release_without_tray(False)
+        self.assertFalse(self.pet.click_through)
+        # Only this run starts unlocked; the saved choice is kept.
+        self.assertTrue(self.preferences.load_pet_click_through())
+        self.pet.set_click_through(True)
+        shortcuts.set_pet_hotkey("Ctrl+Alt+P")
+        shortcuts.release_without_tray(False)
+        self.assertTrue(self.pet.click_through)
+
+    def test_widget_lock_shortcut_and_action_bubble_choice_in_assistant(self):
+        from PySide6.QtCore import Qt
+
+        core = self.assistant()
+        runtime = self.runtime
+        api = Mock()
+        api.RegisterHotKey.return_value = True
+        runtime.click_through.hotkeys.api = api
+        controls = {c["key"]: c for c in core.snapshot()["controls"]}
+        self.assertIn("click_through_bubbles", controls)
+        core.execute(
+            "settings.set", self.context(key="click_through_bubbles", value=True)
+        )
+        self.assertTrue(self.pet.click_through_bubbles)
+
+        def usage_controls():
+            return {c["key"]: c for c in core.execute("usage.snapshot", {})["controls"]}
+
+        self.assertEqual(
+            usage_controls()["widget_click_through_hotkey"]["status"], "unassigned"
+        )
+        core.execute(
+            "usage.set",
+            dict(epoch=core.account_epoch, key="widget_click_through", value=True),
+        )
+        window = runtime.usage_companion.window
+        self.assertTrue(window.flags() & Qt.WindowType.WindowTransparentForInput)
+        self.assertTrue(self.pet.usage_widget_click_through)
+        core.execute(
+            "usage.set",
+            dict(
+                epoch=core.account_epoch,
+                key="widget_click_through_hotkey",
+                value="Ctrl+Alt+W",
+            ),
+        )
+        self.assertEqual(
+            usage_controls()["widget_click_through_hotkey"]["status"], "registered"
+        )
+        runtime.click_through.hotkeys.triggered.emit("widget_lock")
+        self.assertFalse(runtime.usage_vm.widget_click_through)
+        self.assertFalse(window.flags() & Qt.WindowType.WindowTransparentForInput)
+
+        # The pet lock cannot take the widget's shortcut, nor the reverse.
+        def pet_hotkey(value):
+            return dict(
+                petId=self.vm.snapshot.pet_id,
+                revision=core.revision,
+                epoch=core.account_epoch,
+                key="click_through_hotkey",
+                value=value,
+            )
+
+        with self.assertRaises(CommandError) as raised:
+            core.execute("settings.set", pet_hotkey("Ctrl+Alt+W"))
+        self.assertEqual(str(raised.exception), t("hotkey.duplicate"))
+        self.assertEqual(self.preferences.load_pet_click_through_hotkey(), "")
+        core.execute("settings.set", pet_hotkey("Ctrl+Alt+P"))
+        with self.assertRaises(CommandError):
+            core.execute(
+                "usage.set",
+                dict(
+                    epoch=core.account_epoch,
+                    key="widget_click_through_hotkey",
+                    value="Ctrl+Alt+P",
+                ),
+            )
+        self.assertEqual(
+            self.preferences.load_usage_widget_click_through_hotkey(), "Ctrl+Alt+W"
+        )
+
+    def test_double_click_setting_round_trips_and_rejects_unknown_actions(self):
+        self.assertEqual(self.core.snapshot()["doubleClickAction"], "settings_home")
+        before = self.core.revision
+        for value in ("codex", "claude", "wave_only", "settings_home"):
+            result = self.core.execute(
+                "settings.set", self.context(key="double_click_action", value=value)
+            )
+            self.assertTrue(result["saved"])
+            self.assertEqual(result["snapshot"]["doubleClickAction"], value)
+            self.assertEqual(
+                ApplicationPreferences(self.settings).load_double_click_action(), value
+            )
+        self.assertEqual(self.core.revision, before + 4)
+        for value in ("unknown", None, 123):
+            with self.assertRaises(CommandError):
+                self.core.execute(
+                    "settings.set", self.context(key="double_click_action", value=value)
+                )
+        self.assertEqual(self.core.revision, before + 4)
+
+    def test_pet_only_home_is_not_redirected_to_pet_settings(self):
+        host = SettingsWindowHost(self.core)
+        try:
+            host.open_route("home", show=False)
+            self.assertEqual(host.route["page"], "home")
+            host.open_route("pet_settings", show=False)
+            self.assertEqual(host.route["page"], "pet")
+        finally:
+            host.shutdown()
 
     def test_batch_catalog_reuses_thumbnails_and_invalidates_changed_files(self):
         destination = self.install_user_pet("thumbnail-test")
@@ -548,6 +742,86 @@ class SettingsBridgeTests(unittest.TestCase):
         announce.assert_called_once()
         self.assertIn("(v9.9.9)", announce.call_args.args[0])
         self.assertEqual(self.preferences.load_update_announced_version(), "9.9.9")
+
+    def test_an_update_tells_once_where_to_see_whats_new(self):
+        # setUp's adapter is a new install: it records the version silently.
+        self.assertEqual(
+            self.preferences.load_last_launched_version(), APPLICATION_VERSION
+        )
+        cases = (
+            ("", False),
+            (APPLICATION_VERSION, False),
+            ("99.0.0", False),
+            ("0.0.1", True),
+            # Shown or not, the notice is not replayed on the next start.
+            (APPLICATION_VERSION, False),
+            # 0.15.6 and earlier recorded only update checks.
+            (None, True),
+        )
+        with patch(
+            "watched_kettle.application.settings_ui.core.UPDATED_NOTICE_DELAY_MS", 0
+        ):
+            for previous, expected in cases:
+                with (
+                    self.subTest(previous=previous),
+                    patch.object(self.vm, "announce", return_value=False) as announce,
+                ):
+                    if previous is None:
+                        self.settings.remove("updates/lastLaunchedVersion")
+                        self.preferences.save_update_last_check(1_700_000_000)
+                    else:
+                        self.settings.setValue("updates/lastLaunchedVersion", previous)
+                    self.core._note_launched_version()
+                    QTest.qWait(20)
+                    self.assertEqual(announce.called, expected)
+                    if expected:
+                        self.assertIn(
+                            f"(v{APPLICATION_VERSION})", announce.call_args.args[0]
+                        )
+                    self.assertEqual(
+                        self.preferences.load_last_launched_version(),
+                        APPLICATION_VERSION,
+                    )
+
+    def test_about_page_reaches_both_editions_without_local_paths(self):
+        host = SettingsWindowHost(self.core)
+        try:
+            host.open_route("about", show=False)
+            self.assertEqual(host.route["page"], "about")
+        finally:
+            host.shutdown()
+        about = self.core.snapshot()["about"]
+        self.assertEqual(about["version"], APPLICATION_VERSION)
+        self.assertEqual(about["edition"], "pet-only")
+        self.assertEqual(about["whatsNewVersion"], APPLICATION_VERSION)
+        self.assertTrue(about["whatsNew"])
+        for url in about["links"].values():
+            self.assertTrue(
+                url.startswith("https://github.com/leewb2280/watched-kettle"), url
+            )
+        # A source run has no bundled licenses folder, and no path is sent.
+        self.assertFalse(about["licensesAvailable"])
+        self.assertNotIn(str(Path.cwd()), json.dumps(about, ensure_ascii=False))
+
+    def test_licenses_folder_opens_only_when_bundled(self):
+        with self.assertRaises(CommandError):
+            self.core.execute("about.open_licenses", {})
+        folder = self.root / "licenses"
+        folder.mkdir()
+        with (
+            patch(
+                "watched_kettle.application.settings_ui.core.licenses_folder",
+                return_value=folder,
+            ),
+            patch(
+                "watched_kettle.application.settings_ui.core.QDesktopServices.openUrl",
+                return_value=True,
+            ) as open_url,
+        ):
+            self.assertEqual(
+                self.core.execute("about.open_licenses", {}), {"opened": True}
+            )
+        self.assertEqual(Path(open_url.call_args.args[0].toLocalFile()), folder)
 
     def test_an_app_notice_keeps_to_bubbles_off_snooze_and_a_hidden_pet(self):
         controller = self.pet.bubble_controller
@@ -977,10 +1251,15 @@ class SettingsBridgeTests(unittest.TestCase):
             [{"tool": "claude_code", "kind": "found"}],
         )
 
-    def test_switched_off_codex_stops_its_readers_and_its_double_click(self):
+    def test_switched_off_codex_stops_readers_but_explicit_app_launch_stays(self):
         core = self.assistant()
         runtime = self.runtime
-        opener = self.pet.codex_opener
+        from watched_kettle.integrations.windows_apps import AppOpenResult
+        from unittest.mock import Mock
+
+        opener = Mock(return_value=AppOpenResult(True))
+        runtime.pet_actions.openers["codex"] = opener
+        runtime.preferences.save_double_click_action("codex")
         runtime.start()
         self.assertTrue(runtime.codex_log_monitor.is_active)
         self.switch_tool(core, "codex", False)
@@ -988,12 +1267,13 @@ class SettingsBridgeTests(unittest.TestCase):
         self.assertFalse(runtime.metadata_service.enabled)
         self.assertFalse(runtime.metadata_service.refresh_timer.isActive())
         self.assertIn("codex", runtime.codex_server.disabled_sources)
-        self.assertIsNone(self.pet.codex_opener)
+        self.pet.double_click_requested.emit()
+        opener.assert_called_once_with()
         self.switch_tool(core, "codex", True)
         self.assertTrue(runtime.codex_log_monitor.is_active)
         self.assertTrue(runtime.metadata_service.refresh_timer.isActive())
         self.assertNotIn("codex", runtime.codex_server.disabled_sources)
-        self.assertIs(self.pet.codex_opener, opener)
+        self.assertIs(runtime.pet_actions.openers["codex"], opener)
 
     def test_tool_switches_are_independent_and_only_on_the_connections_page(self):
         core = self.assistant()
@@ -1288,6 +1568,19 @@ class SettingsBridgeTests(unittest.TestCase):
             ]
         )
         self.assertFalse(service.snapshot.recent[0].confirmed)
+
+    def test_notice_center_confirms_all_and_groups_entries(self):
+        core = self.assistant()
+        service = self.runtime.notification_service
+        service.submit(NoticeRequest("qa", "first record"))
+        service.submit(NoticeRequest("qa", "second record"))
+        snapshot = core.execute("activity.snapshot", {})
+        self.assertEqual({e["group"] for e in snapshot["entries"]}, {"notice"})
+        with self.assertRaises(CommandError):
+            core.execute("activity.confirm_all", dict(epoch=-1))
+        self.assertFalse(any(r.confirmed for r in service.snapshot.recent))
+        core.execute("activity.confirm_all", dict(epoch=core.account_epoch))
+        self.assertTrue(all(r.confirmed for r in service.snapshot.recent))
 
     def test_preview_install_is_read_only_and_apply_checks_original_files(self):
         from watched_kettle.integrations.codex_install import (
