@@ -1,5 +1,7 @@
 # 개인정보와 저장소
 
+[한국어](privacy-and-storage.md) · [English](privacy-and-storage.en.md)
+
 최종 갱신: 2026-10-19 · 0.15.7 / 스키마 v9
 
 ## 위치·내용·보관

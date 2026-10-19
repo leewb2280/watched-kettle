@@ -2,7 +2,7 @@
 
 [한국어](README.md) · [English](README.en.md)
 
-[Roadmap](ROADMAP.md) · [0.15.7 release notes](docs/release-notes/v0.15.7.md) · [Release readiness](RELEASE_READINESS.md)
+[Roadmap (Korean)](ROADMAP.md) · [0.15.7 release notes](docs/release-notes/v0.15.7.en.md) · [Release readiness (Korean)](RELEASE_READINESS.md)
 
 **A desktop pet that keeps you posted on your coding agents**
 
@@ -16,11 +16,11 @@ While Codex and Claude Code work, a small pet on your desktop shows their status
 See completed tasks and requests for your attention in speech bubbles, and check your remaining usage limits in a widget.
 You can also use the pet on its own, without connecting an agent.
 
-<img src="docs/public/images/pet-bubbles.png" alt="Project speech bubbles above the pet showing active tasks and requests for attention" width="280">
+<img src="docs/public/images/pet-bubbles.en.png" alt="Project speech bubbles above the pet showing active tasks and requests for attention, with source dots on the Codex and Claude Code cards" width="280">
 
-*See active conversations and requests for attention, grouped by project.*
+*See active conversations and requests for attention, grouped by project. When you use both tools, source dots tell them apart.*
 
-<img src="docs/public/images/usage-widget.png" alt="A widget beside the pet showing remaining Codex and Claude Code usage limits" width="400">
+<img src="docs/public/images/usage-widget.en.png" alt="A widget beside the pet showing remaining Codex and Claude Code usage limits" width="400">
 
 *Check remaining usage limits and reset times beside the pet. The large percentages show the remaining allowance.*
 
@@ -66,7 +66,7 @@ If they differ, do not run the installer; download both files again.
 
 The installer is not yet code-signed, so Windows SmartScreen may show a warning.
 After checking the release source and SHA-256, you can proceed with More info → Run anyway (`추가 정보 → 실행` on Korean Windows).
-See [installation and launch (Korean)](docs/user-guide.md#설치와-실행) for details.
+See [installation and launch](docs/user-guide.en.md#installation-and-launch) for details.
 
 ### Which edition should I choose?
 
@@ -76,7 +76,7 @@ Both editions use one installer. The **Pet only** edition does not include the a
 | --- | --- | --- |
 | Desktop pet, settings, Windows startup | ✅ | ✅ |
 | Task status, project bubbles, notifications | – | ✅ |
-| Usage widget, activity history | – | ✅ |
+| Usage widget, notification history | – | ✅ |
 | Codex / Claude Code hooks | Not installed | Choose separately for each tool |
 
 Connecting a tool adds only this app's hooks (entries that report task status) to that tool's user settings.
@@ -91,7 +91,7 @@ Review past notifications on the **Notification history** page, or pause notific
 When using both tools, navy dots identify Codex and orange dots identify Claude Code.
 
 See [supported environments below](#supported-environments) for what happens when you click a conversation title.
-Display timing and controls are covered in [project bubbles (Korean)](docs/user-guide.md#프로젝트-말풍선).
+Display timing and controls are covered in [project bubbles](docs/user-guide.en.md#project-bubbles).
 
 ### Check remaining usage limits
 
@@ -99,11 +99,11 @@ In Pet + assistant, the widget and **Usage** (`사용량`) page show remaining l
 **Claude Code limit collection is off by default.** In **Connections & diagnostics** (`연결·진단`), turn on **Claude Code enabled** (`Claude Code 사용`) and then **Collect Claude Code limits** (`한도 가져오기`).
 It updates when you use Claude Code in a terminal; using only the VS Code extension panel does not update it.
 
-<img src="docs/public/images/settings-usage.png" alt="The Usage settings page showing remaining allowances and reset times" width="720">
+<img src="docs/public/images/settings-usage.en.png" alt="The Usage overview in settings showing remaining Codex limits and reset times as cards" width="720">
 
 *Open settings for more usage details and history. The widget supports ring, bar, and chip styles.*
 
-See [usage information (Korean)](docs/user-guide.md#사용량) for measurement scope and settings.
+See [usage information](docs/user-guide.en.md#usage) for measurement scope and settings.
 
 ### Customize your pet and display
 
@@ -116,9 +116,13 @@ When the pet or widget covers another window, **lock** it so clicks pass through
 Besides PNG/WebP images, pets can be imported from a pet ZIP or folder, a CodexPetDB or Pets Codex install command, or pets installed in Codex.
 The **About** page shows the version, what's new in it, and open-source licenses.
 
+<img src="docs/public/images/settings-pet-behavior.en.png" alt="The Behavior tab of the Pet settings, showing the double-click action, Lock pet, and a Ctrl+Alt+F9 pet lock shortcut" width="480">
+
+*Set the double-click action, the pet lock, and its shortcut in **Customize → Pet → Behavior**.*
+
 Customize bubbles with colors, shapes, borders, photos, and stickers.
-See [customization (Korean)](docs/user-guide.md#꾸미기) for settings and the
-[pet package format (Korean)](docs/pet-package-format.md) for custom packages, which can include bubble decorations and a halo.
+See [customization](docs/user-guide.en.md#customization) for settings and the
+[pet package format](docs/pet-package-format.en.md) for custom packages, which can include bubble decorations and a halo.
 
 The pet manager lets you search, show or hide, and reorder pets. Move pets you added to the app's trash, restore them, or permanently delete them after confirmation.
 Multi-selection shows progress and partial failures and can stop the remaining items. Bundled pets are protected. Trash is separate from the Windows Recycle Bin and is not emptied automatically.
@@ -133,8 +137,8 @@ Multi-selection shows progress and partial failures and can stop the remaining i
 | Claude Code — other terminals | Opens Watched Kettle's activity list |
 
 Support for the Claude desktop app, other IDEs, and `claude -p` has not been verified.
-See [support scope (Korean)](docs/support-scope.md) and
-[Claude Code support (Korean)](docs/support-claude-code.md) for environments and verification history.
+See [support scope](docs/support-scope.en.md) and
+[Claude Code support](docs/support-claude-code.en.md) for environments and verification history.
 The pet keeps running if an integration fails.
 
 ## Frequently asked questions
@@ -143,24 +147,24 @@ The pet keeps running if an integration fails.
 
 The installer is not yet code-signed, so SmartScreen may show a warning.
 Confirm that you downloaded it from this repository's Releases and check its SHA-256 before choosing More info → Run anyway
-(`추가 정보 → 실행` on Korean Windows). [Installation guide (Korean)](docs/user-guide.md#설치와-실행)
+(`추가 정보 → 실행` on Korean Windows). [Installation guide](docs/user-guide.en.md#installation-and-launch)
 
 ### The pet is visible, but task status is missing
 
 Check that you installed **Pet + assistant** (`펫 + 비서`). Right-click the pet, open **Settings → Connections & diagnostics** (`설정 → 연결·진단`),
 and check the tool's connection state and **Check connection** (`연결 점검`) results.
-Restart Claude Code sessions that were open before connecting. [First connection check (Korean)](docs/user-guide.md#첫-연결-확인)
+Restart Claude Code sessions that were open before connecting. [First connection check](docs/user-guide.en.md#first-connection-check)
 
 ### Why are Claude Code limits missing?
 
 In **Connections & diagnostics** (`연결·진단`), turn on both **Claude Code enabled** (`Claude Code 사용`) and **Collect Claude Code limits** (`한도 가져오기`).
 Limits arrive after the first response in a terminal session with a supported claude.ai Pro or Max subscription.
-The VS Code extension panel alone does not update them. [Limit details (Korean)](docs/support-claude-code.md#한도)
+The VS Code extension panel alone does not update them. [Limit details](docs/support-claude-code.en.md#limits)
 
 ### Why does the pet stay when I close settings?
 
 The settings window's X only hides that window. To quit the app, choose **Quit** (`종료`) from the pet's or tray icon's right-click menu,
-or **Quit pet app** (`펫 앱 종료`) in settings. [How to quit (Korean)](docs/user-guide.md#앱-종료)
+or **Quit pet app** (`펫 앱 종료`) in settings. [How to quit](docs/user-guide.en.md#quitting-the-app)
 
 ### What happens to my settings and history when I update or uninstall?
 
@@ -172,7 +176,7 @@ You can also run a newer installer directly to upgrade.
 
 Uninstall through Windows Installed apps. Choose to keep data (the default), delete history only, or delete all app data.
 The uninstaller removes this app's integration entries without deleting Codex or Claude Code conversations.
-[Updates (Korean)](docs/user-guide.md#업데이트) · [Uninstalling and data (Korean)](docs/user-guide.md#제거와-데이터)
+[Updates](docs/user-guide.en.md#updates) · [Uninstalling and data](docs/user-guide.en.md#uninstalling-and-data)
 
 ## Data and privacy
 
@@ -184,9 +188,9 @@ The app itself connects to the internet only to check for (when you click, and o
 and to download a pet from a public pet service (CodexPetDB or Pets Codex) when you click **Download** for an install command in Import pet.
 Codex usage information is requested from a local Codex process; that process's external communication follows Codex's own behavior.
 The installation folder is `%LOCALAPPDATA%\Programs\WatchedKettle`; settings and custom pets are in `%LOCALAPPDATA%\WatchedKettle`.
-See [privacy and storage (Korean)](docs/privacy-and-storage.md) for retention and deletion details.
+See [privacy and storage](docs/privacy-and-storage.en.md) for retention and deletion details.
 
-See [SECURITY.md (Korean)](SECURITY.md) for issue reporting and private security reports.
+See [SECURITY.en.md](SECURITY.en.md) for issue reporting and private security reports.
 
 ## Build from source
 
@@ -217,7 +221,7 @@ node settings-ui/node_modules/electron/install.js
 ```
 
 See [architecture (Korean)](docs/architecture.md), [bubble architecture and maintenance rules (Korean)](docs/bubble-architecture.md),
-and [Codex integration (Korean)](docs/codex-integration.md). Report security issues as described in [SECURITY.md (Korean)](SECURITY.md).
+and [Codex integration (Korean)](docs/codex-integration.md). Report security issues as described in [SECURITY.en.md](SECURITY.en.md).
 
 </details>
 

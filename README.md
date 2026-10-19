@@ -16,9 +16,9 @@ Codex와 Claude Code가 작업하는 동안 화면 위의 작은 펫이 상태�
 작업 완료나 확인 요청은 말풍선으로 확인하고, 남은 사용 한도는 위젯으로 살펴보세요.
 에이전트 연결 없이 펫만 사용할 수도 있습니다.
 
-<img src="docs/public/images/pet-bubbles.png" alt="펫 위에 프로젝트별 작업 상태 말풍선이 쌓인 모습" width="280">
+<img src="docs/public/images/pet-bubbles.png" alt="펫 위에 프로젝트별 작업 상태 말풍선이 쌓인 모습. Codex와 Claude Code 카드에 출처 색 점이 붙어 있다" width="280">
 
-*프로젝트별로 작업 중인 대화와 확인 요청을 모아 보여 줍니다.*
+*프로젝트별로 작업 중인 대화와 확인 요청을 모아 보여 줍니다. 두 도구를 함께 쓰면 출처 색 점으로 구분합니다.*
 
 <img src="docs/public/images/usage-widget.png" alt="Codex와 Claude Code 남은 한도를 보여 주는 사용량 위젯" width="400">
 
@@ -98,7 +98,7 @@ Get-Content -LiteralPath '.\WatchedKettle-<버전>-public-unsigned-setup.exe.sha
 **Claude Code 한도는 기본 꺼짐**입니다. `연결·진단`에서 `Claude Code 사용`을 켠 뒤 `한도 가져오기`를 켜야 하며,
 터미널에서 Claude Code를 사용할 때 갱신됩니다. VS Code 확장 패널만 사용하면 갱신되지 않습니다.
 
-<img src="docs/public/images/settings-usage.png" alt="남은 한도와 초기화 시각을 보여 주는 설정창 사용량 화면" width="720">
+<img src="docs/public/images/settings-usage.png" alt="Codex 남은 한도와 초기화 시각을 카드로 보여 주는 설정창 사용량 현황 화면" width="720">
 
 *더 자세한 사용량과 기록은 설정창에서 확인합니다. 위젯은 링·막대·칩 모양으로 바꿀 수 있습니다.*
 
@@ -114,6 +114,10 @@ Get-Content -LiteralPath '.\WatchedKettle-<버전>-public-unsigned-setup.exe.sha
 펫이나 위젯이 다른 창을 가리면 **고정**해서 클릭이 뒤의 창으로 지나가게 하고, 원하는 전역 단축키로 켜고 끕니다.
 펫은 PNG/WebP 이미지 외에 펫 ZIP·폴더, CodexPetDB·Pets Codex의 설치 명령어, Codex에 설치된 펫에서 가져올 수 있습니다.
 설정창 `정보`에서 버전, 이번 버전의 새로운 기능, 오픈소스 라이선스를 확인합니다.
+
+<img src="docs/public/images/settings-pet-behavior.png" alt="설정창 펫 동작·화면 탭. 더블클릭 동작, 펫 고정, 펫 고정 단축키 Ctrl+Alt+F9 설정이 보인다" width="480">
+
+*`꾸미기 → 펫 → 동작·화면`에서 더블클릭 동작과 펫 고정, 고정 단축키를 정합니다.*
 
 말풍선은 색·모양·테두리·사진·스티커로 꾸밀 수 있습니다.
 자세한 설정은 [꾸미기](docs/user-guide.md#꾸미기), 직접 만든 패키지는

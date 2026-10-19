@@ -1,5 +1,7 @@
 # 사용자 가이드
 
+[한국어](user-guide.md) · [English](user-guide.en.md)
+
 [README로 돌아가기](../README.md) · [지원 범위](support-scope.md)
 
 설치와 첫 연결부터 시작하세요. 작업 상태·사용량 기능은 **펫+비서** 구성에서 제공합니다.

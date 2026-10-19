@@ -1,5 +1,7 @@
 # 보안과 개인정보
 
+[한국어](SECURITY.md) · [English](SECURITY.en.md)
+
 작업 내용·토큰·로그인 정보가 담긴 원본 대화나 데이터베이스를 공개 이슈에 첨부하지 마세요.
 문제 보고에는 앱 버전, Windows 버전, 재현 절차와 개인정보를 지운 진단 요약을 사용하세요.
 보안 문제는 공개 이슈 대신 이 저장소의 **Security → Report a vulnerability**(GitHub 비공개 취약점 신고)로 알려 주세요.

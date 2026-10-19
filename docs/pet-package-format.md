@@ -1,5 +1,7 @@
 # 펫 패키지 규격
 
+[한국어](pet-package-format.md) · [English](pet-package-format.en.md)
+
 펫 하나는 독립된 디렉터리이며 최소한 `pet.json`과 `spritesheet.webp`를 포함합니다.
 `spritesheetPath`는 보안을 위해 펫 디렉터리 밖을 가리킬 수 없습니다.
 
