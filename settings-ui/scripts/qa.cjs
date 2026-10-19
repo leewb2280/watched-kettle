@@ -1868,6 +1868,14 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
         "true",
       );
       await page.getByRole("heading", { name: /^프로젝트 · / }).waitFor();
+      // Both sources share one source row and sort box, so switching
+      // sources must not move the lists below.
+      const historyLayout = async () => ({
+        row: (await page.locator(".provider-row").boundingBox()).height,
+        order: (await page.getByLabel("프로젝트 정렬").boundingBox()).width,
+      });
+      const codexLayout = await historyLayout();
+      await page.screenshot({ path: path.join(out, "usage-codex-history.png") });
       // Claude Code history comes from the isolated transcript fixture.
       const sourceGroup = page.getByRole("group", { name: "기록 출처" });
       await sourceGroup
@@ -1876,6 +1884,11 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       await page
         .locator(".project-name strong", { hasText: "qa-folder" })
         .waitFor();
+      assert.deepEqual(await historyLayout(), codexLayout);
+      metrics.historySourceLayoutStable = true;
+      await page.screenshot({
+        path: path.join(out, "usage-claude-history-list.png"),
+      });
       await page.getByLabel("사용량 기록 검색").fill("qa-folder");
       await page.getByLabel("사용량 기록 검색").press("Enter");
       await page.getByLabel("프로젝트 정렬").selectOption("name");
@@ -1942,15 +1955,25 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       await sourceGroup
         .getByRole("button", { name: "Codex", exact: true })
         .click();
+      // Codex history is cleared from the same row as Claude Code's.
+      await page
+        .locator(".provider-row")
+        .getByRole("button", { name: "기록 지우기", exact: true })
+        .click();
+      await page
+        .getByRole("dialog", { name: "현재 계정 기록 지우기" })
+        .waitFor();
+      await page.getByRole("button", { name: "취소", exact: true }).click();
       await usageTab("기록").focus();
       await page.keyboard.press("End");
       assert.equal(
         await usageTab("설정").getAttribute("aria-selected"),
         "true",
       );
+      // Only the device record is cleared here; account history moved to
+      // the history tab.
       await page
         .getByRole("button", { name: "지우기", exact: true })
-        .first()
         .click();
       await page
         .getByRole("dialog", { name: "기기 관측 기록 지우기" })
@@ -1966,6 +1989,16 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       // The preview is the real widget drawn offscreen and follows the shape.
       const preview = page.getByAltText("현재 설정의 사용량 위젯 미리보기");
       await preview.waitFor();
+      // The value buttons and note sit inside the card, not on its border.
+      const previewCard = await page
+        .locator(".card:has(.widget-preview)")
+        .boundingBox();
+      const previewValues = await page
+        .getByRole("group", { name: "미리보기 값" })
+        .boundingBox();
+      if (previewValues.x - previewCard.x < 12) {
+        throw new Error("widget preview options touch the card edge");
+      }
       const ringsSize = await preview.boundingBox();
       await layout.selectOption("chips");
       await until(

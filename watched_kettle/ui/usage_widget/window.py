@@ -257,7 +257,13 @@ class QuickUsageWindow(QQuickView):
         flag = Qt.WindowType.WindowTransparentForInput
         if bool(self.flags() & flag) == bool(enabled):
             return
+        was_visible = self.isVisible()
         self.setFlag(flag, bool(enabled))
+        if was_visible:
+            # The per-pixel layered window takes no clicks after the change
+            # until it is shown again; repaints alone do not bring them back.
+            self.hide()
+            self.show()
         # The release of a press cut off by the change never arrives.
         self._clear_press()
 

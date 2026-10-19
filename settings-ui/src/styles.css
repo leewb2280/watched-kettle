@@ -1933,6 +1933,12 @@ input[type="color"] {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Only Codex offers a custom project order; a fixed floor keeps the box
+   the same width when switching sources. */
+.history-columns .section-heading select {
+  flex-shrink: 0;
+  min-width: 120px;
+}
 .project-row.selected {
   background: var(--accent-soft);
 }
@@ -1949,18 +1955,25 @@ input[type="color"] {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
+/* One line for every source, so switching sources never moves the lists. */
 .provider-row {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 12px;
   border-bottom: none;
   padding: 0 0 12px;
 }
+.provider-row > :not(.footnote) {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 .provider-row .footnote {
   margin: 0;
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .quota-source {
   color: var(--muted);
@@ -2693,9 +2706,14 @@ input[type="color"] {
 .bubble-preview-image {
   cursor: crosshair;
 }
+/* The section card has no padding of its own, like .card-body. */
 .widget-preview {
   display: grid;
   gap: 10px;
+  padding: 14px 18px;
+}
+.widget-preview .field-description {
+  margin-top: 0;
 }
 /* A plain desk behind the widget; its card brings its own colors. */
 .widget-preview-stage {

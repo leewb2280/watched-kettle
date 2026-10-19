@@ -1200,8 +1200,13 @@ class SettingsBridgeTests(unittest.TestCase):
         self.assertNotIn("enabled", controls())
         self.assertEqual(controls()["widget_shape"]["value"], "rings")
         self.assertTrue(controls()["widget_emphasis"]["description"])
-        # The background color only applies when it is chosen directly.
+        # The background color only applies when it is chosen directly, and
+        # says so while it is locked.
         self.assertTrue(controls()["widget_color"]["disabled"])
+        self.assertEqual(
+            controls()["widget_color"]["description"],
+            t("usage.widget_color_description"),
+        )
         core.execute(
             "usage.set",
             dict(epoch=core.account_epoch, key="widget_theme", value="custom"),

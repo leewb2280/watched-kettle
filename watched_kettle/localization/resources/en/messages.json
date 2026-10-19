@@ -2848,14 +2848,6 @@
     "sourceRevision": 1,
     "value": "Clears observations on this device. This cannot be undone."
   },
-  "message.0725": {
-    "sourceRevision": 1,
-    "value": "Codex current account task history"
-  },
-  "message.0726": {
-    "sourceRevision": 1,
-    "value": "Project, conversation, and task usage for the current Codex account. Clear Claude Code task history from the History tab."
-  },
   "message.0727": {
     "sourceRevision": 1,
     "value": "Clear current account history"
@@ -3737,6 +3729,10 @@
   "message.0956": {
     "sourceRevision": 1,
     "value": "Limit window"
+  },
+  "usage.widget_color_description": {
+    "sourceRevision": 1,
+    "value": "Available when Background material is Solid and Color is Custom background color. In the color window, move up or down in the square for brightness, and left or right for intensity."
   },
   "usage.recent_span": {
     "sourceRevision": 1,
@@ -4952,6 +4948,10 @@
     "sourceRevision": 1,
     "value": "The runtime connection closed."
   },
+  "message.1276": {
+    "sourceRevision": 1,
+    "value": "Tasks observed in the current Codex account"
+  },
   "widget.empty": {
     "sourceRevision": 1,
     "value": "No connected usage"
@@ -5604,29 +5604,17 @@
     "sourceRevision": 1,
     "value": "Updated to v{version}. See what's new in Settings → About."
   },
-  "whats_new.0157.double_click": {
+  "whats_new.0158.widget_unlock": {
     "sourceRevision": 1,
-    "value": "Double-clicking the pet opens the settings home. Change it to Open Codex, Open Claude Code (VS Code) or Wave only in App settings."
+    "value": "Unlocking the usage widget lets you drag it right away."
   },
-  "whats_new.0157.open_app": {
+  "whats_new.0158.history_row": {
     "sourceRevision": 1,
-    "value": "Open Codex and Open Claude Code bring back the front-most window instead of starting a new conversation."
+    "value": "Switching between Codex and Claude Code in usage History no longer moves the lists, and Clear history for Codex is now in the History tab."
   },
-  "whats_new.0157.click_through": {
+  "whats_new.0158.widget_preview": {
     "sourceRevision": 1,
-    "value": "Lock the pet and the usage widget separately so clicks pass through to the window behind. A global shortcut can toggle it too."
-  },
-  "whats_new.0157.claude_projects": {
-    "sourceRevision": 1,
-    "value": "Claude Code history keeps a conversation in the project it started in, even when its working folder changes."
-  },
-  "whats_new.0157.about": {
-    "sourceRevision": 1,
-    "value": "The settings window has a new About page with what's new, the repository and licenses."
-  },
-  "whats_new.0157.notifications": {
-    "sourceRevision": 2,
-    "value": "Activity in the settings window is now Notification history. Mark all unread notifications as read at once and filter by type."
+    "value": "The widget preview in Customize has proper spacing, and Background color explains when it can be used."
   },
   "pet.import.invalid_package": {
     "sourceRevision": 1,
@@ -5755,10 +5743,6 @@
   "pet.import.review": {
     "sourceRevision": 1,
     "value": "Review"
-  },
-  "whats_new.0157.pet_import": {
-    "sourceRevision": 1,
-    "value": "Pet import also takes ZIP files, pet folders, CodexPetDB and Pets Codex install commands, and pets installed in Codex."
   },
   "pet.import.omitted_fields": {
     "sourceRevision": 1,

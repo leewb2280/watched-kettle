@@ -73,6 +73,38 @@ export function AssistantUsagePage({
   | "queryConversations"
   | "openConversation"
 >) {
+  // Both sources share one history row; only the wording and the clear
+  // command differ.
+  const remaining = h && "import_remaining" in h ? h.import_remaining : 0;
+  const historyClear =
+    source === "claude_code"
+      ? {
+          status:
+            (h?.availability?.message ?? "") +
+            (remaining ? t("message.0698", { value0: remaining }) : ""),
+          disabled: !usage?.claude_code_enabled,
+          confirm: {
+            title: t("message.0699"),
+            body: t("message.0700"),
+            label: t("message.0628"),
+            run: () =>
+              call("usage.action", {
+                action: "clear",
+                provider: "claude_code",
+              }),
+          },
+        }
+      : {
+          status: t("message.1276"),
+          disabled:
+            !usage?.enabled || !!u?.clearing_history || !!u?.account_checking,
+          confirm: {
+            title: t("message.0727"),
+            body: t("message.0728"),
+            label: t("message.0628"),
+            run: () => call("usage.action", { action: "clear" }),
+          },
+        };
   return (
     <div className="page">
       <Heading title={t("message.0204")} subtitle={t("message.0680")}>
@@ -276,53 +308,29 @@ export function AssistantUsagePage({
                   : "is-paused"
               }
             >
-              {(historySources.length > 1 || source === "claude_code") && (
-                <div className="chip-row provider-row">
-                  {historySources.length > 1 && (
-                    <Segmented
-                      label={t("message.0697")}
-                      options={[
-                        ["codex", "Codex"],
-                        ["claude_code", "Claude Code"],
-                      ]}
-                      value={source}
-                      select={selectProvider}
-                    />
-                  )}
-                  {source === "claude_code" && (
-                    <>
-                      <span className="footnote">
-                        {h.availability?.message}
-                        {("import_remaining" in h ? h.import_remaining : 0)
-                          ? t("message.0698", {
-                              value0:
-                                "import_remaining" in h
-                                  ? h.import_remaining
-                                  : 0,
-                            })
-                          : ""}
-                      </span>
-                      <button
-                        className="text-button danger"
-                        onClick={() =>
-                          setConfirming({
-                            title: t("message.0699"),
-                            body: t("message.0700"),
-                            label: t("message.0628"),
-                            run: () =>
-                              call("usage.action", {
-                                action: "clear",
-                                provider: "claude_code",
-                              }),
-                          })
-                        }
-                      >
-                        {t("message.0701")}
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
+              <div className="chip-row provider-row">
+                {historySources.length > 1 && (
+                  <Segmented
+                    label={t("message.0697")}
+                    options={[
+                      ["codex", "Codex"],
+                      ["claude_code", "Claude Code"],
+                    ]}
+                    value={source}
+                    select={selectProvider}
+                  />
+                )}
+                <span className="footnote" title={historyClear.status}>
+                  {historyClear.status}
+                </span>
+                <button
+                  className="text-button danger"
+                  disabled={historyClear.disabled}
+                  onClick={() => setConfirming(historyClear.confirm)}
+                >
+                  {t("message.0701")}
+                </button>
+              </div>
               <div className="filter-row">
                 <label className="search">
                   <Search size={15} />
@@ -565,26 +573,6 @@ export function AssistantUsagePage({
                             call("usage.action", {
                               action: "clear_device",
                             }),
-                        })
-                      }
-                    >
-                      {t("message.0628")}
-                    </button>
-                  </div>
-                  <div className="setting-row">
-                    <div className="field-label">
-                      <label>{t("message.0725")}</label>
-                      <p className="field-description">{t("message.0726")}</p>
-                    </div>
-                    <button
-                      className="button danger"
-                      disabled={u.clearing_history || u.account_checking}
-                      onClick={() =>
-                        setConfirming({
-                          title: t("message.0727"),
-                          body: t("message.0728"),
-                          label: t("message.0628"),
-                          run: () => call("usage.action", { action: "clear" }),
                         })
                       }
                     >

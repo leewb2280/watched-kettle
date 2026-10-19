@@ -200,6 +200,7 @@ class AssistantSettingsAdapter:
                 groupId="widget_appearance",
                 group=t("message.0497"),
                 disabled=hidden or acrylic or vm.widget_theme_mode != "custom",
+                description=t("usage.widget_color_description"),
             ),
             control(
                 "widget_opacity",

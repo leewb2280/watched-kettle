@@ -359,6 +359,42 @@ class UsageWidgetQmlTests(unittest.TestCase):
                 self.assertGreaterEqual(stale, fresh)
         self.assertEqual(self.warnings, [])
 
+    def test_lock_toggle_shows_a_visible_widget_again_in_place(self):
+        from PySide6.QtCore import QPoint, Qt
+
+        flag = Qt.WindowType.WindowTransparentForInput
+        self.render(snapshot(codex(), claude()))
+        self.window.setPosition(QPoint(120, 80))
+        self.window.show()
+        self.app.processEvents()
+        calls = []
+        hide, show = self.window.hide, self.window.show
+        with (
+            patch.object(
+                self.window, "hide", side_effect=lambda: (calls.append("hide"), hide())
+            ),
+            patch.object(
+                self.window, "show", side_effect=lambda: (calls.append("show"), show())
+            ),
+        ):
+            for enabled in (True, True, False):
+                self.window.sync_click_through(enabled)
+                self.app.processEvents()
+                self.assertEqual(bool(self.window.flags() & flag), enabled)
+                self.assertTrue(self.window.isVisible())
+                self.assertEqual(self.window.position(), QPoint(120, 80))
+        # Setting the same value again changes nothing.
+        self.assertEqual(calls, ["hide", "show", "hide", "show"])
+
+    def test_lock_toggle_keeps_a_hidden_widget_hidden(self):
+        from PySide6.QtCore import Qt
+
+        self.window.sync_click_through(True)
+        self.assertTrue(self.window.flags() & Qt.WindowType.WindowTransparentForInput)
+        self.assertFalse(self.window.isVisible())
+        self.window.sync_click_through(False)
+        self.assertFalse(self.window.isVisible())
+
     def test_token_alpha_moves_to_the_front_for_qml(self):
         self.assertEqual(qml_color("#0f1a1438"), "#380f1a14")
         self.assertEqual(qml_color("#4f7a5c"), "#4f7a5c")

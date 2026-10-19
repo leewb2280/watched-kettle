@@ -5203,20 +5203,6 @@
       "context": "settings-ui\\src\\assistant\\AssistantUsagePage.tsx",
       "domain": "assistant"
     },
-    "message.0725": {
-      "value": "Codex 현재 계정 작업 기록",
-      "revision": 1,
-      "variables": {},
-      "context": "settings-ui\\src\\assistant\\AssistantUsagePage.tsx",
-      "domain": "assistant"
-    },
-    "message.0726": {
-      "value": "현재 Codex 계정의 프로젝트·대화·작업 사용량입니다. Claude Code 작업 기록은 기록 탭에서 지웁니다.",
-      "revision": 1,
-      "variables": {},
-      "context": "settings-ui\\src\\assistant\\AssistantUsagePage.tsx",
-      "domain": "assistant"
-    },
     "message.0727": {
       "value": "현재 계정 기록 지우기",
       "revision": 1,
@@ -6809,6 +6795,13 @@
       "revision": 1,
       "variables": {},
       "context": "settings-ui\\src\\assistant\\Trends.tsx",
+      "domain": "assistant"
+    },
+    "usage.widget_color_description": {
+      "value": "배경 재질이 단색이고 색이 배경색 직접 지정일 때 쓸 수 있습니다. 색 창의 사각형에서 위아래로 움직이면 밝기, 좌우로 움직이면 진하기가 바뀝니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\settings_ui\\assistant.py",
       "domain": "assistant"
     },
     "usage.recent_span": {
@@ -8983,6 +8976,13 @@
       "context": "settings-ui\\electron\\main.cjs",
       "domain": "core"
     },
+    "message.1276": {
+      "value": "현재 Codex 계정에서 관측한 작업",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\assistant\\AssistantUsagePage.tsx",
+      "domain": "assistant"
+    },
     "widget.empty": {
       "value": "연결된 사용량이 없습니다",
       "variables": {},
@@ -10201,46 +10201,25 @@
       "context": "watched_kettle\\application\\settings_ui\\core.py; pet speech bubble once after an update",
       "domain": "core"
     },
-    "whats_new.0157.double_click": {
-      "value": "펫을 더블클릭하면 설정창 홈이 열려요. 앱 설정에서 Codex 열기·Claude Code 열기(VS Code)·손 흔들기만으로 바꿀 수 있어요.",
+    "whats_new.0158.widget_unlock": {
+      "value": "사용량 위젯 고정을 풀면 바로 위젯을 끌 수 있어요.",
       "revision": 1,
       "variables": {},
-      "context": "watched_kettle\\application\\about.py; 0.15.7 highlight",
+      "context": "watched_kettle\u0007pplication\u0007bout.py; 0.15.8 highlight",
       "domain": "core"
     },
-    "whats_new.0157.open_app": {
-      "value": "Codex·Claude Code 열기는 새 대화를 만들지 않고 가장 앞에 있던 창을 다시 띄워요.",
+    "whats_new.0158.history_row": {
+      "value": "사용량 기록에서 Codex와 Claude Code를 오가도 목록이 움직이지 않아요. Codex 기록 지우기도 기록 탭으로 옮겼어요.",
       "revision": 1,
       "variables": {},
-      "context": "watched_kettle\\application\\about.py; 0.15.7 highlight",
+      "context": "watched_kettle\u0007pplication\u0007bout.py; 0.15.8 highlight",
       "domain": "core"
     },
-    "whats_new.0157.click_through": {
-      "value": "펫과 사용량 위젯을 따로 고정하면 클릭이 뒤에 있는 창으로 통과해요. 전역 단축키로도 켜고 끌 수 있어요.",
+    "whats_new.0158.widget_preview": {
+      "value": "위젯 꾸미기의 미리보기 여백을 고치고, 배경색을 쓸 수 있는 조건을 알려 줘요.",
       "revision": 1,
       "variables": {},
-      "context": "watched_kettle\\application\\about.py; 0.15.7 highlight",
-      "domain": "core"
-    },
-    "whats_new.0157.claude_projects": {
-      "value": "Claude Code 기록에서 대화 도중 작업 폴더가 바뀌어도 대화를 시작한 프로젝트로 묶어 보여 줘요.",
-      "revision": 1,
-      "variables": {},
-      "context": "watched_kettle\\application\\about.py; 0.15.7 highlight",
-      "domain": "core"
-    },
-    "whats_new.0157.about": {
-      "value": "설정창에 정보 메뉴가 생겼어요. 새로운 기능·저장소·라이선스를 여기서 볼 수 있어요.",
-      "revision": 1,
-      "variables": {},
-      "context": "watched_kettle\\application\\about.py; 0.15.7 highlight",
-      "domain": "core"
-    },
-    "whats_new.0157.notifications": {
-      "value": "설정창 활동 기록이 알림 기록으로 바뀌었어요. 확인하지 않은 알림을 한 번에 확인하고 종류별로 거를 수 있어요.",
-      "revision": 2,
-      "variables": {},
-      "context": "watched_kettle\\application\\about.py; 0.15.7 highlight",
+      "context": "watched_kettle\u0007pplication\u0007bout.py; 0.15.8 highlight",
       "domain": "core"
     },
     "pet.import.invalid_package": {
@@ -10467,13 +10446,6 @@
       "context": "Pet import sources and preview",
       "domain": "core"
     },
-    "whats_new.0157.pet_import": {
-      "value": "펫 가져오기에서 ZIP·펫 폴더, CodexPetDB·Pets Codex 설치 명령어, Codex에 설치된 펫도 받을 수 있어요.",
-      "revision": 1,
-      "variables": {},
-      "context": "watched_kettle\\application\\about.py; 0.15.7 highlight",
-      "domain": "core"
-    },
     "pet.import.omitted_fields": {
       "value": "이 앱에서 쓰지 않는 패키지 항목 {count}개는 가져오지 않습니다:",
       "revision": 1,
@@ -10550,6 +10522,15 @@
     "message.0443",
     "message.0621",
     "message.0292",
-    "double_click.group"
+    "double_click.group",
+    "message.0725",
+    "message.0726",
+    "whats_new.0157.double_click",
+    "whats_new.0157.open_app",
+    "whats_new.0157.click_through",
+    "whats_new.0157.claude_projects",
+    "whats_new.0157.about",
+    "whats_new.0157.notifications",
+    "whats_new.0157.pet_import"
   ]
 }
