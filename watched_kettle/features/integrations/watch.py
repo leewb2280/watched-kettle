@@ -7,7 +7,9 @@ the tray and the settings home read the snapshot while it lasts
 - broken: a switched-on tool whose folder is here but whose hooks are missing,
   partly changed or unreadable. Each episode is told once per app run, and
   again after it recovers and breaks anew. A tool the user or a policy turned
-  off in its own settings is not broken.
+  off in its own settings is not broken, nor is one whose hooks belong to
+  another copy of this app on the PC (installed or source run): both copies
+  spool events to the same folder, so they still arrive.
 - found: a switched-off tool whose folder appeared after this app first
   looked. Told once ever; the first check only records what is already here,
   since the installer showed those tools.

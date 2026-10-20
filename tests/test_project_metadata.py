@@ -327,6 +327,34 @@ class MetadataTests(unittest.TestCase):
         self.assertEqual(set(service._requested), {"active", "ended"})
         service.close()
 
+    def test_claude_code_conversations_are_never_looked_up_in_codex(self):
+        # Codex App Server rejects their IDs and the worker retried each minute.
+        activity = ProjectActivityService()
+        service = ConversationMetadataService(activity)
+        calls = []
+        policies = []
+        service.requested.connect(lambda thread, generation: calls.append(thread))
+        service.targets_changed.connect(
+            lambda targets, generation: policies.append(set(targets))
+        )
+        activity.observe(
+            dict(source="codex", event="prompt", session_id="codex", turn_id="1")
+        )
+        activity.observe(
+            dict(
+                source="claude_code",
+                event="prompt",
+                session_id="8d4f034a-0000-4000-8000-000000000001",
+                turn_id="1",
+                agent_scope="main",
+            )
+        )
+        service.refresh_active()
+        self.assertEqual(calls, ["codex"])
+        self.assertEqual(set(service._requested), {"codex"})
+        self.assertEqual(policies[-1], {"codex"})
+        service.close()
+
     def test_project_pages_follow_cursor_and_stop_repeated_cursor(self):
         self.worker.control_request("project/list", {})
         self.worker.response(

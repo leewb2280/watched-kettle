@@ -39,6 +39,8 @@ MANAGED_HOOK_EVENTS = (
     "Stop",
 )
 HOOK_BRIDGE_EXECUTABLE = "WatchedKettleHookBridge.exe"
+# Complete hooks of another copy on this PC (installed build or source run).
+OTHER_COPY_STATE = "other_copy"
 DEFAULT_GLOBAL_HOOKS_PATH = codex_home() / "hooks.json"
 DEFAULT_CODEX_CONFIG_PATH = codex_home() / "config.toml"
 
@@ -109,33 +111,76 @@ def default_hook_executable(main_executable=None):
 def build_managed_hook(project_root=None, executable=None):
     """Build a schema-compatible command whose marker is safe to identify."""
     if executable is not None or getattr(sys, "frozen", False):
-        executable = (
+        return _bundle_hook(
             Path(executable).resolve()
             if executable is not None
             else default_hook_executable()
         )
-        command_windows = _windows_command(
-            executable, "--codex-hook-bridge", "--managed-id", MANAGED_MARKER
-        )
-        command = (
-            f"{shlex.quote(str(executable))} --codex-hook-bridge "
-            f"--managed-id {shlex.quote(MANAGED_MARKER)}"
-        )
-    else:
-        project_root = Path(
-            project_root or Path(__file__).resolve().parents[2]
-        ).resolve()
-        wrapper = project_root / ".codex" / "hooks" / "codex_pet_bridge.ps1"
-        python = project_root / ".venv" / "bin" / "python"
-        bridge = project_root / ".codex" / "hooks" / "codex_pet_bridge.py"
-        # The wrapper's first parameter is ManagedId. Quoted '-ManagedId' would
-        # bind as a positional value, rather than a PowerShell parameter name.
-        command_windows = _windows_command(wrapper, MANAGED_MARKER)
-        command = (
-            f"{shlex.quote(str(python))} {shlex.quote(str(bridge))} "
-            f"--managed-id {shlex.quote(MANAGED_MARKER)}"
-        )
+    return _source_hook(
+        Path(project_root or Path(__file__).resolve().parents[2]).resolve()
+    )
 
+
+def _bundle_hook(executable):
+    command_windows = _windows_command(
+        executable, "--codex-hook-bridge", "--managed-id", MANAGED_MARKER
+    )
+    command = (
+        f"{shlex.quote(str(executable))} --codex-hook-bridge "
+        f"--managed-id {shlex.quote(MANAGED_MARKER)}"
+    )
+    return _hook_entry(command, command_windows)
+
+
+def _source_hook(project_root):
+    wrapper = project_root / ".codex" / "hooks" / "codex_pet_bridge.ps1"
+    python = project_root / ".venv" / "bin" / "python"
+    bridge = project_root / ".codex" / "hooks" / "codex_pet_bridge.py"
+    # The wrapper's first parameter is ManagedId. Quoted '-ManagedId' would
+    # bind as a positional value, rather than a PowerShell parameter name.
+    command_windows = _windows_command(wrapper, MANAGED_MARKER)
+    command = (
+        f"{shlex.quote(str(python))} {shlex.quote(str(bridge))} "
+        f"--managed-id {shlex.quote(MANAGED_MARKER)}"
+    )
+    return _hook_entry(command, command_windows)
+
+
+def other_copy_hook(hook):
+    """The managed hook another Watched Kettle copy on this PC would write.
+
+    Installed builds and source runs spool events to the same user folder, so
+    a hook written by another copy still reaches this app while its program
+    exists. Returns ``None`` unless ``hook`` is exactly such a hook.
+    """
+    executable = _windows_executable(hook.get("commandWindows"))
+    if executable is None or not executable.is_file():
+        return None
+    if executable.suffix.casefold() == ".ps1":
+        project_root = executable.parents[2]
+        if not (project_root / ".venv" / "Scripts" / "python.exe").is_file():
+            return None
+        expected = _source_hook(project_root)
+    else:
+        expected = _bundle_hook(executable)
+    return expected if hook == expected else None
+
+
+def _windows_executable(command_windows):
+    """Read the program back out of a command built by ``_windows_command``."""
+    prefix = "-EncodedCommand "
+    if not isinstance(command_windows, str) or prefix not in command_windows:
+        return None
+    try:
+        encoded = command_windows.rsplit(prefix, 1)[1].strip()
+        script = base64.b64decode(encoded, validate=True).decode("utf-16-le")
+    except (ValueError, UnicodeDecodeError):
+        return None
+    match = re.search(r"& '((?:[^']|'')*)'", script)
+    return Path(match.group(1).replace("''", "'")) if match else None
+
+
+def _hook_entry(command, command_windows):
     return {
         "type": "command",
         "command": command,
@@ -195,6 +240,10 @@ class CodexHookInstaller:
         elif installed == expected and markers == exact == expected:
             state = "installed"
             message = t("message.0074")
+        elif not installed and self._other_copy_installed(hooks_payload):
+            state = OTHER_COPY_STATE
+            installed = expected
+            message = t("integration.other_copy_status")
         elif markers:
             state = "partial" if installed else "drifted"
             message = t("message.0075")
@@ -246,6 +295,8 @@ class CodexHookInstaller:
 
         if status.state in {"partial", "drifted"}:
             warnings.append(t("message.0066"))
+        if status.state == OTHER_COPY_STATE:
+            warnings.append(t("integration.other_copy_repair"))
         if not changes:
             changes.append(t("message.0065"))
 
@@ -415,6 +466,25 @@ class CodexHookInstaller:
                         if event in MANAGED_HOOK_EVENTS:
                             installed += 1
         return installed, markers, exact
+
+    def _other_copy_installed(self, payload):
+        """Every managed event holds the same hook of one other copy."""
+        found = {}
+        for event, groups in payload.get("hooks", {}).items():
+            for group in groups:
+                for hook in group["hooks"]:
+                    if _is_managed_hook(hook):
+                        if event in found:
+                            return False
+                        found[event] = hook
+        if set(found) != set(MANAGED_HOOK_EVENTS):
+            return False
+        first = next(iter(found.values()))
+        return (
+            first != self.managed_hook
+            and all(hook == first for hook in found.values())
+            and other_copy_hook(first) is not None
+        )
 
     def _blocked_plan(self, operation, status, warning):
         return HookChangePlan(

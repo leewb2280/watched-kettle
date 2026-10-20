@@ -86,8 +86,10 @@ def normalize_claude_code_hook(payload, hook_name=None, session_id=None, client=
         "permission_prompt"
     ):
         return None
-    # Background work wakes the session with its result in a turn of its own:
-    # the turn waits for it, and that later turn's Stop completes the work.
+    # Background work wakes the session with its result in a turn of its own.
+    # The turn still completes now (the user may be meant to look, e.g. at an
+    # app left running); the count says what is still running, and the later
+    # turn completes again.
     background = (
         _waking_background_count(payload.get("background_tasks"))
         if name == "Stop"
@@ -107,7 +109,7 @@ def normalize_claude_code_hook(payload, hook_name=None, session_id=None, client=
 
     normalized = {
         "source": "claude_code",
-        "event": "background_wait" if background else event,
+        "event": event,
         "session_id": parent_session_id,
         "agent_scope": "main",
     }

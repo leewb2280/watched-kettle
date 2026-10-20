@@ -93,6 +93,24 @@ class TurnStatusTests(unittest.TestCase):
             )
         )
 
+    def test_structured_usage_resume_time_is_retained_without_error_message(self):
+        self.sync()
+        self.reply(
+            [
+                dict(
+                    id="t",
+                    status="failed",
+                    error=dict(
+                        codexErrorInfo="usageLimitExceeded",
+                        resetsAt=1_792_475_000,
+                        message="PRIVATE 15:20",
+                    ),
+                )
+            ]
+        )
+        self.assertEqual(self.results[-1].usage_resumes_at, 1_792_475_000)
+        self.assertNotIn("PRIVATE", repr(self.results[-1]))
+
     def test_active_missing_malformed_and_failed_reads_confirm_nothing(self):
         for data, error in (
             ([dict(id="t", status="inProgress")], None),

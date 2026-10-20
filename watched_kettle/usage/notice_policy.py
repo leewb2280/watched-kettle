@@ -73,7 +73,11 @@ class UsageNoticePolicy:
                     if alert:
                         urgency = "high" if threshold >= 90 else "normal"
                         remaining = window.remaining_percent
-                        text = t("message.0369", value0=_percent_text(remaining))
+                        text = (
+                            t("message.1290")
+                            if threshold >= 100
+                            else t("message.0369", value0=_percent_text(remaining))
+                        )
                         if window.resets_at is not None:
                             reset_seconds = max(
                                 0,

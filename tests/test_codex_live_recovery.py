@@ -164,6 +164,20 @@ class LiveRecoveryTests(unittest.TestCase):
                 self.assertEqual(self.counts()["running"], 1)
                 self.assertFalse(self.projects.completions)
 
+    def test_verified_parent_call_can_recover_a_stored_quota_failure(self):
+        self.record("event_msg", type="task_started", turn_id="t")
+        item = self.projects.activities["s"]
+        target = CodexTurnTarget("s", "t", item.revision, self.projects.generation)
+        self.activity.observe_turn_outcome(
+            CodexTurnOutcome(target, "failed", "usage_limit")
+        )
+        self.assertIn("s", self.projects._blocked_parents)
+        self.advance()
+        self.tool("after-quota-lookup")
+        self.assertEqual(self.projects.activities["s"].state, "running")
+        self.assertNotIn("s", self.projects._blocked_parents)
+        self.assertEqual(self.counts()["running"], 1)
+
     def test_live_work_closed_by_lookup_recovers_and_real_same_terminal_is_accepted(
         self,
     ):

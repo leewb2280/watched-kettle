@@ -102,6 +102,15 @@ class ConnectionWatchTests(unittest.TestCase):
         self.watch.check()
         self.assertEqual(self.announced, [])
 
+    def test_hooks_of_another_copy_still_deliver_and_are_not_broken(self):
+        self.watch.check()
+        self.tools.states["codex"] = "other_copy"
+
+        self.watch.check()
+
+        self.assertEqual(self.announced, [])
+        self.assertIsNone(self.watch.alert("codex"))
+
     def test_unreadable_hooks_count_as_broken(self):
         self.tools.states["codex"] = OSError("locked")
         self.watch.check()

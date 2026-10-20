@@ -26,6 +26,14 @@ class LiteralGuardTests(unittest.TestCase):
     def test_repository_passes_every_guard(self):
         self.assertEqual(guard.check(), [])
 
+    def test_control_characters_other_than_newline_fail(self):
+        pack = {"messages": {"a": {"value": "줄\n바꿈", "context": "x\x07pplication"}}}
+
+        self.assertEqual(
+            guard.control_problems("catalog.json", pack),
+            ["catalog.json: messages.a.context has control characters U+0007"],
+        )
+
     def test_python_scan_ignores_comments_and_docstrings(self):
         source = '"""문서."""\n# 주석\ndef f():\n    """설명."""\n    return "보임", f"{1} 값"\n'
         self.assertEqual(guard.python_literals(source), [5, 5])

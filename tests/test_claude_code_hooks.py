@@ -259,7 +259,7 @@ class ClaudeCodeHookFilterTests(unittest.TestCase):
         self.assertEqual(tool["event"], "tool_start")
         self.assertEqual(stop["event"], "done")
 
-    def test_stop_with_background_work_waits_for_it(self):
+    def test_stop_with_background_work_completes_with_its_count(self):
         for tasks, count in (
             ([{"type": "agent"}], 1),
             ([{"type": "shell", "status": "running"}], 1),
@@ -271,21 +271,48 @@ class ClaudeCodeHookFilterTests(unittest.TestCase):
         ):
             with self.subTest(tasks=tasks[:2], count=count):
                 event = normalize_claude_code_hook(hook("Stop", background_tasks=tasks))
-                self.assertEqual(event["event"], "background_wait")
+                self.assertEqual(event["event"], "done")
                 self.assertEqual(event["background_count"], count)
                 self.assertNotIn("secret", json.dumps(event))
 
-    def test_background_wait_crosses_the_pipe_only_for_claude_code(self):
+    def test_background_count_crosses_the_pipe_only_for_claude_code(self):
         event = normalize_claude_code_hook(
             hook("Stop", background_tasks=[{"type": "shell"}])
         )
         self.assertEqual(sanitize_pet_event(event)["background_count"], 1)
-        self.assertIsNone(sanitize_pet_event(dict(event, background_count="2")))
+        for count in ("2", True, 0):
+            with self.subTest(count=count):
+                self.assertNotIn(
+                    "background_count",
+                    sanitize_pet_event(dict(event, background_count=count)),
+                )
+        self.assertNotIn(
+            "background_count",
+            sanitize_pet_event(
+                {
+                    "source": "codex",
+                    "event": "done",
+                    "session_id": "s",
+                    "background_count": 2,
+                }
+            ),
+        )
         self.assertIsNone(
             sanitize_pet_event(
                 {"source": "codex", "event": "background_wait", "session_id": "s"}
             )
         )
+
+    def test_older_bridges_background_wait_becomes_a_completion(self):
+        # Hook bridges up to 0.15.8 (an installed build the hooks may still
+        # point at) send the turn end with background work as background_wait.
+        older = dict(
+            normalize_claude_code_hook(hook("Stop")),
+            event="background_wait",
+            background_count=2,
+        )
+        event = sanitize_pet_event(older)
+        self.assertEqual((event["event"], event["background_count"]), ("done", 2))
 
     def test_watchers_and_finished_background_work_do_not_hold_the_turn(self):
         # A live subscription stays a running monitor for the whole session

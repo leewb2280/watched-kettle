@@ -19,6 +19,7 @@ from watched_kettle.state.event_names import (
     normalize_agent_source,
     normalize_event_name,
     normalize_urgency,
+    limit_resume_at,
 )
 
 
@@ -49,13 +50,62 @@ ALLOWED_PET_EVENTS = frozenset(CODEX_HOOK_EVENTS.values()) | {
     "heartbeat",
     "tool_failed",
     "permission_resolved",
-    "background_wait",
+    "turn_mode",
 }
 ALLOWED_TOOL_STATUSES = frozenset({"started", "waiting", "succeeded", "failed"})
 _SAFE_ID_CHARACTER = re.compile(r"[^A-Za-z0-9._:-]")
 _PROJECT_REF = re.compile(r"[0-9a-f]{16}")
 # Where a Claude Code session runs; decides how its conversation opens.
 CLAUDE_CODE_CLIENTS = frozenset({"vscode-panel", "vscode-terminal", "terminal"})
+
+
+def codex_tool_kind(name, arguments=None):
+    """Classify explicit waits without retaining tool names, arguments or targets."""
+    if not isinstance(name, str):
+        return ""
+    if name in {"wait_agent", "collaboration.wait_agent", "functions.wait_agent"}:
+        return "subagent_wait"
+    if name in {"sleep", "clock.sleep", "functions.sleep"}:
+        return "time_wait"
+    if name not in {"wait", "functions.wait"}:
+        return ""
+    # functions.wait also waits on exec cells. Only agent IDs identify an agent wait.
+    if isinstance(arguments, str):
+        if len(arguments) > 16_384:
+            return ""
+        try:
+            arguments = json.loads(arguments)
+        except (ValueError, TypeError):
+            return ""
+    if not isinstance(arguments, dict):
+        return ""
+    if "ids" in arguments:
+        targets = arguments["ids"]
+        return (
+            "subagent_wait"
+            if isinstance(targets, list)
+            and targets
+            and all(isinstance(target, str) and target for target in targets)
+            else ""
+        )
+    cell = arguments.get("cell_id")
+    if isinstance(cell, str) and cell:
+        return "time_wait"
+    if "cell_id" in arguments:
+        return ""
+    for key in ("seconds", "duration_seconds", "duration_ms"):
+        duration = arguments.get(key)
+        if (
+            isinstance(duration, (int, float))
+            and not isinstance(duration, bool)
+            and duration > 0
+        ):
+            try:
+                if math.isfinite(duration):
+                    return "time_wait"
+            except OverflowError:
+                pass
+    return ""
 
 
 def read_hook_payload(stream):
@@ -124,6 +174,9 @@ def normalize_codex_hook(payload):
 
     if hook_name == "PreToolUse":
         normalized["tool_status"] = "started"
+        kind = codex_tool_kind(payload.get("tool_name"), payload.get("tool_input"))
+        if kind:
+            normalized["tool_kind"] = kind
     elif hook_name == "PermissionRequest":
         normalized["approval_actor"] = approval_actor(payload)
     elif hook_name == "PostToolUse":
@@ -175,12 +228,32 @@ def sanitize_pet_event(payload):
     event = payload.get("event")
     if source == "claude_code" and event == "rate_limits":
         return _rate_limit_event(payload)
+    if source == "claude_code" and event == "background_wait":
+        # Hook bridges up to 0.15.8 name a Stop that leaves background work
+        # this way. It completes the turn; the count rides along.
+        event = "done"
     if event not in ALLOWED_PET_EVENTS:
         return None
     if event == "ended" and source != "codex":
         return None
     if event in {"question_wait", "question_resolved"} and not payload.get("event_id"):
         return None
+    if event == "turn_mode":
+        stamp = payload.get("collected_at")
+        if (
+            source != "codex"
+            or not isinstance(payload.get("turn_id"), str)
+            or not payload["turn_id"].strip()
+            or payload.get("collaboration_mode") not in ("plan", "default")
+            or not isinstance(stamp, (int, float))
+            or isinstance(stamp, bool)
+        ):
+            return None
+        try:
+            if not math.isfinite(stamp) or stamp <= 0:
+                return None
+        except OverflowError:
+            return None
 
     sanitized = {
         "source": source,
@@ -189,10 +262,23 @@ def sanitize_pet_event(payload):
     }
     if "agent_scope" in payload:
         sanitized["agent_scope"] = normalize_agent_scope(payload["agent_scope"])
+    if event == "turn_mode":
+        sanitized["collaboration_mode"] = payload["collaboration_mode"]
     if source == "codex" and event in {"ended", "failed", "cancelled"}:
         from watched_kettle.state.event_names import outcome_reason
 
         sanitized["outcome_reason"] = outcome_reason(payload.get("outcome_reason"))
+        if sanitized["outcome_reason"] == "usage_limit":
+            resumes = limit_resume_at(payload.get("usage_resumes_at"))
+            if resumes:
+                sanitized["usage_resumes_at"] = resumes
+    if (
+        source == "codex"
+        and event == "tool_start"
+        and payload.get("event_id")
+        and payload.get("tool_kind") in ("subagent_wait", "time_wait")
+    ):
+        sanitized["tool_kind"] = payload["tool_kind"]
     if event == "review" and payload.get("compaction_phase") in ("start", "end"):
         sanitized["compaction_phase"] = payload["compaction_phase"]
     collected_at = payload.get("collected_at")
@@ -231,12 +317,13 @@ def sanitize_pet_event(payload):
         if payload.get("client") in CLAUDE_CODE_CLIENTS:
             sanitized["client"] = payload["client"]
         count = payload.get("background_count")
-        if event == "background_wait":
-            if not (isinstance(count, int) and not isinstance(count, bool)):
-                return None
-            sanitized["background_count"] = max(1, min(99, count))
-    elif event == "background_wait":
-        return None
+        if (
+            event == "done"
+            and isinstance(count, int)
+            and not isinstance(count, bool)
+            and count > 0
+        ):
+            sanitized["background_count"] = min(99, count)
 
     return _bounded_event(sanitized)
 

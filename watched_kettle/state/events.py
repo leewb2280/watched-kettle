@@ -262,16 +262,6 @@ def _build_decision(payload):
             terminal=True,
         )
 
-    if event == "background_wait":
-        # The turn waits for background work; the pet stops showing work and
-        # completes later with the turn that reads the result.
-        return PetDecision(
-            source=source,
-            event=event,
-            session_id=session_id,
-            persistent_state="idle",
-        )
-
     if event in {"session_end", "idle"}:
         return PetDecision(
             source=source,

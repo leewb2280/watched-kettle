@@ -290,6 +290,55 @@ class CodexHookInstallerTests(unittest.TestCase):
             LEGACY_MANAGED_MARKERS[0], self.hooks_path.read_text(encoding="utf-8")
         )
 
+    def install_other_copy(self, hook):
+        self.write_existing_settings()
+        other = CodexHookInstaller(
+            hooks_path=self.hooks_path,
+            config_path=self.config_path,
+            managed_hook=hook,
+        )
+        other.apply(other.preview_install())
+
+    def test_complete_hooks_of_an_existing_installed_copy_are_other_copy(self):
+        bridge = self.root / "Installed App" / "WatchedKettleHookBridge.exe"
+        bridge.parent.mkdir()
+        bridge.write_bytes(b"")
+        self.install_other_copy(build_managed_hook(executable=bridge))
+
+        status = self.installer.inspect()
+
+        self.assertEqual(status.state, "other_copy")
+        self.assertEqual(status.installed_events, len(MANAGED_HOOK_EVENTS))
+        plan = self.installer.preview_repair()
+        self.assertTrue(plan.warnings)
+        self.installer.apply(plan)
+        self.assertEqual(self.installer.inspect().state, "installed")
+
+    def test_source_run_hooks_count_only_while_its_venv_exists(self):
+        source = self.root / "Other Checkout"
+        wrapper = source / ".codex" / "hooks" / "codex_pet_bridge.ps1"
+        wrapper.parent.mkdir(parents=True)
+        wrapper.write_text("", encoding="utf-8")
+        self.install_other_copy(build_managed_hook(project_root=source))
+        self.assertEqual(self.installer.inspect().state, "drifted")
+
+        python = source / ".venv" / "Scripts" / "python.exe"
+        python.parent.mkdir(parents=True)
+        python.write_bytes(b"")
+        self.assertEqual(self.installer.inspect().state, "other_copy")
+
+    def test_missing_or_mixed_other_copy_hooks_stay_drifted(self):
+        missing = self.root / "Removed App" / "WatchedKettleHookBridge.exe"
+        self.install_other_copy(build_managed_hook(executable=missing))
+        self.assertEqual(self.installer.inspect().state, "drifted")
+
+        missing.parent.mkdir()
+        missing.write_bytes(b"")
+        payload = json.loads(self.hooks_path.read_text(encoding="utf-8"))
+        del payload["hooks"]["PreCompact"]
+        self.hooks_path.write_text(json.dumps(payload), encoding="utf-8")
+        self.assertEqual(self.installer.inspect().state, "drifted")
+
     def test_packaged_command_uses_executable_and_management_marker(self):
         hook = build_managed_hook(
             executable=self.root / "Installed App" / "Watched Kettle.exe"

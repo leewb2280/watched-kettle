@@ -186,7 +186,7 @@ class StabilityTests(unittest.TestCase):
         self.time += 60
         self.activity.expire()
         self.assertTrue(self.activity.cards[0].rows[0].uncertain)
-        self.assertEqual(self.activity.cards[0].summary, "상태 확인 중 1개")
+        self.assertEqual(self.activity.cards[0].summary, "응답 없음 1개")
         self.activity.set_metadata(ThreadMetadata("a", title="Updated"), 0)
         self.assertTrue(self.activity.cards[0].rows[0].uncertain)
         self.event(event="heartbeat")

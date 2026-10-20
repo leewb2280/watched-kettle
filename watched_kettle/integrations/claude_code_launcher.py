@@ -8,8 +8,10 @@ turn ends, and two processes would write to it. A CLI session in VS Code's
 terminal brings its folder's window forward instead. One in another terminal
 has no target, so the caller shows the activity list.
 
-The working folder is read from the transcript only to build the folder URL.
-It is never stored or logged.
+The folder is the one the session started in: the user ran ``claude`` there,
+so it is the VS Code window the session lives in, even after the session moves
+into a worktree. It is read from the transcript only to build the folder URL
+and is never stored or logged.
 """
 
 from __future__ import annotations
@@ -29,7 +31,8 @@ from watched_kettle.integrations.vscode_launcher import installed_vscode
 
 
 CLAUDE_CODE_EXTENSION = "anthropic.claude-code"
-# The newest entries, and so the current folder, sit at the end of the file.
+# The first entries carry the folder the session started in. When they do not
+# fit (a very long first message), the newest folder at the end is used.
 CWD_SCAN_BYTES = 64 * 1024
 _SESSION_UUID = re.compile(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}")
 # A local folder with a drive letter; network shares are not opened.
@@ -113,18 +116,23 @@ def folder_url(cwd):
 
 
 def transcript_cwd(session_id, config_dir=None):
-    """The session's latest working folder from its transcript, or None."""
+    """The folder the session started in from its transcript, or None."""
     path = locate_transcript(session_id, config_dir)
     if path is None:
         return None
     try:
         with open(path, "rb") as file:
+            head = file.read(CWD_SCAN_BYTES)
             size = file.seek(0, os.SEEK_END)
             file.seek(max(0, size - CWD_SCAN_BYTES))
-            data = file.read(CWD_SCAN_BYTES)
+            tail = file.read(CWD_SCAN_BYTES)
     except OSError:
         return None
-    for line in reversed(data.splitlines()):
+    return _first_cwd(head.splitlines()) or _first_cwd(reversed(tail.splitlines()))
+
+
+def _first_cwd(lines):
+    for line in lines:
         try:
             entry = json.loads(line)
         except ValueError:

@@ -308,7 +308,7 @@ class UsageServiceTests(unittest.TestCase):
             },
         )
         self.assertEqual(len(notices), 2)
-        self.assertIn("잔여 0%", notices[-1]["message"])
+        self.assertIn("Codex 사용량 한도 도달", notices[-1]["message"])
         self.client.notification_received.emit(
             "account/rateLimits/updated",
             {

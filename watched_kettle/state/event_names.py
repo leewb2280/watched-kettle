@@ -116,6 +116,17 @@ def outcome_reason(value):
     }.get(value.replace("_", "").lower(), "unknown")
 
 
+def limit_resume_at(value):
+    """Keep a finite Unix time within the datetime range, without parsing prose."""
+    if (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and 0 < value < 253402214400
+    ):
+        return float(value)
+    return 0.0
+
+
 def normalize_agent_source(value):
     key = str(value or "manual").strip().lower()
     return SOURCE_ALIASES.get(key, key or "manual")

@@ -178,6 +178,29 @@ class ClaudeCodeHookInstallerTests(unittest.TestCase):
         self.assertEqual(moved.inspect().state, "installed")
         self.assertNotIn("Installed App", self.settings_path.read_text("utf-8"))
 
+    def test_hooks_of_another_existing_copy_are_other_copy(self):
+        other = self.root / "Source" / ".venv" / "Scripts" / "python.exe"
+        script = self.root / "Source" / "main_hook_bridge.py"
+        other.parent.mkdir(parents=True)
+        for path in (other, script):
+            path.write_bytes(b"")
+        self.write_settings(USER_SETTINGS)
+        from watched_kettle.integrations import claude_code_install
+
+        source = ClaudeCodeHookInstaller(
+            settings_path=self.settings_path,
+            commands=claude_code_install._commands_for(str(other), [str(script)]),
+            policy_paths=(),
+        )
+        self.install(source)
+
+        status = self.installer.inspect()
+        self.assertEqual(status.state, "other_copy")
+        self.assertEqual(status.installed_events, len(MANAGED_HOOK_EVENTS))
+
+        script.unlink()
+        self.assertEqual(self.installer.inspect().state, "drifted")
+
     def test_missing_event_is_partial(self):
         self.install()
         settings = self.read_settings()

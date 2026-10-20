@@ -108,11 +108,11 @@ class CompletionTests(unittest.TestCase):
         bar.setValue(bar.maximum())
         anchor = window.project_rows.anchor()
         self.advance(60)
-        self.assertEqual(window.content.summary, "상태 확인 중 3개")
+        self.assertEqual(window.content.summary, "응답 없음 3개")
         self.assertEqual(window.project_rows.anchor(), anchor)
         for key, row in rows.items():
             self.assertIs(window.project_rows.rows[key], row)
-            self.assertEqual(row.badge.text(), "상태 확인 중")
+            self.assertEqual(row.badge.text(), "응답 없음")
             self.assertFalse(row.close_button.isHidden())
         self.event("b", "heartbeat")
         self.assertIs(self.window(), window)
@@ -350,7 +350,7 @@ class CompletionTests(unittest.TestCase):
     def test_badge_presentation_matrix_across_themes_and_scales(self):
         widget = ProjectConversationRow(self.router, lambda _ids: None, self.pet)
         base = ConversationRow("badge", "한글 English 긴 대화 제목 " * 10, "running", 0)
-        tooltip = "최근 활동을 받지 못했습니다. 작업 종료는 확인되지 않았습니다."
+        tooltip = "최근 활동을 받지 못했습니다. 작업이 끝났는지는 확인되지 않았습니다."
         cases = [
             ({"state": "running"}, "작업 중", "", None, "transparent"),
             ({"state": "review"}, "검토 중", "", None, "transparent"),
@@ -360,7 +360,7 @@ class CompletionTests(unittest.TestCase):
             ({"state": "waiting"}, "확인 필요", "", "#715000", "#fff0b5"),
             ({"state": "failed"}, "실패", "", "#922f35", "#f9dddd"),
             ({"state": "done"}, "완료", "", "#17633a", "#d7f1df"),
-            ({"uncertain": True}, "상태 확인 중", tooltip, None, "transparent"),
+            ({"uncertain": True}, "응답 없음", tooltip, None, "transparent"),
             ({"compacting": True}, "컨텍스트 압축 중", "", None, "transparent"),
             # Synthetic combinations verify presentation precedence, not service transitions.
             (
@@ -372,7 +372,7 @@ class CompletionTests(unittest.TestCase):
             ),
             (
                 {"state": "waiting", "compacting": True, "uncertain": True},
-                "상태 확인 중",
+                "응답 없음",
                 tooltip,
                 None,
                 "transparent",

@@ -22,6 +22,7 @@ from watched_kettle.state.agent_scope import scope_from_thread_metadata
 from watched_kettle.integrations.codex_app_server import CodexAppServerClient
 from watched_kettle.integrations.codex_paths import codex_home
 from watched_kettle.features.project_activity.service import (
+    CLAUDE_CODE_THREAD_PREFIX,
     ThreadMetadata,
     safe_label,
     conversation_title,
@@ -885,6 +886,9 @@ class ConversationMetadataService(QObject):
                     break
                 thread = metadata.parent_thread_id
                 targets.add(thread)
+        # Codex does not know Claude Code conversations: their titles come from
+        # the transcript and their projects from hooks.
+        targets = {t for t in targets if not t.startswith(CLAUDE_CODE_THREAD_PREFIX)}
         changed = set(self._requested) != targets
         for thread in set(self._requested) - targets:
             del self._requested[thread]

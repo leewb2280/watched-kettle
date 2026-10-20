@@ -23,6 +23,7 @@ from watched_kettle.integrations.claude_code_hooks import CLAUDE_CODE_HOOK_EVENT
 from watched_kettle.integrations.claude_code_transcript import claude_config_dir
 from watched_kettle.integrations.codex_install import (
     MANAGED_MARKER,
+    OTHER_COPY_STATE,
     HookApplyResult,
     HookChangePlan,
     HookInstallError,
@@ -71,7 +72,10 @@ def build_managed_commands(project_root=None, executable=None):
     Claude Code 2.1.139+ spawns an exec-form hook directly, with no shell to
     reinterpret the path, whichever shell it would otherwise use.
     """
-    command, prefix = bridge_invocation(project_root, executable)
+    return _commands_for(*bridge_invocation(project_root, executable))
+
+
+def _commands_for(command, prefix):
     return {
         event: {
             "command": command,
@@ -155,6 +159,9 @@ class ClaudeCodeHookInstaller:
             message = t("message.0063")
         elif installed == expected and markers == exact == expected:
             state, message = "installed", t("message.0074")
+        elif not installed and self._other_copy_installed(payload):
+            state, message = OTHER_COPY_STATE, t("integration.other_copy_status")
+            installed = expected
         elif markers:
             state = "partial" if installed else "drifted"
             message = t("message.0075")
@@ -185,6 +192,8 @@ class ClaudeCodeHookInstaller:
             changes.append(t("message.0065"))
         if status.state in {"partial", "drifted"}:
             warnings.append(t("message.0066"))
+        if status.state == OTHER_COPY_STATE:
+            warnings.append(t("integration.other_copy_repair"))
         if status.state in {"disabled", "blocked_by_policy"}:
             warnings.append(status.message + t("message.0072"))
         warnings.append(t("message.0060"))
@@ -301,11 +310,38 @@ class ClaudeCodeHookInstaller:
         return cleaned
 
     def _managed_hook(self, event):
-        return {
-            "type": "command",
-            **self.commands[event],
-            "timeout": HOOK_TIMEOUT_SECONDS,
-        }
+        return _hook_entry(self.commands[event])
+
+    def _other_copy_installed(self, payload):
+        """Every managed event holds the hook another copy on this PC wrote.
+
+        Installed builds and source runs spool events to the same user folder,
+        so those hooks still reach this app while their program exists.
+        """
+        found = {}
+        for event, groups in (payload.get("hooks") or {}).items():
+            for group in groups:
+                for hook in group["hooks"]:
+                    if _is_managed_hook(hook):
+                        if event in found:
+                            return False
+                        found[event] = hook
+        if set(found) != set(MANAGED_HOOK_EVENTS):
+            return False
+        first = next(iter(found.values()))
+        command, args = first.get("command"), first.get("args")
+        if not isinstance(command, str) or not isinstance(args, list):
+            return False
+        prefix = list(args[: args.index(BRIDGE_FLAG)]) if BRIDGE_FLAG in args else None
+        if prefix is None or not all(
+            isinstance(path, str) and Path(path).is_file()
+            for path in (command, *prefix)
+        ):
+            return False
+        commands = _commands_for(command, prefix)
+        return commands != self.commands and all(
+            hook == _hook_entry(commands[event]) for event, hook in found.items()
+        )
 
     def _managed_counts(self, payload):
         installed = markers = exact = 0
@@ -387,6 +423,10 @@ def _validate_settings(payload):
                 raise ValueError("hook group must contain a hooks array")
             if not all(isinstance(hook, dict) for hook in group["hooks"]):
                 raise ValueError("hook entries must be objects")
+
+
+def _hook_entry(command):
+    return {"type": "command", **command, "timeout": HOOK_TIMEOUT_SECONDS}
 
 
 def _is_managed_hook(hook):

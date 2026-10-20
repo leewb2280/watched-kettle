@@ -1,6 +1,43 @@
 {
   "version": 1,
   "messages": {
+    "status.usage_limit": {
+      "value": "사용량 한도",
+      "revision": 1,
+      "variables": {},
+      "context": "Codex 턴이 사용량 한도로 종료된 것이 확인되었으나 재개 시각은 모를 때",
+      "domain": "core"
+    },
+    "status.usage_limit_resume": {
+      "value": "한도 · {time} 재개",
+      "revision": 1,
+      "variables": {
+        "time": "string"
+      },
+      "context": "사용량 한도 종료와 구조화된 재개 시각이 확인된 Codex 턴의 상태 배지",
+      "domain": "core"
+    },
+    "status.planning": {
+      "value": "계획 세우는 중",
+      "revision": 1,
+      "variables": {},
+      "context": "현재 Codex 턴의 명시적인 계획 모드가 확인된 동안 표시하는 상태 배지",
+      "domain": "core"
+    },
+    "status.time_wait": {
+      "value": "잠시 대기",
+      "revision": 1,
+      "variables": {},
+      "context": "Codex의 시간·실행 셀 대기 전용 도구가 반환되기 전까지 표시하는 상태 배지",
+      "domain": "core"
+    },
+    "status.subagent_wait": {
+      "value": "서브에이전트 대기",
+      "revision": 1,
+      "variables": {},
+      "context": "Codex 부모가 서브에이전트 대기 도구의 반환을 기다리는 동안 표시하는 상태 배지",
+      "domain": "core"
+    },
     "language.title": {
       "value": "언어",
       "revision": 1,
@@ -2149,7 +2186,7 @@
       "domain": "core"
     },
     "message.0293": {
-      "value": "최근 활동을 받지 못했습니다. 작업 종료는 확인되지 않았습니다.",
+      "value": "최근 활동을 받지 못했습니다. 작업이 끝났는지는 확인되지 않았습니다.",
       "revision": 1,
       "variables": {},
       "context": "watched_kettle\\ui\\project_bubble_rows.py:28",
@@ -2163,8 +2200,8 @@
       "domain": "core"
     },
     "message.0295": {
-      "value": "상태 확인 중",
-      "revision": 1,
+      "value": "응답 없음",
+      "revision": 2,
       "variables": {},
       "context": "watched_kettle\\ui\\project_bubble_rows.py:34",
       "domain": "core"
@@ -2203,13 +2240,6 @@
       "variables": {
         "value0": "string"
       },
-      "context": "watched_kettle\\ui\\project_bubble_rows.py:44",
-      "domain": "core"
-    },
-    "message.0301": {
-      "value": "백그라운드 대기",
-      "revision": 1,
-      "variables": {},
       "context": "watched_kettle\\ui\\project_bubble_rows.py:44",
       "domain": "core"
     },
@@ -3486,30 +3516,23 @@
       "context": "watched_kettle\\features\\project_activity\\service.py:148",
       "domain": "core"
     },
-    "message.0472": {
-      "value": "사용량 제한으로 중단",
-      "revision": 1,
-      "variables": {},
-      "context": "watched_kettle\\features\\project_activity\\service.py:216",
-      "domain": "core"
-    },
     "message.0473": {
-      "value": "요청 제한으로 중단",
-      "revision": 1,
+      "value": "요청 한도",
+      "revision": 2,
       "variables": {},
       "context": "watched_kettle\\features\\project_activity\\service.py:217",
       "domain": "core"
     },
     "message.0474": {
-      "value": "예산 제한으로 중단",
-      "revision": 1,
+      "value": "예산 한도",
+      "revision": 2,
       "variables": {},
       "context": "watched_kettle\\features\\project_activity\\service.py:218",
       "domain": "core"
     },
     "message.0475": {
-      "value": "컨텍스트 제한으로 중단",
-      "revision": 1,
+      "value": "대화 길이 초과",
+      "revision": 2,
       "variables": {},
       "context": "watched_kettle\\features\\project_activity\\service.py:219",
       "domain": "core"
@@ -8983,6 +9006,78 @@
       "context": "settings-ui\\src\\assistant\\AssistantUsagePage.tsx",
       "domain": "assistant"
     },
+    "message.1277": {
+      "value": "서버 오류",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\features\\project_activity\\service.py",
+      "domain": "core"
+    },
+    "message.1279": {
+      "value": "Codex 사용량 한도에 도달해 작업이 멈췄습니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\features\\project_activity\\service.py",
+      "domain": "core"
+    },
+    "message.1280": {
+      "value": "Codex 사용량 한도에 도달해 작업이 멈췄습니다. {value0} 이후 다시 사용할 수 있습니다.",
+      "revision": 1,
+      "variables": {
+        "value0": "string"
+      },
+      "context": "watched_kettle\\features\\project_activity\\service.py",
+      "domain": "core"
+    },
+    "message.1281": {
+      "value": "요청이 몰려 잠시 멈췄습니다. 조금 뒤 다시 시도하세요.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\features\\project_activity\\service.py",
+      "domain": "core"
+    },
+    "message.1282": {
+      "value": "설정한 사용 예산에 도달해 작업이 멈췄습니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\features\\project_activity\\service.py",
+      "domain": "core"
+    },
+    "message.1283": {
+      "value": "대화가 너무 길어 이어갈 수 없습니다. 새 대화를 시작하거나 압축하세요.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\features\\project_activity\\service.py",
+      "domain": "core"
+    },
+    "message.1284": {
+      "value": "Codex 서버 문제로 작업이 멈췄습니다. 다시 시도하세요.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\features\\project_activity\\service.py",
+      "domain": "core"
+    },
+    "message.1286": {
+      "value": "서브에이전트 작업이 끝나기를 기다리고 있습니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\features\\project_activity\\service.py",
+      "domain": "core"
+    },
+    "message.1288": {
+      "value": "Codex가 정해진 시간 동안 기다리고 있습니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\features\\project_activity\\service.py",
+      "domain": "core"
+    },
+    "message.1290": {
+      "value": "Codex 사용량 한도 도달",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\usage\\notice_policy.py",
+      "domain": "core"
+    },
     "widget.empty": {
       "value": "연결된 사용량이 없습니다",
       "variables": {},
@@ -10201,25 +10296,46 @@
       "context": "watched_kettle\\application\\settings_ui\\core.py; pet speech bubble once after an update",
       "domain": "core"
     },
-    "whats_new.0158.widget_unlock": {
-      "value": "사용량 위젯 고정을 풀면 바로 위젯을 끌 수 있어요.",
+    "whats_new.0159.codex_limit": {
+      "value": "Codex가 사용량 한도로 멈추면 언제 다시 쓸 수 있는지 알려 주고, 말풍선이 오래 남지 않아요.",
       "revision": 1,
       "variables": {},
-      "context": "watched_kettle\u0007pplication\u0007bout.py; 0.15.8 highlight",
+      "context": "watched_kettle\\application\\about.py; 0.15.9 highlight",
       "domain": "core"
     },
-    "whats_new.0158.history_row": {
-      "value": "사용량 기록에서 Codex와 Claude Code를 오가도 목록이 움직이지 않아요. Codex 기록 지우기도 기록 탭으로 옮겼어요.",
+    "whats_new.0159.codex_reasons": {
+      "value": "Codex 작업이 멈춘 이유를 배지와 설명으로 알려 줘요. 응답이 끊긴 대화는 15분 뒤 정리해요.",
       "revision": 1,
       "variables": {},
-      "context": "watched_kettle\u0007pplication\u0007bout.py; 0.15.8 highlight",
+      "context": "watched_kettle\\application\\about.py; 0.15.9 highlight",
       "domain": "core"
     },
-    "whats_new.0158.widget_preview": {
-      "value": "위젯 꾸미기의 미리보기 여백을 고치고, 배경색을 쓸 수 있는 조건을 알려 줘요.",
+    "whats_new.0159.codex_waits": {
+      "value": "Codex가 서브에이전트를 기다리거나 계획을 세우는 중이면 말풍선에 보여요.",
       "revision": 1,
       "variables": {},
-      "context": "watched_kettle\u0007pplication\u0007bout.py; 0.15.8 highlight",
+      "context": "watched_kettle\\application\\about.py; 0.15.9 highlight",
+      "domain": "core"
+    },
+    "whats_new.0159.claude_background": {
+      "value": "Claude Code가 백그라운드 작업을 남기고 응답을 마치면 그때 완료를 알려 줘요.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\about.py; 0.15.9 highlight",
+      "domain": "core"
+    },
+    "whats_new.0159.claude_open": {
+      "value": "Claude Code 말풍선의 창 열기가 세션을 시작한 폴더의 창을 열어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\about.py; 0.15.9 highlight",
+      "domain": "core"
+    },
+    "whats_new.0159.other_install": {
+      "value": "연결이 이 PC의 다른 Watched Kettle 실행본을 가리키면 연결이 풀렸다고 알리지 않아요.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\about.py; 0.15.9 highlight",
       "domain": "core"
     },
     "pet.import.invalid_package": {
@@ -10462,6 +10578,41 @@
       "variables": {},
       "context": "Pet import sources and preview",
       "domain": "core"
+    },
+    "integration.other_copy_status": {
+      "value": "관리 hook이 이 PC의 다른 Watched Kettle 실행본(설치판이나 소스 실행)을 가리킵니다. 이벤트는 이 앱에도 전달됩니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\integrations\\codex_install.py; hook status shared with claude_code_install.py",
+      "domain": "assistant"
+    },
+    "integration.other_copy_repair": {
+      "value": "다른 Watched Kettle 실행본을 가리키던 hook을 이 실행본으로 바꿉니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\integrations\\codex_install.py; repair warning shared with claude_code_install.py",
+      "domain": "assistant"
+    },
+    "integration.other_copy_title": {
+      "value": "다른 Watched Kettle 실행본으로 연결돼 있어요",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\assistant\\Connections.tsx; connection hero title",
+      "domain": "assistant"
+    },
+    "integration.other_copy_body": {
+      "value": "설치판과 소스 실행은 같은 이벤트 폴더를 써서 이 앱에도 작업 상태가 와요. 그 실행본을 지우거나 옮길 거라면 이 실행본으로 옮겨 두세요.",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\assistant\\Connections.tsx; connection hero body",
+      "domain": "assistant"
+    },
+    "integration.other_copy_action": {
+      "value": "이 실행본으로 옮기기",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\assistant\\Connections.tsx; connection hero button",
+      "domain": "assistant"
     }
   },
   "retiredIds": [
@@ -10531,6 +10682,11 @@
     "whats_new.0157.claude_projects",
     "whats_new.0157.about",
     "whats_new.0157.notifications",
-    "whats_new.0157.pet_import"
+    "whats_new.0157.pet_import",
+    "message.0472",
+    "message.0301",
+    "whats_new.0158.widget_unlock",
+    "whats_new.0158.history_row",
+    "whats_new.0158.widget_preview"
   ]
 }

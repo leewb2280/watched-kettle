@@ -19,7 +19,7 @@ TOOL_LABELS = {"codex": "Codex", "claude_code": "Claude Code"}
 # Settings key of the one-time move from the separate hook and usage switches.
 ACTIVATION_MIGRATION_KEY = "internal/toolActivation"
 # Install states that mean this app's hooks are (partly) in the user's file.
-MANAGED_STATES = ("installed", "partial", "drifted")
+MANAGED_STATES = ("installed", "partial", "drifted", "other_copy")
 
 
 @dataclass(frozen=True)

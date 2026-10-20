@@ -17,6 +17,7 @@ class CodexTurnOutcome:
     target: CodexTurnTarget
     state: str
     reason: str = "unknown"
+    usage_resumes_at: float = 0
 
 
 @dataclass(frozen=True)

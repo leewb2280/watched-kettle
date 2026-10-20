@@ -151,17 +151,13 @@ class AgentSessionManager:
                 parent.updated_at_ms = at_ms
 
         aggregate = self.get_aggregate()
-        quiet_lifecycle = (
-            decision.agent_scope != "main"
-            and decision.event
-            in {
-                "session_start",
-                "task_start",
-                "prompt",
-                "done",
-                "cancelled",
-            }
-        ) or decision.event == "background_wait"
+        quiet_lifecycle = decision.agent_scope != "main" and decision.event in {
+            "session_start",
+            "task_start",
+            "prompt",
+            "done",
+            "cancelled",
+        }
         if decision.source == "codex" and decision.agent_scope in {
             "internal",
             "unknown",
@@ -259,7 +255,7 @@ class AgentSessionManager:
     @staticmethod
     def _open_tools(decision, existing):
         tools = set(existing.open_tool_ids) if existing else set()
-        if decision.event in {"prompt", "background_wait"}:
+        if decision.event == "prompt":
             tools.clear()
         elif decision.event == "tool_start" and decision.event_id:
             tools.add(decision.event_id)

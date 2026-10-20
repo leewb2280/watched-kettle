@@ -10,7 +10,7 @@ from watched_kettle.localization import t
 
 # scripts.validate_project fails when this lags APPLICATION_VERSION, so a
 # version bump also rewrites what's new (docs/releasing.md).
-WHATS_NEW_VERSION = "0.15.8"
+WHATS_NEW_VERSION = "0.15.9"
 REPOSITORY_URL = f"https://github.com/{RELEASE_REPOSITORY}"
 # Bundled components named in THIRD_PARTY_NOTICES.md, as (name, license).
 THIRD_PARTY = (
@@ -30,9 +30,12 @@ THIRD_PARTY = (
 def whats_new():
     """This version's highlights, in the active language."""
     return [
-        t("whats_new.0158.widget_unlock"),
-        t("whats_new.0158.history_row"),
-        t("whats_new.0158.widget_preview"),
+        t("whats_new.0159.codex_limit"),
+        t("whats_new.0159.codex_reasons"),
+        t("whats_new.0159.codex_waits"),
+        t("whats_new.0159.claude_background"),
+        t("whats_new.0159.claude_open"),
+        t("whats_new.0159.other_install"),
     ]
 
 

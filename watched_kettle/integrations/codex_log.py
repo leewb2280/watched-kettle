@@ -24,7 +24,7 @@ from PySide6.QtCore import QObject, QTimer, Signal
 from watched_kettle.integrations.codex_hooks import sanitize_pet_event
 from watched_kettle.state.codex_activity import CodexLiveToolStart
 from watched_kettle.state.agent_scope import scope_from_session_source
-from watched_kettle.state.event_names import outcome_reason
+from watched_kettle.state.event_names import limit_resume_at, outcome_reason
 
 
 DEFAULT_CODEX_SESSIONS_ROOT = codex_home() / "sessions"
@@ -156,6 +156,7 @@ class CodexLogMonitor(QObject):
         self._turn_started_at = {}
         self._retired_turns = OrderedDict()
         self._pending_errors = {}
+        self._quota_resets = {}
         self._file_errors = OrderedDict()
         self._replay_cutoff = None
         self._round_robin = 0
@@ -230,6 +231,7 @@ class CodexLogMonitor(QObject):
         self._turn_started_at.clear()
         self._retired_turns.clear()
         self._pending_errors.clear()
+        self._quota_resets.clear()
         self._file_errors.clear()
         self._replay_cutoff = None
 
@@ -643,6 +645,9 @@ class CodexLogMonitor(QObject):
                 self._recovery_confirmed.discard(path)
                 self._pending_async_questions.setdefault(path, {}).clear()
                 self._active_turns[path] = turn_id[:160]
+                if previous != turn_id:
+                    self._quota_resets.pop(path, None)
+                    self._pending_errors.pop(path, None)
                 self._last_heartbeats.pop(path, None)
                 self._emit(
                     {
@@ -679,11 +684,35 @@ class CodexLogMonitor(QObject):
         belongs = bool(active_turn) and (
             record_turn == active_turn or (not record_turn and not is_return)
         )
+        if record_type == "turn_context" and (
+            not belongs or not record_turn or record_turn != active_turn
+        ):
+            return
+        if (
+            belongs
+            and record_type == "event_msg"
+            and payload_type == "token_count"
+            and recorded_at is not None
+            and recorded_at.timestamp() >= self._turn_started_at.get(path, 0)
+        ):
+            self._quota_resets[path] = (active_turn, self._exhausted_reset(payload))
         if record_type == "event_msg" and payload_type == "error":
-            if belongs:
+            if belongs and (
+                recorded_at is None
+                or recorded_at.timestamp() >= self._turn_started_at.get(path, 0)
+            ):
+                detail = payload.get("error")
+                data = detail if isinstance(detail, dict) else payload
+                reason = outcome_reason(
+                    data.get(
+                        "codex_error_info",
+                        data.get("codexErrorInfo", payload.get("codex_error_info")),
+                    )
+                )
                 self._pending_errors[path] = (
                     active_turn,
-                    outcome_reason(payload.get("codex_error_info")),
+                    reason,
+                    limit_resume_at(data.get("resets_at", data.get("resetsAt"))),
                 )
             return
         if (
@@ -696,6 +725,7 @@ class CodexLogMonitor(QObject):
             if len(turns) < 32:
                 turns.add(record_turn)
         if belongs and _confirms_turn_activity(record):
+            self._pending_errors.pop(path, None)  # A retry resumed real work.
             if path in self._recovery:
                 self._recovery_confirmed.add(path)
             self._emit_heartbeat(path)
@@ -710,10 +740,23 @@ class CodexLogMonitor(QObject):
         )
         if event is None:
             return
-        if event["event"] == "ended":
+        if event["event"] in {"ended", "failed"}:
             pending = self._pending_errors.get(path)
-            if pending and pending[0] == record_turn:
+            if (
+                pending
+                and pending[0] == record_turn
+                and event.get("outcome_reason", "unknown") == "unknown"
+            ):
                 event["outcome_reason"] = pending[1]
+            if event.get("outcome_reason") == "usage_limit":
+                quota = self._quota_resets.get(path)
+                resumes = (
+                    event.get("usage_resumes_at")
+                    or (pending[2] if pending and pending[0] == record_turn else 0.0)
+                    or (quota[1] if quota and quota[0] == record_turn else 0.0)
+                )
+                if resumes:
+                    event["usage_resumes_at"] = resumes
         if belongs and event["event"] in {
             "prompt",
             "tool_start",
@@ -765,6 +808,30 @@ class CodexLogMonitor(QObject):
             self._pending_async_questions.setdefault(path, {}).clear()
             self._last_heartbeats.pop(path, None)
             self._pending_errors.pop(path, None)
+            self._quota_resets.pop(path, None)
+
+    def _exhausted_reset(self, payload):
+        limits = payload.get("rate_limits")
+        if not isinstance(limits, dict) or limits.get("limit_id", "codex") != "codex":
+            return 0.0
+        resets = []
+        for slot in ("primary", "secondary"):
+            window = limits.get(slot)
+            if not isinstance(window, dict):
+                continue
+            used = window.get("used_percent")
+            if (
+                not isinstance(used, (int, float))
+                or isinstance(used, bool)
+                or not 0 <= used <= 1000
+            ):
+                return 0.0
+            if used >= 100:
+                reset = limit_resume_at(window.get("resets_at"))
+                if reset <= self._now().timestamp():
+                    return 0.0
+                resets.append(reset)
+        return max(resets, default=0.0)
 
     def _remember_live_call(self, path, turn, call):
         key = (path, turn, call)
@@ -829,6 +896,7 @@ class CodexLogMonitor(QObject):
             return 0
 
     def _clear_lifecycle(self, path):
+        self._quota_resets.pop(path, None)
         self._recovery_confirmation_turns.pop(path, None)
         self._turn_started_at.pop(path, None)
         self._pending_errors.pop(path, None)

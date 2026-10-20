@@ -7,6 +7,7 @@ from watched_kettle.localization.collections import MessageId, MessageMapping
 
 from collections import OrderedDict
 from dataclasses import dataclass, field, replace
+from datetime import datetime
 import ntpath
 import time
 import math
@@ -31,7 +32,7 @@ from watched_kettle.state.codex_activity import (
     CodexTurnOutcome,
     CodexTurnTarget,
 )
-from watched_kettle.state.event_names import outcome_reason
+from watched_kettle.state.event_names import limit_resume_at, outcome_reason
 
 
 PRIORITY = {
@@ -43,7 +44,6 @@ PRIORITY = {
     "done": 1,
     "cancelled": 1,
     "ended": 1,
-    "background": 1,
 }
 # Presentation order must not change parent/child activity aggregation.
 ROW_PRIORITY = {
@@ -55,10 +55,12 @@ ROW_PRIORITY = {
     "cancelled": 2,
     "running": 1,
     "review": 1,
-    "background": 2,
 }
 RUNNING_STALE_SECONDS = 60
 TOOL_STALE_SECONDS = 180
+# An uncertain row with no word from its source this long is dropped instead
+# of waiting for the conversation's next turn.
+UNCERTAIN_LIMIT_SECONDS = 15 * 60
 COMPACTION_GRACE_SECONDS = 600
 COMPLETION_RETENTION_SECONDS = 300
 MAX_UNCONFIRMED_COMPLETIONS = 4096
@@ -88,7 +90,6 @@ LABELS = MessageMapping(
         "review": MessageId("message.0273"),
         "done": MessageId("message.0319"),
         "cancelled": MessageId("message.0320"),
-        "background": MessageId("message.0301"),
     }
 )
 # Claude Code waits only on permission dialogs. Approving one sends no hook
@@ -186,6 +187,8 @@ class Activity:
     permissions: set[str] = field(default_factory=set)
     permission_actors: dict[str, str] = field(default_factory=dict)
     active_tools: set[str] = field(default_factory=set)
+    subagent_waits: set[str] = field(default_factory=set)
+    time_waits: set[str] = field(default_factory=set)
     last_seen_at: float = 0
     scope: str = "main"
     started_at: float = 0
@@ -197,7 +200,7 @@ class Activity:
     compaction_last_stamp: float = 0
     source: str = "codex"
     unidentified_permission_at: float | None = None
-    # Claude Code background tasks the turn waits for (state "background").
+    # Claude Code background tasks still running when the turn completed.
     background_count: int = 0
     revision: int = 0
     last_confirmed_at: float = 0
@@ -206,6 +209,9 @@ class Activity:
     recovered: bool = False
     hidden_uncertain: bool = False
     suppressed_by_parent: bool = False
+    planning: bool = False
+    mode_stamp: float = 0
+    usage_resumes_at: float = 0
 
 
 @dataclass(frozen=True)
@@ -233,6 +239,52 @@ class ConversationRow:
     last_confirmed_at: float = 0
     dismiss_id: str = ""
     outcome_reason: str = "unknown"
+    subagent_waiting: bool = False
+    time_waiting: bool = False
+    planning: bool = False
+    usage_resumes_at: float = 0
+
+
+FAILURE_LABELS = MessageMapping(
+    {
+        "usage_limit": MessageId("status.usage_limit"),
+        "rate_limit": MessageId("message.0473"),
+        "budget_limit": MessageId("message.0474"),
+        "context_limit": MessageId("message.0475"),
+        "provider_error": MessageId("message.1277"),
+    }
+)
+FAILURE_TOOLTIPS = MessageMapping(
+    {
+        "usage_limit": MessageId("message.1279"),
+        "rate_limit": MessageId("message.1281"),
+        "budget_limit": MessageId("message.1282"),
+        "context_limit": MessageId("message.1283"),
+        "provider_error": MessageId("message.1284"),
+    }
+)
+
+
+def resume_time_text(at, now=None):
+    """Local resume time: "15:20" today, "10/23 15:20" on another day; "" if invalid."""
+    try:
+        moment = datetime.fromtimestamp(at).astimezone()
+    except (ValueError, OSError, OverflowError):
+        return ""
+    today = (now or datetime.now().astimezone()).date()
+    clock = moment.strftime("%H:%M")
+    if moment.date() == today:
+        return clock
+    return f"{moment.month}/{moment.day} {clock}"
+
+
+def _resume_text(row):
+    resumes = limit_resume_at(getattr(row, "usage_resumes_at", 0))
+    return resume_time_text(resumes) if resumes else ""
+
+
+def _working(row):
+    return row.state in {"running", "review"}
 
 
 def row_status_label(row):
@@ -241,14 +293,39 @@ def row_status_label(row):
         return t("message.0295")
     if getattr(row, "compacting", False):
         return t("message.0296")
+    if getattr(row, "subagent_waiting", False) and _working(row):
+        return t("status.subagent_wait")
+    if getattr(row, "time_waiting", False) and _working(row):
+        return t("status.time_wait")
+    if getattr(row, "planning", False) and _working(row):
+        return t("status.planning")
     if getattr(row, "source", "codex") == "codex" and row.state == "failed":
-        return {
-            "usage_limit": t("message.0472"),
-            "rate_limit": t("message.0473"),
-            "budget_limit": t("message.0474"),
-            "context_limit": t("message.0475"),
-        }.get(getattr(row, "outcome_reason", "unknown"), LABELS["failed"])
+        reason = getattr(row, "outcome_reason", "unknown")
+        if reason == "usage_limit" and (clock := _resume_text(row)):
+            return t("status.usage_limit_resume", time=clock)
+        return FAILURE_LABELS.get(reason) or LABELS["failed"]
+    count = getattr(row, "background_count", 0)
+    if row.state == "done" and count:
+        return LABELS["done"] + " · " + t("message.0300", value0=count)
     return state_label(row.state, getattr(row, "source", "codex"))
+
+
+def row_status_tooltip(row):
+    """Explain a failure reason, a wait or background work; "" if none."""
+    if row.state == "done" and getattr(row, "background_count", 0):
+        return t("message.0297")
+    if getattr(row, "source", "codex") != "codex":
+        return ""
+    if row.state == "failed":
+        reason = getattr(row, "outcome_reason", "unknown")
+        if reason == "usage_limit" and (clock := _resume_text(row)):
+            return t("message.1280", value0=clock)
+        return FAILURE_TOOLTIPS.get(reason) or ""
+    if getattr(row, "subagent_waiting", False) and _working(row):
+        return t("message.1286")
+    if getattr(row, "time_waiting", False) and _working(row):
+        return t("message.1288")
+    return ""
 
 
 @dataclass(frozen=True)
@@ -308,9 +385,12 @@ class ProjectCard:
                 ),
                 ("running", t("message.0257"), self.running),
                 (
-                    "background",
-                    t("message.0301"),
-                    sum(row.state == "background" for row in self.rows),
+                    "usage_limit",
+                    t("status.usage_limit"),
+                    sum(
+                        row.state == "failed" and row.outcome_reason == "usage_limit"
+                        for row in self.rows
+                    ),
                 ),
                 ("uncertain", t("message.0295"), self.uncertain),
             )
@@ -336,6 +416,7 @@ class CompletionRecord:
     dismissed: bool = False
     completed_at: float = 0
     activity_version: int = 0
+    background_count: int = 0
 
 
 def trace_ref(value):
@@ -375,6 +456,7 @@ class ProjectActivityService(QObject):
         self.tool_stale_seconds = max(
             self.running_stale_seconds, float(tool_stale_seconds)
         )
+        self.uncertain_limit_seconds = UNCERTAIN_LIMIT_SECONDS
         self.generation = 0
         self.activity_diagnostics = DiagnosticRecorder()
         self.activities: dict[str, Activity] = {}
@@ -395,6 +477,8 @@ class ProjectActivityService(QObject):
         self._unverified_threads: OrderedDict[str, None] = OrderedDict()
         self._collection_started_at = self.wall_now()
         self._closed_threads: OrderedDict[str, float] = OrderedDict()
+        self._blocked_parents: OrderedDict[str, str] = OrderedDict()
+        self._blocked_children: OrderedDict[tuple[str, str], None] = OrderedDict()
         self._tool_turns: OrderedDict[tuple[str, str], str] = OrderedDict()
         self.rejected_events: dict[str, int] = {}
         self.latency: OrderedDict[str, dict] = OrderedDict()
@@ -521,6 +605,8 @@ class ProjectActivityService(QObject):
             self._recovery_deadlines.clear()
             self._collection_started_at = self.wall_now()
         keep_keys(self._closed_threads)
+        keep_keys(self._blocked_parents)
+        keep_keys(self._blocked_children, lambda item: item[0])
         keep_keys(self._tool_turns, lambda item: item[0])
         keep_keys(self._first_display)
         keep_keys(self._confirmed_scopes)
@@ -626,6 +712,17 @@ class ProjectActivityService(QObject):
         if item is not None and item.scope != scope:
             item.scope = scope
             self._revise(item)
+        if (
+            item is not None
+            and item.source == "codex"
+            and scope == "main"
+            and item.expires
+            and (
+                item.state == "cancelled"
+                or (item.state == "failed" and item.outcome_reason == "usage_limit")
+            )
+        ):
+            self._block_parent_result(item)
         if scope in {"internal", "subagent"}:
             self._unconfirmed_completions.pop(thread, None)
             self.pending_completions.pop(thread, None)
@@ -725,14 +822,12 @@ class ProjectActivityService(QObject):
         # Claude Code has a single hook channel whose pet states are verified
         # on their own. Its card never decides whether the pet sees an event,
         # except compaction: /compact between turns sends no Stop, so it may
-        # only extend a turn the card has open, not one waiting for background
-        # work.
+        # only extend a turn the card has open.
         if isinstance(payload, dict) and payload.get("source") == "claude_code":
             if not is_compaction(payload):
                 return True
             thread = CLAUDE_CODE_THREAD_PREFIX + str(payload.get("session_id") or "")
-            activity = self.activities.get(thread)
-            return accepted and activity is not None and activity.state != "background"
+            return accepted and thread in self.activities
         return accepted
 
     @diagnostic_guard
@@ -858,6 +953,8 @@ class ProjectActivityService(QObject):
         if not isinstance(payload, dict):
             return True
         payload = self._source_payload(payload)
+        if payload.get("source") == "codex" and payload.get("event") == "turn_mode":
+            return self._observe_turn_mode(payload)
         if is_compaction(payload):
             return self._observe_compaction(payload)
         if payload.get("source") == "codex" and payload.get("event") == "heartbeat":
@@ -872,6 +969,10 @@ class ProjectActivityService(QObject):
         )
         event = decision.event
         current = self.activities.get(thread)
+        if self._blocked_child(
+            thread, turn, str(payload.get("parent_session_id") or "")
+        ):
+            return self._reject_event("blocked_parent_result")
         stamp = self._valid_stamp(payload.get("collected_at"))
         starts = event in {"prompt", "task_start"}
         active = current is not None and not current.expires
@@ -1077,12 +1178,19 @@ class ProjectActivityService(QObject):
             and live_tool is not None
             and stamp > current.unidentified_permission_at
         )
+        tool_kind = payload.get("tool_kind")
+        if decision.source != "codex" or tool_kind not in (
+            "subagent_wait",
+            "time_wait",
+        ):
+            tool_kind = ""
         identity = (
             thread,
             turn or (current.turn_id if current else ""),
             event,
             decision.event_id,
             approval_actor(payload) if event == "permission" else "",
+            tool_kind if event == "tool_start" else "",
         )
         at = self.now()
         self._first_display.setdefault(thread, at)
@@ -1114,6 +1222,9 @@ class ProjectActivityService(QObject):
         self._seen[identity] = at
         while len(self._seen) > 4096:
             self._seen.popitem(last=False)
+        if ((starts and turn) or resumed_stored) and thread in self._blocked_parents:
+            self._block_descendants(thread)
+            self._blocked_parents.pop(thread, None)
         parent = str(
             payload.get("parent_thread_id") or payload.get("parent_session_id") or ""
         )
@@ -1201,6 +1312,8 @@ class ProjectActivityService(QObject):
             current.permissions.clear()
             current.permission_actors.clear()
             current.active_tools.clear()
+            current.subagent_waits.clear()
+            current.time_waits.clear()
         if (
             new_activity
             or resumed_stored
@@ -1254,8 +1367,24 @@ class ProjectActivityService(QObject):
             current.question_waits.discard(decision.event_id)
         elif event == "tool_start":
             current.active_tools.add(decision.event_id or _UNIDENTIFIED_REQUEST_ID)
+            if (
+                decision.source == "codex"
+                and decision.event_id
+                and tool_kind == "subagent_wait"
+                and len(current.subagent_waits) < 4096
+            ):
+                current.subagent_waits.add(decision.event_id)
+            elif (
+                decision.source == "codex"
+                and decision.event_id
+                and tool_kind == "time_wait"
+                and len(current.time_waits) < 4096
+            ):
+                current.time_waits.add(decision.event_id)
             current.waits.discard(_UNIDENTIFIED_REQUEST_ID)
         elif event in {"tool_end", "tool_failed"}:
+            current.subagent_waits.discard(decision.event_id)
+            current.time_waits.discard(decision.event_id)
             if decision.event_id not in current.question_waits:
                 self._tool_turns.pop(
                     (thread, decision.event_id or _UNIDENTIFIED_REQUEST_ID), None
@@ -1286,11 +1415,25 @@ class ProjectActivityService(QObject):
             current.permission_actors.clear()
             current.unidentified_permission_at = None
             current.active_tools.clear()
+            current.subagent_waits.clear()
+            current.time_waits.clear()
+            current.background_count = (
+                int(payload.get("background_count") or 0) if event == "done" else 0
+            )
             current.expires = at + self.duration
+            current.planning = False
             current.terminal_at = at
             if decision.source == "codex":
                 current.outcome_reason = outcome_reason(payload.get("outcome_reason"))
+                current.usage_resumes_at = (
+                    limit_resume_at(payload.get("usage_resumes_at"))
+                    if current.outcome_reason == "usage_limit"
+                    else 0.0
+                )
                 self._suppress_stale_children(thread)
+                if event == "cancelled":
+                    self._block_parent_result(current)
+                self._apply_usage_failure(current)
             if current.turn_id:
                 self._retire(thread, current.turn_id)
             if (
@@ -1310,6 +1453,7 @@ class ProjectActivityService(QObject):
                     at + COMPLETION_RETENTION_SECONDS,
                     completed_at=at,
                     activity_version=current.revision,
+                    background_count=current.background_count,
                 )
                 if current.scope == "main":
                     self._publish_completion(record)
@@ -1323,15 +1467,9 @@ class ProjectActivityService(QObject):
                 if current.permissions
                 else "review"
                 if event == "review"
-                else "background"
-                if event == "background_wait"
                 else decision.persistent_state or "running"
             )
-            current.background_count = (
-                int(payload.get("background_count") or 1)
-                if current.state == "background"
-                else 0
-            )
+            current.background_count = 0
             current.expires = 0
         if event in {"tool_start", "waiting", "question_wait", "permission"}:
             self._tool_turns[
@@ -1388,6 +1526,14 @@ class ProjectActivityService(QObject):
         self._confirm_scope(current.thread_id, payload.get("agent_scope", "unknown"))
         current.state = event
         current.outcome_reason = outcome_reason(payload.get("outcome_reason"))
+        current.usage_resumes_at = (
+            limit_resume_at(payload.get("usage_resumes_at")) or current.usage_resumes_at
+            if current.outcome_reason == "usage_limit"
+            else 0.0
+        )
+        if current.source == "codex" and event == "cancelled":
+            self._block_parent_result(current)
+        self._apply_usage_failure(current)
         self._revise(current)
         at = current.terminal_at if current.terminal_at is not None else self.now()
         if (
@@ -1428,6 +1574,62 @@ class ProjectActivityService(QObject):
         self._retire(current.thread_id, current.turn_id)
         self.changed.emit()
 
+    def _apply_usage_failure(self, current):
+        if (
+            current.source != "codex"
+            or current.state != "failed"
+            or current.outcome_reason != "usage_limit"
+        ):
+            return
+        # The row keeps the usual result time; the badge names the reset time.
+        if current.usage_resumes_at <= self.wall_now():
+            current.usage_resumes_at = 0.0
+        self._block_parent_result(current)
+
+    def _parent_chain(self, thread, parent=""):
+        visited = {thread}
+        while True:
+            metadata = self.metadata.get(thread)
+            thread = parent or (metadata.parent_thread_id if metadata else "")
+            parent = ""
+            if not thread or thread in visited:
+                return
+            visited.add(thread)
+            yield thread
+
+    def _blocked_child(self, thread, turn="", parent=""):
+        if (thread, turn) in self._blocked_children or (
+            not turn and any(key[0] == thread for key in self._blocked_children)
+        ):
+            return True
+        return any(
+            root in self._blocked_parents for root in self._parent_chain(thread, parent)
+        )
+
+    def _block_descendants(self, root):
+        for item in self.activities.values():
+            if item.source != "codex" or root not in self._parent_chain(item.thread_id):
+                continue
+            item.suppressed_by_parent = True
+            self._blocked_children[(item.thread_id, item.turn_id)] = None
+            self._blocked_children.move_to_end((item.thread_id, item.turn_id))
+        while len(self._blocked_children) > 4096:
+            self._blocked_children.popitem(last=False)
+
+    def _block_parent_result(self, item):
+        if (
+            item.scope != "main"
+            or self.metadata.get(
+                item.thread_id, ThreadMetadata(item.thread_id)
+            ).parent_thread_id
+        ):
+            return
+        self._blocked_parents[item.thread_id] = item.turn_id
+        self._blocked_parents.move_to_end(item.thread_id)
+        while len(self._blocked_parents) > 4096:
+            self._blocked_parents.popitem(last=False)
+        self._block_descendants(item.thread_id)
+
     def _suppress_stale_children(self, root):
         for item in self.activities.values():
             if item.source != "codex" or not item.uncertain or item.thread_id == root:
@@ -1452,7 +1654,9 @@ class ProjectActivityService(QObject):
                 item.scope,
             )
             for item in self.activities.values()
-            if item.source == "codex" and not item.expires
+            if item.source == "codex"
+            and not item.expires
+            and not self._blocked_child(item.thread_id, item.turn_id)
         )
 
     def codex_turn_targets(self):
@@ -1460,6 +1664,8 @@ class ProjectActivityService(QObject):
         targets = []
         for item in self.activities.values():
             if item.source != "codex" or not item.turn_id or item.scope == "internal":
+                continue
+            if self._blocked_child(item.thread_id, item.turn_id):
                 continue
             closure = self._stored_closures.get((item.thread_id, item.turn_id))
             if closure is not None and closure.activity is None:
@@ -1519,6 +1725,8 @@ class ProjectActivityService(QObject):
             permissions=set(current.permissions),
             permission_actors=dict(current.permission_actors),
             active_tools=set(current.active_tools),
+            subagent_waits=set(current.subagent_waits),
+            time_waits=set(current.time_waits),
         )
         if (
             current.recovered
@@ -1535,6 +1743,7 @@ class ProjectActivityService(QObject):
             event=outcome.state,
             agent_scope=current.scope,
             outcome_reason=outcome.reason,
+            usage_resumes_at=outcome.usage_resumes_at or current.usage_resumes_at,
         )
         if current.state == "ended":
             self._enrich_ended(current, outcome.state, payload)
@@ -1664,6 +1873,8 @@ class ProjectActivityService(QObject):
         if current is None or current.expires:
             return False
         turn = str(payload.get("turn_id") or "")
+        if self._blocked_child(thread, turn):
+            return False
         stamp = self._valid_stamp(payload.get("collected_at"))
         if turn and turn != current.turn_id:
             return False
@@ -1709,12 +1920,43 @@ class ProjectActivityService(QObject):
         self.changed.emit()
         return True
 
+    def _observe_turn_mode(self, payload):
+        """Accept mode metadata only for an open identified turn, without liveness."""
+        thread = payload.get("session_id")
+        turn = payload.get("turn_id")
+        mode = payload.get("collaboration_mode")
+        stamp = self._valid_stamp(payload.get("collected_at"))
+        if not isinstance(thread, str) or not isinstance(turn, str) or not turn:
+            return False
+        current = self.activities.get(thread)
+        if (
+            mode not in ("plan", "default")
+            or self._blocked_child(thread, turn)
+            or not stamp
+            or stamp < self._collection_started_at
+            or current is None
+            or current.source != "codex"
+            or current.expires
+            or turn != current.turn_id
+            or stamp < current.mode_stamp
+        ):
+            return False
+        changed = current.planning != (mode == "plan")
+        current.planning = mode == "plan"
+        current.mode_stamp = stamp
+        if changed:
+            self.changed.emit()
+        # Metadata must not enter the pet's activity-event path.
+        return False
+
     def _observe_heartbeat(self, payload):
         thread = str(payload.get("thread_id") or payload.get("session_id") or "")
         current = self.activities.get(thread)
         if current is None or current.expires:
             return True
         turn = str(payload.get("turn_id") or "")
+        if self._blocked_child(thread, turn):
+            return False
         if current.turn_id and turn and current.turn_id != turn:
             return False
         self._recovery_deadlines.pop(thread, None)
@@ -1806,6 +2048,42 @@ class ProjectActivityService(QObject):
             )
             self._remember_closed(key)
             del self.activities[key]
+        # A parent waiting on a working subagent reports nothing itself.
+        fresh_parents = {
+            parent
+            for key, item in self.activities.items()
+            if not item.expires and not item.uncertain
+            for parent in self._parent_chain(key)
+        }
+        abandoned = [
+            key
+            for key, item in self.activities.items()
+            if not item.expires
+            and item.uncertain
+            and not item.recovered
+            and key not in fresh_parents
+            and item.source not in self.inactivity_limits
+            and item.last_seen_at
+            and now
+            - (
+                item.compaction_since
+                if item.compaction_since is not None
+                else item.last_seen_at
+            )
+            >= self.uncertain_limit_seconds
+        ]
+        for key in abandoned:
+            # Still not a completion: the row stops claiming the work is open.
+            self._trace(
+                "activity_inactive",
+                thread_ref=trace_ref(key),
+                source=thread_source(key),
+                turn_ref=trace_ref(self.activities[key].turn_id),
+                reason="uncertain_expired",
+                state=self.activities[key].state,
+            )
+            self._remember_closed(key)
+            del self.activities[key]
         stale = [
             key
             for key, item in self.activities.items()
@@ -1878,6 +2156,8 @@ class ProjectActivityService(QObject):
             | {r.thread_id for r in self.completions}
             | set(self.pending_completions)
             | set(self._unconfirmed_completions)
+            | set(self._blocked_parents)
+            | {key[0] for key in self._blocked_children}
         )
         retained |= {
             self.metadata[k].parent_thread_id for k in retained if k in self.metadata
@@ -1899,18 +2179,25 @@ class ProjectActivityService(QObject):
         )
         phase_changed = phase != self._completion_phase
         self._completion_phase = phase
-        if expired or silent or stale or phase_changed or unconfirmed_expired:
+        if (
+            expired
+            or silent
+            or abandoned
+            or stale
+            or phase_changed
+            or unconfirmed_expired
+        ):
             self.changed.emit()
 
     def _inactive(self, item, now):
         limit = self.inactivity_limits.get(item.source)
         if limit is None or not item.last_seen_at:
             return False
-        # Background work and an open tool call may run long without events;
-        # they wait like a confirmation does.
+        # An open tool call may run long without events; it waits like a
+        # confirmation does.
         limit_ms = (
             limit.waiting_ms
-            if item.state in {"waiting", "background"} or item.active_tools
+            if item.state == "waiting" or item.active_tools
             else limit.work_ms
         )
         return limit_ms > 0 and (now - item.last_seen_at) * 1000 >= limit_ms
@@ -1947,6 +2234,10 @@ class ProjectActivityService(QObject):
         roots: dict[str, list[Activity]] = {}
         for item in self.activities.values():
             if item.state == "done":
+                continue
+            if item.source == "codex" and self._blocked_child(
+                item.thread_id, item.turn_id
+            ):
                 continue
             if item.source == "codex" and (
                 item.hidden_uncertain or item.suppressed_by_parent
@@ -1996,7 +2287,7 @@ class ProjectActivityService(QObject):
                     else selected.state_changed_at,
                     uncertain=selected.uncertain,
                     background_count=selected.background_count
-                    if state == "background"
+                    if state == "done"
                     else 0,
                     compacting=bool(
                         thread in self.activities
@@ -2010,6 +2301,30 @@ class ProjectActivityService(QObject):
                     if selected.source == "codex" and selected.uncertain
                     else "",
                     outcome_reason=selected.outcome_reason,
+                    usage_resumes_at=selected.usage_resumes_at,
+                    subagent_waiting=bool(
+                        state in {"running", "review"}
+                        and thread in self.activities
+                        and not self.activities[thread].expires
+                        and self.activities[thread].subagent_waits
+                    ),
+                    time_waiting=bool(
+                        state in {"running", "review"}
+                        and (
+                            (
+                                thread in self.activities
+                                and not self.activities[thread].expires
+                                and self.activities[thread].time_waits
+                            )
+                            or (selected.time_waits and not selected.expires)
+                        )
+                    ),
+                    planning=bool(
+                        state in {"running", "review"}
+                        and thread in self.activities
+                        and not self.activities[thread].expires
+                        and self.activities[thread].planning
+                    ),
                 )
             )
             labels[key] = metadata.label
@@ -2037,6 +2352,7 @@ class ProjectActivityService(QObject):
                     record.highlight_until > self.now(),
                     record.highlight_until,
                     source=metadata.source,
+                    background_count=record.background_count,
                 )
             )
             labels[key] = metadata.label

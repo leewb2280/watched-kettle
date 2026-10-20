@@ -261,11 +261,15 @@ class TranscriptMonitorTests(unittest.TestCase):
 
         self.assertEqual(self.detected, [])
 
-    def test_background_stop_and_subagent_events_keep_the_parent_watched(self):
+    def test_turn_left_with_background_work_ends_the_watch_until_the_result(self):
+        # The turn is complete; the turn that reads the result watches again,
+        # whether or not Claude Code sends a prompt hook for it.
         self.start_turn()
         self.hook("Stop", background_tasks=[{"type": "agent"}])
         self.hook("SubagentStop", agent_id="a6cbe57b0", agent_type="general-purpose")
+        self.assertEqual(self.monitor.watched_sessions, ())
 
+        self.hook("PreToolUse", prompt_id="p2", tool_use_id="toolu_result")
         self.assertEqual(self.monitor.watched_sessions, (SESSION,))
 
     def test_compaction_and_session_start_do_not_start_a_watch(self):

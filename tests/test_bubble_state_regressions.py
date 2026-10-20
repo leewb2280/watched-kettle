@@ -438,7 +438,7 @@ class BubbleStateRegressions(unittest.TestCase):
         self.start()
         self.send(thread="child", agent_scope="subagent", parent_session_id="a")
         self.advance(61)
-        self.assert_status("상태 확인 중", "상태 확인 중 1개")
+        self.assert_status("응답 없음", "응답 없음 1개")
         self.send("waiting", thread="child", agent_scope="subagent", event_id="ask")
         self.send("heartbeat")
         self.assert_status("확인 필요", "확인 필요 1개")

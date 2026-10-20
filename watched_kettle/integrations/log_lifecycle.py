@@ -2,8 +2,8 @@
 
 import json
 
-from watched_kettle.integrations.codex_hooks import sanitize_pet_event
-from watched_kettle.state.event_names import outcome_reason
+from watched_kettle.integrations.codex_hooks import codex_tool_kind, sanitize_pet_event
+from watched_kettle.state.event_names import limit_resume_at, outcome_reason
 from datetime import datetime, timezone
 
 MAX_TRACKED_ASYNC_QUESTIONS = 4096
@@ -32,7 +32,15 @@ def normalize_codex_log_record(
     event_id = payload.get("call_id") or payload.get("id")
     event = None
 
-    if record_type == "event_msg":
+    if record_type == "turn_context":
+        collaboration = payload.get("collaboration_mode")
+        if not isinstance(collaboration, dict) or collaboration.get("mode") not in (
+            "plan",
+            "default",
+        ):
+            return None
+        event = "turn_mode"
+    elif record_type == "event_msg":
         event = {
             "task_complete": "ended",
             "context_compacted": "review",
@@ -42,7 +50,10 @@ def normalize_codex_log_record(
             event = "cancelled" if reason == "interrupted" else "failed"
             detail = payload.get("error")
             code = (
-                detail.get("codex_error_info", detail.get("codexErrorInfo"))
+                detail.get(
+                    "codex_error_info",
+                    detail.get("codexErrorInfo", payload.get("codex_error_info")),
+                )
                 if isinstance(detail, dict)
                 else payload.get("codex_error_info")
             )
@@ -124,8 +135,15 @@ def normalize_codex_log_record(
         "session_id": session_id,
         "agent_scope": agent_scope,
     }
+    if event == "turn_mode":
+        normalized["collaboration_mode"] = collaboration["mode"]
     if payload_type == "turn_aborted":
         normalized["outcome_reason"] = outcome_reason(code)
+        if normalized["outcome_reason"] == "usage_limit":
+            data = detail if isinstance(detail, dict) else payload
+            normalized["usage_resumes_at"] = limit_resume_at(
+                data.get("resets_at", data.get("resetsAt"))
+            )
     if event == "review" and payload_type in {"context_compacted", "compaction"}:
         normalized["compaction_phase"] = "end"
     if event in {
@@ -135,6 +153,7 @@ def normalize_codex_log_record(
         "waiting",
         "question_wait",
         "question_resolved",
+        "turn_mode",
     }:
         try:
             stamp = datetime.fromisoformat(
@@ -147,6 +166,9 @@ def normalize_codex_log_record(
             pass
     if event == "tool_start":
         normalized["tool_status"] = "started"
+        kind = codex_tool_kind(payload.get("name"), payload.get("arguments"))
+        if kind:
+            normalized["tool_kind"] = kind
     elif event == "tool_end":
         normalized["tool_status"] = "succeeded"
         normalized["success"] = True
@@ -157,6 +179,6 @@ def normalize_codex_log_record(
 
     if turn_id:
         normalized["turn_id"] = turn_id
-    if event_id:
+    if event_id and event != "turn_mode":
         normalized["event_id"] = event_id
     return sanitize_pet_event(normalized)

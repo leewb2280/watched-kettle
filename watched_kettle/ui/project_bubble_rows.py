@@ -20,7 +20,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from watched_kettle.features.project_activity.service import row_status_label
+from watched_kettle.features.project_activity.service import (
+    row_status_label,
+    row_status_tooltip,
+)
 from watched_kettle.ui.wrapped_title_button import WrappedTitleButton, title_text_width
 
 
@@ -40,14 +43,6 @@ def _badge_presentation(row, theme):
         )
     if row.compacting:
         return t("message.0296"), "", theme.text, "transparent"
-    if row.state == "background":
-        count = getattr(row, "background_count", 0)
-        return (
-            t("message.0300", value0=count) if count else t("message.0301"),
-            t("message.0297"),
-            theme.text,
-            "transparent",
-        )
     colors = {
         "done": ("#17633a", "#d7f1df"),
         "waiting": ("#715000", "#fff0b5"),
@@ -56,7 +51,9 @@ def _badge_presentation(row, theme):
     foreground, background = colors.get(row.state, (theme.text, "transparent"))
     source = getattr(row, "source", "codex")
     tooltip = (
-        t("message.0294") if source == "claude_code" and row.state == "waiting" else ""
+        t("message.0294")
+        if source == "claude_code" and row.state == "waiting"
+        else row_status_tooltip(row)
     )
     return row_status_label(row), tooltip, foreground, background
 

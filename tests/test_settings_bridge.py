@@ -1241,7 +1241,15 @@ class SettingsBridgeTests(unittest.TestCase):
         json.dumps(integration)
         self.assertIn(
             integration["install"]["state"],
-            {"installed", "not_installed", "partial", "drifted", "disabled", "invalid"},
+            {
+                "installed",
+                "not_installed",
+                "partial",
+                "drifted",
+                "other_copy",
+                "disabled",
+                "invalid",
+            },
         )
         self.assertEqual(integration["install"]["message"], integration["status"])
 

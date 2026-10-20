@@ -112,7 +112,7 @@ class BubbleLatencyTests(unittest.TestCase):
         self.seed()
         self.monitor.start()
         self.monitor.poll_now()
-        self.assertEqual(self.row("t").badge.text(), "상태 확인 중")
+        self.assertEqual(self.row("t").badge.text(), "응답 없음")
         self.assertFalse(self.events)
         self.assertFalse(self.projects.recent)
         self.assertFalse(self.projects.completions)

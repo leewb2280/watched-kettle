@@ -355,9 +355,13 @@ class CodexHookServer(QObject):
         signature = (
             payload.get("parent_session_id", ""),
             payload.get("outcome_reason", ""),
+            payload.get("usage_resumes_at"),
             payload.get("approval_actor", "unknown"),
             payload.get("compaction_phase", ""),
             payload.get("tool_status", ""),
+            payload.get("tool_kind", ""),
+            payload.get("collaboration_mode", ""),
+            payload.get("collected_at") if payload["event"] == "turn_mode" else None,
             payload.get("success"),
             isinstance(payload.get("_codex_live_tool"), CodexLiveToolStart),
             # A status line update with new numbers is not a duplicate.

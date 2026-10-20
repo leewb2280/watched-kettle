@@ -110,44 +110,81 @@ class ClaudeCodeCardTests(unittest.TestCase):
         self.assertEqual(cards["codex"].rows[0].title, "Codex 대화")
         self.assertEqual(self.requested, [SESSION])
 
-    def test_background_command_turn_waits_then_completes_once(self):
-        # A Stop with a background command shows the wait, not a completion.
-        # Claude Code then reads the result in a turn it starts itself, with a
-        # new prompt ID and no prompt hook; its tools show work again and its
-        # Stop completes the conversation once.
-        self.observe(claude("UserPromptSubmit"))
-        self.observe(
-            claude(
-                "Stop",
-                background_tasks=[
-                    {"type": "shell", "status": "running"},
-                    {"type": "subagent", "status": "running"},
-                    {"type": "monitor", "status": "running"},
-                ],
-            )
-        )
-        row = self.card().rows[0]
-        self.assertEqual((row.state, row.background_count), ("background", 2))
-        self.assertEqual(self.card().summary, "백그라운드 대기 1개")
-        self.assertEqual(self.projects.completions, ())
+    def test_turn_left_with_background_work_completes_then_again_after_it(self):
+        # The turn is complete even with background work left: the user may be
+        # meant to look now, e.g. at an app it left running. The row says what
+        # still runs. When Claude Code reads a result in a turn of its own (a
+        # new prompt ID, with or without a prompt hook), that turn works and
+        # completes again.
+        for wake in ("PreToolUse", "UserPromptSubmit"):
+            with self.subTest(wake=wake):
+                self.setUp()
+                self.observe(claude("UserPromptSubmit"))
+                self.observe(
+                    claude(
+                        "Stop",
+                        background_tasks=[
+                            {"type": "shell", "status": "running"},
+                            {"type": "subagent", "status": "running"},
+                            {"type": "monitor", "status": "running"},
+                        ],
+                    )
+                )
+                row = self.card().rows[0]
+                self.assertEqual((row.state, row.background_count), ("done", 2))
+                self.assertTrue(row.completion_id)
+                self.assertEqual(self.card().summary, "완료 1개")
+                self.assertEqual(len(self.projects.completions), 1)
 
-        self.observe(claude("PreToolUse", prompt_id=NOTIFICATION, tool_use_id="t2"))
-        self.assertEqual(self.card().rows[0].state, "running")
-        self.observe(claude("PostToolUse", prompt_id=NOTIFICATION, tool_use_id="t2"))
-        self.observe(claude("Stop", prompt_id=NOTIFICATION, background_tasks=[]))
+                self.observe(
+                    claude(wake, prompt_id=NOTIFICATION, tool_use_id="t2")
+                    if wake == "PreToolUse"
+                    else claude(wake, prompt_id=NOTIFICATION)
+                )
+                self.assertEqual(self.card().rows[0].state, "running")
+                self.assertEqual(self.card().rows[0].background_count, 0)
+                self.observe(
+                    claude("Stop", prompt_id=NOTIFICATION, background_tasks=[])
+                )
 
-        self.assertEqual(self.card().rows[0].state, "done")
-        self.assertEqual(len(self.projects.completions), 1)
+                row = self.card().rows[0]
+                self.assertEqual((row.state, row.background_count), ("done", 0))
+                self.assertEqual(len(self.projects.completions), 2)
 
-    def test_background_wait_uses_the_confirmation_inactivity_limit(self):
+    def test_background_work_shows_on_the_completion_badge(self):
         self.observe(claude("UserPromptSubmit"))
         self.observe(claude("Stop", background_tasks=[{"type": "shell"}]))
-        self.clock.value += 11 * 60
+        theme = SimpleNamespace(text="#000000")
+
+        def badge():
+            label, tooltip, _foreground, background = _badge_presentation(
+                self.card().rows[0], theme
+            )
+            return label, tooltip, background
+
+        self.assertEqual(
+            badge(),
+            (
+                "완료 · 백그라운드 1개",
+                "백그라운드 작업이 끝나면 결과를 읽고 이어서 마무리합니다.",
+                "#d7f1df",
+            ),
+        )
+        # The completion row outlives its activity like any other completion.
+        self.clock.value += 60
         self.projects.expire()
-        self.assertEqual(self.card().rows[0].state, "background")
-        self.clock.value += 20 * 60
-        self.projects.expire()
-        self.assertEqual(self.projects.bubble_cards, ())
+        self.assertEqual(badge()[0], "완료 · 백그라운드 1개")
+
+    def test_pet_completes_a_turn_left_with_background_work(self):
+        decision = build_decision(
+            claude("Stop", background_tasks=[{"type": "shell", "status": "running"}])
+        )
+        plain = build_decision(claude("Stop", background_tasks=[]))
+        self.assertEqual(
+            (decision.event, decision.visual_state, decision.terminal),
+            (plain.event, plain.visual_state, plain.terminal),
+        )
+        self.assertTrue(decision.terminal)
 
     def test_late_stop_of_a_replaced_turn_does_not_end_the_new_one(self):
         self.observe(claude("UserPromptSubmit"))
@@ -303,12 +340,14 @@ class ClaudeCodeCardTests(unittest.TestCase):
         self.assertEqual(self.compaction(), [False, False, False])
         self.assertEqual(self.card().rows[0].state, "done")
 
-    def test_compaction_during_a_background_wait_does_not_reach_the_pet(self):
+    def test_compaction_after_a_turn_left_background_work_does_not_reach_the_pet(
+        self,
+    ):
         self.observe(claude("UserPromptSubmit"))
         self.observe(claude("Stop", background_tasks=[{"type": "shell"}]))
 
         self.assertEqual(self.compaction(), [False, False, False])
-        self.assertEqual(self.card().rows[0].state, "background")
+        self.assertEqual(self.card().rows[0].state, "done")
 
     def test_subagent_work_keeps_the_parent_turn_until_its_completion(self):
         self.observe(claude("UserPromptSubmit"))

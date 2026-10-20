@@ -2,9 +2,14 @@
 
 import unittest
 from dataclasses import replace
+from datetime import datetime, timezone
+import json
+from pathlib import Path
 
 from tests import test_bubble_state_regressions as helpers
+from watched_kettle.features.project_activity.service import ThreadMetadata
 from watched_kettle.integrations.activity_recovery import RecoverySnapshot
+from watched_kettle.integrations.codex_log import CodexLogMonitor
 from watched_kettle.state.codex_activity import CodexTurnOutcome
 
 
@@ -17,6 +22,87 @@ class CodexStateProjectionTests(unittest.TestCase):
     advance = helpers.BubbleStateRegressions.advance
     row = helpers.BubbleStateRegressions.row
     window = helpers.BubbleStateRegressions.window
+
+    def test_normal_file_analysis_stays_working_and_leaves_no_wait_after_completion(
+        self,
+    ):
+        root = Path(self.directory.name) / "sessions"
+        root.mkdir()
+        path = root / "rollout-11111111-1111-4111-8111-111111111111.jsonl"
+        wall = self.projects.wall_now()
+        monitor = CodexLogMonitor(
+            root, now=lambda: datetime.fromtimestamp(wall, timezone.utc)
+        )
+        self.addCleanup(monitor.close)
+        self.server.log_monitor = None  # Replace the helper's scope-only stub.
+        self.server.attach_log_monitor(monitor)
+        monitor.start()
+
+        def record(kind, **payload):
+            with path.open("a", encoding="utf-8") as stream:
+                stream.write(
+                    json.dumps(
+                        dict(
+                            type=kind,
+                            timestamp=datetime.fromtimestamp(
+                                wall, timezone.utc
+                            ).isoformat(),
+                            payload=payload,
+                        )
+                    )
+                    + "\n"
+                )
+            monitor.poll_now()
+            self.controller._render()
+            self.app.processEvents()
+
+        record("session_meta", id="t", source="cli")
+        record("event_msg", type="task_started", turn_id="1")
+        self.projects.set_metadata(
+            ThreadMetadata("t", "p", "Project", title="File analysis"),
+            self.projects.generation,
+        )
+
+        def assert_working():
+            self.assertEqual(self.row("t").badge.text(), "작업 중")
+            self.assertEqual(self.projects.cards[0].working, 1)
+            self.assertEqual(self.projects.cards[0].waiting, 0)
+            self.assertEqual(self.pet.agent_controller.aggregate_state.state, "running")
+            self.assertIsNone(
+                self.pet.agent_controller.current_presentation.persistent_notice
+            )
+
+        assert_working()
+        for kind in ("function_call", "custom_tool_call"):
+            with self.subTest(kind=kind):
+                record("response_item", type=kind, name="exec_command", call_id=kind)
+                assert_working()
+                record("response_item", type=kind + "_output", call_id=kind)
+                assert_working()
+        record("response_item", type="reasoning")
+        assert_working()
+
+        record("event_msg", type="task_complete", turn_id="1")
+        self.assertEqual(self.row("t").badge.text(), "종료됨")
+        self.assertFalse(self.projects.completions)
+        self.send("done", thread="t")
+        self.assertEqual(self.row("t").badge.text(), "완료")
+        self.assertEqual(len(self.projects.completions), 1)
+        item = self.projects.activities["t"]
+        self.assertFalse(item.active_tools | item.waits | item.question_waits)
+        self.assertFalse(item.permissions)
+        self.assertEqual(self.projects.cards[0].working, 0)
+        self.assertEqual(self.projects.cards[0].waiting, 0)
+        self.assertEqual(self.pet.agent_controller.aggregate_state.state, "idle")
+        self.assertIsNone(
+            self.pet.agent_controller.current_presentation.persistent_notice
+        )
+
+        record("response_item", type="function_call_output", call_id="function_call")
+        self.assertEqual(self.row("t").badge.text(), "완료")
+        self.advance(301)
+        self.assertFalse(self.controller.visible_windows)
+        self.assertFalse(self.projects.cards)
 
     def test_uncertain_is_idle_count_free_and_can_be_hidden_until_real_activity(self):
         self.start()
@@ -73,7 +159,7 @@ class CodexStateProjectionTests(unittest.TestCase):
             CodexTurnOutcome(target, "failed", "usage_limit")
         )
         self.controller._render()
-        self.assertEqual(self.row().badge.text(), "사용량 제한으로 중단")
+        self.assertEqual(self.row().badge.text(), "사용량 한도")
         self.assertFalse(self.projects.completions)
 
     def test_expired_ended_and_new_turn_cannot_be_resurrected(self):
@@ -147,7 +233,11 @@ class CodexStateProjectionTests(unittest.TestCase):
                 self.advance(301)
                 self.assertFalse(self.projects.cards)
                 self.send("heartbeat", thread="child", agent_scope="subagent")
-                self.assertEqual(self.projects.cards[0].rows[0].state, "running")
+                if terminal == "cancelled":
+                    # An explicit parent stop freezes the old child turn (stage 5).
+                    self.assertFalse(self.projects.cards)
+                else:
+                    self.assertEqual(self.projects.cards[0].rows[0].state, "running")
 
     def test_fresh_child_and_human_wait_are_preserved(self):
         self.start()

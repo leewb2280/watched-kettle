@@ -165,6 +165,9 @@ In `Connections & diagnostics`, turn **Codex enabled** and **Claude Code enabled
 - A tool that is off shows only its switch and a short description in Connections & diagnostics.
 - If the hooks of a tool that is on are removed or changed, the pet says in a bubble that the tool "was disconnected", and the first line of the tray menu and
   `Connection` on the settings home show it as well. Clicking it opens `Connections & diagnostics`. Until it is fixed, you are told once each time the app starts.
+- Hooks that point to another Watched Kettle copy on this PC (the installed app or a source run) are not treated as disconnected, because the copies share
+  one event folder and task status still reaches this app. `Connections & diagnostics` shows "Connected through another Watched Kettle copy" with
+  `Switch to this copy`. If you will remove or move that copy, switch first.
 - If you install Codex or Claude Code after installing the app, you are told once that it "was found". Tools that already existed at installation are
   not suggested again.
 
@@ -209,9 +212,10 @@ A new conversation first checks its project and joins the existing bubble. Only 
 if the project is still unknown, it is gathered into a single `Finding project` bubble. This differs from
 `Conversations without a project`, which means the conversation was confirmed to have no project. The pet's reaction to a starting task does not wait.
 
-If no new activity arrives for 60 seconds during normal work or 180 seconds during a tool run, the row is not removed but
-shown in gray as `Checking status`. The header counts it separately, and the row returns to its
-original state when new activity arrives. A successful title lookup alone is not taken as progress.
+If no new activity arrives for 60 seconds during normal work or 180 seconds during a tool run, the row is not removed right away but
+shown in gray as `No response`. The header counts it separately, and the row returns to its
+original state when new activity arrives. If there is still no new activity 15 minutes after the last one, the row is removed
+without being recorded as completed or failed. A successful title lookup alone is not taken as progress.
 Conversations that need attention are waiting for your response, so this time limit does not apply to them.
 An asynchronous question raised during a task is also shown as `Needs attention`. Even if the task continues right after the question,
 it stays until the next user message in the same conversation. If there are several questions,
@@ -219,10 +223,15 @@ each user message clears the oldest one.
 
 When a compaction start signal arrives, the row shows `Compacting context` and is counted as working in the header.
 The usual 60- and 180-second limits do not apply during compaction. If no end or clear
-resumption of work is detected within 10 minutes of the start, the row switches to `Checking status` but stays.
+resumption of work is detected within 10 minutes of the start, the row switches to `No response`, and it is removed 15 minutes after the start.
 An end signal or a normal tool run returns it to normal; confirmation requests, completion, failure and interruption take priority.
 A title update, a reconnection or an ordinary heartbeat alone is not taken as the end of compaction.
 Where the compaction start hook is not delivered, compaction is not assumed, so the usual inactivity display may apply.
+
+When a Codex task stops with an error, the badge shows the reason: `Usage limit`, `Rate limit`, `Budget limit`,
+`Conversation too long` or `Server error`, and `Failed` when the reason is unknown. When the usage limit's reset time is known,
+the badge shows when you can use Codex again. Hover over the badge for an explanation. Error messages are not stored.
+While Codex waits for subagents, waits for a set time, or works in plan mode, the row says so.
 
 A tool result that arrives without a task start is not shown as a new task. A result that arrives late after completion does not
 turn the completed display back into working. If you start the pet in the middle of a task, progress can be detected from a tool start
@@ -249,8 +258,8 @@ A conversation in the VS Code extension panel tries to open in the panel (`Open 
 brings forward the VS Code window for its folder (`Open window`). For a conversation running in another terminal, the app cannot find that window,
 so it opens the activity list in the settings window (`View list`). A running terminal conversation is never reopened elsewhere.
 
-If Claude Code finishes its response while leaving background commands or subagents running, the row changes to `Background: N`.
-The pet returns to resting, and when the background work ends and Claude Code reads the results and finishes, `Completed` is shown once.
+If Claude Code finishes its response while leaving background commands or subagents running, it is reported as complete right away and the row shows `Complete · Background: N`.
+When the background work ends and Claude Code picks up the results, the row shows working again, and `Complete` is shown once more when it finishes.
 
 When you use both Codex and Claude Code, source dots (navy for Codex, orange for Claude Code) appear before the card and notification headings.
 With only one tool, no dot is added. Hover over a heading to see the source name.

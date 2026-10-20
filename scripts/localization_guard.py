@@ -20,6 +20,10 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE_ROOT = ROOT / "watched_kettle"
 LOCK_PATH = ROOT / "scripts/localization_source.lock.json"
 ALLOWLIST_PATH = ROOT / "scripts/localization_literals.json"
+RESOURCE_PACKS = (
+    SOURCE_ROOT / "localization/resources/catalog.json",
+    SOURCE_ROOT / "localization/resources/en/messages.json",
+)
 # Same Hangul syllable range as the official English completeness test.
 HANGUL = re.compile("[가-힣]")
 _QML_COMMENT = re.compile(r"//[^\n]*|/\*.*?\*/", re.S)
@@ -148,6 +152,34 @@ def key_problems(found, messages):
     ]
 
 
+def control_problems(name, payload):
+    """Flag control characters other than newline in any string of a pack.
+
+    A Windows path typed through a shell lost its backslashes this way twice:
+    ``\\a`` in ``application`` became BEL inside translator notes.
+    """
+    problems = []
+
+    def walk(value, where):
+        if isinstance(value, str):
+            bad = sorted(
+                {f"U+{ord(c):04X}" for c in value if ord(c) < 32 and c != "\n"}
+            )
+            if bad:
+                problems.append(
+                    f"{name}: {where} has control characters {', '.join(bad)}"
+                )
+        elif isinstance(value, dict):
+            for key, item in value.items():
+                walk(item, f"{where}.{key}" if where else str(key))
+        elif isinstance(value, list):
+            for index, item in enumerate(value):
+                walk(item, f"{where}[{index}]")
+
+    walk(payload, "")
+    return problems
+
+
 def fingerprint(entry):
     payload = {field: entry.get(field) for field in _FINGERPRINT_FIELDS}
     raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
@@ -233,6 +265,13 @@ def check():
         literal_problems(scan_literals(), allowlist)
         + key_problems(scan_keys(), messages)
         + lock_problems(messages, _read(LOCK_PATH))
+        + [
+            problem
+            for path in RESOURCE_PACKS
+            for problem in control_problems(
+                path.relative_to(ROOT).as_posix(), _read(path)
+            )
+        ]
     )
 
 

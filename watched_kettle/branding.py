@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 APPLICATION_NAME = "Watched Kettle"
-APPLICATION_VERSION = "0.15.8"
+APPLICATION_VERSION = "0.15.9"
 APPLICATION_DESCRIPTION = "Windows desktop pet that watches your coding agents"
 # Install and user-data identifiers (ADR 0005). Never change after release.
 APPLICATION_ID = "WatchedKettle"

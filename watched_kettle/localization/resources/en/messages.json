@@ -1,4 +1,24 @@
 {
+  "status.usage_limit": {
+    "sourceRevision": 1,
+    "value": "Usage limit"
+  },
+  "status.usage_limit_resume": {
+    "sourceRevision": 1,
+    "value": "Limit · resumes at {time}"
+  },
+  "status.planning": {
+    "sourceRevision": 1,
+    "value": "Planning"
+  },
+  "status.time_wait": {
+    "sourceRevision": 1,
+    "value": "Waiting briefly"
+  },
+  "status.subagent_wait": {
+    "sourceRevision": 1,
+    "value": "Waiting for subagents"
+  },
   "language.title": {
     "sourceRevision": 1,
     "value": "Language"
@@ -1166,15 +1186,15 @@
   },
   "message.0293": {
     "sourceRevision": 1,
-    "value": "No recent activity has been received. Task completion has not been confirmed."
+    "value": "No recent activity has been received. It is not confirmed whether the task finished."
   },
   "message.0294": {
     "sourceRevision": 1,
     "value": "Claude Code requested tool permission. This status remains until the tool finishes, even after approval."
   },
   "message.0295": {
-    "sourceRevision": 1,
-    "value": "Checking status"
+    "sourceRevision": 2,
+    "value": "No response"
   },
   "message.0296": {
     "sourceRevision": 1,
@@ -1195,10 +1215,6 @@
   "message.0300": {
     "sourceRevision": 1,
     "value": "Background: {value0}"
-  },
-  "message.0301": {
-    "sourceRevision": 1,
-    "value": "Waiting in background"
   },
   "message.0302": {
     "sourceRevision": 1,
@@ -1880,21 +1896,17 @@
     "sourceRevision": 1,
     "value": "Conversations without a project"
   },
-  "message.0472": {
-    "sourceRevision": 1,
-    "value": "Stopped by usage limit"
-  },
   "message.0473": {
-    "sourceRevision": 1,
-    "value": "Stopped by rate limit"
+    "sourceRevision": 2,
+    "value": "Rate limit"
   },
   "message.0474": {
-    "sourceRevision": 1,
-    "value": "Stopped by budget limit"
+    "sourceRevision": 2,
+    "value": "Budget limit"
   },
   "message.0475": {
-    "sourceRevision": 1,
-    "value": "Stopped by context limit"
+    "sourceRevision": 2,
+    "value": "Conversation too long"
   },
   "message.0476": {
     "sourceRevision": 1,
@@ -4952,6 +4964,46 @@
     "sourceRevision": 1,
     "value": "Tasks observed in the current Codex account"
   },
+  "message.1277": {
+    "sourceRevision": 1,
+    "value": "Server error"
+  },
+  "message.1279": {
+    "sourceRevision": 1,
+    "value": "Codex reached its usage limit and the task stopped."
+  },
+  "message.1280": {
+    "sourceRevision": 1,
+    "value": "Codex reached its usage limit and the task stopped. You can use it again after {value0}."
+  },
+  "message.1281": {
+    "sourceRevision": 1,
+    "value": "Too many requests paused the task. Try again shortly."
+  },
+  "message.1282": {
+    "sourceRevision": 1,
+    "value": "The task stopped after reaching the usage budget you set."
+  },
+  "message.1283": {
+    "sourceRevision": 1,
+    "value": "The conversation is too long to continue. Start a new conversation or compact it."
+  },
+  "message.1284": {
+    "sourceRevision": 1,
+    "value": "The task stopped because of a Codex server problem. Try again."
+  },
+  "message.1286": {
+    "sourceRevision": 1,
+    "value": "Waiting for subagent work to finish."
+  },
+  "message.1288": {
+    "sourceRevision": 1,
+    "value": "Codex is waiting for a set amount of time."
+  },
+  "message.1290": {
+    "sourceRevision": 1,
+    "value": "Codex usage limit reached"
+  },
   "widget.empty": {
     "sourceRevision": 1,
     "value": "No connected usage"
@@ -5604,17 +5656,29 @@
     "sourceRevision": 1,
     "value": "Updated to v{version}. See what's new in Settings → About."
   },
-  "whats_new.0158.widget_unlock": {
+  "whats_new.0159.codex_limit": {
     "sourceRevision": 1,
-    "value": "Unlocking the usage widget lets you drag it right away."
+    "value": "When Codex stops at its usage limit, the bubble says when you can use it again and no longer lingers."
   },
-  "whats_new.0158.history_row": {
+  "whats_new.0159.codex_reasons": {
     "sourceRevision": 1,
-    "value": "Switching between Codex and Claude Code in usage History no longer moves the lists, and Clear history for Codex is now in the History tab."
+    "value": "Badges and tooltips explain why a Codex task stopped. Conversations that stop responding are cleared after 15 minutes."
   },
-  "whats_new.0158.widget_preview": {
+  "whats_new.0159.codex_waits": {
     "sourceRevision": 1,
-    "value": "The widget preview in Customize has proper spacing, and Background color explains when it can be used."
+    "value": "The bubble shows when Codex is waiting on subagents, waiting briefly, or planning."
+  },
+  "whats_new.0159.claude_background": {
+    "sourceRevision": 1,
+    "value": "Claude Code reports completion when it finishes a reply, even with background work still running."
+  },
+  "whats_new.0159.claude_open": {
+    "sourceRevision": 1,
+    "value": "Open window in a Claude Code bubble opens the folder where the session started."
+  },
+  "whats_new.0159.other_install": {
+    "sourceRevision": 1,
+    "value": "No connection-lost notice when Codex or Claude Code points at another Watched Kettle install on this PC."
   },
   "pet.import.invalid_package": {
     "sourceRevision": 1,
@@ -5754,5 +5818,25 @@
   "pet.import.omitted_theme": {
     "sourceRevision": 1,
     "value": "Bubble settings that point to decorations from another installation cannot be used and were reset to the defaults."
+  },
+  "integration.other_copy_status": {
+    "sourceRevision": 1,
+    "value": "The managed hooks point to another Watched Kettle copy on this PC (the installed app or a source run). Events still reach this app."
+  },
+  "integration.other_copy_repair": {
+    "sourceRevision": 1,
+    "value": "Hooks that point to another Watched Kettle copy are switched to this copy."
+  },
+  "integration.other_copy_title": {
+    "sourceRevision": 1,
+    "value": "Connected through another Watched Kettle copy"
+  },
+  "integration.other_copy_body": {
+    "sourceRevision": 1,
+    "value": "The installed app and source runs share one event folder, so task status still reaches this app. If you will remove or move that copy, switch the hooks to this one."
+  },
+  "integration.other_copy_action": {
+    "sourceRevision": 1,
+    "value": "Switch to this copy"
   }
 }

@@ -12,7 +12,7 @@ from watched_kettle.activity_diagnostics import (
 )
 from watched_kettle.integrations.codex_app_server import CodexAppServerClient
 from watched_kettle.state.codex_activity import CodexTurnOutcome
-from watched_kettle.state.event_names import outcome_reason
+from watched_kettle.state.event_names import limit_resume_at, outcome_reason
 
 
 MAX_TARGETS = 128
@@ -171,7 +171,12 @@ class _TurnStatusWorker(QObject):
                 detail.get("codexErrorInfo") if isinstance(detail, dict) else None
             )
             self.record("turn_status_resolved", target, state)
-            self.outcome.emit(epoch, CodexTurnOutcome(target, state, reason))
+            resumes = (
+                limit_resume_at(detail.get("resetsAt", detail.get("resets_at")))
+                if reason == "usage_limit" and isinstance(detail, dict)
+                else 0.0
+            )
+            self.outcome.emit(epoch, CodexTurnOutcome(target, state, reason, resumes))
             return
         cursor = result.get("nextCursor")
         if (

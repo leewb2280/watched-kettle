@@ -56,7 +56,7 @@ export function integrationChecks(
 ): Check[] {
   const trust = diagnostics.global_hook_trust || {};
   const jsonl = diagnostics.jsonl_monitor || {};
-  const installed = install.state === "installed";
+  const installed = hooksConnected(install.state);
   const trustMissing =
     trust.valid && (trust.approved_count ?? 0) < (trust.expected_count ?? 0);
   return [
@@ -147,6 +147,19 @@ export function appChecks(
   ];
 }
 
+// Hooks another copy of this app wrote (installed build or source run) still
+// deliver events here, since every copy spools to the same user folder.
+const otherCopyHero = {
+  tone: "ok",
+  title: t("integration.other_copy_title"),
+  body: t("integration.other_copy_body"),
+  action: ["repair", t("integration.other_copy_action")] as [string, string],
+};
+
+function hooksConnected(state?: string) {
+  return state === "installed" || state === "other_copy";
+}
+
 export const heroes: Record<
   string,
   { tone: string; title: string; body?: string; action?: [string, string] }
@@ -173,6 +186,7 @@ export const heroes: Record<
     title: t("message.0763"),
     action: ["repair", t("message.0764")],
   },
+  other_copy: otherCopyHero,
   disabled: {
     tone: "warn",
     title: t("message.0765"),
@@ -189,7 +203,7 @@ export function heroFor(integration: IntegrationResponse) {
   const install = integration.install || {};
   const trust = integration.diagnostics.global_hook_trust || {};
   if (
-    install.state === "installed" &&
+    hooksConnected(install.state) &&
     trust.valid &&
     (trust.possibly_stale ||
       (trust.approved_count ?? 0) < (trust.expected_count ?? 0))
@@ -240,6 +254,7 @@ export const claudeHeroes: Record<
     title: t("message.0775"),
     action: ["repair", t("message.0764")],
   },
+  other_copy: otherCopyHero,
   disabled: {
     tone: "warn",
     title: t("message.0776"),
@@ -261,7 +276,7 @@ export function claudeChecks(
 ): Check[] {
   const install = claude.install || {};
   const monitor = diagnostics.turn_end_monitor || {};
-  const installed = install.state === "installed";
+  const installed = hooksConnected(install.state);
   return [
     {
       label: t("message.0737"),

@@ -24,6 +24,7 @@ from watched_kettle.integrations.claude_code_hooks import (
     normalize_claude_code_hook,
 )
 from watched_kettle.integrations.claude_code_launcher import (
+    CWD_SCAN_BYTES,
     DETACHED_PROCESS,
     ClaudeCodeLauncher,
     folder_url,
@@ -152,20 +153,40 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual(launcher.open(SESSION, "vscode-panel"), (False, ""))
         self.assertEqual(self.opened, [])
 
-    def test_folder_comes_from_the_newest_transcript_entry(self):
+    def write_transcript(self, config, lines):
+        folder = Path(config, "projects", "c--work")
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / f"{SESSION}.jsonl").write_text(
+            "\n".join(json.dumps(line) for line in lines), encoding="utf-8"
+        )
+
+    def test_folder_is_where_the_session_started(self):
+        # The VS Code window stays on the start folder after the session moves
+        # into a worktree.
         with tempfile.TemporaryDirectory() as config:
-            folder = Path(config, "projects", "c--work")
-            folder.mkdir(parents=True)
-            lines = [
-                {"type": "user", "cwd": "C:\\old"},
-                {"type": "assistant", "cwd": "C:\\work\\kettle"},
-                {"type": "ai-title", "aiTitle": "제목"},
-            ]
-            (folder / f"{SESSION}.jsonl").write_text(
-                "\n".join(json.dumps(line) for line in lines), encoding="utf-8"
+            self.write_transcript(
+                config,
+                [
+                    {"type": "mode", "mode": "normal"},
+                    {"type": "user", "cwd": "C:\\work\\kettle"},
+                    {"type": "user", "cwd": "C:\\work\\kettle\\.claude\\worktrees\\x"},
+                    {"type": "ai-title", "aiTitle": "제목"},
+                ],
             )
             self.assertEqual(transcript_cwd(SESSION, config), "C:\\work\\kettle")
             self.assertIsNone(transcript_cwd("missing-0000", config))
+
+    def test_a_start_too_long_to_read_falls_back_to_the_newest_folder(self):
+        with tempfile.TemporaryDirectory() as config:
+            self.write_transcript(
+                config,
+                [
+                    {"type": "user", "text": "x" * CWD_SCAN_BYTES, "cwd": "C:\\old"},
+                    {"type": "user", "cwd": "C:\\work\\kettle"},
+                    {"type": "assistant", "cwd": "C:\\work\\kettle\\sub"},
+                ],
+            )
+            self.assertEqual(transcript_cwd(SESSION, config), "C:\\work\\kettle\\sub")
 
 
 class OpenUrlTests(unittest.TestCase):
