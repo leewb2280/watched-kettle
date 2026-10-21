@@ -2,7 +2,7 @@
 
 [한국어](README.md) · [English](README.en.md)
 
-[Roadmap (Korean)](ROADMAP.md) · [0.15.9 release notes](docs/release-notes/v0.15.9.en.md) · [Release readiness (Korean)](RELEASE_READINESS.md)
+[Roadmap (Korean)](ROADMAP.md) · [0.15.10 release notes](docs/release-notes/v0.15.10.en.md) · [Release readiness (Korean)](RELEASE_READINESS.md)
 
 **A desktop pet that keeps you posted on your coding agents**
 

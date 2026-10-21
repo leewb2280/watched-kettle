@@ -10296,48 +10296,6 @@
       "context": "watched_kettle\\application\\settings_ui\\core.py; pet speech bubble once after an update",
       "domain": "core"
     },
-    "whats_new.0159.codex_limit": {
-      "value": "Codex가 사용량 한도로 멈추면 언제 다시 쓸 수 있는지 알려 주고, 말풍선이 오래 남지 않아요.",
-      "revision": 1,
-      "variables": {},
-      "context": "watched_kettle\\application\\about.py; 0.15.9 highlight",
-      "domain": "core"
-    },
-    "whats_new.0159.codex_reasons": {
-      "value": "Codex 작업이 멈춘 이유를 배지와 설명으로 알려 줘요. 응답이 끊긴 대화는 15분 뒤 정리해요.",
-      "revision": 1,
-      "variables": {},
-      "context": "watched_kettle\\application\\about.py; 0.15.9 highlight",
-      "domain": "core"
-    },
-    "whats_new.0159.codex_waits": {
-      "value": "Codex가 서브에이전트를 기다리거나 계획을 세우는 중이면 말풍선에 보여요.",
-      "revision": 1,
-      "variables": {},
-      "context": "watched_kettle\\application\\about.py; 0.15.9 highlight",
-      "domain": "core"
-    },
-    "whats_new.0159.claude_background": {
-      "value": "Claude Code가 백그라운드 작업을 남기고 응답을 마치면 그때 완료를 알려 줘요.",
-      "revision": 1,
-      "variables": {},
-      "context": "watched_kettle\\application\\about.py; 0.15.9 highlight",
-      "domain": "core"
-    },
-    "whats_new.0159.claude_open": {
-      "value": "Claude Code 말풍선의 창 열기가 세션을 시작한 폴더의 창을 열어요.",
-      "revision": 1,
-      "variables": {},
-      "context": "watched_kettle\\application\\about.py; 0.15.9 highlight",
-      "domain": "core"
-    },
-    "whats_new.0159.other_install": {
-      "value": "연결이 이 PC의 다른 Watched Kettle 실행본을 가리키면 연결이 풀렸다고 알리지 않아요.",
-      "revision": 1,
-      "variables": {},
-      "context": "watched_kettle\\application\\about.py; 0.15.9 highlight",
-      "domain": "core"
-    },
     "pet.import.invalid_package": {
       "value": "펫 패키지의 파일·규격을 확인하세요. 안전한 PNG/WebP와 pet.json이 필요합니다.",
       "revision": 1,
@@ -10613,6 +10571,13 @@
       "variables": {},
       "context": "settings-ui\\src\\assistant\\Connections.tsx; connection hero button",
       "domain": "assistant"
+    },
+    "whats_new.01510.bubble_repeat": {
+      "value": "펫 말풍선의 장식 개수가 말풍선 높이에 맞춰 바뀔 수 있어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 패키지의 선택적 세로 반복 장식; 0.15.10 새 기능",
+      "domain": "core"
     }
   },
   "retiredIds": [
@@ -10687,6 +10652,12 @@
     "message.0301",
     "whats_new.0158.widget_unlock",
     "whats_new.0158.history_row",
-    "whats_new.0158.widget_preview"
+    "whats_new.0158.widget_preview",
+    "whats_new.0159.codex_limit",
+    "whats_new.0159.codex_reasons",
+    "whats_new.0159.codex_waits",
+    "whats_new.0159.claude_background",
+    "whats_new.0159.claude_open",
+    "whats_new.0159.other_install"
   ]
 }

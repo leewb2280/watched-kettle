@@ -55,6 +55,31 @@ class StagePrivatePetsTests(unittest.TestCase):
                 stage_private_pets(root, root / "stage")
             self.assertFalse((root / "stage").exists())
 
+    def test_repeat_options_and_only_declared_image_survive_staging(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_pet(root / "private-pets", "sample", "private-beta", "tile.png")
+            source = root / "private-pets/sample/pet.json"
+            manifest = json.loads(source.read_text(encoding="utf-8"))
+            manifest["bubbleTheme"]["frame"]["overlay"][0]["repeatY"] = {
+                "gap": 3,
+                "bottomInset": 10,
+            }
+            source.write_text(json.dumps(manifest), encoding="utf-8")
+            stage = root / "stage"
+            stage_private_pets(root, stage)
+            self.assertEqual(
+                source.read_bytes(), (stage / "sample/pet.json").read_bytes()
+            )
+            self.assertEqual(
+                {
+                    p.relative_to(stage / "sample").as_posix()
+                    for p in (stage / "sample").rglob("*")
+                    if p.is_file()
+                },
+                {"pet.json", "spritesheet.webp", "bubble/tile.png"},
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

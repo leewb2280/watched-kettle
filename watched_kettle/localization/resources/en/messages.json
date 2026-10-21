@@ -5656,30 +5656,6 @@
     "sourceRevision": 1,
     "value": "Updated to v{version}. See what's new in Settings → About."
   },
-  "whats_new.0159.codex_limit": {
-    "sourceRevision": 1,
-    "value": "When Codex stops at its usage limit, the bubble says when you can use it again and no longer lingers."
-  },
-  "whats_new.0159.codex_reasons": {
-    "sourceRevision": 1,
-    "value": "Badges and tooltips explain why a Codex task stopped. Conversations that stop responding are cleared after 15 minutes."
-  },
-  "whats_new.0159.codex_waits": {
-    "sourceRevision": 1,
-    "value": "The bubble shows when Codex is waiting on subagents, waiting briefly, or planning."
-  },
-  "whats_new.0159.claude_background": {
-    "sourceRevision": 1,
-    "value": "Claude Code reports completion when it finishes a reply, even with background work still running."
-  },
-  "whats_new.0159.claude_open": {
-    "sourceRevision": 1,
-    "value": "Open window in a Claude Code bubble opens the folder where the session started."
-  },
-  "whats_new.0159.other_install": {
-    "sourceRevision": 1,
-    "value": "No connection-lost notice when Codex or Claude Code points at another Watched Kettle install on this PC."
-  },
   "pet.import.invalid_package": {
     "sourceRevision": 1,
     "value": "Check the pet package files and format. A safe PNG/WebP and pet.json are required."
@@ -5838,5 +5814,9 @@
   "integration.other_copy_action": {
     "sourceRevision": 1,
     "value": "Switch to this copy"
+  },
+  "whats_new.01510.bubble_repeat": {
+    "sourceRevision": 1,
+    "value": "Pet bubble decorations can repeat to fit the bubble height."
   }
 }

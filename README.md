@@ -2,7 +2,7 @@
 
 [한국어](README.md) · [English](README.en.md)
 
-[로드맵](ROADMAP.md) · [0.15.9 패치노트](docs/release-notes/v0.15.9.md) · [배포 준비 상태](RELEASE_READINESS.md)
+[로드맵](ROADMAP.md) · [0.15.10 패치노트](docs/release-notes/v0.15.10.md) · [배포 준비 상태](RELEASE_READINESS.md)
 
 **코딩 에이전트의 작업 상태를 알려 주는 데스크톱 펫**
 

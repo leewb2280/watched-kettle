@@ -9,6 +9,7 @@ frame here so painting code can look it up without re-reading the package.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from pathlib import Path
 import re
 
@@ -36,6 +37,8 @@ THEME_COLOR_NAMES = frozenset({"border", "shadow", "background", "text"})
 FRAME_IMAGE_SUFFIXES = frozenset({".png", ".webp"})
 MAX_FRAME_LAYERS = 8
 MAX_FRAME_IMAGE_BYTES = 4 * 1024 * 1024
+MAX_FRAME_REPEATS = 256
+REPEAT_Y_ANCHORS = frozenset({"top-left", "top-center", "top-right"})
 _OFFSET_LIMIT = 200.0
 _SIZE_LIMIT = (0.5, 200.0)
 
@@ -52,6 +55,12 @@ class FrameHalo:
 
 
 @dataclass(frozen=True)
+class FrameRepeatY:
+    gap: float = 0.0
+    bottom_inset: float = 0.0
+
+
+@dataclass(frozen=True)
 class FrameLayer:
     anchor: str
     x: float
@@ -64,6 +73,7 @@ class FrameLayer:
     color: str = ""
     alpha: int = 255
     mirror: bool = False
+    repeat_y: FrameRepeatY | None = None
 
 
 @dataclass(frozen=True)
@@ -183,7 +193,22 @@ def _layer(raw, package_directory):
         color=_color_ref(raw.get("tint"), ""),
         alpha=_alpha(raw.get("alpha")),
         mirror=raw.get("mirror") is True,
+        repeat_y=_repeat_y(raw.get("repeatY"), anchor),
     )
+
+
+def _repeat_y(raw, anchor):
+    if not isinstance(raw, dict) or anchor not in REPEAT_Y_ANCHORS:
+        return None
+    values = [raw.get(key, 0) for key in ("gap", "bottomInset")]
+    if any(
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not 0 <= value <= _OFFSET_LIMIT
+        for value in values
+    ):
+        return None
+    return FrameRepeatY(*(float(value) for value in values))
 
 
 def _package_image(value, package_directory):
@@ -215,7 +240,11 @@ def _alpha(value):
 
 
 def _number(value, fallback, minimum, maximum):
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or (isinstance(value, float) and not math.isfinite(value))
+    ):
         return float(fallback)
     return float(min(max(value, minimum), maximum))
 
@@ -224,7 +253,10 @@ def _numbers(value, count, minimum, maximum):
     if not isinstance(value, (list, tuple)) or len(value) != count:
         return None
     if any(
-        isinstance(item, bool) or not isinstance(item, (int, float)) for item in value
+        isinstance(item, bool)
+        or not isinstance(item, (int, float))
+        or (isinstance(item, float) and not math.isfinite(item))
+        for item in value
     ):
         return None
     return tuple(float(min(max(item, minimum), maximum)) for item in value)

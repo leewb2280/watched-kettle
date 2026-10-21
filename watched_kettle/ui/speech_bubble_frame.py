@@ -1,11 +1,12 @@
 """Paint package-declared outer bubble decorations (``pet/bubble_frame.py``)."""
 
 from functools import lru_cache
+import math
 
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QImage, QPainter, QPainterPath, QPen, QPixmap
 
-from watched_kettle.pet.bubble_frame import registered_frame
+from watched_kettle.pet.bubble_frame import MAX_FRAME_REPEATS, registered_frame
 
 
 def frame_insets(theme, scale=1.0):
@@ -99,7 +100,37 @@ def _paint_layers(painter, rect, theme, layers, scale):
             painter.drawEllipse(origin, radius, radius)
             painter.restore()
             continue
-        _paint_image(painter, origin, theme, layer, scale)
+        if layer.repeat_y is None:
+            _paint_image(painter, origin, theme, layer, scale)
+        else:
+            _paint_repeated_image(painter, rect, origin, theme, layer, scale)
+
+
+def _paint_repeated_image(painter, rect, origin, theme, layer, scale):
+    height = layer.height * scale
+    step = (layer.height + layer.repeat_y.gap) * scale
+    bottom = rect.bottom() - layer.repeat_y.bottom_inset * scale
+    if (
+        scale <= 0
+        or height <= 0
+        or step <= 0
+        or not all(
+            math.isfinite(value)
+            for value in (scale, height, step, bottom, rect.top(), origin.y())
+        )
+    ):
+        return
+    # Subpixel scaling must not lose a complete tile exactly on a boundary.
+    tolerance = 1e-7 * scale
+    first = max(0, math.ceil((rect.top() - origin.y() - tolerance) / step))
+    last = math.floor((bottom - origin.y() - height + tolerance) / step)
+    count = min(MAX_FRAME_REPEATS, max(0, last - first + 1))
+    painter.save()
+    painter.setClipRect(rect, Qt.ClipOperation.IntersectClip)
+    for index in range(first, first + count):
+        position = QPointF(origin.x(), origin.y() + index * step)
+        _paint_image(painter, position, theme, layer, scale)
+    painter.restore()
 
 
 def _paint_image(painter, origin, theme, layer, scale):

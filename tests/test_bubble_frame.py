@@ -9,10 +9,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PIL import Image
 from PySide6.QtCore import QRectF, Qt
-from PySide6.QtGui import QColor, QGuiApplication, QImage, QPainter
+from PySide6.QtGui import QColor, QImage, QPainter
+from PySide6.QtWidgets import QApplication
 
 from watched_kettle.pet.bubble_frame import (
     MAX_FRAME_LAYERS,
+    MAX_FRAME_REPEATS,
     is_frame_style,
     parse_frame,
     register_package_frame,
@@ -24,7 +26,11 @@ from watched_kettle.pet.bubble_theme import (
     bubble_theme_from_manifest,
 )
 from watched_kettle.pet.preferences import PetPreferences
-from watched_kettle.ui.speech_bubble_frame import content_padding, inner_border
+from watched_kettle.ui.speech_bubble_frame import (
+    content_padding,
+    inner_border,
+    paint_frame_overlay,
+)
 from watched_kettle.ui.speech_bubble_paint import (
     bubble_frame_insets,
     paint_bubble_backdrop,
@@ -82,6 +88,83 @@ class BubbleFrameParsingTests(unittest.TestCase):
 
         self.assertEqual(len(frame.backdrop), MAX_FRAME_LAYERS)
 
+    def test_repeat_y_only_accepts_bounded_image_options_and_top_anchors(self):
+        image = {"image": "bubble/mask.png", "anchor": "top-left"}
+        for anchor in ("top-left", "top-center", "top-right"):
+            frame = parse_frame(
+                {
+                    "overlay": [
+                        {
+                            **image,
+                            "anchor": anchor,
+                            "repeatY": {"gap": 3, "bottomInset": 10},
+                        }
+                    ]
+                },
+                self.root,
+            )
+            self.assertEqual(frame.overlay[0].repeat_y.gap, 3)
+            self.assertEqual(frame.overlay[0].repeat_y.bottom_inset, 10)
+        for options in (
+            True,
+            [],
+            "y",
+            {"gap": -1},
+            {"gap": True},
+            {"gap": 201},
+            {"bottomInset": -1},
+            {"bottomInset": "10"},
+            {"gap": float("nan")},
+            {"gap": float("inf")},
+            {"gap": 10**1000},
+        ):
+            with self.subTest(options=options):
+                frame = parse_frame(
+                    {"overlay": [{**image, "repeatY": options}]}, self.root
+                )
+                self.assertEqual(len(frame.overlay), 1)
+                self.assertIsNone(frame.overlay[0].repeat_y)
+        for anchor in ("center-left", "bottom-left", "arc-top-left"):
+            frame = parse_frame(
+                {"overlay": [{**image, "anchor": anchor, "repeatY": {}}]}, self.root
+            )
+            self.assertIsNone(frame.overlay[0].repeat_y)
+        frame = parse_frame(
+            {
+                "overlay": [
+                    {
+                        "anchor": "top-left",
+                        "circle": {"radius": 2, "color": "text"},
+                        "repeatY": {},
+                    }
+                ]
+            },
+            self.root,
+        )
+        self.assertIsNone(frame.overlay[0].repeat_y)
+        frame = parse_frame({"overlay": [{**image, "repeatY": {}}]}, self.root)
+        self.assertEqual(frame.overlay[0].repeat_y.gap, 0)
+
+    def test_nonfinite_dimensions_and_padding_do_not_escape_validation(self):
+        frame = parse_frame(
+            {
+                "contentPadding": [float("nan"), 2, 3],
+                "overlay": [
+                    {
+                        "image": "bubble/mask.png",
+                        "anchor": "top-left",
+                        "width": float("inf"),
+                        "height": float("nan"),
+                        "x": 10**1000,
+                    }
+                ],
+            },
+            self.root,
+        )
+        self.assertIsNone(frame.content_padding)
+        self.assertEqual((frame.overlay[0].width, frame.overlay[0].height), (16, 16))
+        self.assertEqual(frame.overlay[0].x, 200)
+
     def test_manifest_frame_names_the_package_frame(self):
         manifest = {"id": "sample", "bubbleTheme": {"frame": {"insets": [1, 2, 3, 4]}}}
 
@@ -127,7 +210,7 @@ class BubbleFrameParsingTests(unittest.TestCase):
 class BubbleFramePaintTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.app = QGuiApplication.instance() or QGuiApplication([])
+        cls.app = QApplication.instance() or QApplication([])
 
     def setUp(self):
         self.directory = TemporaryDirectory()
@@ -208,6 +291,135 @@ class BubbleFramePaintTests(unittest.TestCase):
         self.assertEqual(bubble_frame_insets(theme, 1.4), (0.0, 0.0, 0.0, 0.0))
         self.assertEqual(content_padding(theme, 1, 2), (1, 2, 0))
         self.assertEqual(inner_border(theme).alpha(), 115)
+
+
+class RepeatedFramePaintTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.temp = TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        tile = Image.new("RGBA", (8, 6), (0, 0, 0, 0))
+        for x in range(4):
+            for y in range(6):
+                tile.putpixel((x, y), (30, 70, 130, 255))
+        tile.save(self.root / "tile.png")
+
+    def render(self, body_height, scale=1.0, **options):
+        layer = {
+            "image": "tile.png",
+            "anchor": "top-left",
+            "x": 2,
+            "y": 3,
+            "width": 8,
+            "height": 6,
+            "repeatY": {"gap": 4, "bottomInset": 5},
+            **options,
+        }
+        manifest = {
+            "id": "repeated-fixture",
+            "bubbleTheme": {"frame": {"overlay": [layer]}},
+        }
+        register_package_frame(manifest, self.root)
+        theme = bubble_theme_from_manifest(manifest)
+        self.theme = theme
+        image = QImage(
+            round(180 * scale),
+            round((body_height + 40) * scale),
+            QImage.Format.Format_ARGB32,
+        )
+        image.fill(Qt.GlobalColor.transparent)
+        body = QRectF(10 * scale, 10 * scale, 120 * scale, body_height * scale)
+        painter = QPainter(image)
+        paint_frame_overlay(painter, body, theme, scale)
+        painter.end()
+        return image
+
+    @staticmethod
+    def runs(image, x):
+        active = [image.pixelColor(x, y).alpha() > 32 for y in range(image.height())]
+        return sum(
+            value and (i == 0 or not active[i - 1]) for i, value in enumerate(active)
+        )
+
+    def test_height_controls_whole_tiles_at_exact_boundaries(self):
+        for height, expected in (
+            (13, 0),
+            (14, 1),
+            (23, 1),
+            (24, 2),
+            (40, 3),
+            (24, 2),
+            (14, 1),
+        ):
+            with self.subTest(height=height):
+                image = self.render(height)
+                self.assertEqual(self.runs(image, 13), expected)
+                # No fragment occupies the reserved bottom margin.
+                self.assertTrue(
+                    all(
+                        image.pixelColor(13, y).alpha() == 0
+                        for y in range(10 + height - 5, image.height())
+                    )
+                )
+
+    def test_scales_and_top_anchors_keep_count_and_spacing(self):
+        for scale in (0.8, 1, 1.25, 1.4, 1.5, 2):
+            for anchor, x, sample_x in (
+                ("top-left", 2, 13),
+                ("top-center", -4, 67),
+                ("top-right", -8, 123),
+            ):
+                with self.subTest(scale=scale, anchor=anchor):
+                    image = self.render(34, scale, anchor=anchor, x=x)
+                    self.assertEqual(self.runs(image, round(sample_x * scale)), 3)
+
+    def test_tint_opacity_and_mirror_apply_to_every_copy(self):
+        image = self.render(40, tint="#123456", alpha=128, mirror=True)
+        for y in (15, 25, 35):
+            self.assertEqual(image.pixelColor(13, y).alpha(), 0)
+            self.assertEqual(image.pixelColor(18, y), QColor(18, 52, 86, 128))
+
+    def test_invalid_repeat_keeps_single_layer_and_outside_button(self):
+        for repeat in (None, {"gap": -1}, {"bottomInset": float("nan")}):
+            image = self.render(40, repeatY=repeat, y=-4)
+            self.assertEqual(self.runs(image, 13), 1)
+            self.assertGreater(image.pixelColor(13, 7).alpha(), 0)
+
+    def test_negative_start_skips_partial_top_and_repeat_count_is_bounded(self):
+        image = self.render(40, y=-2)
+        self.assertEqual(image.pixelColor(13, 9).alpha(), 0)
+        self.assertEqual(self.runs(image, 13), 3)
+        image = self.render(1000, height=1, y=0, repeatY={"gap": 1})
+        self.assertEqual(self.runs(image, 13), MAX_FRAME_REPEATS)
+
+    def test_existing_theme_preview_repeats_and_resizes_without_changing_theme(self):
+        from watched_kettle.ui.bubble_theme_preview import BubbleThemePreview
+
+        self.render(40)
+        preview = BubbleThemePreview(None)
+        self.addCleanup(preview.close)
+        preview.set_theme(self.theme)
+        counts = []
+        for height in (205, 305, 205):
+            preview.resize(460, height)
+            image = QImage(preview.size(), QImage.Format.Format_ARGB32)
+            image.fill(Qt.GlobalColor.transparent)
+            preview.render(image)
+            active = [
+                image.pixelColor(21, y) == QColor(30, 70, 130)
+                for y in range(image.height())
+            ]
+            counts.append(
+                sum(v and (i == 0 or not active[i - 1]) for i, v in enumerate(active))
+            )
+        self.assertGreater(counts[0], 1)
+        self.assertGreater(counts[1], counts[0])
+        self.assertEqual(counts[0], counts[2])
+        self.assertIs(preview.theme, self.theme)
 
 
 if __name__ == "__main__":

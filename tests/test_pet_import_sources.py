@@ -182,6 +182,28 @@ class PetSourceTests(unittest.TestCase):
         self.assertEqual(wire["warnings"], [])
         self.assertFalse(wire["omittedThemeReferences"])
 
+    def test_repeat_options_survive_folder_zip_commit_and_change_identity(self):
+        folder, manifest = self.package(decorated=True)
+        layer = manifest["bubbleTheme"]["frame"]["overlay"][0]
+        layer["repeatY"] = {"gap": 3, "bottomInset": 10}
+        (folder / "pet.json").write_text(json.dumps(manifest), encoding="utf-8")
+        prepared = self.importer.prepare(folder)
+        imported = self.importer.commit(prepared.token, prepared.name)
+        target = self.root / "pets" / imported.id
+        saved = json.loads((target / "pet.json").read_text(encoding="utf-8"))
+        saved_layer = saved["bubbleTheme"]["frame"]["overlay"][0]
+        self.assertEqual(saved_layer["repeatY"], {"gap": 3, "bottomInset": 10})
+        self.assertTrue((target / saved_layer["image"]).is_file())
+        load_pet(target)
+        frame = registered_frame(frame_style_for(imported.id))
+        self.assertEqual(frame.overlay[0].repeat_y.gap, 3)
+        self.assertEqual(frame.overlay[0].repeat_y.bottom_inset, 10)
+        zipped = self.importer.prepare(self.archive(folder))
+        self.assertEqual(zipped.pet_id, imported.id)
+        layer["repeatY"]["gap"] = 4
+        (folder / "pet.json").write_text(json.dumps(manifest), encoding="utf-8")
+        self.assertNotEqual(self.importer.prepare(folder).pet_id, imported.id)
+
     def test_archive_rejects_unsafe_layouts_and_links(self):
         folder, _ = self.package()
         for extra in (

@@ -96,6 +96,21 @@ A dot layer is `circle: {"radius", "color"}`. A color is `#rrggbb` or a theme co
 `alpha` is 0–255. While running, malformed layers are not drawn, and values are clamped to the allowed ranges.
 If an image points outside the package or does not exist, the Windows build fails.
 
+### Repeat images to fit the body height (0.15.10 or newer)
+
+An image layer can declare `"repeatY": {"gap": 3, "bottomInset": 10}` to repeat downwards from its
+existing `x` and `y`. Only `top-left`, `top-center` and `top-right` anchors support repetition.
+`gap` is the space between copies and `bottomInset` reserves space above the body bottom.
+Both default to 0 and accept finite numbers from 0 to 200. Image size, gaps and insets follow the bubble scale;
+copies are never stretched to fill the available space. At most 256 whole copies fitting vertically inside the
+body are painted, or none when there is no space. Only the repeated layer is clipped to the body rectangle;
+existing decorations outside the body are unaffected.
+
+Missing or invalid repeat settings, unsupported anchors and circle layers retain the existing single decoration.
+Opacity, tint and horizontal mirroring apply to every copy. No new settings UI is required; live bubbles and
+the existing preview share the painter. Folder and ZIP import preserve the options and image.
+Older apps ignore this option, so distribution packs requiring repetition must set their minimum app version to 0.15.10 or newer.
+
 When adding a new format, existing versions must be detected automatically, and invalid fields must either fall back to
 safe defaults or produce a clear load error. Public builds include only `distribution=public`
 assets.

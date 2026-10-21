@@ -66,6 +66,8 @@ flowchart TD
     B --> W[ActionableBubbleWindow]
     W --> R[ProjectBubbleRows · WrappedTitleButton]
     T[SpeechBubbleTheme · 공통 그리기] --> W
+    PF[펫 패키지 frame: 고정·repeatY 이미지] --> BF[pet/bubble_frame: 검증·메모리 등록]
+    BF --> T
     W --> O[NotificationActionRouter: 대화·상세 화면 이동]
     O --> EH[SettingsWindowHost: 상세 이동·공통 홈·창 재사용·실패 안내]
     I -.관측.-> D[진단 콜백 · ApplicationRuntime 연결 · 기존 app.log]
@@ -189,7 +191,7 @@ Claude Code는 중단·권한 거절·패널 닫기 때 종료 이벤트를 보�
 | 제목 측정·최대 두 줄·말줄임 | `ui/wrapped_title_button.py` | 프로젝트 집계 |
 | 공통 창·글꼴·외형·배치 계산 | `ui/speech_bubble_window.py`, `speech_bubble_paint.py`, `speech_bubble_decorations.py` | 알림 전달 정책 |
 | 테마 정규화·자산·편집 | `pet/bubble_theme.py`, `ui/bubble_elements.py`, 미리보기 `ui/bubble_theme_preview.py`, 초안·미리보기 세대는 `settings-ui/src/core/useBubbleEditor.ts`, 표시는 `core/BubbleEditorDialog.tsx` | 실행 상태 변경 |
-| 펫 패키지의 바깥 장식 검증·등록과 그리기 | `pet/bubble_frame.py`(로더가 `pet:<id>`로 등록), `ui/speech_bubble_frame.py` | 상태·표시 기한·배치 결정 |
+| 펫 패키지의 바깥 장식 검증·등록과 그리기 | `pet/bubble_frame.py`(로더가 `pet:<id>`로 등록; repeatY 옵션 검증), `ui/speech_bubble_frame.py`(본문 높이 내 완전한 이미지 반복) | 상태·표시 기한·창 배치 결정 |
 | 펫·위젯 고정(클릭 통과)과 전역 단축키 | 펫 창 플래그는 `pet/window.py`, 버튼 말풍선은 `ActionableBubbleController.sync_click_through`, 위젯은 `ui/usage_widget/window.py`, 단축키 등록은 `integrations/windows_hotkeys.py`, 조립은 두 runtime의 `application/click_through.py` | 말풍선 상태·표시 기한·클릭 대상 변경, 고정 여부로 활동 상태 추정 |
 | 펫 더블클릭의 설정 조회·명시적 이동 | `application/pet_actions.py`, 신호는 `pet/pointer_interaction.py`, 두 runtime이 생성·종료 | 활동·알림·애니메이션 상태 변경, 마지막 이벤트로 목적지 추정 |
 | Codex·VS Code 앱 자체 열기 | 공통 창 찾기·복원·활성화·시작은 `integrations/windows_apps.py`, 등록 GUI 경로 조회는 `codex_launcher.py`(패키지·`codex` 처리기)와 `vscode_launcher.py`(`vscode` 처리기) | URL 이동·새 대화·세션 재개·수집 서비스 활성화, Claude Code 확장 링크 호출 |
@@ -651,6 +653,14 @@ Codex의 `wait_agent`·`collaboration.wait_agent`·`functions.wait_agent` 호출
 - 기본 배치는 펫 위의 세로 스택이며 우선 카드가 펫에 가깝다. 화면 작업 영역 안으로 제한하고, 상단 충돌 시 옆 또는 아래 공간으로 옮긴다. 필요한 경우 펫과 겹치는 부분을 마스킹한다. 배치를 위해 펫을 이동하지 않는다.
 - 실사용 카드 경로는 현재 꼬리를 지정하지 않는다(`set_tail_side(None)`). 테마와 기반 창에 꼬리 기능이 있다는 사실과 실사용 카드의 현재 표현을 구분한다.
 - 공통 테마는 색·도형·테두리·장식·너비·배율을 담당한다. 프로젝트 헤더와 행의 정렬은 전용 레이아웃이 결정하므로 테마의 일반 텍스트 정렬을 그대로 적용하는 구조가 아니다.
+
+펫 패키지 이미지의 선택적 `repeatY`는 장식 모델에서 유한한 간격·하단 여백(각 0~200)과 위쪽 앵커를
+검증해 메모리에 등록한다. 공통 프레임 painter는 본문 높이 안의 완전한 이미지에 한해 최대 256개를
+반복하고 반복 층만 본문 사각 영역으로 클립한다. 이미지 크기·간격·여백은 함께 배율을 따르고
+장식이 창 높이를 늘리거나 상태·스크롤·표시 수명을 바꾸지 않는다. 일반 층·잘못된 반복 설정은 기존
+단일 장식이다. 실제 창과 독립 미리보기는 같은 경로를 사용하며 별도 설정 UI·DTO·타이머를 추가하지 않는다.
+BA-01·BA-05·BA-06·BA-07·BA-10을 보존하며 `test_bubble_frame`의 높이·배율·미리보기·상한과
+`test_pet_import_sources`의 폴더·ZIP·식별 해시 보존 회귀로 확인한다.
 - 말풍선 배율은 80~140%, 기본 100%다. 말풍선 글꼴의 `PreferNoHinting`은 배율 변경 후에도 유지한다.
 
 ## 6. 숨김·알림·클릭·저장
