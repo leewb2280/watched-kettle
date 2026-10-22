@@ -20,11 +20,35 @@ const out = process.env.SETTINGS_QA_OUT
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function until(fn, timeout = 10000) {
   const end = Date.now() + timeout;
+  // Attempts and the slowest one tell a slow backend from a lost action.
+  let attempts = 0;
+  let slowest = 0;
   while (Date.now() < end) {
-    if (await fn()) return;
+    const started = Date.now();
+    const done = await fn();
+    attempts += 1;
+    slowest = Math.max(slowest, Date.now() - started);
+    if (done) return;
     await pause(40);
   }
-  throw Error("condition timed out");
+  throw Error(
+    `condition timed out after ${attempts} attempts (slowest ${slowest}ms)`,
+  );
+}
+// The host sends invalidations 80ms after a change (settings_ui/host.py), and
+// the dialog reloads again when one arrives. An action clicked in between is
+// dropped, so "settled" means not busy for longer than that delay.
+const QUIET_MS = 250;
+async function settledFor(locator, timeout = 10000) {
+  let quietSince = null;
+  await until(async () => {
+    if ((await locator.getAttribute("aria-busy")) !== "false") {
+      quietSince = null;
+      return false;
+    }
+    quietSince ??= Date.now();
+    return Date.now() - quietSince >= QUIET_MS;
+  }, timeout);
 }
 
 async function testPetBatch({ page, app, connection, out, metrics }) {
@@ -42,13 +66,7 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
   await page.getByRole("button", { name: "펫 관리", exact: true }).click();
   const bulkManager = page.locator("dialog:has(.pet-manager)");
   const bulkSettled = () =>
-    until(
-      async () =>
-        (await bulkManager
-          .locator(".pet-manager")
-          .getAttribute("aria-busy")) === "false",
-      30000,
-    );
+    settledFor(bulkManager.locator(".pet-manager"), 30000);
   const bulkStatus = () =>
     page.evaluate(async () => {
       const state = await window.settings.request("settings.snapshot");
@@ -887,12 +905,7 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       exact: true,
     });
     const settled = () =>
-      until(
-        async () =>
-          (await page
-            .locator("dialog:has(.pet-manager) .pet-manager")
-            .getAttribute("aria-busy")) === "false",
-      );
+      settledFor(page.locator("dialog:has(.pet-manager) .pet-manager"));
     const rowFor = (id) => catalogDialog.locator(`[data-pet-id="${id}"]`);
     const menuAction = async (id, label) => {
       const row = rowFor(id);

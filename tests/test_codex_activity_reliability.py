@@ -97,6 +97,8 @@ class CollectorReliabilityTests(unittest.TestCase):
             with self.subTest(error=type(error).__name__):
                 bad, good = Path("missing.jsonl"), Path("healthy.jsonl")
                 self.monitor._positions = {bad: 0, good: 0}
+                # The failing file comes first in every case.
+                self.monitor._round_robin = 0
                 seen = []
 
                 def read(path):
@@ -105,6 +107,13 @@ class CollectorReliabilityTests(unittest.TestCase):
                     seen.append(path)
 
                 with (
+                    # A frozen clock keeps the 20ms poll budget out of this test:
+                    # Windows ticks about every 15.6ms, so a slow runner could
+                    # stop after the failing file.
+                    patch(
+                        "watched_kettle.integrations.codex_log.monotonic",
+                        return_value=0.0,
+                    ),
                     patch.object(self.monitor, "_discover_recent_files"),
                     patch.object(self.monitor, "_read_new_records", side_effect=read),
                     patch.object(self.monitor, "_poll_usage"),
