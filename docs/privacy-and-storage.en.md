@@ -115,7 +115,10 @@ and, in an installed copy with `Check for updates automatically` (on by default)
 since the last answer; 3 hours later after a failure). Running from source or a ZIP never checks on its own. Each check sends a single
 `User-Agent: WatchedKettle-update-check` request to the GitHub Releases address built into the build (`api.github.com`); no account, device or usage
 history is sent. Automatic checks keep only the time of the last answer and the version announced in the settings (`[updates]`) (the last launched version is kept in the same place so the post-update bubble appears only once), and when a new version is found,
-the app only announces it and does not download it. As with any HTTPS request, GitHub receives your IP address. From the response, only the latest version tag and the Release page address
+the app only announces it and does not download it. Since 0.15.10, when `Install updates automatically` (on by default, `updates/autoInstall`) is also on,
+the app downloads the update index and the zip of changed files for the version an automatic check finds, in the same way as the partial update path below,
+without a click, prepares it, and applies it at the next start. When the installer is needed, it is not downloaded; the app only announces the version
+([ADR 0009 (Korean)](decisions/0009-automatic-updates.md)). As with any HTTPS request, GitHub receives your IP address. From the response, only the latest version tag and the Release page address
 are checked, and they are not stored. If there is no Release yet, GitHub returns 404 and the app only reports that. Clicking `View release notes`
 opens the Release page in your browser. Since 0.15.5, checks go to the Releases of `leewb2280/watched-kettle-updates`, a public repository
 that holds only update files, and `View release notes` opens the same version's Release in the main repository `leewb2280/watched-kettle`

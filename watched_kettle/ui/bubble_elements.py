@@ -23,6 +23,7 @@ MAX_ELEMENT_DIMENSION = 1024
 MAX_SOURCE_FILE_BYTES = 20 * 1024 * 1024
 ELEMENT_KINDS = frozenset({"ornament", "pattern", "photo", "frame", "sticker"})
 ELEMENT_SUFFIXES = frozenset({".png", ".webp"})
+ELEMENT_FORMATS = ("PNG", "WEBP")
 SOURCE_SUFFIXES = frozenset({".png", ".webp", ".jpg", ".jpeg"})
 SOURCE_FORMATS = frozenset({"PNG", "WEBP", "JPEG"})
 
@@ -191,7 +192,7 @@ class BubbleElementRegistry:
                 raise BubbleElementError(t("message.0245"))
             if path.stat().st_size > MAX_ELEMENT_FILE_BYTES:
                 raise BubbleElementError(t("message.0246"))
-            with Image.open(path) as image:
+            with Image.open(path, formats=ELEMENT_FORMATS) as image:
                 image_format = str(image.format or "").upper()
                 width, height = image.size
                 image.verify()
@@ -221,7 +222,7 @@ def _open_source(path):
             raise BubbleElementError(t("message.0241"))
         if path.stat().st_size > MAX_SOURCE_FILE_BYTES:
             raise BubbleElementError(t("message.0242"))
-        with Image.open(path) as source:
+        with Image.open(path, formats=tuple(SOURCE_FORMATS)) as source:
             if str(source.format or "").upper() not in SOURCE_FORMATS:
                 raise BubbleElementError(t("message.0250"))
             image = ImageOps.exif_transpose(source)

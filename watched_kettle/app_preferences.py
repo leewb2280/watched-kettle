@@ -135,6 +135,13 @@ class ApplicationPreferences:
     def save_update_auto_check(self, enabled):
         self.settings.setValue("updates/autoCheck", bool(enabled))
 
+    def load_update_auto_install(self):
+        """Stage an update an automatic check finds for the next start."""
+        return self.settings.value("updates/autoInstall", True, type=bool)
+
+    def save_update_auto_install(self, enabled):
+        self.settings.setValue("updates/autoInstall", bool(enabled))
+
     def load_update_last_check(self):
         """When an automatic check last got an answer, in epoch seconds."""
         try:

@@ -113,6 +113,18 @@ export function CoreAppPage({
             change={(value) => change("update_auto_check", value)}
           />
         </div>
+        <div className="setting-row">
+          <div>
+            <h3>{t("update.auto_install")}</h3>
+            <p>{t("update.auto_install_description")}</p>
+          </div>
+          <Switch
+            label={t("update.auto_install")}
+            value={snapshot.update.auto_install}
+            disabled={!snapshot.update.auto_check}
+            change={(value) => change("update_auto_install", value)}
+          />
+        </div>
       </Section>
     </div>
   );

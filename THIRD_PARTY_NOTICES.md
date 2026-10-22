@@ -25,7 +25,7 @@ unmodified components. Their complete license texts are copied into the
   through the unmodified, dynamically loaded libraries under the bundle's
   `_internal/PySide6` folder, which a user may replace with compatible builds.
   Qt and Qt for Python source code is available from https://code.qt.io.
-- Pillow 12 — MIT-CMU (HPND) License, including the notices of the image
+- Pillow 13 — MIT-CMU (HPND) License, including the notices of the image
   libraries Pillow bundles (`licenses/Pillow`)
 - Babel 2.17 — BSD-3-Clause License and Unicode CLDR data notices
   (`licenses/Babel`)

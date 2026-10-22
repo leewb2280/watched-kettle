@@ -35,6 +35,7 @@ module.exports = {
     "element.delete",
     "update.check",
     "update.download",
+    "update.apply",
     "update.cancel",
     "update.open",
     "about.open_licenses",

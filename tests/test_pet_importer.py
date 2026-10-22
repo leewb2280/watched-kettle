@@ -136,9 +136,18 @@ class PetImporterTests(unittest.TestCase):
         source.write_bytes(b"broken")
         with self.assertRaisesRegex(PetImportError, "손상"):
             self.importer.prepare(source)
-        Image.new("RGB", (12, 12)).save(source, format="JPEG")
-        with self.assertRaisesRegex(PetImportError, "PNG"):
-            self.importer.prepare(source)
+        # Other formats name the choice without reaching their decoders.
+        for name in ("JPEG", "GIF", "BMP", "TIFF"):
+            Image.new("RGB", (12, 12)).save(source, format=name)
+            with (
+                self.subTest(format=name),
+                patch(
+                    "PIL.TiffImagePlugin.TiffImageFile._open",
+                    side_effect=AssertionError("TIFF decoder used"),
+                ),
+                self.assertRaisesRegex(PetImportError, "PNG"),
+            ):
+                self.importer.prepare(source)
         next_frame = make_atlas()
         next_frame.putpixel((31, 31), (255, 0, 0, 255))
         make_atlas().save(

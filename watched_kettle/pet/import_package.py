@@ -18,6 +18,9 @@ MAX_PACKAGE_BYTES = 96 * 1024 * 1024
 MAX_ARCHIVE_BYTES = 64 * 1024 * 1024
 MAX_PACKAGE_FILES = 64
 MAX_DECORATION_BYTES = 4 * 1024 * 1024
+# Pet images are opened only as these, so no other Pillow decoder ever sees
+# a downloaded or imported file.
+PET_IMAGE_FORMATS = ("PNG", "WEBP")
 
 
 class PackageError(ValueError):
@@ -253,7 +256,9 @@ def normalize_manifest(raw, read):
                         if PurePosixPath(name).suffix.lower() not in {".png", ".webp"}:
                             raise invalid()
                         data = read(name, MAX_DECORATION_BYTES)
-                        with Image.open(BytesIO(data)) as image:
+                        with Image.open(
+                            BytesIO(data), formats=PET_IMAGE_FORMATS
+                        ) as image:
                             if (
                                 image.format not in {"PNG", "WEBP"}
                                 or image.width * image.height > 4000000

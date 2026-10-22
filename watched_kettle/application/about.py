@@ -29,7 +29,7 @@ THIRD_PARTY = (
 
 def whats_new():
     """This version's highlights, in the active language."""
-    return [t("whats_new.01510.bubble_repeat")]
+    return [t("whats_new.01510.auto_update"), t("whats_new.01510.bubble_repeat")]
 
 
 def links(version=APPLICATION_VERSION):

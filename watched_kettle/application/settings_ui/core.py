@@ -62,6 +62,7 @@ from watched_kettle.config import (
 from watched_kettle.pet import bubble_theme as themes
 from watched_kettle.pet.bubble_frame import frame_style_for, registered_frame
 from watched_kettle.pet.catalog import order_pet_entries
+from watched_kettle.pet.import_package import PET_IMAGE_FORMATS
 from watched_kettle.pet.importer import (
     IMPORT_LIFETIME_SECONDS,
     PetImportError,
@@ -152,6 +153,7 @@ class CoreSettingsAdapter(QObject):
         self.updates = self.settings_vm.updates
         self.updates.changed.connect(self._update_changed)
         self.updates.found.connect(self._update_found)
+        self.updates.staged_ready.connect(self._update_staged)
         self.update_schedule = UpdateCheckSchedule(
             self.updates, preferences, parent=self
         )
@@ -201,6 +203,16 @@ class CoreSettingsAdapter(QObject):
         self.preferences.save_update_announced_version(version)
         shown = self.pet_vm.announce(t("message.0021").format(version=version))
         log_event("application.update", "announced", version=version, shown=shown)
+
+    def _update_staged(self, version):
+        """Tell once that an automatic update waits for the next start."""
+        if self.preferences.load_update_announced_version() == version:
+            return
+        self.preferences.save_update_announced_version(version)
+        shown = self.pet_vm.announce(t("update.staged_notice", version=version))
+        log_event(
+            "application.update", "staged_announced", version=version, shown=shown
+        )
 
     @staticmethod
     def _signature(snapshot):
@@ -527,6 +539,7 @@ class CoreSettingsAdapter(QObject):
                 dict(
                     self.updates.snapshot(),
                     auto_check=self.preferences.load_update_auto_check(),
+                    auto_install=self.preferences.load_update_auto_install(),
                 ),
             ),
             about=cast(
@@ -607,7 +620,7 @@ class CoreSettingsAdapter(QObject):
     @staticmethod
     def _idle_cell(entry):
         """Return the first idle cell cropped to its content plus an 8px margin."""
-        with Image.open(entry.spritesheet_path) as atlas:
+        with Image.open(entry.spritesheet_path, formats=PET_IMAGE_FORMATS) as atlas:
             frame = atlas.crop((0, 0, FRAME_WIDTH, FRAME_HEIGHT)).convert("RGBA")
         alpha_bounds = frame.getchannel("A").getbbox()
         content_bounds = alpha_bounds or (0, 0, FRAME_WIDTH, FRAME_HEIGHT)
@@ -913,6 +926,10 @@ class CoreSettingsAdapter(QObject):
             )
             self.updates.download()
             return dict(pending=True)
+        elif method == "update.apply":
+            require(self.updates.state == "staged", t("message.0564"))
+            self.updates.apply_now()
+            return dict(pending=True)
         elif method == "update.cancel":
             self.updates.cancel()
             return dict(pending=True)
@@ -1071,6 +1088,9 @@ class CoreSettingsAdapter(QObject):
             self.preferences.save_double_click_action(
                 choice(value, DOUBLE_CLICK_ACTIONS)
             )
+        elif key == "update_auto_install":
+            self.preferences.save_update_auto_install(boolean(value))
+            self.updates.set_auto_install(boolean(value))
         elif key == "update_auto_check":
             self.preferences.save_update_auto_check(boolean(value))
             self.update_schedule.set_enabled(boolean(value))

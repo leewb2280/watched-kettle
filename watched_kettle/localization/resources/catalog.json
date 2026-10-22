@@ -7800,8 +7800,8 @@
       "domain": "core"
     },
     "message.1094": {
-      "value": "하루에 한 번 새 버전이 있는지 확인하고, 있으면 펫이 알려 줘요. 설치는 직접 누를 때만 합니다.",
-      "revision": 1,
+      "value": "하루에 한 번 새 버전이 있는지 확인해요. 자동 설치를 끄면 새 버전을 펫이 알려 주기만 해요.",
+      "revision": 2,
       "variables": {},
       "context": "settings-ui\\src\\core\\CoreAppPage.tsx",
       "domain": "core"
@@ -10577,6 +10577,59 @@
       "revision": 1,
       "variables": {},
       "context": "펫 패키지의 선택적 세로 반복 장식; 0.15.10 새 기능",
+      "domain": "core"
+    },
+    "update.auto_install_idle": {
+      "value": "하루에 한 번 확인하고, 새 버전은 받아 뒀다가 다음 시작 때 적용합니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\update_check.py; idle update row when automatic checks and installs are on",
+      "domain": "core"
+    },
+    "update.staged": {
+      "value": "v{version}을 받아 뒀습니다. 다음에 앱을 시작할 때 적용됩니다.",
+      "revision": 1,
+      "variables": {
+        "version": "string"
+      },
+      "context": "watched_kettle\\application\\update_check.py; update row after an automatic update was prepared",
+      "domain": "core"
+    },
+    "update.staged_notice": {
+      "value": "새 버전을 받아 뒀어요 (v{version}). 다음에 앱을 켤 때 적용돼요.",
+      "revision": 1,
+      "variables": {
+        "version": "string"
+      },
+      "context": "watched_kettle\\application\\settings_ui\\core.py; pet speech bubble once when an automatic update was prepared",
+      "domain": "core"
+    },
+    "update.restart_now": {
+      "value": "지금 재시작",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\UpdateRow.tsx; button that restarts into a prepared update",
+      "domain": "core"
+    },
+    "update.auto_install": {
+      "value": "업데이트 자동 설치",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\CoreAppPage.tsx; switch title",
+      "domain": "core"
+    },
+    "update.auto_install_description": {
+      "value": "새 버전을 찾으면 바뀐 파일을 받아 두고 다음에 앱을 시작할 때 적용해요. 전체 설치 파일이 필요하면 받지 않고 알려 드려요.",
+      "revision": 1,
+      "variables": {},
+      "context": "settings-ui\\src\\core\\CoreAppPage.tsx; switch description",
+      "domain": "core"
+    },
+    "whats_new.01510.auto_update": {
+      "value": "새 버전을 찾으면 백그라운드로 받아 두고 다음에 앱을 켤 때 자동으로 적용해요.",
+      "revision": 1,
+      "variables": {},
+      "context": "0.15.10 새 기능; 자동 업데이트",
       "domain": "core"
     }
   },

@@ -18,6 +18,7 @@ export function UpdateRow({
   call: (
     method:
       | "update.download"
+      | "update.apply"
       | "update.cancel"
       | "update.check"
       | "update.open",
@@ -30,7 +31,10 @@ export function UpdateRow({
       : 0;
   const showPage =
     update.page_url !== "" &&
-    (state === "available" || state === "downloading" || state === "error");
+    (state === "available" ||
+      state === "downloading" ||
+      state === "staged" ||
+      state === "error");
   let action = null;
   if (state === "available" && update.can_install) {
     action = (
@@ -40,6 +44,13 @@ export function UpdateRow({
       >
         <Download size={14} />
         {t("message.1143")}
+      </button>
+    );
+  } else if (state === "staged") {
+    action = (
+      <button className="button primary" onClick={() => call("update.apply")}>
+        <RotateCcw size={14} />
+        {t("update.restart_now")}
       </button>
     );
   } else if (state === "downloading") {

@@ -4291,8 +4291,8 @@
     "value": "Check for updates automatically"
   },
   "message.1094": {
-    "sourceRevision": 1,
-    "value": "Checks once a day and lets your pet tell you about new versions. Installation starts only when you request it."
+    "sourceRevision": 2,
+    "value": "Checks for a new version once a day. With automatic installs off, your pet only tells you about new versions."
   },
   "message.1095": {
     "sourceRevision": 1,
@@ -5818,5 +5818,33 @@
   "whats_new.01510.bubble_repeat": {
     "sourceRevision": 1,
     "value": "Pet bubble decorations can repeat to fit the bubble height."
+  },
+  "update.auto_install_idle": {
+    "sourceRevision": 1,
+    "value": "Checks once a day, downloads new versions and applies them the next time the app starts."
+  },
+  "update.staged": {
+    "sourceRevision": 1,
+    "value": "Version v{version} is downloaded and will be applied the next time the app starts."
+  },
+  "update.staged_notice": {
+    "sourceRevision": 1,
+    "value": "A new version is downloaded (v{version}). It will be applied the next time the app starts."
+  },
+  "update.restart_now": {
+    "sourceRevision": 1,
+    "value": "Restart now"
+  },
+  "update.auto_install": {
+    "sourceRevision": 1,
+    "value": "Install updates automatically"
+  },
+  "update.auto_install_description": {
+    "sourceRevision": 1,
+    "value": "When a new version is found, downloads the changed files and applies them the next time the app starts. If the full installer is needed, it only tells you."
+  },
+  "whats_new.01510.auto_update": {
+    "sourceRevision": 1,
+    "value": "New versions download in the background and apply automatically the next time the app starts."
   }
 }

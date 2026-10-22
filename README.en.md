@@ -171,7 +171,8 @@ or **Quit pet app** (`펫 앱 종료`) in settings. [How to quit](docs/user-guid
 In **App settings → Version & updates** (`앱 설정 → 버전과 업데이트`), click **Check for updates** (`업데이트 확인`).
 If a new release is available, click **Update** (`업데이트`) to download the installer, verify its SHA-256, install, and restart.
 With **Check for updates automatically** (`업데이트 자동 확인`, on by default), the app checks once a day and the pet tells you
-about a new release; it installs only when you click. Your settings, custom pets, and edition choice are preserved.
+about a new release. Since 0.15.10, **Install updates automatically** (`업데이트 자동 설치`, on by default) downloads the changed files
+and applies them the next time the app starts; when the full installer is needed, it installs only when you click. Your settings, custom pets, and edition choice are preserved.
 You can also run a newer installer directly to upgrade.
 
 Uninstall through Windows Installed apps. Choose to keep data (the default), delete history only, or delete all app data.
@@ -184,7 +185,7 @@ This app has no server of its own and stores its data on this PC. Task status an
 Account and task identifiers are stored as hashes. Prompts, responses, commands, tool output, file paths, and email addresses
 are not written to the usage database or logs.
 
-The app itself connects to the internet only to check for (when you click, and once a day if automatic checks are on) or install an update from GitHub,
+The app itself connects to the internet only to check for (when you click, and once a day if automatic checks are on) or download an update (when you click, or with automatic installs) from GitHub,
 and to download a pet from a public pet service (CodexPetDB or Pets Codex) when you click **Download** for an install command in Import pet.
 Codex usage information is requested from a local Codex process; that process's external communication follows Codex's own behavior.
 The installation folder is `%LOCALAPPDATA%\Programs\WatchedKettle`; settings and custom pets are in `%LOCALAPPDATA%\WatchedKettle`.

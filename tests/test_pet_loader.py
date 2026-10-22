@@ -3,9 +3,11 @@ import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PIL import Image, UnidentifiedImageError
 from PySide6.QtGui import QTransform
 from PySide6.QtWidgets import QApplication
 
@@ -86,6 +88,22 @@ class ActualPetLoaderTests(unittest.TestCase):
             )
 
             with self.assertRaisesRegex(ValueError, "펫 폴더 내부"):
+                load_pet(pet_directory)
+
+    def test_spritesheet_opens_only_as_png_or_webp(self):
+        with TemporaryDirectory() as temporary_directory:
+            pet_directory = Path(temporary_directory)
+            (pet_directory / "pet.json").write_text("{}", encoding="utf-8")
+            Image.new("RGBA", (1536, 2288)).save(
+                pet_directory / "spritesheet.webp", format="TIFF"
+            )
+            with (
+                patch(
+                    "PIL.TiffImagePlugin.TiffImageFile._open",
+                    side_effect=AssertionError("TIFF decoder used"),
+                ),
+                self.assertRaises(UnidentifiedImageError),
+            ):
                 load_pet(pet_directory)
 
 

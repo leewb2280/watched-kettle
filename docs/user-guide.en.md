@@ -57,8 +57,14 @@ installs it without showing a window, and restarts in 20–30 seconds. Your edit
 
 With `Check for updates automatically` (on by default), an installed copy checks once a day for a new version. When it finds one, the pet
 says "A new version is available" once, and `Check for updates` in the tray menu changes to `Get new version (v<version>)`. While bubbles are
-off or snoozed, or while the pet is hidden, the app shows this only in the tray and the settings window, without a bubble. Downloading and installing
-happen only when you click `Update`. A failed check is not reported; the app tries again later. With automatic checks off, the app checks only when you click `Check for updates`.
+off or snoozed, or while the pet is hidden, the app shows this only in the tray and the settings window, without a bubble. A failed check is not reported;
+the app tries again later. With automatic checks off, the app checks only when you click `Check for updates`.
+
+Since 0.15.10, when `Install updates automatically` (on by default) is also on, the app downloads the changed files of a version an automatic check finds
+in the background and prepares the new program next to the current one. The app does not restart; the pet says "A new version is downloaded" once.
+The new version takes over the next time the app starts (after restarting the PC, or quitting from the tray and starting it again). To switch right away,
+click `Restart now` in `Version & updates`. If the changed files alone cannot be used and the installer is needed, the app does not download it on its own;
+it only tells you, as before, and installs when you click `Update`. With automatic installs off, the app only tells you about new versions.
 `Check for updates` in the tray menu opens the version row in `App settings` and starts a check right away.
 
 The first time you start the app after an update, the pet says "Updated to v<version>" once. See what changed on the `About` page in the settings window.

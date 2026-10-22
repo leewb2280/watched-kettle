@@ -17,6 +17,7 @@ from watched_kettle.config import (
     ANIMATIONS,
 )
 from watched_kettle.pet.bubble_frame import register_package_frame
+from watched_kettle.pet.import_package import PET_IMAGE_FORMATS
 from watched_kettle.pet.look_direction import mirrored_right_frame_source
 
 
@@ -56,7 +57,7 @@ def load_pet(pet_directory: Path):
     if not spritesheet_path.exists():
         raise FileNotFoundError(t("message.0154", value0=spritesheet_path))
 
-    with Image.open(spritesheet_path) as source:
+    with Image.open(spritesheet_path, formats=PET_IMAGE_FORMATS) as source:
         detect_sprite_version(source)
         atlas = source.convert("RGBA")
 

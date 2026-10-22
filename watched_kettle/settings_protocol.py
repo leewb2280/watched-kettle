@@ -139,6 +139,7 @@ class UpdateState(TypedDict):
         "downloading",
         "preparing",
         "installing",
+        "staged",
         "error",
     ]
     version: str
@@ -149,6 +150,7 @@ class UpdateState(TypedDict):
     can_install: bool
     retry: Literal["", "check", "download"]
     auto_check: bool
+    auto_install: bool
 
 
 class AboutLinks(TypedDict):
@@ -515,6 +517,7 @@ class BooleanSetting(Context):
         "movement",
         "bubbles",
         "update_auto_check",
+        "update_auto_install",
         "startup",
         "click_through",
         "click_through_bubbles",
@@ -777,6 +780,7 @@ COMMANDS = {
     "element.delete": Command("ElementDelete", "Mutation"),
     "update.check": Command("Empty", "Pending"),
     "update.download": Command("Empty", "Pending"),
+    "update.apply": Command("Empty", "Pending"),
     "update.cancel": Command("Empty", "Pending"),
     "update.open": Command("Empty", "Opened"),
     "about.open_licenses": Command("Empty", "Opened"),

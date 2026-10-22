@@ -527,7 +527,7 @@ class PartialUpdateTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
 
-    def check(self, mode="ok"):
+    def check(self, mode="ok", automatic=False, auto_install=False):
         server = serve_update_test.serve(0, mode=mode, release_dir=self.release)
         self.servers.append(server)
         source = self.root / "UPDATE_SOURCE.json"
@@ -536,8 +536,12 @@ class PartialUpdateTests(unittest.TestCase):
             encoding="utf-8",
         )
         service = UpdateService(source, updates_dir=self.updates)
+        service.set_auto_install(auto_install)
         self.services.append(service)
-        service.check()
+        self.found, self.staged = [], []
+        service.found.connect(self.found.append)
+        service.staged_ready.connect(self.staged.append)
+        service.check(automatic=automatic)
         UpdateServiceTests.wait_while(self, service, "checking")
         return service
 
@@ -597,6 +601,111 @@ class PartialUpdateTests(unittest.TestCase):
             str(self.updates),
         )
         self.assertFalse((self.app_root / "runtime" / "pet-assistant.next").exists())
+
+    def test_an_automatic_update_stages_quietly_for_the_next_start(self):
+        with (
+            patch.object(update_check.QProcess, "startDetached") as start,
+            patch.object(update_check.QCoreApplication, "quit") as quit_app,
+        ):
+            service = self.check(automatic=True, auto_install=True)
+            update = UpdateServiceTests.wait_while(
+                self, service, "downloading", "preparing", timeout_ms=20000
+            )
+            QTest.qWait(200)
+        self.assertEqual(update["state"], "staged", update["message"])
+        self.assertEqual(update["message"], t("update.staged", version="9.9.9"))
+        start.assert_not_called()
+        quit_app.assert_not_called()
+        self.assertEqual((self.found, self.staged), ([], ["9.9.9"]))
+        staged = self.app_root / "runtime" / "pet-assistant.next"
+        self.assertEqual((staged / ".ready").read_text().strip(), "9.9.9")
+        self.assertEqual(list(self.updates.glob("*.zip")), [])
+        # Nothing to check until the next start; restarting now applies it.
+        service.check()
+        self.assertEqual(service.state, "staged")
+        with (
+            patch.object(
+                update_check.QProcess, "startDetached", return_value=(True, 1)
+            ) as start,
+            patch.object(update_check.QCoreApplication, "quit") as quit_app,
+        ):
+            service.apply_now()
+            self.assertEqual(service.state, "installing")
+            QTest.qWait(200)
+        start.assert_called_once_with(
+            str(self.app_root / "WatchedKettle.exe"),
+            ["--apply-staged-update"],
+            str(self.app_root),
+        )
+        quit_app.assert_called_once()
+
+    def test_an_automatic_update_needing_an_installer_is_only_announced(self):
+        with (
+            patch.object(update_check.QProcess, "startDetached") as start,
+            patch.object(update_check.QCoreApplication, "quit") as quit_app,
+        ):
+            service = self.check(mode="bad-delta", automatic=True, auto_install=True)
+            update = UpdateServiceTests.wait_while(
+                self, service, "downloading", "preparing", timeout_ms=20000
+            )
+            QTest.qWait(100)
+        self.assertEqual(update["state"], "available", update["message"])
+        self.assertTrue(update["can_install"])
+        self.assertEqual(service.release["kind"], "installer")
+        self.assertEqual((self.found, self.staged), (["9.9.9"], []))
+        start.assert_not_called()
+        quit_app.assert_not_called()
+        self.assertFalse((self.app_root / "runtime" / "pet-assistant.next").exists())
+        self.assertEqual(list(self.updates.glob("*.exe")), [])
+        # The user's click downloads the installer as before.
+        start = self.run_update(service)
+        self.assertIn("-pet-assistant-update-", start.call_args.args[0])
+
+    def test_only_an_automatic_check_with_the_setting_on_downloads(self):
+        for automatic, auto_install in ((True, False), (False, True)):
+            service = self.check(automatic=automatic, auto_install=auto_install)
+            QTest.qWait(50)
+            self.assertEqual(service.state, "available")
+            self.assertEqual(self.found, ["9.9.9"] if automatic else [])
+            self.assertEqual(self.staged, [])
+        self.assertFalse((self.app_root / "runtime" / "pet-assistant.next").exists())
+
+    def test_start_keeps_an_update_staged_for_a_newer_version(self):
+        runtime = self.app_root / "runtime"
+        for name in ("pet-assistant.next", "pet-only.next"):
+            (runtime / name).mkdir()
+            (runtime / name / ".ready").write_text("9.9.9\n", encoding="ascii")
+
+        def start():
+            service = UpdateService(
+                self.root / "missing.json", updates_dir=self.updates
+            )
+            self.services.append(service)
+            QTest.qWait(50)
+            return service
+
+        def entries(expected):
+            waited = 0
+            while len(list(runtime.iterdir())) > expected and waited < 5000:
+                QTest.qWait(20)
+                waited += 20
+            return sorted(entry.name for entry in runtime.iterdir())
+
+        service = start()
+        # Another edition's copy is never this install's.
+        self.assertEqual(entries(3), ["edition", "pet-assistant", "pet-assistant.next"])
+        update = service.snapshot()
+        self.assertEqual((update["state"], update["version"]), ("staged", "9.9.9"))
+        self.assertEqual(update["message"], t("update.staged", version="9.9.9"))
+        # One for this version or an older one is a leftover.
+        (runtime / "pet-assistant.next" / ".ready").write_text(
+            APPLICATION_VERSION + "\n", encoding="ascii"
+        )
+        service = start()
+        self.assertEqual(entries(2), ["edition", "pet-assistant"])
+        self.assertEqual(service.state, "idle")
+        service.apply_now()
+        self.assertEqual(service.state, "idle")
 
     def add_full_installer(self):
         """The full installer and its checksum, as every Release carries."""
@@ -745,10 +854,16 @@ class ServeUpdateTestTests(unittest.TestCase):
 
 
 class FakeUpdatePreferences:
-    def __init__(self, auto_check=True, last_check=0.0, announced=""):
+    def __init__(
+        self, auto_check=True, last_check=0.0, announced="", auto_install=True
+    ):
         self.auto_check = auto_check
         self.last_check = last_check
         self.announced = announced
+        self.auto_install = auto_install
+
+    def load_update_auto_install(self):
+        return self.auto_install
 
     def load_update_announced_version(self):
         return self.announced
@@ -796,6 +911,11 @@ class UpdateCheckScheduleTests(unittest.TestCase):
         self.assertEqual(
             schedule.timer.interval(), update_check.AUTO_CHECK_FIRST_DELAY_MS
         )
+        self.assertTrue(self.service.auto_install)
+        self.assertEqual(
+            self.service.snapshot()["message"], t("update.auto_install_idle")
+        )
+        self.service.set_auto_install(False)
         self.assertEqual(self.service.snapshot()["message"], t("message.0024"))
         schedule._tick()
         self.assertEqual(self.checks, [True])
@@ -880,6 +1000,8 @@ class UpdateCheckScheduleTests(unittest.TestCase):
         self.service._state["state"] = "available"
         schedule._tick()
         self.service._state["state"] = "downloading"
+        schedule._tick()
+        self.service._state["state"] = "staged"
         schedule._tick()
         self.assertEqual(self.checks, [])
         schedule.set_enabled(False)

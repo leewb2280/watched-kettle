@@ -104,7 +104,7 @@ export type Animation = {
 };
 
 export type UpdateState = {
-  state: "idle" | "checking" | "current" | "available" | "downloading" | "preparing" | "installing" | "error";
+  state: "idle" | "checking" | "current" | "available" | "downloading" | "preparing" | "installing" | "staged" | "error";
   version: string;
   page_url: string;
   received: number;
@@ -113,6 +113,7 @@ export type UpdateState = {
   can_install: boolean;
   retry: "" | "check" | "download";
   auto_check: boolean;
+  auto_install: boolean;
 };
 
 export type AboutLinks = {
@@ -455,7 +456,7 @@ export type PetAction = Context & {
 };
 
 export type BooleanSetting = Context & {
-  key: "always_on_top" | "activity_labels" | "shadow" | "fade" | "idle" | "movement" | "bubbles" | "update_auto_check" | "startup" | "click_through" | "click_through_bubbles";
+  key: "always_on_top" | "activity_labels" | "shadow" | "fade" | "idle" | "movement" | "bubbles" | "update_auto_check" | "update_auto_install" | "startup" | "click_through" | "click_through_bubbles";
   value: boolean;
 };
 
@@ -1306,6 +1307,8 @@ export interface CommandMap {
 
   "update.download": { args: Empty; result: Pending };
 
+  "update.apply": { args: Empty; result: Pending };
+
   "update.cancel": { args: Empty; result: Pending };
 
   "update.open": { args: Empty; result: Opened };
@@ -1368,7 +1371,7 @@ export interface CommandMap {
 
 }
 
-export type RendererCommand = "language.list" | "language.refresh" | "language.copy" | "settings.snapshot" | "settings.set" | "pet.catalog" | "pet.preview" | "pet.select" | "pet.import.commit" | "pet.import.cancel" | "pet.import.start" | "pet.import.status" | "pet.import.stop" | "pet.import.installed" | "pet.import.installed.thumbnail" | "pet.import.installed.start" | "pet.import.preview" | "pet.catalog.save" | "pet.trash.list" | "pet.trash.move" | "pet.trash.restore" | "pet.trash.delete" | "pet.trash.empty" | "pet.trash.batch.start" | "pet.trash.batch.status" | "pet.trash.batch.cancel" | "pet.action" | "bubble.editor" | "bubble.render" | "bubble.save" | "bubble.reset" | "element.delete" | "update.check" | "update.download" | "update.cancel" | "update.open" | "about.open_licenses" | "app.quit" | "app.restart" | "navigation.ack" | "window.subscribe" | "usage.snapshot" | "usage.widget_preview" | "usage.set" | "usage.query" | "usage.select" | "usage.move" | "usage.action" | "activity.snapshot" | "activity.clear" | "activity.confirm_all" | "activity.open" | "integration.snapshot" | "integration.preview" | "integration.apply" | "integration.set";
+export type RendererCommand = "language.list" | "language.refresh" | "language.copy" | "settings.snapshot" | "settings.set" | "pet.catalog" | "pet.preview" | "pet.select" | "pet.import.commit" | "pet.import.cancel" | "pet.import.start" | "pet.import.status" | "pet.import.stop" | "pet.import.installed" | "pet.import.installed.thumbnail" | "pet.import.installed.start" | "pet.import.preview" | "pet.catalog.save" | "pet.trash.list" | "pet.trash.move" | "pet.trash.restore" | "pet.trash.delete" | "pet.trash.empty" | "pet.trash.batch.start" | "pet.trash.batch.status" | "pet.trash.batch.cancel" | "pet.action" | "bubble.editor" | "bubble.render" | "bubble.save" | "bubble.reset" | "element.delete" | "update.check" | "update.download" | "update.apply" | "update.cancel" | "update.open" | "about.open_licenses" | "app.quit" | "app.restart" | "navigation.ack" | "window.subscribe" | "usage.snapshot" | "usage.widget_preview" | "usage.set" | "usage.query" | "usage.select" | "usage.move" | "usage.action" | "activity.snapshot" | "activity.clear" | "activity.confirm_all" | "activity.open" | "integration.snapshot" | "integration.preview" | "integration.apply" | "integration.set";
 
 export type Args<M extends RendererCommand> = CommandMap[M]['args'];
 

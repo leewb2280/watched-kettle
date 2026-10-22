@@ -11,15 +11,27 @@ from tempfile import TemporaryDirectory
 import time
 from uuid import uuid4
 
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 from watched_kettle.config import ANIMATIONS, FRAME_HEIGHT, FRAME_WIDTH
 from watched_kettle.pet.loader import detect_sprite_version
-from watched_kettle.pet.import_package import PackageError, package_reader
+from watched_kettle.pet.import_package import (
+    PET_IMAGE_FORMATS,
+    PackageError,
+    package_reader,
+)
 
 
 MAX_IMPORT_BYTES = 20 * 1024 * 1024
 IMPORT_LIFETIME_SECONDS = 600
+
+
+# Leading bytes of image formats people pick by mistake (JPEG, GIF, BMP, TIFF).
+OTHER_IMAGE_SIGNATURES = (b"\xff\xd8\xff", b"GIF8", b"BM", b"II*\x00", b"MM\x00*")
+
+
+def _other_image(raw):
+    return bytes(raw[:4]).startswith(OTHER_IMAGE_SIGNATURES)
 
 
 class PetImportError(ValueError):
@@ -94,7 +106,13 @@ class PetImporter:
         try:
             if len(raw) > MAX_IMPORT_BYTES:
                 raise PetImportError(t("message.0141"))
-            with Image.open(BytesIO(raw)) as opened:
+            try:
+                opened = Image.open(BytesIO(raw), formats=PET_IMAGE_FORMATS)
+            except UnidentifiedImageError as error:
+                # Another image format names the choice; anything else is damage.
+                message = "message.0145" if _other_image(raw) else "message.0142"
+                raise PetImportError(t(message)) from error
+            with opened:
                 if opened.format not in {"PNG", "WEBP"}:
                     raise PetImportError(t("message.0145"))
                 if getattr(opened, "is_animated", False):
@@ -185,7 +203,7 @@ class PetImporter:
             row, count, interval = 9 + int(state[-1]), 8, 180
         else:
             raise PetImportError(t("pet.import.invalid_package"))
-        with Image.open(BytesIO(prepared.image)) as atlas:
+        with Image.open(BytesIO(prepared.image), formats=PET_IMAGE_FORMATS) as atlas:
             strip = atlas.crop(
                 (0, row * FRAME_HEIGHT, count * FRAME_WIDTH, (row + 1) * FRAME_HEIGHT)
             )
@@ -284,7 +302,9 @@ class PetImporter:
                 or manifest.get("spritesheetPath") != "spritesheet.webp"
             ):
                 raise ValueError()
-            with Image.open(destination / "spritesheet.webp") as image:
+            with Image.open(
+                destination / "spritesheet.webp", formats=PET_IMAGE_FORMATS
+            ) as image:
                 detect_sprite_version(image)
                 image.load()
                 digest = hashlib.sha256(

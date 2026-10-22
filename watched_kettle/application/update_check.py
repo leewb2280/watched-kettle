@@ -1,9 +1,12 @@
 """Update: release lookup, verified download, then install.
 
-Downloads and installs start only from the settings window's buttons. An
-installed app also looks for a new release once a day (UpdateCheckSchedule,
-on unless turned off in the settings) and only announces what it finds.
-An installed app prefers, in order:
+An installed app looks for a new release once a day (UpdateCheckSchedule,
+on unless turned off in the settings). When automatic updates are on too and
+the release has a partial update for this version, the app downloads and
+stages it quietly and the launcher swaps it in at the next start; the app
+never restarts by itself (docs/decisions/0009-automatic-updates.md).
+Anything else it finds is only announced, and installers run only from the
+settings window's buttons. An installed app prefers, in order:
 
 1. a partial update: the zip of files changed since this version, listed in
    the release index (update_assets.py). The app builds the new runtime next
@@ -50,6 +53,7 @@ from watched_kettle.application.update_assets import (
     EDITIONS,
     MAX_INDEX_BYTES,
     OLD_SUFFIX,
+    READY_MARKER,
     STAGED_SUFFIX,
     StagingError,
     UpdateIndexError,
@@ -105,6 +109,8 @@ AUTO_CHECK_INTERVAL_SECONDS = 24 * 60 * 60
 # After a failed or interrupted automatic check.
 AUTO_CHECK_RETRY_SECONDS = 3 * 60 * 60
 BUSY_STATES = ("checking", "downloading", "preparing", "installing")
+# A runtime prepared for the next start; nothing to check until then.
+STAGED_STATE = "staged"
 FAILURE_MESSAGES = MessageMapping(
     {
         "timeout": MessageId("message.0035"),
@@ -288,6 +294,22 @@ def _version(value):
     return tuple(map(int, match.groups())) if match else None
 
 
+def pending_staged_update(root):
+    """(runtime\\<edition>.next, version) prepared for a newer version, or None."""
+    edition = installed_edition(root)
+    if edition is None:
+        return None
+    staged = Path(root) / "runtime" / (edition + STAGED_SUFFIX)
+    try:
+        version = (staged / READY_MARKER).read_text("ascii").strip()
+    except (OSError, UnicodeError):
+        return None
+    newer, current = _version(version), _version(APPLICATION_VERSION)
+    if staged.is_symlink() or newer is None or current is None or newer <= current:
+        return None
+    return staged, version
+
+
 def _size_note(release):
     """ " (4.2MB)" for an offered download; empty when the size is unknown."""
     size = (release or {}).get("size")
@@ -334,6 +356,8 @@ class UpdateService(QObject):
     automatic_finished = Signal(bool)
     # An automatic check found this newer version.
     found = Signal(str)
+    # An automatic update of this version waits for the next start.
+    staged_ready = Signal(str)
     # From the staging thread: (state, detail, staged path, zip path, started).
     _staged = Signal(object)
 
@@ -359,8 +383,11 @@ class UpdateService(QObject):
         self._assets = {}
         self._index_request = None
         self.auto_check = False
+        self.auto_install = False
         self._idle_hint = True
         self._automatic = False
+        # The download an automatic update started, not the user.
+        self._background = False
         self._staged.connect(self._staging_finished)
         self._state = dict(
             state="idle",
@@ -425,7 +452,9 @@ class UpdateService(QObject):
             self._finish_automatic(answered)
 
     def _idle_message(self):
-        return t("message.0024") if self.auto_check else t("message.0023")
+        if not self.auto_check:
+            return t("message.0023")
+        return t("update.auto_install_idle") if self.auto_install else t("message.0024")
 
     def _finish_automatic(self, answered):
         if self._automatic:
@@ -438,6 +467,12 @@ class UpdateService(QObject):
         if self.state == "idle" and self._idle_hint:
             self._set("idle", self._idle_message(), idle_hint=True)
 
+    def set_auto_install(self, enabled):
+        """Follow the automatic update setting; a running download goes on."""
+        self.auto_install = bool(enabled)
+        if self.state == "idle" and self._idle_hint:
+            self._set("idle", self._idle_message(), idle_hint=True)
+
     # ---- check -------------------------------------------------------------
 
     def check(self, automatic=False):
@@ -446,7 +481,7 @@ class UpdateService(QObject):
                 # The user now waits on the check already running.
                 self._automatic = False
             return
-        if self.state in BUSY_STATES:
+        if self.state in BUSY_STATES + (STAGED_STATE,):
             return
         self._automatic = automatic
         try:
@@ -595,6 +630,16 @@ class UpdateService(QObject):
         )
         if self._automatic:
             self._finish_automatic(True)
+            if (
+                self.auto_install
+                and can_install
+                and self.release.get("kind") == "delta"
+            ):
+                # Only a partial update stages without quitting the app.
+                self._background = True
+                log_event("application.update", "auto_update_started")
+                self.download()
+                return
             self.found.emit(version)
 
     def _fetch_index(self, version, page):
@@ -887,6 +932,7 @@ class UpdateService(QObject):
         if self._abort_reason == "cancel":
             self._discard_download()
             self._abort_reason = ""
+            self._background = False
             self._set(
                 "available",
                 t(
@@ -912,7 +958,25 @@ class UpdateService(QObject):
     def _fail_download(self, message):
         self._discard_download()
         self._abort_reason = ""
+        if self._background:
+            self._background_stopped("download")
+            return
         self._set("error", message, retry="download")
+
+    def _background_stopped(self, reason):
+        """An automatic update that cannot finish is offered like a found one."""
+        self._background = False
+        log_event("application.update", "auto_update_stopped", reason=reason)
+        self._set(
+            "available",
+            t(
+                "message.0047",
+                value0=self._state["version"],
+                value1=_size_note(self.release),
+            ),
+            can_install=True,
+        )
+        self.found.emit(self._state["version"])
 
     def _discard_download(self):
         download, self._download = self._download, None
@@ -968,6 +1032,18 @@ class UpdateService(QObject):
             duration_ms=round((time.monotonic() - started) * 1000),
             **{key: int(value) for key, value in detail.items()},
         )
+        if self._background:
+            # The launcher swaps it in when the app starts next time.
+            self._background = False
+            version = self._state["version"]
+            log_event("application.update", "auto_update_staged")
+            self._set(
+                STAGED_STATE,
+                t("update.staged", version=version),
+                can_install=False,
+            )
+            self.staged_ready.emit(version)
+            return
         size = self.release["size"]
         self._set("installing", t("message.0020"), received=size, total=size)
         QTimer.singleShot(INSTALL_NOTICE_MS, lambda: self.apply_staged(staged))
@@ -982,13 +1058,20 @@ class UpdateService(QObject):
             state="installer" if fallback else "none",
         )
         if fallback is None:
+            background, self._background = self._background, False
             self._set(
                 "error",
                 t("message.0048"),
                 retry="check",
             )
+            if background:
+                self.found.emit(self._state["version"])
             return
         self.release = fallback
+        if self._background:
+            # An installer quits the app, so it waits for the user.
+            self._background_stopped(reason)
+            return
         self._set("available", t("message.0043"), can_install=True)
         self.download()
 
@@ -1016,6 +1099,18 @@ class UpdateService(QObject):
         )
         QTimer.singleShot(0, QCoreApplication.quit)
 
+    def apply_now(self):
+        """Restart into the update an automatic one prepared."""
+        if self.state != STAGED_STATE:
+            return
+        root = installed_app_root()
+        pending = pending_staged_update(root) if root is not None else None
+        if pending is None:
+            self._set("error", t("message.0049"), retry="check")
+            return
+        self._set("installing", t("message.0020"))
+        QTimer.singleShot(INSTALL_NOTICE_MS, lambda: self.apply_staged(pending[0]))
+
     def finish_earlier_update(self, root=None):
         """At start: report the launcher's swap and clear what it left behind."""
         root = Path(root) if root is not None else installed_app_root()
@@ -1031,11 +1126,23 @@ class UpdateService(QObject):
                 state=result.get("state", ""),
                 reason=result.get("reason", ""),
             )
-            if result.get("state") == "failed":
-                self._settle("idle", t("message.0057"))
+        failed = result is not None and result.get("state") == "failed"
+        if failed:
+            self._settle("idle", t("message.0057"))
         # Only a packaged runtime owns the installed-apps entry.
         if getattr(sys, "frozen", False) and sync_uninstall_version():
             log_event("application.update", "uninstall_version_updated")
+        # A start the launcher could not swap at (a file still in use) keeps
+        # an automatic update for the next one.
+        pending = None if failed else pending_staged_update(root)
+        if pending is not None:
+            self._set(
+                STAGED_STATE,
+                t("update.staged", version=pending[1]),
+                version=pending[1],
+                page_url="",
+                can_install=False,
+            )
         # This app runs from runtime\<edition>; a staged copy was not swapped
         # in and an old one is no longer used.
         leftovers = [
@@ -1043,6 +1150,7 @@ class UpdateService(QObject):
             for entry in _directory_entries(runtime)
             if entry.is_dir()
             and not entry.is_symlink()
+            and (pending is None or entry != pending[0])
             and any(
                 entry.name == edition + STAGED_SUFFIX
                 or entry.name.startswith(edition + OLD_SUFFIX)
@@ -1135,6 +1243,7 @@ class UpdateCheckSchedule(QObject):
         if announced is not None and current is not None and announced > current:
             # A version found before this start is offered again right away.
             self._due = 0.0
+        self.service.set_auto_install(self.preferences.load_update_auto_install())
         self.set_enabled(self.preferences.load_update_auto_check())
 
     def set_enabled(self, enabled):
@@ -1157,7 +1266,7 @@ class UpdateCheckSchedule(QObject):
         if (
             not self.enabled
             or now < self._due
-            or self.service.state in BUSY_STATES + ("available",)
+            or self.service.state in BUSY_STATES + ("available", STAGED_STATE)
         ):
             return
         self._due = now + AUTO_CHECK_RETRY_SECONDS

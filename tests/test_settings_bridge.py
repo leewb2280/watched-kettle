@@ -743,6 +743,30 @@ class SettingsBridgeTests(unittest.TestCase):
         self.assertIn("(v9.9.9)", announce.call_args.args[0])
         self.assertEqual(self.preferences.load_update_announced_version(), "9.9.9")
 
+    def test_automatic_install_setting_notice_and_restart_now(self):
+        updates = self.core.updates
+        self.assertTrue(self.core.snapshot()["update"]["auto_install"])
+        self.assertTrue(updates.auto_install)
+        self.core.execute(
+            "settings.set", self.context(key="update_auto_install", value=False)
+        )
+        self.assertFalse(self.preferences.load_update_auto_install())
+        self.assertFalse(self.core.snapshot()["update"]["auto_install"])
+        self.assertFalse(updates.auto_install)
+        with patch.object(self.vm, "announce", return_value=True) as announce:
+            updates.staged_ready.emit("9.9.9")
+            # A version already told about as staged is not found again.
+            updates.found.emit("9.9.9")
+        announce.assert_called_once_with(t("update.staged_notice", version="9.9.9"))
+        with patch.object(updates, "apply_now") as apply_now:
+            with self.assertRaises(CommandError):
+                self.core.execute("update.apply", {})
+            apply_now.assert_not_called()
+            updates._set("staged", "준비됨", version="9.9.9")
+            self.assertEqual(self.core.snapshot()["update"]["state"], "staged")
+            self.assertEqual(self.core.execute("update.apply", {}), dict(pending=True))
+            apply_now.assert_called_once()
+
     def test_an_update_tells_once_where_to_see_whats_new(self):
         # setUp's adapter is a new install: it records the version silently.
         self.assertEqual(

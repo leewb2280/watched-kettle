@@ -16,6 +16,7 @@ from watched_kettle.localization import t
 from watched_kettle.pet.import_package import (
     MAX_ARCHIVE_BYTES,
     MAX_MANIFEST_BYTES,
+    PET_IMAGE_FORMATS,
     PackageError,
     json_object,
     linked,
@@ -297,7 +298,7 @@ class InstalledPets:
             relative_name(manifest.get("spritesheetPath", "spritesheet.webp")),
             20 * 1024 * 1024,
         )
-        with Image.open(BytesIO(data)) as image:
+        with Image.open(BytesIO(data), formats=PET_IMAGE_FORMATS) as image:
             if image.size not in {(1536, 1872), (1536, 2288)}:
                 raise PackageError(t("pet.import.invalid_package"))
             cell = image.crop((0, 0, 192, 208)).convert("RGBA")
