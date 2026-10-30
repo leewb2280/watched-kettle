@@ -230,10 +230,17 @@ class ClaudeCodeRepository:
             )
 
     def prune(self):
+        cutoff = self.cutoff
         with self.connection:
             self.connection.execute(
                 "DELETE FROM claude_code_turn_parts WHERE completed_at_utc < ?",
-                (_utc(self.cutoff),),
+                (_utc(cutoff),),
+            )
+            # The scan skips files older than the cutoff, so their read
+            # positions are never used again.
+            self.connection.execute(
+                "DELETE FROM claude_code_files WHERE mtime_ns < ?",
+                (int(cutoff.timestamp() * 1_000_000_000),),
             )
 
     def append_quota_samples(self, account_hash, samples):

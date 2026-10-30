@@ -35,10 +35,11 @@ FRAME_ANCHORS = frozenset(
 # Theme colors a layer can follow so the user's color edits still apply.
 THEME_COLOR_NAMES = frozenset({"border", "shadow", "background", "text"})
 FRAME_IMAGE_SUFFIXES = frozenset({".png", ".webp"})
-MAX_FRAME_LAYERS = 8
+MAX_FRAME_LAYERS = 16
 MAX_FRAME_IMAGE_BYTES = 4 * 1024 * 1024
 MAX_FRAME_REPEATS = 256
 REPEAT_Y_ANCHORS = frozenset({"top-left", "top-center", "top-right"})
+REPEAT_X_ANCHORS = frozenset({"top-left", "center-left", "bottom-left"})
 _OFFSET_LIMIT = 200.0
 _SIZE_LIMIT = (0.5, 200.0)
 
@@ -61,6 +62,12 @@ class FrameRepeatY:
 
 
 @dataclass(frozen=True)
+class FrameRepeatX:
+    gap: float = 0.0
+    right_inset: float = 0.0
+
+
+@dataclass(frozen=True)
 class FrameLayer:
     anchor: str
     x: float
@@ -74,6 +81,11 @@ class FrameLayer:
     alpha: int = 255
     mirror: bool = False
     repeat_y: FrameRepeatY | None = None
+    repeat_x: FrameRepeatX | None = None
+    rotation: float = 0.0
+    flip_y: bool = False
+    # User layers fit the image inside the box; package layers stretch it.
+    keep_aspect: bool = False
 
 
 @dataclass(frozen=True)
@@ -87,6 +99,8 @@ class BubbleFrame:
 
 
 _registered_frames: dict[str, BubbleFrame] = {}
+# Package folders by pet id, so user themes can reuse "pkg:<id>/<path>" images.
+_package_directories: dict[str, Path] = {}
 
 
 def frame_style_for(pet_id):
@@ -111,7 +125,40 @@ def register_package_frame(manifest, package_directory):
     if not isinstance(raw_frame, dict) or not is_frame_style(style):
         return None
     _registered_frames[style] = parse_frame(raw_frame, Path(package_directory))
+    _package_directories[style[len(FRAME_STYLE_PREFIX) :]] = Path(
+        package_directory
+    ).resolve()
     return style
+
+
+def package_directory(frame_style):
+    """The folder of the package that registered a "pet:<id>" frame, or None."""
+    return _package_directories.get(str(frame_style or "")[len(FRAME_STYLE_PREFIX) :])
+
+
+def package_image_path(reference):
+    """Absolute path of a "pkg:<pet id>/<path>" image, or None."""
+    value = str(reference or "")
+    if not value.startswith("pkg:"):
+        return None
+    pet_id, _, name = value[4:].partition("/")
+    directory = _package_directories.get(pet_id)
+    if directory is None:
+        return None
+    return _package_image(name, directory)
+
+
+def package_image_reference(frame_style, path):
+    """The "pkg:" reference for an image inside a registered package frame."""
+    pet_id = str(frame_style or "")[len(FRAME_STYLE_PREFIX) :]
+    directory = _package_directories.get(pet_id)
+    if directory is None:
+        return None
+    try:
+        name = Path(path).resolve().relative_to(directory).as_posix()
+    except ValueError:
+        return None
+    return f"pkg:{pet_id}/{name}"
 
 
 def parse_frame(raw, package_directory):
@@ -194,13 +241,26 @@ def _layer(raw, package_directory):
         alpha=_alpha(raw.get("alpha")),
         mirror=raw.get("mirror") is True,
         repeat_y=_repeat_y(raw.get("repeatY"), anchor),
+        repeat_x=_repeat_x(raw.get("repeatX"), anchor),
+        rotation=_number(raw.get("rotation"), 0.0, -180.0, 180.0),
+        flip_y=raw.get("flipY") is True,
     )
 
 
 def _repeat_y(raw, anchor):
-    if not isinstance(raw, dict) or anchor not in REPEAT_Y_ANCHORS:
+    values = _repeat_values(raw, anchor, REPEAT_Y_ANCHORS, "bottomInset")
+    return FrameRepeatY(*values) if values else None
+
+
+def _repeat_x(raw, anchor):
+    values = _repeat_values(raw, anchor, REPEAT_X_ANCHORS, "rightInset")
+    return FrameRepeatX(*values) if values else None
+
+
+def _repeat_values(raw, anchor, anchors, inset_key):
+    if not isinstance(raw, dict) or anchor not in anchors:
         return None
-    values = [raw.get(key, 0) for key in ("gap", "bottomInset")]
+    values = [raw.get(key, 0) for key in ("gap", inset_key)]
     if any(
         isinstance(value, bool)
         or not isinstance(value, (int, float))
@@ -208,7 +268,7 @@ def _repeat_y(raw, anchor):
         for value in values
     ):
         return None
-    return FrameRepeatY(*(float(value) for value in values))
+    return tuple(float(value) for value in values)
 
 
 def _package_image(value, package_directory):

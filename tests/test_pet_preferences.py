@@ -102,6 +102,21 @@ class PetPreferencesTests(unittest.TestCase):
         self.assertEqual(preferences.load_pet_custom_order(), ())
         self.assertEqual(preferences.load_hidden_pet_ids(), frozenset())
 
+    def test_animation_speed_defaults_to_100_and_stays_in_range(self):
+        settings = FakeSettings()
+        preferences = ApplicationPreferences(settings)
+        self.assertEqual(preferences.load_pet_animation_speed(), 100)
+        self.assertEqual(preferences.save_pet_animation_speed(150), 150)
+        self.assertEqual(settings.values["pet/animationSpeedPercent"], 150)
+        self.assertEqual(preferences.save_pet_animation_speed(10), 50)
+        self.assertEqual(preferences.save_pet_animation_speed(500), 200)
+        for stored, loaded in (("70", 70), (20, 50), (900, 200), ("fast", 100)):
+            with self.subTest(stored=stored):
+                preferences = ApplicationPreferences(
+                    FakeSettings({"pet/animationSpeedPercent": stored})
+                )
+                self.assertEqual(preferences.load_pet_animation_speed(), loaded)
+
     def test_bubbles_default_on_and_are_persisted_application_wide(self):
         settings = FakeSettings()
         preferences = ApplicationPreferences(settings)

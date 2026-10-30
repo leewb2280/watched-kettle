@@ -47,6 +47,7 @@ def stage_private_pets(project_root, destination, pet_ids=None):
         folder = destination / source.directory.name
         files = [source.manifest_path, source.spritesheet_path]
         files.extend(path for path, _bundle_folder in source.frame_images)
+        files.extend(path for path, _bundle_folder in source.appearance_images)
         for path in files:
             target = folder / path.relative_to(source.directory)
             target.parent.mkdir(parents=True, exist_ok=True)

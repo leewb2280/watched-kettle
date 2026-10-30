@@ -15,6 +15,7 @@ from PySide6.QtWidgets import QApplication
 
 from watched_kettle import hook_bridge_entrypoint
 from watched_kettle.integrations.claude_code_hooks import (
+    _read_small,
     normalize_claude_code_hook,
     project_identity,
 )
@@ -706,6 +707,25 @@ class ProjectRootTests(unittest.TestCase):
             f"gitdir: /{drive[0].lower()}{rest}", encoding="utf-8"
         )
         self.assertEqual(self.identity(relative), main)
+
+    def test_network_gitdir_is_not_opened(self):
+        # A ".git" file naming a share would contact it (and send Windows
+        # credentials) on every hook call.
+        project = self.root / "downloaded"
+        project.mkdir()
+        for target in ("//attacker/share/x", r"\\attacker\share\x"):
+            (project / ".git").write_text(f"gitdir: {target}", encoding="utf-8")
+            opened = []
+            with patch(
+                "watched_kettle.integrations.claude_code_hooks._read_small",
+                side_effect=lambda path, real=_read_small: (
+                    opened.append(path) or real(path)
+                ),
+            ):
+                identity = self.identity(project)
+            with self.subTest(target=target):
+                self.assertEqual(identity["project_label"], "downloaded")
+                self.assertEqual(opened, [str(project / ".git")])
 
     def test_submodule_keeps_its_own_folder(self):
         module = self.main / "vendor" / "lib"

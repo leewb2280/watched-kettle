@@ -46,6 +46,21 @@ const labels = english
 // conversation names, paths) keep the text they were given in any language.
 const USER_TEXT = "option, [data-user-text]";
 // Runs in the page: untranslated Hangul and app text the layout cuts off.
+// Electron shows window.confirm and alert as native message boxes, which
+// Playwright's "dialog" event never sees, so a QA run would wait for a person
+// to click them. Answer them inside the page instead, on every load.
+function answerDialogsInPage(page) {
+  const answer = () => {
+    window.qaConfirmations = [];
+    window.confirm = (message) => {
+      window.qaConfirmations.push(String(message));
+      return true;
+    };
+    window.alert = () => {};
+  };
+  return Promise.all([page.addInitScript(answer), page.evaluate(answer)]);
+}
+
 function inspectText(node, { english, userText }) {
   const clone = node.cloneNode(true);
   clone.querySelectorAll(userText).forEach((child) => child.remove());
@@ -76,6 +91,17 @@ function inspectText(node, { english, userText }) {
       (cutY && element.scrollHeight > element.clientHeight + 1)
     ) {
       clipped.push(element.textContent.trim().slice(0, 80));
+      continue;
+    }
+    // Text that fits its own box can still be pushed past a card that clips.
+    let box = element.parentElement;
+    while (box && box !== node && getComputedStyle(box).overflowX === "visible")
+      box = box.parentElement;
+    if (box && box !== node && !scrolls(getComputedStyle(box).overflowX)) {
+      const inner = element.getBoundingClientRect();
+      const outer = box.getBoundingClientRect();
+      if (inner.right > outer.right + 1 || inner.left < outer.left - 1)
+        clipped.push(element.textContent.trim().slice(0, 80));
     }
   }
   return { korean, clipped };
@@ -96,6 +122,15 @@ async function assertText(locator, label) {
     "clipped app text on " + label + ": " + clipped.join("; "),
   );
 }
+async function assertSameRow(first, second, label) {
+  const [a, b] = await Promise.all([first.boundingBox(), second.boundingBox()]);
+  assert.ok(a && b, label + " must be visible");
+  assert.ok(
+    Math.abs(a.y + a.height / 2 - b.y - b.height / 2) <= 2,
+    label + " must share a row",
+  );
+}
+
 async function until(fn, timeout = 15000) {
   const end = Date.now() + timeout;
   while (Date.now() < end) {
@@ -177,6 +212,7 @@ async function until(fn, timeout = 15000) {
     const page = await app.firstWindow();
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("dialog", (dialog) => dialog.accept());
+    await answerDialogsInPage(page);
     await page
       .getByRole("heading", { name: labels.pet, exact: true, level: 1 })
       .waitFor();
@@ -196,6 +232,9 @@ async function until(fn, timeout = 15000) {
       box.innerHTML =
         '<p style="width:40px;white-space:nowrap;overflow:hidden;' +
         'text-overflow:ellipsis">A long label that cannot fit</p>' +
+        '<div style="width:40px;overflow:hidden;display:flex">' +
+        '<span style="flex-shrink:0;white-space:nowrap">Pushed out 100%</span>' +
+        "</div>" +
         "<p>Done 건</p><p data-user-text>사용자 제목</p>";
       node.append(box);
     });
@@ -205,7 +244,7 @@ async function until(fn, timeout = 15000) {
     await page.locator("#language-qa-probe").evaluate((node) => node.remove());
     assert.deepEqual(probe, {
       korean: ["건"],
-      clipped: ["A long label that cannot fit"],
+      clipped: ["A long label that cannot fit", "Pushed out 100%"],
     });
     // App settings stays last: the language checks below start on it.
     const tabs =
@@ -259,16 +298,119 @@ async function until(fn, timeout = 15000) {
           const importBefore = await page.evaluate(() =>
             window.settings.request("settings.snapshot"),
           );
+          const importHeight = (await importer.boundingBox()).height;
+          const addPet = () =>
+            importer.getByRole("button", {
+              name: english ? "Add pet" : "펫 추가",
+              exact: true,
+            });
+          const chooseAnother = () =>
+            importer.getByRole("button", {
+              name: english ? "Choose another pet" : "다른 펫 선택",
+              exact: true,
+            });
+          assert.equal(await addPet().count(), 0);
+          await assertSameRow(
+            importer.getByRole("button", {
+              name: english ? "Choose file" : "파일 선택",
+              exact: true,
+            }),
+            importer.getByRole("button", {
+              name: english ? "Choose folder" : "폴더 선택",
+              exact: true,
+            }),
+            "file and folder actions",
+          );
+          await page.screenshot({
+            path: path.join(out, "pet-import-source.png"),
+          });
+          await importer
+            .getByRole("tab", {
+              name: english ? "File or folder" : "파일·폴더",
+              exact: true,
+            })
+            .focus();
+          await page.keyboard.press("ArrowRight");
+          await page.evaluate(
+            () =>
+              new Promise((resolve) =>
+                requestAnimationFrame(() => requestAnimationFrame(resolve)),
+              ),
+          );
+          assert.equal(
+            await importer
+              .getByRole("tab", {
+                name: english ? "Paste a command" : "명령어 붙여넣기",
+                exact: true,
+              })
+              .evaluate((node) => node === document.activeElement),
+            true,
+          );
+          await page.keyboard.press("ArrowLeft");
+          assert.equal(
+            await importer
+              .getByRole("tab", {
+                name: english ? "File or folder" : "파일·폴더",
+                exact: true,
+              })
+              .getAttribute("aria-selected"),
+            "true",
+          );
           for (const tabName of [
             english ? "File or folder" : "파일·폴더",
-            english ? "Install command" : "설치 명령어",
-            english ? "Pets installed in Codex" : "Codex에 설치된 펫",
+            english ? "Paste a command" : "명령어 붙여넣기",
+            english ? "Import from Codex" : "Codex에서 가져오기",
           ]) {
             await importer
               .getByRole("tab", { name: tabName, exact: true })
               .click();
             await page.waitForTimeout(150);
             await assertText(importer, "pet import " + tabName);
+            if (await importer.locator("#pet-import-command").count()) {
+              await assertSameRow(
+                importer.locator("#pet-import-command"),
+                importer.getByRole("button", {
+                  name: english ? "Get pet" : "가져오기",
+                  exact: true,
+                }),
+                "command and fetch action",
+              );
+              await importer
+                .locator("#pet-import-command")
+                .fill("npx codexpetdb install PET_ID");
+            }
+            if (await importer.locator("#pet-import-search").count()) {
+              await assertSameRow(
+                importer.locator("#pet-import-search"),
+                importer.getByRole("button", {
+                  name: english ? "Refresh" : "새로고침",
+                  exact: true,
+                }),
+                "search and refresh action",
+              );
+              await importer
+                .locator("#pet-import-search")
+                .fill("no-matching-pet");
+              await importer
+                .getByText(
+                  english
+                    ? "No pets match your search."
+                    : "검색어와 일치하는 펫이 없습니다.",
+                  { exact: true },
+                )
+                .waitFor();
+              await importer.locator("#pet-import-search").fill("Mori");
+            }
+            await page.screenshot({
+              path: path.join(
+                out,
+                "pet-import-source-" +
+                  (await importer
+                    .locator('[role="tab"][aria-selected="true"]')
+                    .getAttribute("id")) +
+                  ".png",
+              ),
+            });
           }
           await importer
             .getByRole("button", { name: /Mori Bot QA Alt/ })
@@ -276,6 +418,62 @@ async function until(fn, timeout = 15000) {
           await importer
             .getByLabel(english ? "Pet name" : "펫 이름", { exact: true })
             .waitFor();
+          assert.equal(await importer.getByRole("tab").count(), 0);
+          assert.equal((await importer.boundingBox()).height, importHeight);
+          const petName = importer.getByLabel(
+            english ? "Pet name" : "펫 이름",
+            { exact: true },
+          );
+          await until(() =>
+            petName.evaluate((node) => node === document.activeElement),
+          );
+          await petName.fill("");
+          assert.equal(await addPet().isDisabled(), true);
+          await petName.fill("discarded-name-draft");
+          await chooseAnother().click();
+          assert.equal(await addPet().count(), 0);
+          assert.equal(await importer.locator(".import-animation").count(), 0);
+          assert.equal(
+            await importer.locator("#pet-import-search").inputValue(),
+            "Mori",
+          );
+          await importer
+            .getByRole("tab", {
+              name: english ? "Paste a command" : "명령어 붙여넣기",
+              exact: true,
+            })
+            .click();
+          assert.equal(
+            await importer.locator("#pet-import-command").inputValue(),
+            "npx codexpetdb install PET_ID",
+          );
+          await importer
+            .getByRole("tab", {
+              name: english ? "Import from Codex" : "Codex에서 가져오기",
+              exact: true,
+            })
+            .click();
+          await importer
+            .getByRole("button", { name: /Mori Bot QA Alt/ })
+            .click();
+          await petName.waitFor();
+          assert.equal(await petName.inputValue(), "Mori Bot QA Alt");
+          await assertSameRow(
+            chooseAnother(),
+            addPet(),
+            "confirmation footer actions",
+          );
+          await assertSameRow(
+            importer.getByLabel(
+              english ? "Animation preview" : "동작 미리보기",
+              { exact: true },
+            ),
+            importer.getByRole("button", {
+              name: english ? "Pause" : "일시 정지",
+              exact: true,
+            }),
+            "animation and playback action",
+          );
           const animation = importer.getByLabel(
             english ? "Animation preview" : "동작 미리보기",
             { exact: true },
@@ -340,10 +538,86 @@ async function until(fn, timeout = 15000) {
           await app.evaluate(({ BrowserWindow }) =>
             BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(1),
           );
+          const setImportPreference = async (key, value) => {
+            await page.evaluate(
+              async ({ key, value }) => {
+                const state =
+                  await window.settings.request("settings.snapshot");
+                await window.settings.request("settings.set", {
+                  petId: state.pet.pet_id,
+                  revision: state.revision,
+                  epoch: state.epoch,
+                  key: "appearance:" + key,
+                  value,
+                });
+              },
+              { key, value },
+            );
+          };
+          await setImportPreference("reduceMotion", true);
+          await importer
+            .getByRole("button", {
+              name: english ? "Play" : "재생",
+              exact: true,
+            })
+            .waitFor();
+          await setImportPreference("theme", "dark");
+          await until(() =>
+            page
+              .locator("html")
+              .getAttribute("data-theme")
+              .then((value) => value === "dark"),
+          );
+          await app.evaluate(({ BrowserWindow }) =>
+            BrowserWindow.getAllWindows()[0].setSize(640, 460),
+          );
+          await assertText(importer, "pet import minimum window dark");
+          assert.equal(
+            await importer.evaluate(
+              (node) => node.scrollWidth > node.clientWidth,
+            ),
+            false,
+          );
+          await page.screenshot({
+            path: path.join(out, "pet-import-minimum-dark.png"),
+          });
+          await app.evaluate(({ BrowserWindow }) =>
+            BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(2),
+          );
+          await assertText(importer, "pet import minimum window 200%");
+          assert.equal(
+            await importer.evaluate(
+              (node) => node.scrollWidth > node.clientWidth,
+            ),
+            false,
+          );
+          await app.evaluate(({ BrowserWindow }) => {
+            BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(1);
+            BrowserWindow.getAllWindows()[0].setSize(1240, 860);
+          });
+          await setImportPreference("theme", importBefore.appearance.theme);
+          await setImportPreference(
+            "reduceMotion",
+            importBefore.appearance.reduceMotion,
+          );
+          metrics.petImport = {
+            steps: true,
+            inlineActions: true,
+            draftReset: true,
+            inputDraftsPreserved: true,
+            minimumWindow: true,
+            reducedMotion: true,
+          };
           for (const [purpose, source] of [
             ["pet-folder", connection.petImportFolder],
             ["pet", connection.petImportZip],
           ]) {
+            await importer
+              .getByRole("button", {
+                name: english ? "Choose another pet" : "다른 펫 선택",
+                exact: true,
+              })
+              .click();
             await importer
               .getByRole("tab", {
                 name: english ? "File or folder" : "파일·폴더",
@@ -366,8 +640,8 @@ async function until(fn, timeout = 15000) {
                       ? "Choose folder"
                       : "폴더 선택"
                     : english
-                      ? "Choose another file"
-                      : "다른 파일 선택",
+                      ? "Choose file"
+                      : "파일 선택",
                 exact: true,
               })
               .click();
@@ -399,20 +673,26 @@ async function until(fn, timeout = 15000) {
             dialog.showOpenDialog = globalThis.qaImportPicker;
           });
           await importer
+            .getByRole("button", {
+              name: english ? "Choose another pet" : "다른 펫 선택",
+              exact: true,
+            })
+            .click();
+          await importer
             .getByRole("tab", {
-              name: english ? "Install command" : "설치 명령어",
+              name: english ? "Paste a command" : "명령어 붙여넣기",
               exact: true,
             })
             .click();
           await importer
             .getByRole("textbox", {
-              name: english ? "Install command" : "설치 명령어",
+              name: english ? "Paste a command" : "명령어 붙여넣기",
               exact: true,
             })
             .fill("npx petscodex install cat --force");
           await importer
             .getByRole("button", {
-              name: english ? "Download" : "다운로드",
+              name: english ? "Get pet" : "가져오기",
               exact: true,
             })
             .click();
@@ -481,7 +761,9 @@ async function until(fn, timeout = 15000) {
           .click();
         await shortcut
           .getByText(
-            english ? "Press keys (Esc to cancel)" : "키를 누르세요 (Esc: 취소)",
+            english
+              ? "Press keys (Esc to cancel)"
+              : "키를 누르세요 (Esc: 취소)",
           )
           .waitFor();
         await assertText(page.locator("main"), "pet shortcut recording");
@@ -746,6 +1028,82 @@ async function until(fn, timeout = 15000) {
           await assertText(page.locator("main"), "notifications confirmed");
         }
         if (id === "usage") {
+          const credits = page.locator(".codex-reset-credits");
+          const setCredits = async (values) => {
+            await control({ action: "codex_reset_credits", ...values });
+          };
+          const creditText = (count) =>
+            english
+              ? `${count} usage reset credit${count === 1 ? "" : "s"}`
+              : `사용량 리셋권 ${count}개`;
+          for (const count of [0, 1, 3]) {
+            await setCredits({ count });
+            await until(
+              async () => (await credits.textContent()) === creditText(count),
+            );
+            assert.equal(await credits.count(), 1);
+            // A badge beside the provider name, muted when none are left.
+            assert.equal(
+              await page
+                .locator(
+                  '[data-provider="codex"] .quota-provider-heading .codex-reset-credits',
+                )
+                .count(),
+              1,
+            );
+            assert.equal(
+              await credits.evaluate((node) =>
+                node.classList.contains("is-empty"),
+              ),
+              count === 0,
+            );
+            await assertText(credits, "Codex reset credits " + count);
+          }
+          await page.screenshot({
+            path: path.join(out, "usage-codex-reset-credits.png"),
+          });
+          await setCredits({ count: null });
+          await until(async () => (await credits.count()) === 0);
+          await setCredits({ count: 3, checking: true });
+          await until(async () => (await credits.count()) === 0);
+          await setCredits({ count: 3, enabled: false });
+          await until(async () => (await credits.count()) === 0);
+          await setCredits({ count: 3, enabled: true, clear_limits: true });
+          await until(
+            async () => (await credits.textContent()) === creditText(3),
+          );
+          assert.equal(
+            await page.locator('[data-provider="codex"] .quota-card').count(),
+            0,
+          );
+          await control({ action: "codex_limits" });
+          await page
+            .getByRole("button", { name: labels.home, exact: true })
+            .first()
+            .click();
+          await page
+            .getByRole("heading", { name: labels.home, exact: true, level: 1 })
+            .waitFor();
+          assert.equal(
+            await credits.count(),
+            0,
+            "compact home omits reset credits",
+          );
+          await page
+            .getByRole("button", { name: labels.usage, exact: true })
+            .first()
+            .click();
+          await until(
+            async () => (await credits.textContent()) === creditText(3),
+          );
+          metrics.codexResetCredits = {
+            counts: [0, 1, 3],
+            missingHidden: true,
+            checkingHidden: true,
+            disabledHidden: true,
+            withoutLimits: true,
+            usageOnly: true,
+          };
           // History rows and the conversation dialog show token counts.
           const title = english ? "QA conversation title" : "QA 대화 제목";
           await page

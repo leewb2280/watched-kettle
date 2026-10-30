@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from watched_kettle.localization import t
 
-import os
 
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 
+from watched_kettle.integrations.pipe_names import instance_pipe_name
 
-DEFAULT_INSTANCE_SERVER_NAME = "watched-kettle-instance-v1"
+
 ACTIVATE_COMMAND = b"show\n"
 # Sent by the installer and uninstaller (packaging/windows-installer.iss) so the
 # app closes normally before its files change.
@@ -19,11 +19,8 @@ ACK_COMMAND = b"ok\n"
 
 
 def configured_instance_server_name():
-    """Return the endpoint name; measurement runs override it to coexist."""
-    return (
-        os.environ.get("WATCHED_KETTLE_INSTANCE_SERVER_NAME")
-        or DEFAULT_INSTANCE_SERVER_NAME
-    )
+    """Return this user's endpoint name; measurement runs override it to coexist."""
+    return instance_pipe_name()
 
 
 class SingleInstanceCoordinator(QObject):
@@ -34,12 +31,12 @@ class SingleInstanceCoordinator(QObject):
 
     def __init__(
         self,
-        server_name=DEFAULT_INSTANCE_SERVER_NAME,
+        server_name=None,
         connect_timeout_ms=250,
         parent=None,
     ):
         super().__init__(parent)
-        self.server_name = str(server_name)
+        self.server_name = str(server_name or configured_instance_server_name())
         self.connect_timeout_ms = int(connect_timeout_ms)
         self.server = None
         self._clients = set()

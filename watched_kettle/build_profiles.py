@@ -32,6 +32,7 @@ class PetBuildSource:
     distribution: str
     # (file, bundle folder) pairs for bubble frame images the manifest names.
     frame_images: tuple[tuple[Path, str], ...] = ()
+    appearance_images: tuple[tuple[Path, str], ...] = ()
 
 
 def normalize_build_profile(profile):
@@ -107,6 +108,9 @@ def collect_pet_build_sources(project_root, profile=None):
                     frame_images=_frame_images(
                         manifest, manifest_path, pet_directory, destination
                     ),
+                    appearance_images=_appearance_images(
+                        manifest, pet_directory, destination
+                    ),
                 )
             )
             seen_ids.add(pet_id)
@@ -119,6 +123,39 @@ def collect_pet_build_sources(project_root, profile=None):
             )
         raise BuildProfileError("private-beta build contains no pet packages")
     return tuple(sources)
+
+
+def _appearance_images(manifest, directory, destination):
+    from watched_kettle.pet.appearance_assets import parse_appearance_set
+    from watched_kettle.pet.import_package import linked
+
+    spec = parse_appearance_set(manifest)
+    if spec is None:
+        return ()
+    result = []
+    primary = manifest.get("spritesheetPath", "spritesheet.webp")
+    for name in spec.paths:
+        source = directory / name
+        current = directory
+        for part in Path(name).parts:
+            current /= part
+            if linked(current):
+                raise BuildProfileError(f"linked appearance asset: {source}")
+        if (
+            not source.resolve().is_relative_to(directory.resolve())
+            or not source.is_file()
+        ):
+            raise BuildProfileError(f"missing appearance asset: {source}")
+        if name != primary:
+            result.append(
+                (
+                    source,
+                    f"{destination}/{Path(name).parent.as_posix()}"
+                    if Path(name).parent.as_posix() != "."
+                    else destination,
+                )
+            )
+    return tuple(result)
 
 
 def _frame_images(manifest, manifest_path, pet_directory, destination):

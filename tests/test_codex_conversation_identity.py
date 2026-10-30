@@ -74,8 +74,8 @@ class ConversationIdentityTests(unittest.TestCase):
         self.worker.delivered.connect(self.catalog.receive)
         self.worker.relation.connect(self.catalog.receive_relation)
         self.diagnostics = []
-        self.projects.activity_diagnostics.callback = (
-            lambda e, **f: self.diagnostics.append((e, f))
+        self.projects.activity_diagnostics.callback = lambda e, **f: (
+            self.diagnostics.append((e, f))
         )
         self.addCleanup(self.server.close)
         self.addCleanup(self.pet.agent_controller.clear)
@@ -398,6 +398,37 @@ class ConversationIdentityTests(unittest.TestCase):
         self.assert_quiet()
         self.assertEqual(self.projects.effective_scope("normal"), "internal")
         self.assertNotIn("normal", self.worker.targets)
+
+    def test_marked_internal_run_stays_hidden_despite_main_evidence(self):
+        # A persisted `codex exec` reads as main in its rollout and thread/read.
+        self.server.log_monitor = SimpleNamespace(session_scope=lambda _: "main")
+        self.addCleanup(setattr, self.server, "log_monitor", None)
+        with patch.dict(os.environ, {"WATCHED_KETTLE_AGENT_SCOPE": "internal"}):
+            for name in ("UserPromptSubmit", "PreToolUse", "Stop"):
+                payload = normalize_codex_hook(
+                    {
+                        "hook_event_name": name,
+                        "session_id": "normal",
+                        "turn_id": "1",
+                        "tool_use_id": "tool",
+                    }
+                )
+                self.assertEqual(payload["agent_scope"], "internal")
+                self.server._deliver_payload(payload, PIPE_TRANSPORT)
+        # Known internal runs are never looked up, so no retries pile up.
+        self.assertFalse(self.worker.pending)
+        self.projects.set_metadata(ThreadMetadata("normal", agent_scope="main"), 0)
+        self.assert_quiet()
+        self.assertEqual(self.projects.effective_scope("normal"), "internal")
+
+    def test_scope_marker_cannot_claim_any_other_scope(self):
+        for value in ("main", "subagent", "INTERNAL", ""):
+            with self.subTest(value=value):
+                with patch.dict(os.environ, {"WATCHED_KETTLE_AGENT_SCOPE": value}):
+                    payload = normalize_codex_hook(
+                        {"hook_event_name": "UserPromptSubmit", "session_id": "a"}
+                    )
+                self.assertEqual(payload["agent_scope"], "unknown")
 
     def test_old_connection_metadata_cannot_confirm_a_new_epoch(self):
         self.hook()

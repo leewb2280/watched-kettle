@@ -188,7 +188,7 @@ class PetImporter:
         ).encode()
         return "importedpkg-" + hashlib.sha256(content).hexdigest()
 
-    def preview(self, token, state):
+    def preview(self, token, state, appearance_id=None):
         prepared = self.prepared
         if not prepared or token != prepared.token or self.clock() >= prepared.expires:
             raise PetImportError(t("message.0138"))
@@ -203,7 +203,22 @@ class PetImporter:
             row, count, interval = 9 + int(state[-1]), 8, 180
         else:
             raise PetImportError(t("pet.import.invalid_package"))
-        with Image.open(BytesIO(prepared.image), formats=PET_IMAGE_FORMATS) as atlas:
+        image = prepared.image
+        if appearance_id is not None:
+            from watched_kettle.pet.appearance_assets import parse_appearance_set
+
+            spec = parse_appearance_set(
+                {**prepared.extras, "spritesheetPath": "spritesheet.webp"}
+            )
+            if spec is None or appearance_id not in spec.ids:
+                raise PetImportError(t("pet.appearance.invalid_package"))
+            variant = next(v for v in spec.variants if v.id == appearance_id)
+            image = (
+                prepared.image
+                if variant.path == "spritesheet.webp"
+                else prepared.assets[variant.path]
+            )
+        with Image.open(BytesIO(image), formats=PET_IMAGE_FORMATS) as atlas:
             strip = atlas.crop(
                 (0, row * FRAME_HEIGHT, count * FRAME_WIDTH, (row + 1) * FRAME_HEIGHT)
             )
@@ -324,13 +339,24 @@ class PetImporter:
                 }
             }
             assets = {}
+            from watched_kettle.pet.appearance_assets import (
+                MAX_APPEARANCE_IMAGE_BYTES,
+                parse_appearance_set,
+            )
+
+            appearance = parse_appearance_set(manifest)
             for name in prepared.assets:
                 from watched_kettle.pet.import_package import (
                     read_local,
                     MAX_DECORATION_BYTES,
                 )
 
-                assets[name] = read_local(destination, name, MAX_DECORATION_BYTES)
+                limit = (
+                    MAX_APPEARANCE_IMAGE_BYTES
+                    if appearance is not None and name in appearance.paths
+                    else MAX_DECORATION_BYTES
+                )
+                assets[name] = read_local(destination, name, limit)
             if PetImporter.identity(digest, extras, assets) != prepared.pet_id:
                 raise ValueError()
             return ImportedPet(prepared.pet_id, str(manifest["displayName"]), True)

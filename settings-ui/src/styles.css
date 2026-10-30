@@ -114,11 +114,32 @@
   .editor-preview > .footnote {
     display: none;
   }
-  .editor-preview .bubble-preview-image {
-    max-height: 110px;
-    width: auto;
+  .editor-preview .bubble-scene {
+    max-height: 180px;
   }
-  .editor-preview .button-row {
+  /* Only the drawing stays pinned; presets and resets scroll with the
+     fields, as one scrolling row above the tabs. */
+  .design-tools-preview {
+    display: none;
+  }
+  .editor-controls > .design-tools-controls {
+    display: block;
+    margin-bottom: 14px;
+  }
+  .design-tools .preset-section {
+    margin: 0;
+  }
+  .design-tools .preset-heading {
+    display: none;
+  }
+  .design-tools .preset-gallery {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .design-tools .preset-chip {
+    flex: none;
+  }
+  .design-tools .button-row {
     margin: 8px 0 0;
     justify-content: center;
   }
@@ -557,7 +578,8 @@ h1 {
 .setting-row + .setting-row {
   border-top: 1px solid var(--line);
 }
-.setting-row > label {
+.setting-row > label,
+.setting-row > .field-label-text {
   font-size: 12px;
   line-height: 1.6;
 }
@@ -574,6 +596,10 @@ h1 {
 }
 /* The shortcut and its buttons keep their width; the label wraps instead. */
 .row-control:has(> .hotkey-input) {
+  flex-shrink: 0;
+}
+/* A slider next to a long description must not push its value off the card. */
+.row-control:has(> .range-control) {
   flex-shrink: 0;
 }
 .hotkey-input {
@@ -1090,6 +1116,50 @@ select {
   line-height: 1.5;
   margin-top: 3px;
 }
+.setting-row.description-tooltip-row {
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  padding: 20px 22px;
+}
+.description-tooltip-row .heading-title {
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.description-tooltip-row .heading-title > label {
+  white-space: nowrap;
+}
+.description-tooltip-row .row-control {
+  position: relative;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.description-tooltip-row select.button {
+  appearance: none;
+  min-width: 160px;
+  min-height: 36px;
+  padding-right: 36px;
+}
+.description-tooltip-row select.button:hover:not(:disabled) {
+  filter: brightness(0.96);
+}
+.description-tooltip-row .select-chevron {
+  position: absolute;
+  right: 14px;
+  pointer-events: none;
+  color: var(--muted);
+}
+.card:has(> .description-tooltip-row) {
+  overflow: visible;
+}
+.description-tooltip-row .info-tip-text {
+  top: auto;
+  bottom: calc(100% + 8px);
+  left: auto;
+  right: 0;
+  width: 260px;
+  max-width: calc(100vw - 48px);
+}
 .modal-error .button {
   flex-shrink: 0;
 }
@@ -1331,9 +1401,21 @@ input[type="color"] {
   gap: 24px;
   margin-bottom: 24px;
 }
-.quota-provider > h3 {
+.quota-provider-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
   margin: 0 0 12px;
+}
+.quota-provider-heading > h3 {
+  margin: 0;
   font-size: 15px;
+}
+.codex-reset-credits.is-empty {
+  background: color-mix(in srgb, var(--muted) 14%, transparent);
+  color: var(--muted);
 }
 .quota-provider + .quota-provider {
   border-top: 1px solid var(--line);
@@ -1343,7 +1425,7 @@ input[type="color"] {
   gap: 12px;
   margin: 16px 0 0;
 }
-.home-grid .quota-provider > h3 {
+.home-grid .quota-provider-heading {
   padding: 0 16px;
   margin-bottom: 4px;
 }
@@ -2659,11 +2741,21 @@ input[type="color"] {
   }
 }
 /* Bubble editor: preset gallery, folding groups, sticky preview. */
+.preset-section {
+  margin: 12px 0;
+  text-align: left;
+}
+.preset-heading {
+  margin: 0 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--font-small);
+  font-weight: var(--weight-semibold);
+}
 .preset-gallery {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 12px;
 }
 .preset-chip {
   display: inline-flex;
@@ -2703,8 +2795,357 @@ input[type="color"] {
   display: inline-flex;
   gap: 4px;
 }
-.bubble-preview-image {
-  cursor: crosshair;
+.preview-heading .preview-tools {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 2px;
+}
+.preview-options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.preview-options .preview-samples {
+  margin-left: 0;
+}
+/* The canvas scrolls inside the preview card when zoomed in. */
+.bubble-scene {
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+}
+.bubble-canvas {
+  position: relative;
+  flex: none;
+  margin: auto;
+  /* A light checkerboard shows transparent parts of the bubble. */
+  background: conic-gradient(
+      var(--line) 25%,
+      transparent 0 50%,
+      var(--line) 0 75%,
+      transparent 0
+    )
+    0 0 / 16px 16px;
+  border-radius: var(--radius-control);
+  touch-action: none;
+  user-select: none;
+}
+.bubble-canvas .bubble-preview-image {
+  display: block;
+  max-width: none;
+  margin: 0;
+}
+.canvas-layer {
+  position: absolute;
+  cursor: move;
+  outline: 1px dashed transparent;
+  transform-origin: center;
+}
+.canvas-layer:hover {
+  outline-color: var(--accent);
+}
+.canvas-layer.is-selected {
+  outline: 1.5px solid var(--accent);
+}
+.canvas-pet-layer {
+  cursor: pointer;
+}
+.canvas-layer.is-locked {
+  cursor: default;
+}
+.canvas-layer-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+.canvas-handle,
+.canvas-rotate {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--solid);
+  border: 1.5px solid var(--accent);
+  border-radius: 2px;
+}
+.canvas-handle-nw {
+  left: -6px;
+  top: -6px;
+  cursor: nwse-resize;
+}
+.canvas-handle-se {
+  right: -6px;
+  bottom: -6px;
+  cursor: nwse-resize;
+}
+.canvas-handle-ne {
+  right: -6px;
+  top: -6px;
+  cursor: nesw-resize;
+}
+.canvas-handle-sw {
+  left: -6px;
+  bottom: -6px;
+  cursor: nesw-resize;
+}
+.canvas-rotate {
+  left: calc(50% - 5px);
+  top: -22px;
+  border-radius: 50%;
+  cursor: grab;
+}
+/* Side handles of the background layer stretch one way only. */
+.canvas-handle-n,
+.canvas-handle-s {
+  left: calc(50% - 5px);
+  cursor: ns-resize;
+}
+.canvas-handle-n {
+  top: -6px;
+}
+.canvas-handle-s {
+  bottom: -6px;
+}
+.canvas-handle-e,
+.canvas-handle-w {
+  top: calc(50% - 5px);
+  cursor: ew-resize;
+}
+.canvas-handle-e {
+  right: -6px;
+}
+.canvas-handle-w {
+  left: -6px;
+}
+.canvas-guide {
+  position: absolute;
+  pointer-events: none;
+  background: var(--status-running);
+}
+.canvas-guide-x {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+.canvas-guide-y {
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+.editor-tab-panel {
+  margin-top: 12px;
+}
+/* The bubble editor keeps one height on every tab, so switching tabs never
+   moves the dialog; only its content scrolls, under the pinned tab bar. */
+.bubble-editor-modal[open] {
+  display: flex;
+  flex-direction: column;
+  height: min(840px, calc(100vh - 70px));
+  overflow: hidden;
+}
+.bubble-editor-modal .modal-content {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+/* Buttons for a field sit right under it. */
+.bubble-editor-modal .setting-row + .button-row {
+  margin: 0 0 10px;
+}
+.bubble-editor-modal .editor-controls > .tabs {
+  position: sticky;
+  top: -22px;
+  z-index: 3;
+  margin-top: -22px;
+  padding-top: 22px;
+  background: var(--solid);
+}
+.design-tools-controls {
+  display: none;
+}
+@media (max-width: 850px) {
+  /* The pinned preview already holds the top; the tabs scroll. */
+  .bubble-editor-modal .editor-controls > .tabs {
+    position: static;
+    margin-top: 0;
+    padding-top: 0;
+  }
+  /* Pinned over the content's top padding too, so nothing shows above it. */
+  .bubble-editor-modal .editor-preview {
+    top: -22px;
+  }
+}
+/* Sliders, their values and selects line up down each card. */
+.bubble-editor-modal .range-control input {
+  width: 150px;
+  max-width: none;
+}
+.bubble-editor-modal .range-control output {
+  width: 48px;
+}
+.bubble-editor-modal .row-control > select {
+  width: 140px;
+}
+/* A focused slider gets a pill around its track rather than a box. */
+.bubble-editor-modal .range-control input:focus-visible {
+  border-radius: 999px;
+  outline-offset: 5px;
+}
+/* Number fields show their unit; the range is in the tooltip and stays
+   readable to screen readers. */
+.bubble-editor-modal .number-range-values {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+/* Import, library and built-in ornaments share one row. */
+.decor-add-row {
+  flex-wrap: nowrap;
+  margin-top: 8px;
+}
+.decor-add-row > select {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.inspector-heading {
+  margin: 14px 0 0;
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  color: var(--muted);
+}
+.decor-size-row .row-control {
+  gap: 6px;
+}
+.decor-size-part {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.decor-toggle[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.decor-more > summary {
+  cursor: pointer;
+  padding: 10px 0 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.layer-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.layer-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: var(--radius-control);
+}
+.layer-row.is-selected {
+  background: var(--accent-soft);
+}
+.layer-select {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  background: none;
+  text-align: left;
+  color: var(--ink);
+}
+.layer-select img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  flex: none;
+}
+.layer-select span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Pet frame layers: picked up into the user's own layers when pressed. */
+.layer-row.is-pet .layer-select {
+  color: var(--muted);
+}
+.layer-tag {
+  margin-left: auto;
+  flex: none;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: var(--font-caption);
+}
+.layer-body-marker {
+  margin: 4px 0;
+  padding: 3px 8px;
+  border-top: 1px dashed var(--line);
+  border-bottom: 1px dashed var(--line);
+  font-size: var(--font-caption);
+  color: var(--muted);
+  text-align: center;
+}
+/* The library folds under its heading; the heading shows the count. */
+.library-details > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.library-details > summary::-webkit-details-marker {
+  display: none;
+}
+.library-details > summary h2::before {
+  content: "▸ ";
+  color: var(--muted);
+}
+.library-details[open] > summary h2::before {
+  content: "▾ ";
+}
+.library-grid {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 8px;
+}
+.library-item {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--solid);
+}
+.library-item img {
+  width: 70%;
+  height: 70%;
+  object-fit: contain;
+}
+.library-item .icon-button {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  opacity: 0;
+}
+.library-item:hover .icon-button,
+.library-item .icon-button:focus-visible {
+  opacity: 1;
+}
+.decor-hint {
+  margin: 0 0 12px;
 }
 /* The section card has no padding of its own, like .card-body. */
 .widget-preview {
@@ -2738,60 +3179,189 @@ input[type="color"] {
   gap: 8px;
   justify-content: space-between;
 }
-.sticker-place {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: var(--font-small);
-  color: var(--muted);
-  margin-bottom: 8px;
+/* The importer owns its layout; other dialogs retain the shared modal sizing. */
+.pet-import-modal {
+  width: 760px;
+  height: min(560px, calc(100dvh - 48px));
+  max-height: calc(100dvh - 48px);
 }
-/* Downloaded atlases use the same crisp, transparent idle preview as pickers. */
-.pet-import-preview {
+.pet-import-modal[open] {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  margin-top: 20px;
+  overflow: hidden;
 }
-
-.import-tabs,
-.import-file-actions,
-.import-animation-controls {
-  display: flex;
+.pet-import-modal .modal-heading,
+.pet-import-modal .modal-footer {
+  flex: none;
+  padding: 16px 24px;
+}
+.pet-import-modal .modal-content {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  container-type: inline-size;
+}
+.pet-import-modal .modal-footer {
+  justify-content: space-between;
   flex-wrap: wrap;
   gap: 8px;
-  margin-block: 12px;
-  align-items: center;
+}
+.pet-import-modal .button,
+.pet-import-modal input:not([type="range"]),
+.pet-import-modal select {
+  min-height: 36px;
+  font-size: var(--font-body);
+}
+.pet-import-modal input:not([type="range"]),
+.pet-import-modal select {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 8px 10px;
+}
+.pet-import-body,
+.import-source,
+.import-source-form,
+.import-pet-details {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.pet-import-body p,
+.pet-import-body h3 {
+  margin: 0;
+}
+.pet-import-body h3 {
+  font-size: var(--font-title);
+}
+.import-intro {
+  font-size: var(--font-body);
+}
+.import-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+}
+.import-tabs button {
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--font-body);
 }
 .import-tabs [aria-selected="true"] {
-  outline: 2px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: var(--weight-semibold);
 }
-.import-source-form,
-.import-source-form label {
+.import-file-panel {
   display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 28px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  text-align: center;
+}
+.import-file-panel > svg {
+  color: var(--accent);
+}
+.import-file-actions,
+.import-inline,
+.import-footer-actions,
+.import-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.import-file-actions {
+  justify-content: center;
+}
+.import-inline > input {
+  flex: 1 1 160px;
+  min-width: 0;
+  width: 0;
+}
+.import-inline > .button,
+.import-footer-actions > .button,
+.import-back {
+  flex: none;
+}
+.import-footer-actions {
+  margin-inline-start: auto;
+  justify-content: flex-end;
+}
+.import-source-form {
   gap: 8px;
 }
-.import-source-form input {
-  width: 100%;
-  min-width: 0;
+.import-help,
+.import-pet-origin,
+.import-installed-copy small {
+  color: var(--muted);
+  font-size: var(--font-small);
+  line-height: 1.6;
+}
+.import-help p + p {
+  margin-top: 4px;
 }
 .import-installed-list {
-  max-height: 200px;
+  max-height: 220px;
   overflow-y: auto;
   display: grid;
-  gap: 6px;
+  gap: 8px;
+  margin-top: 8px;
+}
+.import-installed-list > p {
+  padding: 20px 12px;
 }
 .import-installed-row {
-  display: grid;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
   text-align: start;
   white-space: normal;
+}
+.import-installed-image {
+  width: 48px;
+  height: 52px;
+  flex: none;
+}
+.import-installed-image img {
+  display: block;
+  object-fit: contain;
+}
+.import-installed-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
   overflow-wrap: anywhere;
 }
+.import-installed-copy strong {
+  font-weight: var(--weight-semibold);
+}
+.import-installed-copy .import-installed-error {
+  color: var(--alert);
+}
+.pet-import-preview {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+}
 .import-animation {
-  width: 100%;
   min-width: 0;
+  padding: 16px;
+  background: var(--accent-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
 }
 .import-animation-stage {
   width: 192px;
@@ -2805,25 +3375,104 @@ input[type="color"] {
   object-fit: contain;
   border-radius: 0;
 }
+.import-animation-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
 .import-animation-controls label {
   display: grid;
   gap: 4px;
   min-width: 0;
   max-width: 100%;
+  flex: 1 1 120px;
+  font-size: var(--font-small);
+}
+.import-animation-controls .import-appearance-control {
+  flex-basis: 100%;
 }
 .import-animation-controls select {
-  max-width: 100%;
+  width: 100%;
+  min-width: 0;
 }
-.pet-import-preview img {
-  max-width: 160px;
-  max-height: 180px;
-  object-fit: contain;
+.import-animation-controls .button {
+  flex: none;
+}
+.import-animation-controls input[type="range"] {
+  min-width: 0;
+  width: 100%;
 }
 .pet-import-name {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 8px;
-  width: min(100%, 320px);
+  min-width: 0;
+}
+.pet-import-name input {
+  width: 100%;
+  min-width: 0;
+}
+.import-pet-details {
+  overflow-wrap: anywhere;
+}
+.import-pet-origin {
+  display: grid;
+  gap: 4px;
+}
+.import-warning {
+  border-left: 3px solid var(--warn);
+  padding-left: 12px;
+  font-size: var(--font-small);
+  line-height: 1.6;
+}
+.import-result {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-block: 36px;
+}
+.import-result > img {
+  flex: none;
+  object-fit: contain;
+}
+.import-result-copy {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.import-result-copy h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.import-result-copy h3 svg {
+  flex: none;
+  color: var(--accent);
+}
+.import-progress {
+  font-size: var(--font-small);
+}
+.import-progress progress {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+@container (max-width: 619px) {
+  .pet-import-preview {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .import-animation {
+    width: min(100%, 300px);
+    justify-self: center;
+    padding: 12px;
+  }
+  .import-result {
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-block: 8px;
+  }
 }
 
 /* Pet lifecycle manager shares the settings tokens and native modal behavior. */
@@ -3130,4 +3779,214 @@ input[type="color"] {
 }
 .home-page > .home-grid {
   margin-top: 16px;
+}
+/* Bubble image library: import options above the image list. */
+.import-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 4px 0 10px;
+  font-size: var(--font-small);
+}
+.import-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+/* Bubble editor "My themes": saved designs as chips with a thumbnail. */
+.theme-library {
+  display: grid;
+  gap: 12px;
+}
+.theme-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.theme-gallery li {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.theme-chip {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  font-size: var(--font-small);
+  color: var(--ink);
+}
+.theme-chip:hover {
+  border-color: var(--accent);
+}
+.theme-chip img {
+  max-width: 120px;
+  max-height: 56px;
+  object-fit: contain;
+}
+.theme-save {
+  display: flex;
+  gap: 8px;
+}
+.theme-save input {
+  flex: 1;
+  min-width: 0;
+}
+/* Join pets: steps, look rows, transition pairs and a small player. */
+.pet-link-body {
+  display: grid;
+  gap: 14px;
+}
+.link-steps {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: link-step;
+}
+.link-steps li {
+  counter-increment: link-step;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  font-size: var(--font-small);
+}
+.link-steps li::before {
+  content: counter(link-step) ". ";
+}
+.link-steps li[aria-current="step"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-weight: var(--weight-semibold);
+}
+.link-steps li.is-done {
+  color: var(--ink);
+}
+.link-look-list,
+.link-pair-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.link-look-row,
+.link-pair {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.link-look-row > img {
+  width: 48px;
+  height: 52px;
+  object-fit: contain;
+  flex: none;
+}
+.link-look-fields {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.link-look-fields label {
+  display: grid;
+  gap: 3px;
+  font-size: var(--font-small);
+  color: var(--muted);
+}
+.link-look-fields small {
+  color: var(--muted);
+  font-size: var(--font-caption);
+}
+.link-default {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--font-small);
+  white-space: nowrap;
+}
+.link-row-actions {
+  display: inline-flex;
+  gap: 2px;
+  flex: none;
+}
+.link-add,
+.link-confirm label {
+  display: grid;
+  gap: 5px;
+  font-size: var(--font-small);
+  color: var(--muted);
+}
+.link-pair.is-previewed {
+  border-color: var(--accent);
+}
+.link-pair-names {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  font-weight: var(--weight-medium);
+}
+.link-pair-kind {
+  display: grid;
+  gap: 2px;
+  font-size: var(--font-small);
+  color: var(--muted);
+}
+.link-pair-interval {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--font-small);
+  color: var(--muted);
+}
+.link-pair-interval input {
+  width: 70px;
+}
+.link-player {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: conic-gradient(
+      var(--line) 25%,
+      transparent 0 50%,
+      var(--line) 0 75%,
+      transparent 0
+    )
+    0 0 / 16px 16px;
+}
+.link-player img {
+  image-rendering: auto;
+}
+.link-player-kind {
+  font-size: var(--font-small);
+  color: var(--muted);
+}
+.link-confirm {
+  display: grid;
+  gap: 14px;
+  max-width: 420px;
+}
+@media (max-width: 720px) {
+  .link-look-row,
+  .link-pair {
+    flex-wrap: wrap;
+  }
 }

@@ -22,6 +22,8 @@ index or checksum file. Installers upgrade silently and start the app again
 
 from __future__ import annotations
 
+from typing import Any
+
 from watched_kettle.localization import t
 from watched_kettle.localization.collections import MessageId, MessageMapping
 
@@ -220,7 +222,7 @@ def installed_edition(root):
     """The edition the installer recorded under ``root``, or None."""
     try:
         edition = (Path(root) / "runtime" / "edition").read_text("utf-8").strip()
-    except (OSError, UnicodeError, TypeError):
+    except OSError, UnicodeError, TypeError:
         return None
     return edition if edition in EDITIONS else None
 
@@ -231,7 +233,7 @@ def installed_revision():
         return None
     try:
         return int(build_profile(Path(sys.executable).parent)["installer_revision"])
-    except (KeyError, ValueError):
+    except KeyError, ValueError:
         return None
 
 
@@ -271,7 +273,7 @@ def sync_uninstall_version(version=APPLICATION_VERSION):
                     continue
                 winreg.SetValueEx(key, name, 0, winreg.REG_DWORD, value)
             return True
-    except (ImportError, OSError, ValueError):
+    except ImportError, OSError, ValueError:
         return False
 
 
@@ -284,7 +286,7 @@ def installer_language():
             winreg.HKEY_CURRENT_USER, rf"Software\{APPLICATION_ID}"
         ) as key:
             value, _ = winreg.QueryValueEx(key, "Language")
-    except (ImportError, OSError):
+    except ImportError, OSError:
         return "ko"
     return value if value in ("ko", "en") else "ko"
 
@@ -302,7 +304,7 @@ def pending_staged_update(root):
     staged = Path(root) / "runtime" / (edition + STAGED_SUFFIX)
     try:
         version = (staged / READY_MARKER).read_text("ascii").strip()
-    except (OSError, UnicodeError):
+    except OSError, UnicodeError:
         return None
     newer, current = _version(version), _version(APPLICATION_VERSION)
     if staged.is_symlink() or newer is None or current is None or newer <= current:
@@ -369,19 +371,20 @@ class UpdateService(QObject):
         self.timer = QTimer(self)
         self.timer.setSingleShot(True)
         self.timer.timeout.connect(self._timeout)
-        self.reply = None
+        # Set while a check or download runs; read only then.
+        self.reply: Any = None
         self.release_url = ""
         self.notes_url = ""
-        self.release = None
+        self.release: Any = None
         self._kind = None
         self._host = ""
         self._port = -1
         self._abort_reason = ""
-        self._download = None
+        self._download: Any = None
         self._last_progress = 0.0
         # Allowed release assets by name: (url, size).
         self._assets = {}
-        self._index_request = None
+        self._index_request: Any = None
         self.auto_check = False
         self.auto_install = False
         self._idle_hint = True
@@ -491,7 +494,7 @@ class UpdateService(QObject):
             # Optional: the human-facing Releases whose tag page "변경 사항 보기"
             # opens when update files live in another repository (ADR 0008).
             notes_url = str(source.get("notes_url") or "")
-        except (OSError, ValueError, KeyError, TypeError):
+        except OSError, ValueError, KeyError, TypeError:
             self._settle("idle", t("message.0051"))
             return
         kind = release_url_kind(api_url, api=True)
@@ -576,7 +579,7 @@ class UpdateService(QObject):
             if len(payload) > MAX_RELEASE_BYTES:
                 raise ValueError("release_response_too_large")
             self._accept_release(json.loads(payload))
-        except (ValueError, TypeError, UnicodeError):
+        except ValueError, TypeError, UnicodeError:
             self._settle("error", t("message.0054"), retry="check")
         finally:
             reply.deleteLater()
@@ -1078,11 +1081,11 @@ class UpdateService(QObject):
     def apply_staged(self, staged):
         """Let the launcher swap the prepared runtime in, then quit."""
         root = installed_app_root()
-        started = root is not None and QProcess.startDetached(
+        result = root is not None and QProcess.startDetached(
             str(root / LAUNCHER_NAME), [APPLY_FLAG], str(root)
         )
-        if isinstance(started, tuple):
-            started = started[0]
+        # PySide6 returns (started, pid) for this overload.
+        started = result[0] if isinstance(result, tuple) else bool(result)
         if not started:
             shutil.rmtree(staged, ignore_errors=True)
             self._set(
@@ -1176,11 +1179,10 @@ class UpdateService(QObject):
         app again when it finishes.
         """
         arguments = ["/VERYSILENT", "/RELAUNCH=1", f"/LANG={installer_language()}"]
-        started = QProcess.startDetached(
+        result = QProcess.startDetached(
             str(installer), arguments, str(installer.parent)
         )
-        if isinstance(started, tuple):
-            started = started[0]
+        started = result[0] if isinstance(result, tuple) else bool(result)
         if not started:
             self._set("error", t("message.0050"), retry="download")
             return

@@ -265,17 +265,17 @@ def stage_runtime(current, staged, delta_zip, version):
         for path, (size, digest) in entries.items():
             target = staged.joinpath(*PurePosixPath(path).parts)
             target.parent.mkdir(parents=True, exist_ok=True)
-            info = members.get(path)
-            if info is None:
+            member = members.get(path)
+            if member is None:
                 source = current.joinpath(*PurePosixPath(path).parts)
                 linked = _link_or_copy(source, target, size, digest)
                 counts["linked" if linked else "copied"] += 1
                 continue
-            if info.file_size != size:
+            if member.file_size != size:
                 raise StagingError("delta_mismatch")
             hasher = hashlib.sha256()
             try:
-                with archive.open(info) as stream, open(target, "wb") as out:
+                with archive.open(member) as stream, open(target, "wb") as out:
                     for chunk in iter(lambda: stream.read(_CHUNK), b""):
                         hasher.update(chunk)
                         out.write(chunk)
@@ -293,7 +293,7 @@ def read_result(runtime_root):
     """The launcher's last swap result as a dict, or None."""
     try:
         text = (Path(runtime_root) / RESULT_FILE).read_text(encoding="utf-8")
-    except (OSError, UnicodeError):
+    except OSError, UnicodeError:
         return None
     result = {}
     for line in text.splitlines():
@@ -307,6 +307,6 @@ def build_profile(bundle_root):
     """{key: value} from a bundle's BUILD_PROFILE.txt (empty when absent)."""
     try:
         text = (Path(bundle_root) / "BUILD_PROFILE.txt").read_text(encoding="utf-8")
-    except (OSError, UnicodeError):
+    except OSError, UnicodeError:
         return {}
     return dict(line.split("=", 1) for line in text.splitlines() if "=" in line)

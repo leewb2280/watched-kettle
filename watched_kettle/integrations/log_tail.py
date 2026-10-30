@@ -36,6 +36,10 @@ class TailCursor:
             self.discarding = False
             self.record_ordinal = 0
         self.identity = identity
+        if stat.st_size == self.offset:
+            # Nothing new; polling every log must not open each one.
+            self.line_ordinals = ()
+            return (), 0, 0
         found = []
         ordinals = []
         consumed_bytes = consumed_records = 0

@@ -914,7 +914,7 @@ class CodexUsageService(QObject):
             try:
                 reset_credit_count = int(str(reset_credits.get("availableCount")))
                 reset_credit_supplied = True
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 pass
         fresh = parse_rate_limit_buckets(result)
         if not fresh:

@@ -46,6 +46,9 @@ QUEUE_TRANSPORT = "workspace_queue"
 JSONL_TRANSPORT = "codex_jsonl"
 TRANSCRIPT_TRANSPORT = "claude_code_transcript"
 RECENT_EVENT_RETENTION_SECONDS = 10
+# The spool is checked every 100 ms, but listed only when its folder changed
+# (a hook added a file) or this long after the last listing.
+SPOOL_LISTING_BACKSTOP_SECONDS = 5.0
 JSONL_DUPLICATE_WINDOW_SECONDS = 3
 _AUTO_MANAGED_RUNTIME = object()
 
@@ -76,7 +79,7 @@ class CodexHookServer(QObject):
         claude_code_hook_health_path=_AUTO_MANAGED_RUNTIME,
     ):
         super().__init__(parent)
-        self.server_name = server_name or configured_pet_server_name()
+        self.server_name = server_name or configured_pet_server_name(create=True)
         self.event_count = 0
         self.transport_event_counts = {
             PIPE_TRANSPORT: 0,
@@ -154,8 +157,10 @@ class CodexHookServer(QObject):
                 self.hook_health_paths.append(managed_hook_health_path)
 
         self.server = QLocalServer(self)
-        self.server.setSocketOptions(QLocalServer.UserAccessOption)
+        self.server.setSocketOptions(QLocalServer.SocketOption.UserAccessOption)
         self.server.newConnection.connect(self._accept_connections)
+        # Folder modified time and clock of the last listing, per spool folder.
+        self._spool_seen = {}
         self.spool_timer = QTimer(self)
         self.spool_timer.setInterval(100)
         self.spool_timer.timeout.connect(self._drain_spool)
@@ -198,7 +203,7 @@ class CodexHookServer(QObject):
                 self.log_monitor.payload_detected.disconnect(
                     self._receive_jsonl_payload
                 )
-            except (RuntimeError, TypeError):
+            except RuntimeError, TypeError:
                 pass
         self.log_monitor = monitor
         if monitor is not None:
@@ -216,7 +221,7 @@ class CodexHookServer(QObject):
                 self.transcript_monitor.payload_detected.disconnect(
                     self._receive_transcript_payload
                 )
-            except (RuntimeError, TypeError):
+            except RuntimeError, TypeError:
                 pass
         self.transcript_monitor = monitor
         if monitor is not None:
@@ -228,9 +233,33 @@ class CodexHookServer(QObject):
             self._deliver_payload(payload, TRANSCRIPT_TRANSPORT)
 
     def _drain_spool(self):
+        now = time.monotonic()
         for spool_directory in self.spool_directories:
+            try:
+                stamp = Path(spool_directory).stat().st_mtime_ns
+            except OSError:
+                continue
+            seen = self._spool_seen.get(spool_directory)
+            if (
+                seen is not None
+                and seen[0] == stamp
+                and now - seen[1] < SPOOL_LISTING_BACKSTOP_SECONDS
+            ):
+                continue
             for payload in drain_spooled_events(spool_directory):
                 self._deliver_payload(payload, QUEUE_TRANSPORT)
+            # One drain takes at most a batch; while files remain, the next
+            # tick drains again instead of waiting for the folder to change.
+            if any(Path(spool_directory).glob("*.json")):
+                self._spool_seen.pop(spool_directory, None)
+                continue
+            after: int | None
+            try:
+                # Taken after draining: removing files changes it too.
+                after = Path(spool_directory).stat().st_mtime_ns
+            except OSError:
+                after = None
+            self._spool_seen[spool_directory] = (after, now)
 
     def _accept_connections(self):
         while self.server.hasPendingConnections():
@@ -291,7 +320,7 @@ class CodexHookServer(QObject):
             return
         try:
             raw = json.loads(line.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError):
+        except UnicodeDecodeError, json.JSONDecodeError:
             return
 
         payload = sanitize_pet_event(raw)
@@ -327,7 +356,8 @@ class CodexHookServer(QObject):
                 scope = "unknown"
             if self.log_monitor is not None:
                 known_scope = self.log_monitor.session_scope(payload["session_id"])
-                if known_scope != "unknown":
+                # The rollout's "exec" source cannot tell who started the run.
+                if known_scope != "unknown" and scope != "internal":
                     scope = known_scope
             payload = {**payload, "agent_scope": scope}
         now = time.monotonic()
@@ -499,7 +529,7 @@ class CodexHookServer(QObject):
             hooks = payload.get("hooks")
             if not isinstance(hooks, dict):
                 raise ValueError("hooks must be an object")
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
+        except OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError:
             return {"exists": True, "valid": False, "event_count": 0}
         return {
             "exists": True,
@@ -539,7 +569,7 @@ class CodexHookServer(QObject):
                 and hook_config_path.stat().st_mtime_ns
                 > self.codex_config_path.stat().st_mtime_ns
             )
-        except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError, ValueError):
+        except OSError, UnicodeDecodeError, tomllib.TOMLDecodeError, ValueError:
             return {
                 **empty,
                 "exists": True,
@@ -591,7 +621,7 @@ class CodexHookServer(QObject):
                     "explicit": True,
                     "deprecated_alias": True,
                 }
-        except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError, ValueError):
+        except OSError, UnicodeDecodeError, tomllib.TOMLDecodeError, ValueError:
             return {
                 **default,
                 "exists": True,

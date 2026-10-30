@@ -23,7 +23,11 @@ from watched_kettle.features.notifications.models import NoticeRequest
 from watched_kettle.features.notifications.service import NotificationService
 from watched_kettle.features.notifications.actions import NotificationActionRouter
 from watched_kettle.ui.actionable_bubbles import ActionableBubbleController
-from watched_kettle.ui.speech_bubble_window import bubble_stack_positions
+from watched_kettle.ui.speech_bubble_window import (
+    bubble_stack_overlap,
+    bubble_stack_positions,
+)
+from tests.bubble_frame_support import frame_fixture_theme
 
 
 class Clock:
@@ -401,8 +405,9 @@ class NavigationTests(unittest.TestCase):
     def test_fallback_is_not_reported_as_successful_thread_navigation(self):
         urls, errors = [], []
         router = NotificationActionRouter(
-            opener=lambda url: urls.append(url.toString())
-            or url.toString() == "codex://"
+            opener=lambda url: (
+                urls.append(url.toString()) or url.toString() == "codex://"
+            )
         )
         router.app_available = True
         router.failed.connect(errors.append)
@@ -825,6 +830,17 @@ class CardTests(unittest.TestCase):
         self.assertLess(inside[0].x(), edge2[0].x())
         top = bubble_stack_positions(QRect(300, 0, 100, 100), sizes, area)
         self.assertEqual(top[-1].y(), 8)
+
+    def test_decorated_cards_share_the_smaller_frame_margin(self):
+        # Frame insets: top 26, bottom 16. Stacked bodies sit 26 + 6 apart,
+        # not 26 + 16 + 6, and no window reaches its neighbour's body.
+        self.controller.set_theme(frame_fixture_theme())
+        self.populate()
+        windows = self.controller.visible_windows
+        self.assertGreater(len(windows), 2)
+        self.assertEqual(bubble_stack_overlap(self.controller.theme), 16)
+        for lower, upper in zip(windows, windows[1:]):
+            self.assertEqual(lower.y(), upper.y() + upper.height() + 6 - 16)
 
     def test_preview_does_not_change_real_history_or_unread(self):
         self.populate()

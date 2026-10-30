@@ -232,6 +232,141 @@ class StructuredStorageTests(unittest.TestCase):
         finally:
             manager.close()
 
+    def test_only_the_newest_migration_backups_and_corrupt_copies_stay(self):
+        self.database.close()
+        folder = self.path.parent
+        name = self.path.name
+        for day in range(1, 5):
+            stamp = f"202608{day:02d}T120000000000Z"
+            (folder / f"{name}.v{day}-to-v{day + 1}.{stamp}.bak").write_bytes(b"")
+            (folder / f"{name}.{stamp}.corrupt").write_bytes(b"")
+            (folder / f"{name}.{stamp}.corrupt-wal").write_bytes(b"")
+        (folder / f"{name}.mine.bak").write_bytes(b"")
+        self.path.unlink()
+        connection = sqlite3.connect(self.path)
+        connection.execute("CREATE TABLE legacy_marker(value TEXT)")
+        connection.commit()
+        connection.close()
+
+        self.database = DatabaseManager(self.path)
+        self.assertTrue(self.database.start().available)
+
+        backups = sorted(path.name for path in folder.glob(f"{name}.v*.bak"))
+        self.assertEqual(len(backups), 2)
+        self.assertIn(f"{name}.v4-to-v5.20260804T120000000000Z.bak", backups)
+        self.assertTrue(any(f".v0-to-v{SCHEMA_VERSION}." in item for item in backups))
+        self.assertTrue((folder / f"{name}.mine.bak").exists())
+        # Corrupt copies are trimmed only when another one is preserved.
+        self.assertEqual(len(list(folder.glob(f"{name}.*.corrupt"))), 4)
+
+        self.database.close()
+        self.path.write_bytes(b"not a sqlite database")
+        self.database = DatabaseManager(self.path)
+        self.assertTrue(self.database.start().available)
+        corrupt = sorted(path.name for path in folder.glob(f"{name}.*.corrupt*"))
+        self.assertEqual(len(corrupt), 3)
+        self.assertIn(f"{name}.20260804T120000000000Z.corrupt", corrupt)
+        self.assertIn(f"{name}.20260804T120000000000Z.corrupt-wal", corrupt)
+
+    def database_at(self, version):
+        """Rebuild the file as a release with schema ``version`` left it."""
+        self.database.close()
+        for path in self.path.parent.glob(f"{self.path.name}*"):
+            path.unlink()
+        manager = DatabaseManager(self.path)
+        connection = manager._connect()
+        manager._migrate(connection, target_version=version)
+        with connection:
+            connection.execute(
+                "INSERT INTO app_metadata(key, value) VALUES ('marker', 'keep')"
+            )
+        connection.close()
+
+    def versions(self, connection):
+        return {
+            row[0]
+            for row in connection.execute("SELECT version FROM schema_migrations")
+        }
+
+    def test_public_release_databases_upgrade_with_a_backup(self):
+        # Public 0.15.3-0.15.6 shipped schema 8; 0.13 betas, before Claude
+        # Code, schema 7. 0.15.7 and later ship the current schema.
+        for version in (7, 8):
+            with self.subTest(version=version):
+                self.database_at(version)
+                self.database = DatabaseManager(self.path)
+
+                self.assertTrue(self.database.start().available)
+                connection = self.database.connection
+                self.assertEqual(
+                    self.versions(connection), set(range(1, SCHEMA_VERSION + 1))
+                )
+                self.assertEqual(
+                    connection.execute(
+                        "SELECT value FROM app_metadata WHERE key='marker'"
+                    ).fetchone()[0],
+                    "keep",
+                )
+                backups = list(
+                    self.path.parent.glob(
+                        f"{self.path.name}.v{version}-to-v{SCHEMA_VERSION}.*.bak"
+                    )
+                )
+                self.assertEqual(len(backups), 1)
+
+    def test_failed_migration_rolls_back_and_succeeds_next_start(self):
+        self.database_at(7)
+
+        def broken(connection):
+            connection.execute("CREATE TABLE half_done(value TEXT)")
+            raise sqlite3.OperationalError("simulated failure")
+
+        self.database = DatabaseManager(self.path)
+        with patch(
+            "watched_kettle.storage.claude_code_repository.migrate_claude_code_storage",
+            broken,
+        ):
+            self.assertFalse(self.database.start().available)
+        self.database.close()
+
+        connection = sqlite3.connect(self.path)
+        try:
+            self.assertEqual(self.versions(connection), set(range(1, 8)))
+            tables = {
+                row[0]
+                for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+            }
+            self.assertNotIn("half_done", tables)
+            self.assertNotIn("claude_code_files", tables)
+        finally:
+            connection.close()
+        self.assertFalse(list(self.path.parent.glob(f"{self.path.name}.*.corrupt")))
+
+        self.database = DatabaseManager(self.path)
+        self.assertTrue(self.database.start().available)
+        self.assertEqual(
+            self.versions(self.database.connection), set(range(1, SCHEMA_VERSION + 1))
+        )
+
+    def test_sparse_database_is_compacted(self):
+        connection = self.database.connection
+        with connection:
+            connection.execute("CREATE TABLE filler(value BLOB)")
+            connection.executemany(
+                "INSERT INTO filler(value) VALUES (?)",
+                [(bytes(4096),) for _ in range(1000)],
+            )
+        self.assertFalse(self.database.compact_if_sparse())
+        with connection:
+            connection.execute("DELETE FROM filler")
+        size = self.path.stat().st_size
+
+        self.assertTrue(self.database.compact_if_sparse())
+        self.assertLess(self.path.stat().st_size, size / 2)
+        self.assertFalse(self.database.compact_if_sparse())
+
     def test_invalid_legacy_import_keeps_source_and_rolls_back(self):
         legacy = Path(self.temp.name) / "usage-history-v1.json"
         legacy.write_text(

@@ -61,6 +61,10 @@ class FakeProcess(QObject):
     def terminate(self):
         self.running = False
 
+    def closeWriteChannel(self):
+        self.closed_input = True
+        self.running = False
+
     def waitForFinished(self, _timeout):
         return True
 
@@ -85,6 +89,21 @@ class CodexAppServerClientTests(unittest.TestCase):
         client = CodexAppServerClient(program="codex", process_factory=FakeProcess)
         self.clients.append(client)
         return client
+
+    def test_close_ends_the_server_through_its_input(self):
+        # terminate() never reaches a Windows console program; each close then
+        # waited a full second (PERF-02).
+        client = self.make_client()
+        client.start()
+        process = client.process
+        terminated = []
+        process.terminate = lambda: terminated.append(True)
+
+        client.close()
+
+        self.assertTrue(process.closed_input)
+        self.assertEqual(terminated, [])
+        self.assertIsNone(client.process)
 
     def test_handshake_and_split_jsonl_response(self):
         client = self.make_client()

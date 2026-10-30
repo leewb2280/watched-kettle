@@ -239,7 +239,7 @@
     -1.0001,
     -1e-06
   ],
-  "electron": "44.4.5",
+  "electron": "44.9.3",
   "locales": [
     "af",
     "af-NA",

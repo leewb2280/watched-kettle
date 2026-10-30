@@ -24,6 +24,7 @@ from watched_kettle.pet.bubble_theme import (
     DEFAULT_BUBBLE_THEME,
     bubble_theme_from_dict,
     bubble_theme_from_manifest,
+    resolve_bubble_theme,
 )
 from watched_kettle.pet.preferences import PetPreferences
 from watched_kettle.ui.speech_bubble_frame import (
@@ -180,6 +181,21 @@ class BubbleFrameParsingTests(unittest.TestCase):
         }
         self.assertEqual(bubble_theme_from_manifest(explicit).frame_style, "standard")
         self.assertIsNone(register_package_frame({"id": "plain"}, self.root))
+
+    def test_a_design_from_another_pet_takes_this_pets_own_frame(self):
+        framed = {"id": "framed", "bubbleTheme": {"frame": {"insets": [1, 1, 1, 1]}}}
+        plain = {"id": "plain", "bubbleTheme": {"radius": 12}}
+        other = replace(DEFAULT_BUBBLE_THEME, frame_style="pet:someone-else", radius=20)
+
+        theme = resolve_bubble_theme(framed, "custom", other)
+        self.assertEqual((theme.frame_style, theme.radius), ("pet:framed", 20))
+        self.assertEqual(
+            resolve_bubble_theme(plain, "custom", other).frame_style, "standard"
+        )
+        own = replace(other, frame_style="pet:framed")
+        self.assertIs(resolve_bubble_theme(framed, "custom", own), own)
+        standard = replace(other, frame_style="standard")
+        self.assertIs(resolve_bubble_theme(framed, "custom", standard), standard)
 
     def test_only_standard_and_package_frame_styles_are_valid(self):
         self.assertTrue(is_frame_style("standard"))

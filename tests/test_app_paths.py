@@ -55,6 +55,37 @@ class LegacyDataRootMigrationTests(unittest.TestCase):
         self.assertEqual(resolve_data_root(self.local), self.legacy)
         self.assertEqual(migrate_legacy_data_root(self.local), "migrated")
 
+    def test_a_second_start_racing_the_first_keeps_the_moved_data(self):
+        # Both starts saw old data and a new folder with only hook files. The
+        # first moved the old data in before the second acted on its check.
+        self.write_legacy_data()
+        (self.current / "runtime").mkdir(parents=True)
+        real_rename = __import__("os").rename
+
+        def first_start_wins(source, target):
+            if Path(source) == self.legacy:
+                # The first start already moved it; the second finds it gone.
+                raise FileNotFoundError(source)
+            return real_rename(source, target)
+
+        (self.current / "settings.ini").write_text("moved", encoding="utf-8")
+        with (
+            patch(
+                "watched_kettle.application.paths._has_user_data",
+                side_effect=lambda root: Path(root) == self.legacy,
+            ),
+            patch("watched_kettle.application.paths.os.rename", first_start_wins),
+        ):
+            self.assertEqual(migrate_legacy_data_root(self.local), "kept_legacy")
+
+        self.assertEqual(
+            (self.current / "settings.ini").read_text(encoding="utf-8"), "moved"
+        )
+        self.assertEqual(
+            sorted(path.name for path in self.local.iterdir()),
+            ["CodexDesktopPets", "WatchedKettle"],
+        )
+
     def test_existing_current_data_is_never_overwritten(self):
         self.write_legacy_data()
         self.current.mkdir()

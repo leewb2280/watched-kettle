@@ -61,7 +61,7 @@ CLAUDE_CODE_TIMEOUT_FIELDS = (
 def _bounded_int(value, default, low, high):
     try:
         number = int(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return default
     return number if low <= number <= high else default
 
@@ -71,6 +71,10 @@ USAGE_CHART_DAYS = (7, 14, 30)
 
 # Below this the pet is hard to find on a busy desktop.
 PET_OPACITY_MIN = 50
+
+# Playback speed of the pet's state animations, as a percent of the default.
+PET_ANIMATION_SPEED_MIN = 50
+PET_ANIMATION_SPEED_MAX = 200
 
 
 DOUBLE_CLICK_ACTIONS = ("settings_home", "codex", "claude", "wave_only")
@@ -146,7 +150,7 @@ class ApplicationPreferences:
         """When an automatic check last got an answer, in epoch seconds."""
         try:
             return max(0.0, float(self.settings.value("updates/lastCheck", 0)))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return 0.0
 
     def save_update_last_check(self, timestamp):
@@ -191,7 +195,7 @@ class ApplicationPreferences:
         value = self.settings.value(f"usage/projects/{account}", "") if account else ""
         try:
             value = json.loads(value)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             value = {}
         if not isinstance(value, dict):
             value = {}
@@ -234,7 +238,7 @@ class ApplicationPreferences:
         if isinstance(value, str):
             try:
                 value = json.loads(value)
-            except (TypeError, ValueError, json.JSONDecodeError):
+            except TypeError, ValueError, json.JSONDecodeError:
                 return frozenset()
         if not isinstance(value, (list, tuple)):
             return frozenset()
@@ -256,7 +260,7 @@ class ApplicationPreferences:
     def load_usage_chart_days(self):
         try:
             days = int(self.settings.value("usage/chartDays", 7))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             days = 7
         return days if days in USAGE_CHART_DAYS else 7
 
@@ -325,13 +329,25 @@ class ApplicationPreferences:
     def load_pet_opacity(self):
         try:
             value = int(self.settings.value("pet/opacityPercent", 100))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             value = 100
         return min(100, max(PET_OPACITY_MIN, value))
 
     def save_pet_opacity(self, percent):
         value = min(100, max(PET_OPACITY_MIN, int(percent)))
         self.settings.setValue("pet/opacityPercent", value)
+        return value
+
+    def load_pet_animation_speed(self):
+        try:
+            value = int(self.settings.value("pet/animationSpeedPercent", 100))
+        except TypeError, ValueError:
+            value = 100
+        return min(PET_ANIMATION_SPEED_MAX, max(PET_ANIMATION_SPEED_MIN, value))
+
+    def save_pet_animation_speed(self, percent):
+        value = min(PET_ANIMATION_SPEED_MAX, max(PET_ANIMATION_SPEED_MIN, int(percent)))
+        self.settings.setValue("pet/animationSpeedPercent", value)
         return value
 
     def load_pet_shadow(self):

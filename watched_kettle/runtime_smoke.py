@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from typing import Any, cast
 import json
 import os
 import sys
@@ -120,6 +121,7 @@ def _run(root, duration, report, *, require_tray=False, exit_via_settings=False)
                 return None
             self.next_id += 1
             rid = self.next_id
+            result: dict[str, Any]
             if method == "account/read":
                 result = {"account": {"type": "chatgpt", "email": None}}
             elif method == "account/rateLimits/read":
@@ -143,7 +145,7 @@ def _run(root, duration, report, *, require_tray=False, exit_via_settings=False)
             )
             return rid
 
-    app = QApplication.instance() or QApplication([])
+    app = cast(QApplication, QApplication.instance() or QApplication([]))
     app.setQuitOnLastWindowClosed(False)
     bundle_root = Path(__file__).resolve().parent.parent
     entries = discover_pets(bundle_root / "pets") or discover_pets(
@@ -252,7 +254,8 @@ def _run(root, duration, report, *, require_tray=False, exit_via_settings=False)
             )
         if require_tray and index % 20 == 0:
             runtime.tray.refresh()
-            if runtime.tray.usage_status_action.text() == "Codex 사용량: 잔여 80%":
+            tray: Any = runtime.tray
+            if tray.usage_status_action.text() == "Codex 사용량: 잔여 80%":
                 state["tray_checked"] = True
         if now >= next_sample:
             write_report()

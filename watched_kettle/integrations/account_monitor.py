@@ -62,8 +62,12 @@ class AccountMonitor(QObject):
         self.account = {}
         self.signature = self._signature()
         self.probe_signature = self.signature
+        # Each check starts a fresh App Server so it reads the sign-in anew.
+        # With auth.json a switch shows up through the file watch below; the
+        # periodic check covers sign-ins kept in the OS credential store and
+        # server-side changes such as the plan.
         self.periodic = QTimer(self)
-        self.periodic.setInterval(60_000)
+        self.periodic.setInterval(5 * 60_000)
         self.periodic.timeout.connect(self.check)
         self.file_timer = QTimer(self)
         self.file_timer.setInterval(2_000)

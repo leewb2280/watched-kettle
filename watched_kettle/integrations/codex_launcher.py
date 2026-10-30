@@ -89,7 +89,7 @@ class WindowsCodexLauncher(WindowsApps):
                         yield AppInstallation(
                             executable, CODEX_PACKAGE_FAMILY + "!" + app.attrib["Id"]
                         )
-            except (OSError, ET.ParseError, KeyError):
+            except OSError, ET.ParseError, KeyError:
                 continue
 
     def start(self, installation):

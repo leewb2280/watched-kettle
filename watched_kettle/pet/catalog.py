@@ -91,7 +91,7 @@ def discover_pets(pets_root: Path):
         manifest_path = pet_directory / "pet.json"
         try:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        except OSError, UnicodeDecodeError, json.JSONDecodeError:
             continue
 
         if not isinstance(manifest, dict):

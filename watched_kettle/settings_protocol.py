@@ -254,6 +254,7 @@ class PetPreview(TypedDict):
     sourceSize: Size
     contentBounds: Bounds
     cropBounds: Bounds
+    appearanceId: NotRequired[str | None]
 
 
 class PetTrashEntry(TypedDict):
@@ -313,6 +314,7 @@ class PetPreparation(TypedDict):
     name: str
     thumbnail: str
     spriteVersion: int
+    appearanceChoices: NotRequired[list[PetAppearanceChoice]]
     description: NotRequired[str]
     source: NotRequired[str]
     warnings: NotRequired[list[str]]
@@ -357,6 +359,7 @@ class ImportThumbnail(TypedDict):
 class ImportPreviewRequest(TypedDict):
     token: str
     state: str
+    appearanceId: NotRequired[str]
 
 
 class ImportPreview(TypedDict):
@@ -394,10 +397,59 @@ class Element(TypedDict):
     id: str
     name: str
     kind: str
+    # PNG data URL at most 96px, and the image's own size.
+    thumbnail: str
+    width: int
+    height: int
 
 
 class ElementImported(TypedDict):
     id: str
+    # Every image of a multi-file pick, drop or paste, in order.
+    ids: NotRequired[list[str]]
+
+
+class ElementUsage(TypedDict):
+    pets: list[str]
+    designs: list[str]
+
+
+class BubbleThemeEntry(TypedDict):
+    id: str
+    name: str
+    savedAt: str
+    # PNG data URL of the design's short notice, or "".
+    thumbnail: str
+
+
+class BubbleThemeList(TypedDict):
+    themes: list[BubbleThemeEntry]
+
+
+class BubbleThemeId(TypedDict):
+    id: str
+
+
+class BubbleThemeLoaded(TypedDict):
+    theme: SpeechBubbleTheme
+    # The name a theme file carried; "" for library themes.
+    name: str
+
+
+class BubbleThemePackaged(Saved):
+    # Library-only fields a pet package cannot carry.
+    omitted: list[str]
+
+
+class BubbleThemeSave(TypedDict):
+    name: str
+    theme: SpeechBubbleTheme
+
+
+class ThemeFile(TypedDict):
+    path: str
+    name: NotRequired[str]
+    theme: NotRequired[SpeechBubbleTheme]
 
 
 class ThemeLimit(TypedDict):
@@ -419,19 +471,57 @@ class BubbleEditor(TypedDict):
     revision: int
     petId: str
     elements: list[Element]
+    # Built-in ornaments as "ornament:" layer images, drawn in theme colors.
+    ornaments: list[Element]
     choices: dict[str, list[str]]
     limits: dict[str, ThemeLimit]
     labels: dict[str, dict[str, str]]
     presets: list[ThemePreset]
+    # Images of this pet's own frame ("pkg:" ids) and its layers as decor.
+    packageImages: list[Element]
+    packageDecor: list[BubbleDecorLayer]
+    # The pet frame's inner line, halo and text spacing as theme values, the
+    # starting point when a theme sets its own.
+    frameValues: dict[str, Scalar]
+
+
+class BubbleBox(TypedDict):
+    x: float
+    y: float
+    width: float
+    height: float
+
+
+class BubbleLayerBox(BubbleBox):
+    id: str
+    rotation: float
+    anchorX: float
+    anchorY: float
+
+
+class BubbleGeometry(TypedDict):
+    width: float
+    height: float
+    body: BubbleBox
+    # The background photo's box; None when there is none or it is tiled.
+    background: BubbleBox | None
+    layers: list[BubbleLayerBox]
 
 
 class BubbleRender(TypedDict):
     image: str
     theme: SpeechBubbleTheme
+    # In 100% pixels; the image is pixelRatio times larger.
+    geometry: BubbleGeometry
+    pixelRatio: int
 
 
 class PetId(TypedDict):
     petId: str
+
+
+class PetPreviewRequest(PetId):
+    appearanceId: NotRequired[str]
 
 
 class SelectPet(Context):
@@ -481,7 +571,7 @@ class ThemeRequest(Context):
 
 
 class RenderTheme(ThemeRequest):
-    sample: NotRequired[Literal["notice", "project"]]
+    sample: NotRequired[Literal["notice", "long", "project"]]
 
 
 class ElementDelete(Context):
@@ -526,7 +616,14 @@ class BooleanSetting(Context):
 
 
 class NumberSetting(Context):
-    key: Literal["opacity", "width", "look", "bubble_scale", "bubble_duration"]
+    key: Literal[
+        "opacity",
+        "animation_speed",
+        "width",
+        "look",
+        "bubble_scale",
+        "bubble_duration",
+    ]
     value: int
 
 
@@ -547,6 +644,9 @@ class StringSetting(Context):
         "appearance:theme",
         "appearance:material",
         "languagePack",
+        "pet_appearance",
+        "pet_appearance_interval",
+        "pet_appearance_order",
     ]
     value: str
 
@@ -701,8 +801,92 @@ class FilePath(TypedDict):
     path: str
 
 
-class ImportElement(FilePath):
+class ImportOptions(TypedDict, total=False):
+    # Cut transparent margins; make white touching the edges transparent.
+    trim: bool
+    clearWhite: bool
+
+
+class ImportElement(FilePath, ImportOptions):
     kind: ElementKind
+
+
+class PetLinkPair(TypedDict):
+    fromPetId: str
+    toPetId: str
+
+
+class PetLinkFiles(PetLinkPair):
+    paths: list[str]
+
+
+class PetLinkSource(TypedDict):
+    id: str
+    name: str
+    thumbnail: str
+    # Why the pet cannot be a look; "" when it can.
+    problem: str
+    hasBubble: bool
+    # Made by joining pets, so it can be opened for editing.
+    joined: bool
+
+
+class PetLinkTransition(PetLinkPair):
+    frames: int
+    intervalMs: int
+    resized: bool
+
+
+class PetLinkTransitions(TypedDict):
+    transitions: list[PetLinkTransition]
+
+
+class PetLinkSources(PetLinkTransitions):
+    entries: list[PetLinkSource]
+    maxLooks: int
+
+
+class PetLinkPreview(TypedDict):
+    start: str
+    end: str
+    frames: list[str]
+    intervalMs: int
+    kind: Literal["drawn", "reversed", "fade"]
+
+
+class PetLinkLook(TypedDict):
+    petId: str
+    label: str
+
+
+class PetLinkInterval(PetLinkPair):
+    intervalMs: int
+
+
+class PetLinkAuto(TypedDict):
+    minSeconds: int
+    maxSeconds: int
+    order: Literal["random", "sequence"]
+
+
+class PetLinkCreate(TypedDict):
+    looks: list[PetLinkLook]
+    defaultPetId: str
+    name: str
+    bubblePetId: str
+    intervals: list[PetLinkInterval]
+    auto: PetLinkAuto
+    # A joined pet the result replaces: settings move over, the old one goes to trash.
+    replacePetId: NotRequired[str]
+
+
+class PetLinkDraft(PetLinkTransitions):
+    looks: list[PetLinkLook]
+    sources: list[PetLinkSource]
+    defaultPetId: str
+    name: str
+    bubblePetId: str
+    auto: PetLinkAuto
 
 
 class Invalidation(TypedDict):
@@ -752,7 +936,7 @@ COMMANDS = {
     "settings.snapshot": Command("Empty", "SettingsSnapshot"),
     "settings.set": Command("SettingRequest", "Mutation"),
     "pet.catalog": Command("Empty", "PetCatalog"),
-    "pet.preview": Command("PetId", "PetPreview"),
+    "pet.preview": Command("PetPreviewRequest", "PetPreview"),
     "pet.select": Command("SelectPet", "Mutation"),
     "pet.import.commit": Command("RegisterPet", "PetRegistration"),
     "pet.import.cancel": Command("Token", "Cancelled"),
@@ -763,6 +947,12 @@ COMMANDS = {
     "pet.import.installed.thumbnail": Command("InstalledPetId", "ImportThumbnail"),
     "pet.import.installed.start": Command("InstalledPetId", "PetImportJob"),
     "pet.import.preview": Command("ImportPreviewRequest", "ImportPreview"),
+    "pet.link.sources": Command("Empty", "PetLinkSources"),
+    "pet.link.load": Command("PetId", "PetLinkDraft"),
+    "pet.link.preview": Command("PetLinkPair", "PetLinkPreview"),
+    "pet.link.transition.clear": Command("PetLinkPair", "PetLinkTransitions"),
+    "pet.link.reset": Command("Empty", "Cancelled"),
+    "pet.link.create": Command("PetLinkCreate", "PetRegistration"),
     "pet.catalog.save": Command("CatalogSave", "Mutation"),
     "pet.trash.list": Command("Offset", "PetTrashCatalog"),
     "pet.trash.move": Command("TrashMove", "TrashMutation"),
@@ -778,6 +968,12 @@ COMMANDS = {
     "bubble.save": Command("ThemeRequest", "Mutation"),
     "bubble.reset": Command("Context", "Mutation"),
     "element.delete": Command("ElementDelete", "Mutation"),
+    "element.usage": Command("ElementDelete", "ElementUsage"),
+    "element.open_folder": Command("Empty", "Opened"),
+    "bubble.theme.list": Command("Empty", "BubbleThemeList"),
+    "bubble.theme.save": Command("BubbleThemeSave", "BubbleThemeList"),
+    "bubble.theme.load": Command("BubbleThemeId", "BubbleThemeLoaded"),
+    "bubble.theme.delete": Command("BubbleThemeId", "BubbleThemeList"),
     "update.check": Command("Empty", "Pending"),
     "update.download": Command("Empty", "Pending"),
     "update.apply": Command("Empty", "Pending"),
@@ -795,7 +991,11 @@ COMMANDS = {
     "file.pet.prepare": Command("FilePath", "PetPreparation", "main"),
     "file.pet.start": Command("FilePath", "PetImportJob", "main"),
     "file.pet.cancel": Command("Empty", "Cancelled", "main"),
+    "file.link.transition": Command("PetLinkFiles", "PetLinkTransition", "main"),
     "file.export": Command("FilePath", "Saved", "main", "pet-assistant"),
+    "file.theme.export": Command("ThemeFile", "Saved", "main"),
+    "file.theme.import": Command("FilePath", "BubbleThemeLoaded", "main"),
+    "file.theme.package": Command("ThemeFile", "BubbleThemePackaged", "main"),
 }
 
 
@@ -981,6 +1181,29 @@ class ClaudeCodeUsageSnapshot(TypedDict):
     account_hash: str
 
 
+class PetAppearanceChoice(TypedDict):
+    id: str
+    label: str
+
+
+class PetAppearanceAuto(TypedDict):
+    min_seconds: int
+    max_seconds: int
+    order: str
+
+
+class PetAppearanceStatus(TypedDict):
+    mode: str
+    current_id: str
+    target_id: str | None
+    transitioning: bool
+    pending: bool
+    choices: list[PetAppearanceChoice]
+    interval: str
+    order: str
+    package_auto: PetAppearanceAuto
+
+
 class PetSnapshot(TypedDict):
     pet_id: str
     display_name: str
@@ -992,6 +1215,7 @@ class PetSnapshot(TypedDict):
     activity_labels_enabled: bool
     idle_activities_enabled: bool
     auto_movement_enabled: bool
+    appearance: NotRequired[PetAppearanceStatus | None]
     pet_width: int
     look_range: int
     bubble_scale: int
@@ -1002,6 +1226,7 @@ class PetSnapshot(TypedDict):
     bubble_duration_policy: BubbleDurationPolicy
     working_sources: list[str]
     opacity_percent: int
+    animation_speed_percent: int
     shadow: bool
     fade: bool
     click_through: bool
@@ -1032,6 +1257,8 @@ class NoticeRecord(TypedDict):
 
 
 class ThemeBase(TypedDict):
+    """Design values a preset sets; the pet frame and user images stay."""
+
     background: str
     border: str
     text: str
@@ -1050,7 +1277,6 @@ class ThemeBase(TypedDict):
     ornament_right: str
     ornament_scale: int
     glow: bool
-    frame_style: str
     fill_opacity: int
     minimum_width: int
     maximum_width: int
@@ -1058,28 +1284,64 @@ class ThemeBase(TypedDict):
     stack_alignment: str
     text_alignment: str
     text_bold: bool
+    gradient_angle: int
+    pattern_tile_size: int
+    pattern_opacity: int
+
+
+class BubbleDecorLayer(TypedDict):
+    id: str
+    name: str
+    image: str
+    placement: str
+    anchor: str
+    x: float
+    y: float
+    width: float
+    height: float
+    rotation: float
+    mirror: bool
+    flip_y: bool
+    alpha: int
+    tint: str
+    repeat: str
+    repeat_gap: float
+    repeat_inset: float
+    hidden: bool
 
 
 class SpeechBubbleTheme(ThemeBase):
+    frame_style: str
     background_image: str
+    background_fit: str
     background_opacity: int
     background_focus_x: int
     background_focus_y: int
     background_zoom: int
+    background_tile_size: int
+    background_blur: int
+    background_overlay: int
+    background_x: float
+    background_y: float
+    background_width: int
+    background_height: int
     frame_image: str
     frame_slice: int
-    sticker_1: str
-    sticker_1_x: int
-    sticker_1_y: int
-    sticker_1_size: int
-    sticker_2: str
-    sticker_2_x: int
-    sticker_2_y: int
-    sticker_2_size: int
-    sticker_3: str
-    sticker_3_x: int
-    sticker_3_y: int
-    sticker_3_size: int
+    package_layers: bool
+    decor: list[BubbleDecorLayer]
+    inner_border_custom: bool
+    inner_border_color: str
+    inner_border_alpha: int
+    halo_custom: bool
+    halo_color: str
+    halo_alpha: int
+    halo_width: float
+    halo_offset_y: float
+    halo_grow: float
+    content_custom: bool
+    content_top: int
+    content_bottom: int
+    content_left: int
 
 
 class BubbleDurationPolicy(TypedDict):

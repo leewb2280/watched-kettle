@@ -60,7 +60,7 @@ def resolve_lock_keys(cwd: str) -> tuple[str, ...]:
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
             common = Path(result.stdout.strip()).resolve(strict=True)
-        except (OSError, ValueError, subprocess.SubprocessError):
+        except OSError, ValueError, subprocess.SubprocessError:
             raise ValueError("repository_identity_unavailable") from None
         keys.append("git:" + os.path.normcase(str(common)))
     return tuple(keys)
@@ -133,7 +133,7 @@ def allocate(
             continue
         try:
             locks = lock_resolver(item.spec.cwd)
-        except (ValueError, OSError):
+        except ValueError, OSError:
             reasons[item.id] = "execution_path_unavailable"
             continue
         if busy.intersection(locks) or project in projects:

@@ -8,6 +8,7 @@ schedule and records only phase names and timings, never user content.
 from __future__ import annotations
 
 import argparse
+from typing import Any
 from datetime import datetime, timezone
 import json
 import os
@@ -83,9 +84,10 @@ class PerformanceProbe:
     def __init__(self, options, clock=monotonic):
         self.options = options
         self.clock = clock
-        self.timeline = None
-        self.app = None
-        self.host = None
+        # Set when the app hands itself over; read only afterwards.
+        self.timeline: Any = None
+        self.app: Any = None
+        self.host: Any = None
 
     def __call__(self, app, _pet, runtime):
         _ACTIVE_PROBES.append(self)

@@ -14,7 +14,12 @@ from PySide6.QtGui import QImage
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
-from watched_kettle.config import FRAME_HEIGHT, FRAME_WIDTH
+from watched_kettle.config import (
+    ANIMATIONS,
+    FRAME_HEIGHT,
+    FRAME_WIDTH,
+    scaled_animation_ms,
+)
 from watched_kettle.app_preferences import ApplicationPreferences
 from watched_kettle.application.paths import AppPaths
 from watched_kettle.application.runtime import ApplicationRuntime
@@ -206,6 +211,39 @@ class DesktopPetStateTests(unittest.TestCase):
 
         self.assertIsNone(self.pet.look_direction_index)
         self.assertEqual(self.pet.current_state, "running")
+
+    def test_animation_speed_sets_frame_pace_and_keeps_the_playing_frame(self):
+        base = ANIMATIONS["running"]["interval"]
+        self.pet.set_state("running")
+        self.assertEqual(self.pet.timer.interval(), base)
+        self.pet.next_frame()
+        frame = self.pet.current_frame
+
+        self.pet.set_animation_speed_percent(200)
+        self.assertEqual(self.pet.timer.interval(), round(base / 2))
+        self.assertEqual(self.pet.current_frame, frame)
+        self.assertEqual(self.settings.values["pet/animationSpeedPercent"], 200)
+        self.pet.set_animation_speed_percent(50)
+        self.assertEqual(self.pet.timer.interval(), base * 2)
+        self.pet.set_state("idle")
+        self.assertEqual(self.pet.timer.interval(), ANIMATIONS["idle"]["interval"] * 2)
+        self.assertEqual(scaled_animation_ms(10, 200), 16)
+
+    def test_idle_action_lasts_as_many_frames_at_any_speed(self):
+        self.pet.activity_controller.enabled = True
+        self.pet.activity_controller.activities = [
+            {"state": "review", "weight": 1, "duration": 2_000},
+        ]
+        for percent, duration in ((100, 2_000), (50, 4_000), (200, 1_000)):
+            with self.subTest(percent=percent):
+                self.pet.set_animation_speed_percent(percent)
+                self.pet.set_state("idle")
+                self.pet.start_idle_activity()
+                self.assertEqual(self.pet.current_state, "review")
+                self.assertEqual(
+                    self.pet.activity_controller.end_timer.interval(), duration
+                )
+                self.pet.finish_idle_activity()
 
     def test_mirror_manifest_uses_mirrored_right_pose_family(self):
         self.assertTrue(self.pet.manifest.get("mirrorRightLookFromLeft"))

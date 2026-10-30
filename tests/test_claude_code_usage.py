@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -193,6 +194,34 @@ class ServiceTests(unittest.TestCase):
             [t.outcome for t in tasks], ["running", "cancelled", "completed"]
         )
         self.assertEqual(tasks[-1].cached_input_tokens, 2 * 1000)
+
+    def test_prune_drops_read_positions_of_files_past_retention(self):
+        self.drain()
+        file_hash = hash_identifier(str(self.transcript))
+        self.assertIsNotNone(self.repository.file_state(file_hash))
+        old = (datetime.now(timezone.utc) - timedelta(days=120)).timestamp()
+        with self.database.connection:
+            self.database.connection.execute(
+                "INSERT INTO claude_code_files VALUES ('old', 1, ?, 0, 0)",
+                (int(old * 1_000_000_000),),
+            )
+
+        self.repository.prune()
+
+        self.assertIsNone(self.repository.file_state("old"))
+        self.assertIsNotNone(self.repository.file_state(file_hash))
+
+    def test_file_limit_counts_only_recent_transcripts(self):
+        # Folders list in name order; old sessions named first must not use up
+        # the limit before a recent one (PERF-04).
+        old = (datetime.now(timezone.utc) - timedelta(days=200)).timestamp()
+        for index in range(3):
+            stale = self.config / "projects" / "A-old" / f"0{index}.jsonl"
+            write(stale, session_entries())
+            os.utime(stale, (old, old))
+        with patch("watched_kettle.usage.claude_code_service.MAX_FILES", 1):
+            snapshot = self.drain()
+        self.assertEqual([p.name for p in snapshot.projects], ["kettle-demo"])
 
     def test_user_title_file_wins_and_new_turns_are_picked_up(self):
         (self.folder / SESSION).mkdir()

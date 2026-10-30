@@ -199,7 +199,12 @@ def _build_decision(payload):
             session_id=session_id,
             visual_state="waving",
             duration_ms=2_200,
-            message=_pick_message(payload, _default_message(source, "waving")),
+            message=_pick_message(
+                payload,
+                t("message.0109")
+                if source == "schedule"
+                else _default_message(source, "waving"),
+            ),
             urgency=normalize_urgency(
                 payload.get("urgency") or payload.get("priority")
             ),

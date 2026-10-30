@@ -26,6 +26,9 @@ try {
     # Renaming keeps Electron's embedded icon, which the taskbar and window show.
     & $python (Join-Path $PSScriptRoot "set_exe_icon.py") (Join-Path $target "WatchedKettleSettings.exe") (Join-Path $projectRoot "assets\app_icon.ico")
     if ($LASTEXITCODE -ne 0) { throw "Settings executable icon replacement failed." }
+    # Only the bundled copy: run-as-Node, NODE_OPTIONS and --inspect are off.
+    & $python (Join-Path $PSScriptRoot "set_electron_fuses.py") (Join-Path $target "WatchedKettleSettings.exe")
+    if ($LASTEXITCODE -ne 0) { throw "Settings executable fuse update failed." }
     # Chromium UI resources cover the two official languages; community text
     # packs use the application catalog. Keep the existing runtime size limit.
     $keptLocales = @("ko.pak", "en-US.pak")

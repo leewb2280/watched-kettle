@@ -174,8 +174,8 @@ class StartupPetRecoveryTests(unittest.TestCase):
 
             with self.assertRaises(StartupPetLoadError) as context:
                 create_startup_pet(
-                    lambda directory, settings=None: (
-                        (_ for _ in ()).throw(FileNotFoundError("pet.json"))
+                    lambda directory, settings=None: (_ for _ in ()).throw(
+                        FileNotFoundError("pet.json")
                     ),
                     chosen,
                     preferences,
@@ -246,10 +246,10 @@ class StartupPetRecoveryTests(unittest.TestCase):
                 root / "broken",
                 ApplicationPreferences(FakeSettings()),
                 root,
-                pet_factory=lambda directory, settings=None: (
-                    (_ for _ in ()).throw(ValueError("broken"))
+                pet_factory=lambda directory, settings=None: (_ for _ in ()).throw(
+                    ValueError("broken")
                 ),
-                recovery_request=lambda error, initial: (StartupRecoveryChoice("quit")),
+                recovery_request=lambda error, initial: StartupRecoveryChoice("quit"),
             )
 
             self.assertIsNone(result)

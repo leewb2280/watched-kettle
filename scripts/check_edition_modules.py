@@ -29,15 +29,28 @@ PET_FORBIDDEN = (
 )
 # Explicit user-triggered app launch is common; agent readers remain forbidden.
 PET_ALLOWED = frozenset({"watched_kettle.integrations.codex_launcher"})
-ALL_FORBIDDEN = ("watched_kettle.features.tasks",)
-# The hook bridge starts on every Codex tool call (ADR 0004). inspect pulls in
-# PyInstaller's inspect runtime hook, so the spec excludes it explicitly.
+# The hidden conversation discovery and task queue (AGENTS.md): kept in the
+# source, never packaged.
+ALL_FORBIDDEN = (
+    "watched_kettle.features.tasks",
+    "watched_kettle.storage.task_repository",
+    "watched_kettle.integrations.codex_task_client",
+    "watched_kettle.integrations.execution_connection",
+)
+# The hook bridge starts on every Codex tool call (ADR 0004). inspect,
+# multiprocessing and pkgutil each pull in a PyInstaller runtime hook that runs
+# at every start, so the spec excludes them explicitly; babel came in through
+# the message catalog and brought the last two.
 HOOK_BRIDGE_FORBIDDEN = (
     "PySide6",
     "shiboken6",
     "PIL",
     "inspect",
     "dataclasses",
+    "babel",
+    "multiprocessing",
+    "pkgutil",
+    "watched_kettle.localization",
     "watched_kettle.app",
     "watched_kettle.application",
     "watched_kettle.features",

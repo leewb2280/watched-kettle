@@ -217,6 +217,19 @@ class PythonRuntimeTests(unittest.TestCase):
 
 
 class DocumentationCommandTests(unittest.TestCase):
+    def test_real_project_structure_checks_without_site_packages(self):
+        result = subprocess.run(
+            [sys.executable, "-S", "-m", "scripts.validate_project"],
+            cwd=Path(__file__).resolve().parents[1],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("Project structure validation passed.", result.stdout)
+
     def run_docs_check(self, validator="print('structure checked')", *options):
         if os.name != "nt":
             self.skipTest("Windows PowerShell entrypoint")

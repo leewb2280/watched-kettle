@@ -847,6 +847,35 @@ class SettingsBridgeTests(unittest.TestCase):
             )
         self.assertEqual(Path(open_url.call_args.args[0].toLocalFile()), folder)
 
+    def test_bubble_editor_lists_builtin_ornaments_as_layer_images(self):
+        ornaments = self.core.execute("bubble.editor", {})["ornaments"]
+        ids = [item["id"] for item in ornaments]
+        self.assertIn("ornament:cat-ear", ids)
+        self.assertNotIn("ornament:none", ids)
+        for item in ornaments:
+            self.assertTrue(item["thumbnail"].startswith("data:image/png;base64,"))
+            self.assertGreater(item["width"], 1)
+
+    def test_bubble_image_folder_opens_without_sending_its_path(self):
+        root = self.vm.bubble_editor_state.registry.images_root
+        with patch(
+            "watched_kettle.application.settings_ui.core.QDesktopServices.openUrl",
+            return_value=True,
+        ) as open_url:
+            self.assertEqual(
+                self.core.execute("element.open_folder", {}), {"opened": True}
+            )
+        self.assertTrue(root.is_dir())
+        self.assertEqual(Path(open_url.call_args.args[0].toLocalFile()), root)
+        with (
+            patch(
+                "watched_kettle.application.settings_ui.core.QDesktopServices.openUrl",
+                return_value=False,
+            ),
+            self.assertRaises(CommandError),
+        ):
+            self.core.execute("element.open_folder", {})
+
     def test_an_app_notice_keeps_to_bubbles_off_snooze_and_a_hidden_pet(self):
         controller = self.pet.bubble_controller
         with patch.object(controller, "preview") as preview:
@@ -914,6 +943,31 @@ class SettingsBridgeTests(unittest.TestCase):
         self.assertEqual(look["kind"], "range")
         self.assertEqual(look["unit"], "px")
         self.assertEqual((look["min"], look["max"], look["step"]), (120, 480, 20))
+
+    def test_animation_speed_control_saves_and_rejects_out_of_range(self):
+        speed = next(
+            control
+            for control in self.core.snapshot()["controls"]
+            if control["key"] == "animation_speed"
+        )
+        self.assertEqual(speed["kind"], "range")
+        self.assertEqual(speed["unit"], "%")
+        self.assertEqual((speed["min"], speed["max"], speed["step"]), (50, 200, 10))
+        self.assertEqual(speed["value"], 100)
+
+        result = self.core.execute(
+            "settings.set", self.context(key="animation_speed", value=150)
+        )
+        self.assertEqual(result["snapshot"]["pet"]["animation_speed_percent"], 150)
+        self.assertEqual(self.pet.animation_speed_percent, 150)
+        self.assertEqual(self.preferences.load_pet_animation_speed(), 150)
+        for value in (40, 210, "fast"):
+            with self.subTest(value=value):
+                with self.assertRaises(CommandError):
+                    self.core.execute(
+                        "settings.set", self.context(key="animation_speed", value=value)
+                    )
+        self.assertEqual(self.pet.animation_speed_percent, 150)
 
     def test_pet_preview_uses_original_cell_and_does_not_change_revision(self):
         before = self.core.revision
@@ -1038,6 +1092,42 @@ class SettingsBridgeTests(unittest.TestCase):
             "bubble.render", dict(theme={**editor["theme"], "radius": 500})
         )
         self.assertEqual(rendered["theme"]["radius"], BUBBLE_THEME_LIMITS["radius"][1])
+
+    def test_render_accepts_decor_layers_and_rejects_malformed_ones(self):
+        editor = self.core.editor()
+        layer = {
+            "id": "ribbon",
+            "name": "Ribbon",
+            "image": "user:" + "a" * 32,
+            "placement": "front",
+            "anchor": "top-right",
+            "x": -500,
+            "y": -10.5,
+            "width": 30,
+            "height": 20,
+            "rotation": 15,
+            "mirror": True,
+            "flip_y": False,
+            "alpha": 200,
+            "tint": "border",
+            "repeat": "none",
+            "repeat_gap": 0,
+            "repeat_inset": 0,
+            "hidden": False,
+        }
+        rendered = self.core.execute(
+            "bubble.render", dict(theme={**editor["theme"], "decor": [layer]})
+        )
+        self.assertEqual(rendered["theme"]["decor"][0]["x"], -240.0)
+        self.assertEqual(rendered["theme"]["decor"][0]["name"], "Ribbon")
+        for bad in (
+            {**editor["theme"], "decor": [{**layer, "extra": 1}]},
+            {**editor["theme"], "decor": [{**layer, "x": "far"}]},
+            {**editor["theme"], "decor": [layer] * 25},
+            {**editor["theme"], "decor": "none"},
+        ):
+            with self.assertRaises(CommandError):
+                self.core.execute("bubble.render", dict(theme=bad))
 
     def test_element_import_keeps_registry_reason(self):
         not_image = self.root / "note.png"

@@ -257,7 +257,7 @@ class LocalTurnRecovery(QObject):
                 headers[path] = header
                 signatures[path] = current
                 index.setdefault(rollout_session_id(path), []).append(path)
-            except (OSError, ValueError, AttributeError):
+            except OSError, ValueError, AttributeError:
                 pass
             yield
         self.index, self.headers, self.file_signatures = index, headers, signatures
@@ -451,7 +451,7 @@ class LocalTurnRecovery(QObject):
                 try:
                     head = json.loads(line)
                     meta = head["payload"]
-                except (ValueError, KeyError, TypeError):
+                except ValueError, KeyError, TypeError:
                     raise LinkError("log_damaged") from None
                 parser.feed(head)
                 if not parser.trusted:
@@ -534,7 +534,7 @@ class LocalTurnRecovery(QObject):
                     continue
                 try:
                     row = json.loads(line)
-                except (ValueError, UnicodeDecodeError):
+                except ValueError, UnicodeDecodeError:
                     parser.invalidate()
                 else:
                     if (

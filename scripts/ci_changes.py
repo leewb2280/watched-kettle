@@ -86,7 +86,7 @@ def plan_event(event_name: str, event: dict, root: Path) -> ChangePlan:
         )
         paths = result.stdout.decode("utf-8").rstrip("\0").split("\0")
         return classify_paths([path for path in paths if path])
-    except (KeyError, TypeError, ValueError, OSError, subprocess.SubprocessError):
+    except KeyError, TypeError, ValueError, OSError, subprocess.SubprocessError:
         return ChangePlan(False, True, "Diff unavailable; run full validation")
 
 
@@ -96,7 +96,7 @@ def main() -> int:
             Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8")
         )
         plan = plan_event(os.environ.get("GITHUB_EVENT_NAME", ""), event, Path.cwd())
-    except (KeyError, OSError, ValueError, TypeError):
+    except KeyError, OSError, ValueError, TypeError:
         plan = ChangePlan(False, True, "Event unavailable; run full validation")
     print(json.dumps(asdict(plan)))
     with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:

@@ -276,6 +276,9 @@ def main():
             settings=settings,
             pets_roots=(Path("pets"), qa_pets_root),
             user_pets_root=qa_pets_root,
+            # The editor imports and saves designs; keep them out of the
+            # user's own image library and saved designs.
+            bubble_elements_root=root / "bubble-elements",
         )
         if args.edition == "pet-only":
             runtime = PetRuntime(app, pet, preferences, AppPaths(root))
@@ -372,7 +375,7 @@ def main():
             try:
                 data = json.loads(control_path.read_text(encoding="utf-8"))
                 control_path.unlink()
-            except (OSError, json.JSONDecodeError):
+            except OSError, json.JSONDecodeError:
                 # The runner may still be writing; consume a complete command
                 # on the next tick instead of logging a transient callback error.
                 return
@@ -403,6 +406,12 @@ def main():
                     ),
                 ):
                     pet.mouseDoubleClickEvent(DoubleClickEvent())
+            elif data["action"] == "import_expire":
+                from dataclasses import replace
+
+                importer = host.adapter.pet_importer
+                if importer.prepared is not None:
+                    importer.prepared = replace(importer.prepared, expires=0)
             elif data["action"] == "batch_fixture":
                 count = min(60, max(1, int(data.get("count", 55))))
                 base = Path("pets/mori-bot")
@@ -507,6 +516,16 @@ def main():
                         )
                     )
                 )
+            elif data["action"] == "codex_reset_credits":
+                if "enabled" in data:
+                    runtime.usage_service.set_enabled(data["enabled"])
+                values = dict(
+                    reset_credit_count=data.get("count"),
+                    account_checking=data.get("checking", False),
+                )
+                if data.get("clear_limits"):
+                    values["buckets"] = ()
+                runtime.usage_service._publish(**values)
             elif data["action"] == "codex_limits":
                 # Put reserve first in the input to verify display grouping.
                 now = datetime.now(timezone.utc)

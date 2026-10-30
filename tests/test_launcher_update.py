@@ -104,14 +104,19 @@ class LauncherUpdateTests(unittest.TestCase):
         self.runtime.mkdir(parents=True)
         shutil.copy2(self.launcher, self.app / "WatchedKettle.exe")
         (self.runtime / "edition").write_text("pet-only", encoding="ascii")
-        self.runtime_folder("pet-only", "old")
+        self.runtime_folder("pet-only", "old", installed="1.0.0")
         self.log = Path(temp.name) / "launch.log"
 
-    def runtime_folder(self, name, version, ready=None):
+    def runtime_folder(self, name, version, ready=None, installed=None):
         folder = self.runtime / name
         folder.mkdir()
         shutil.copy2(self.fake_app, folder / "WatchedKettle.exe")
         (folder / "version.txt").write_text(version, encoding="ascii")
+        if installed:
+            (folder / "BUILD_PROFILE.txt").write_text(
+                f"version={installed}\nprofile=public\nedition=pet-only\n",
+                encoding="ascii",
+            )
         if ready:
             (folder / ".ready").write_text(ready, encoding="ascii")
         return folder
@@ -179,6 +184,54 @@ class LauncherUpdateTests(unittest.TestCase):
         # Not a failure: the staged runtime waits for the next start.
         self.assertEqual(self.result(), "")
         self.assertTrue((self.runtime / "pet-only.next" / ".ready").exists())
+
+    def test_a_staged_runtime_not_newer_than_the_installed_one_is_dropped(self):
+        # Setup installed a newer version after the app had staged an update.
+        for staged in ("0.15.11", "1.0.0", "broken"):
+            with self.subTest(staged=staged):
+                self.log.unlink(missing_ok=True)
+                self.runtime_folder("pet-only.next", "stale", ready=staged)
+                self.assertEqual(self.launch("--apply-staged-update").wait(30), 0)
+                self.assertEqual(self.started(), ["old|"])
+                self.assertFalse((self.runtime / "pet-only.next").exists())
+                self.assertEqual(
+                    (self.runtime / "pet-only" / "version.txt").read_text(), "old"
+                )
+                self.assertEqual(self.result(), "")
+
+    def verify(self, folder):
+        return subprocess.run(
+            [str(self.app / "WatchedKettle.exe"), "--verify-runtime", str(folder)],
+            timeout=30,
+            check=False,
+        ).returncode
+
+    def test_setup_checks_a_copied_runtime_against_its_manifest(self):
+        from scripts.release_artifacts import generate_manifest
+
+        folder = self.runtime / "pet-only.install"
+        (folder / "_internal").mkdir(parents=True)
+        (folder / "_internal" / "python314.dll").write_bytes(b"dll" * 1000)
+        (folder / "_internal" / "펫 이름.txt").write_text("한글", encoding="utf-8")
+        (folder / "WatchedKettle.exe").write_bytes(b"app")
+        generate_manifest(folder)
+        self.assertEqual(self.verify(folder), 0)
+
+        dll = folder / "_internal" / "python314.dll"
+        for damage in (
+            lambda: dll.write_bytes(b"dll" * 999),
+            lambda: dll.write_bytes(b"DLL" * 1000),
+            dll.unlink,
+        ):
+            with self.subTest(damage=damage):
+                damage()
+                self.assertEqual(self.verify(folder), 1)
+                dll.write_bytes(b"dll" * 1000)
+        self.assertEqual(self.verify(folder), 0)
+        (folder / "PACKAGE_MANIFEST.sha256.json").unlink()
+        self.assertEqual(self.verify(folder), 1)
+        # The app is never started by a check.
+        self.assertFalse(self.log.exists())
 
     def test_a_staged_runtime_without_its_ready_marker_is_never_used(self):
         self.runtime_folder("pet-only.next", "half")

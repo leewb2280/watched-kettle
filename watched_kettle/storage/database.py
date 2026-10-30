@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from watched_kettle.localization import t
 
+import re
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -11,6 +12,12 @@ from pathlib import Path
 
 
 SCHEMA_VERSION = 9
+# Copies kept next to the database; older ones are removed (newest first).
+KEEP_MIGRATION_BACKUPS = 2
+KEEP_CORRUPT_COPIES = 2
+_STAMP = r"(?P<stamp>\d{8}T\d{12}Z)"
+MIGRATION_BACKUP_PATTERN = r"\.v\d+-to-v\d+\." + _STAMP + r"\.bak"
+CORRUPT_COPY_PATTERN = r"\." + _STAMP + r"\.corrupt"
 
 
 def migrate_task_storage(connection: sqlite3.Connection) -> None:
@@ -86,6 +93,8 @@ class DatabaseManager:
                 )
                 return self.availability
             recovered = self._preserve_corrupt_database()
+            if recovered is not None:
+                self._prune_copies(CORRUPT_COPY_PATTERN, KEEP_CORRUPT_COPIES)
             if recovered is None:
                 self.availability = StorageAvailability(
                     False,
@@ -96,7 +105,7 @@ class DatabaseManager:
             try:
                 connection = self._connect()
                 self._migrate(connection, backup_existing=False)
-            except (OSError, sqlite3.DatabaseError):
+            except OSError, sqlite3.DatabaseError:
                 if connection is not None:
                     connection.close()
                 self.connection = None
@@ -126,6 +135,23 @@ class DatabaseManager:
         if self.connection is None:
             raise sqlite3.OperationalError(self.availability.message)
         return self.connection
+
+    def compact_if_sparse(self, min_free_bytes=1024 * 1024, min_ratio=0.25):
+        """VACUUM when deleted rows left at least this much free space.
+
+        Retention deletes rows but SQLite keeps the pages; the file would only
+        grow. Returns True when it compacted.
+        """
+        connection = self.require_connection()
+        page_size = connection.execute("PRAGMA page_size").fetchone()[0]
+        pages = connection.execute("PRAGMA page_count").fetchone()[0]
+        free = connection.execute("PRAGMA freelist_count").fetchone()[0]
+        if not pages or free * page_size < min_free_bytes or free / pages < min_ratio:
+            return False
+        connection.execute("VACUUM")
+        # In WAL mode the file shrinks once the log is written back.
+        connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        return True
 
     def _connect(self):
         connection = sqlite3.connect(self.path, timeout=0.25)
@@ -194,6 +220,7 @@ class DatabaseManager:
                 max(applied, default=0),
                 pending[-1],
             )
+            self._prune_copies(MIGRATION_BACKUP_PATTERN, KEEP_MIGRATION_BACKUPS)
         repairs = self._partial_repairs(connection, applied, pending)
         connection.execute("BEGIN IMMEDIATE")
         with connection:
@@ -445,6 +472,29 @@ class DatabaseManager:
         finally:
             backup.close()
         return backup_path
+
+    def _prune_copies(self, pattern, keep):
+        """Remove all but the newest ``keep`` copies whose names match ``pattern``.
+
+        ``pattern`` follows the database file name and captures ``stamp``;
+        companion ``-wal``/``-shm`` files go with their copy.
+        """
+        expression = re.compile(re.escape(self.path.name) + pattern + "(?:-wal|-shm)?")
+        copies: dict[str, list[Path]] = {}
+        try:
+            entries = list(self.path.parent.iterdir())
+        except OSError:
+            return
+        for entry in entries:
+            match = expression.fullmatch(entry.name)
+            if match:
+                copies.setdefault(match["stamp"], []).append(entry)
+        for stamp in sorted(copies, reverse=True)[keep:]:
+            for entry in copies[stamp]:
+                try:
+                    entry.unlink()
+                except OSError:
+                    pass
 
     def _preserve_corrupt_database(self):
         if not self.path.exists():

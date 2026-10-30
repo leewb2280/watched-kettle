@@ -1,9 +1,19 @@
 """Pattern and ornament painting for speech-bubble themes."""
 
 import math
+from functools import lru_cache
+from types import SimpleNamespace
 
-from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QPolygonF
+from PySide6.QtCore import QPointF, QRect, QRectF, Qt
+from PySide6.QtGui import (
+    QColor,
+    QImage,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QPixmap,
+    QPolygonF,
+)
 
 
 def paint_pattern(painter, path, rect, theme, registry=None, scale=1.0):
@@ -19,16 +29,16 @@ def paint_pattern(painter, path, rect, theme, registry=None, scale=1.0):
     if theme.pattern.startswith("user:") and registry is not None:
         pixmap = registry.pixmap(theme.pattern)
         if not pixmap.isNull():
-            tile = max(18, round(28 * scale))
+            tile = max(8, round(theme.pattern_tile_size * scale))
             pixmap = pixmap.scaled(
                 tile,
                 tile,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
             )
+            painter.setOpacity(theme.pattern_opacity / 100)
             for y in range(round(rect.top()), round(rect.bottom()) + tile, tile):
                 for x in range(round(rect.left()), round(rect.right()) + tile, tile):
-                    painter.setOpacity(0.16)
                     painter.drawPixmap(x, y, pixmap)
             painter.setOpacity(1.0)
         painter.restore()
@@ -55,26 +65,93 @@ def _user_pixmap(registry, reference):
     return None if pixmap.isNull() else pixmap
 
 
-def paint_background_image(painter, path, rect, theme, registry=None):
-    """Cover the bubble with the user's photo, cropped around its focus point.
+def paint_background_image(painter, path, rect, theme, registry=None, scale=1.0):
+    """Paint the user's photo inside the bubble at the theme's opacity.
 
-    It is drawn over the bubble color at the theme's opacity, so the color
-    shows through and keeps text readable on busy photos.
+    "cover" crops around the focus point, "contain" shows the whole photo
+    placed by the focus point, "stretch" fills the body, "tile" repeats it and
+    "free" draws it in its own box, clipped to the bubble.
+    The bubble color shows through, and background_overlay lays that color
+    back over the photo to keep text readable on busy photos. Built-in
+    pattern tiles are white masks painted in the border color.
     """
-    pixmap = _user_pixmap(registry, theme.background_image)
-    if pixmap is None:
+    if registry is None or not str(theme.background_image).startswith(
+        ("user:", "builtin:")
+    ):
         return
-    cover = max(rect.width() / pixmap.width(), rect.height() / pixmap.height())
-    zoom = cover * theme.background_zoom / 100
-    width, height = pixmap.width() * zoom, pixmap.height() * zoom
-    x = rect.left() - (width - rect.width()) * theme.background_focus_x / 100
-    y = rect.top() - (height - rect.height()) * theme.background_focus_y / 100
+    if theme.background_blur:
+        pixmap = registry.blurred_pixmap(theme.background_image, theme.background_blur)
+    else:
+        pixmap = registry.pixmap(theme.background_image)
+    if pixmap.isNull():
+        return
+    if theme.background_image.startswith("builtin:"):
+        pixmap = _tinted(pixmap, QColor(theme.border))
     painter.save()
     painter.setClipPath(path)
     painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
     painter.setOpacity(theme.background_opacity / 100)
-    painter.drawPixmap(QRectF(x, y, width, height), pixmap, QRectF(pixmap.rect()))
+    if theme.background_fit == "tile":
+        tile = max(4, round(theme.background_tile_size * scale))
+        tiled = pixmap.scaled(
+            tile,
+            tile,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        painter.drawTiledPixmap(rect, tiled)
+    else:
+        target = background_image_rect(
+            pixmap.width(), pixmap.height(), rect, theme, scale
+        )
+        painter.drawPixmap(target, pixmap, QRectF(pixmap.rect()))
+    if theme.background_overlay:
+        painter.setOpacity(1.0)
+        color = QColor(theme.background)
+        color.setAlpha(round(255 * theme.background_overlay / 100))
+        painter.fillPath(path, color)
     painter.restore()
+
+
+def background_image_rect(width, height, rect, theme, scale=1.0):
+    """Where a width x height photo lands in the body rect; None when tiled.
+
+    The editor reads the same box to draw the background layer's handles.
+    """
+    if theme.background_fit == "tile" or width <= 0 or height <= 0:
+        return None
+    if theme.background_fit == "stretch":
+        return QRectF(rect)
+    if theme.background_fit == "free":
+        box_width = theme.background_width * scale
+        box_height = theme.background_height * scale
+        return QRectF(
+            rect.left() + rect.width() * theme.background_x / 100 - box_width / 2,
+            rect.top() + rect.height() * theme.background_y / 100 - box_height / 2,
+            box_width,
+            box_height,
+        )
+    ratio = (min if theme.background_fit == "contain" else max)(
+        rect.width() / width, rect.height() / height
+    )
+    zoom = ratio * theme.background_zoom / 100
+    box_width, box_height = width * zoom, height * zoom
+    x = rect.left() - (box_width - rect.width()) * theme.background_focus_x / 100
+    y = rect.top() - (box_height - rect.height()) * theme.background_focus_y / 100
+    return QRectF(x, y, box_width, box_height)
+
+
+def _tinted(pixmap, color):
+    """The pixmap's alpha filled with one color."""
+    tinted = QPixmap(pixmap.size())
+    tinted.setDevicePixelRatio(pixmap.devicePixelRatio())
+    tinted.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(tinted)
+    painter.drawPixmap(0, 0, pixmap)
+    painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+    painter.fillRect(tinted.rect(), color)
+    painter.end()
+    return tinted
 
 
 def paint_frame_image(painter, rect, theme, registry=None, scale=1.0):
@@ -117,31 +194,6 @@ def paint_frame_image(painter, rect, theme, registry=None, scale=1.0):
     return True
 
 
-def paint_stickers(painter, rect, theme, registry=None, scale=1.0):
-    """Up to three user stickers placed by percent of the bubble body."""
-    painter.save()
-    painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
-    for slot in (1, 2, 3):
-        pixmap = _user_pixmap(registry, getattr(theme, f"sticker_{slot}"))
-        if pixmap is None:
-            continue
-        box = getattr(theme, f"sticker_{slot}_size") * scale
-        fit = min(box / pixmap.width(), box / pixmap.height())
-        width, height = pixmap.width() * fit, pixmap.height() * fit
-        center_x = (
-            rect.left() + rect.width() * getattr(theme, f"sticker_{slot}_x") / 100
-        )
-        center_y = (
-            rect.top() + rect.height() * getattr(theme, f"sticker_{slot}_y") / 100
-        )
-        painter.drawPixmap(
-            QRectF(center_x - width / 2, center_y - height / 2, width, height),
-            pixmap,
-            QRectF(pixmap.rect()),
-        )
-    painter.restore()
-
-
 def paint_ornaments(painter, rect, theme, registry=None, scale=1.0):
     """Paint the theme's built-in or user-supplied corner ornaments."""
     size = 24 * scale * theme.ornament_scale / 100
@@ -157,11 +209,14 @@ def paint_ornaments(painter, rect, theme, registry=None, scale=1.0):
         if reference.startswith("user:") and registry is not None:
             pixmap = registry.pixmap(reference)
             if not pixmap.isNull():
+                # Fit inside the square so a wide or tall image keeps its shape.
+                fit = size / max(pixmap.width(), pixmap.height())
+                width, height = pixmap.width() * fit, pixmap.height() * fit
                 target = QRectF(
-                    center.x() - size / 2,
-                    center.y() - size / 2,
-                    size,
-                    size,
+                    center.x() - width / 2,
+                    center.y() - height / 2,
+                    width,
+                    height,
                 )
                 painter.drawPixmap(target, pixmap, QRectF(pixmap.rect()))
             continue
@@ -178,6 +233,64 @@ def paint_ornaments(painter, rect, theme, registry=None, scale=1.0):
                 seen_center = True
             continue
         _draw_builtin_ornament(painter, center, reference, theme, size, mirror)
+
+
+# An ornament layer is drawn this large and scaled into its box.
+ORNAMENT_LAYER_SIZE = 96
+
+
+def ornament_pixmap(kind, theme, tint="", alpha=255):
+    """A built-in ornament in the theme's colors, cropped to its drawing.
+
+    With tint, its pixels are painted that color at alpha, as image layers are.
+    """
+    fill = theme.fill_end if theme.gradient != "solid" else theme.background
+    return _ornament_pixmap(
+        kind, QColor(theme.border).name(), QColor(fill).name(), tint, alpha
+    )
+
+
+@lru_cache(maxsize=64)
+def _ornament_pixmap(kind, border, fill, tint, alpha):
+    image = _ornament_image(kind, border, fill)
+    if tint and not image.isNull():
+        image = image.copy()
+        color = QColor(tint)
+        color.setAlpha(alpha)
+        painter = QPainter(image)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+        painter.fillRect(image.rect(), color)
+        painter.end()
+    return QPixmap.fromImage(image)
+
+
+@lru_cache(maxsize=64)
+def _ornament_image(kind, border, fill):
+    side = ORNAMENT_LAYER_SIZE * 2
+    image = QImage(side, side, QImage.Format.Format_ARGB32_Premultiplied)
+    image.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(image)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    colors = SimpleNamespace(border=border, background=fill, gradient="solid")
+    _draw_builtin_ornament(
+        painter, QPointF(side / 2, side / 2), kind, colors, ORNAMENT_LAYER_SIZE, False
+    )
+    painter.end()
+    bounds = _drawn_bounds(image)
+    return image.copy(bounds) if bounds is not None else QImage()
+
+
+def _drawn_bounds(image):
+    """The smallest rectangle holding every visible pixel, or None."""
+    left, top, right, bottom = image.width(), image.height(), -1, -1
+    for y in range(image.height()):
+        for x in range(image.width()):
+            if image.pixelColor(x, y).alpha():
+                left, right = min(left, x), max(right, x)
+                top, bottom = min(top, y), max(bottom, y)
+    if right < 0:
+        return None
+    return QRect(left, top, right - left + 1, bottom - top + 1)
 
 
 def _draw_builtin_ornament(painter, center, kind, theme, size, mirror):
@@ -290,6 +403,11 @@ def _draw_builtin_ornament(painter, center, kind, theme, size, mirror):
         )
         arc = QRectF(-8 * unit, -8 * unit, 16 * unit, 17 * unit)
         painter.drawArc(arc, 0, -180 * 16)
+    elif kind == "dot":
+        # A plain round accent in the border color; a layer tint recolors it.
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(border)
+        painter.drawEllipse(QPointF(), 8 * unit, 8 * unit)
     painter.restore()
 
 

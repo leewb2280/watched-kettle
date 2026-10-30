@@ -113,13 +113,13 @@ def run_status_line(stdin=None, stdout=None):
     stdout = stdout if stdout is not None else getattr(sys.stdout, "buffer", None)
     try:
         data = stdin.read(MAX_HOOK_INPUT_BYTES + 1) if stdin is not None else b""
-    except (OSError, ValueError):
+    except OSError, ValueError:
         data = b""
     if len(data) > MAX_HOOK_INPUT_BYTES:
         data = b""
     try:
         payload = json.loads(data.decode("utf-8")) if data else None
-    except (UnicodeDecodeError, ValueError):
+    except UnicodeDecodeError, ValueError:
         payload = None
     event = normalize_status_line(payload)
     # None until there are limits to send: no send, no answer about the pet.
@@ -202,7 +202,7 @@ def run_status_line(stdin=None, stdout=None):
         try:
             stdout.write(output)
             stdout.flush()
-        except (OSError, ValueError):
+        except OSError, ValueError:
             pass
     return 0
 
@@ -219,5 +219,5 @@ def _columns():
 def _option_value(arguments, name):
     try:
         return arguments[arguments.index(name) + 1]
-    except (ValueError, IndexError):
+    except ValueError, IndexError:
         return None

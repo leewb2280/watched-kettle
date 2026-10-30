@@ -14,6 +14,72 @@
   waiting, running, review
 - V2의 마지막 두 행은 16방향 바라보기 프레임입니다.
 
+## 선택적 외형 전환 (`appearanceSet`)
+
+기본 V1/V2 형식은 유지한다. 선택적 `appearanceSet` 버전 1은 두 V2 외형과 양방향 전환을
+선언한다. 기본 외형의 경로는 최상위 `spritesheetPath`와 같아야 한다. 확장을 모르는 구버전은
+기본 모습만 표시한다. 새 앱은 외형 선택·자동 전환을 제공하며 세부 동작은
+[외형 전환 문서](pet-appearance.md)를 따른다.
+
+```json
+{
+  "spritesheetPath": "spritesheet.webp",
+  "spriteVersionNumber": 2,
+  "appearanceSet": {
+    "version": 1,
+    "default": "down",
+    "variants": [
+      {"id": "down", "labels": {"ko": "앞머리 내림", "en": "Bangs down"}, "spritesheetPath": "spritesheet.webp"},
+      {"id": "swept", "labels": {"ko": "앞머리 넘김", "en": "Bangs swept"}, "spritesheetPath": "appearance/swept.webp"}
+    ],
+    "transitions": [
+      {"from": "down", "to": "swept", "spritesheetPath": "appearance/up.webp", "frames": 12, "intervalMs": 60},
+      {"from": "swept", "to": "down", "spritesheetPath": "appearance/down.webp", "frames": 12, "intervalMs": 60}
+    ]
+  }
+}
+```
+
+외형 ID는 소문자 영문으로 시작하는 영문·숫자·밑줄·하이픈 1~64자이고 `auto`는 예약 값이다.
+ID·자산 경로는 중복할 수 없으며 labels에는 한국어·영어가 필요하다. 두 외형 모두
+1536×2288 정지 PNG/WebP와 필수 9동작·16방향을 포함한다. 전환은 같은 크기의 셀을 가로로
+배치한 정지 이미지로, 2~32프레임·프레임당 16~1000ms를 허용한다. animated WebP를 런타임
+전환 자산으로 직접 쓰지 않는다. 파일마다 20MiB 상한과 기존 전체 패키지·경로·링크 제한을 적용한다.
+
+폴더·ZIP 가져오기는 선언과 추가 이미지를 검증·정규화하고 내용 식별자에 포함한다.
+외형별 동작 미리보기를 제공하며 PNG/WebP 한 장만 가져오면 여러 외형을 복원하지 않는다.
+추가 파일도 빌드·비공개 패키지 복사 대상이며 원본/QA 파일은 포함하지 않는다.
+
+### 버전 2: 여러 모습과 선택적 전환 (0.15.11 이상)
+
+`"version": 2`는 모습을 2~6개 선언한다. 각 모습은 언어별 `labels` 대신 이름 하나(`label`)를 쓸 수
+있고, 언어별 이름은 현재 언어 → 영어 → 첫 이름 순서로 고른다. `transitions`는 그린 쌍만 적으며
+비워 둘 수 있다. 반대 방향만 그려져 있으면 거꾸로 재생하고, 둘 다 없으면 두 모습의 정면 대기
+첫 프레임을 약 0.4초 동안 겹쳐 바꾼다. 전환은 2~48프레임까지 허용한다.
+
+선택적 `auto`는 자동 전환 기본값이다. `minSeconds`·`maxSeconds`는 10~3600초 정수이고
+작은 값이 먼저다. `order`는 `random`(지금 모습을 뺀 무작위) 또는 `sequence`(선언 순서)다.
+없으면 60~180초·무작위다. 사용자는 펫마다 간격과 순서를 바꿀 수 있다.
+
+```json
+"appearanceSet": {
+  "version": 2,
+  "default": "day",
+  "variants": [
+    {"id": "day", "label": "낮", "spritesheetPath": "spritesheet.webp"},
+    {"id": "night", "labels": {"ko": "밤", "en": "Night"}, "spritesheetPath": "appearance/night.webp"},
+    {"id": "rain", "label": "비", "spritesheetPath": "appearance/rain.webp"}
+  ],
+  "transitions": [
+    {"from": "day", "to": "night", "spritesheetPath": "appearance/day-night.webp", "frames": 12, "intervalMs": 60}
+  ],
+  "auto": {"minSeconds": 60, "maxSeconds": 180, "order": "sequence"}
+}
+```
+
+버전 1 선언은 그대로 읽는다. 외형 전환은 0.15.11부터 지원하며 그 이전 앱은 기본 모습만
+표시한다.
+
 ## 주요 매니페스트 필드
 
 설정의 **펫 가져오기**는 정지 PNG/WebP(20MiB 이하) 외에 ZIP·펫 폴더·설치 명령어·Codex에 설치된 펫도 받습니다
@@ -85,8 +151,8 @@ Codex 설치 목록은 CODEX_HOME 또는 ~/.codex 아래 pets를 읽기 전용�
 | `contentPadding` | `[위, 아래, 왼쪽 추가]` 본문 안쪽 여백 |
 | `innerBorder` | 이중 테두리 안쪽 선의 `color`·`alpha` |
 | `halo` | 본문 둘레 후광. `color`, `alpha`, `width`, `minWidth`, `offsetY`, `grow`, `radiusDelta` |
-| `backdrop` | 말풍선 표면 아래에 그릴 층 목록(최대 8개) |
-| `overlay` | 말풍선 표면 위에 그릴 층 목록(최대 8개) |
+| `backdrop` | 말풍선 표면 아래에 그릴 층 목록(최대 16개, 0.15.10 이하는 8개) |
+| `overlay` | 말풍선 표면 위에 그릴 층 목록(최대 16개, 0.15.10 이하는 8개) |
 
 층은 `anchor`(본문의 `top-left`·`top-center`·`top-right`·`center-left`·`center-right`·`bottom-left`·
 `bottom-center`·`bottom-right`, 또는 왼쪽 위 둥근 모서리의 45° 지점 `arc-top-left`)에서 `x`·`y`만큼
@@ -95,6 +161,9 @@ Codex 설치 목록은 CODEX_HOME 또는 ~/.codex 아래 pets를 읽기 전용�
 점 층은 `circle: {"radius", "color"}`입니다. 색은 `#rrggbb` 또는 테마 색 이름(`border`, `shadow`,
 `background`, `text`)이며, 테마 색 이름을 쓰면 사용자가 말풍선 색을 바꿀 때 장식 색도 따라갑니다.
 `alpha`는 0~255입니다. 실행 중에는 형식이 틀린 층을 그리지 않고 수치는 허용 범위로 맞춥니다.
+점 층이 하나라도 있으면 사용자가 말풍선 편집기에서 펫 장식을 눌러 장식 층으로 옮겨 고칠 수 없습니다.
+편집할 수 있게 하려면 점 대신 흰 원 PNG를 `tint`로 칠한 이미지 층을 씁니다(지름을 `width`·`height`로, 원 중심에서
+반지름만큼 뺀 값을 `x`·`y`로).
 이미지가 패키지 밖을 가리키거나 없으면 Windows 빌드가 실패합니다.
 
 ### 본문 높이에 맞춘 이미지 반복 (0.15.10 이상)
@@ -110,6 +179,18 @@ Codex 설치 목록은 CODEX_HOME 또는 ~/.codex 아래 pets를 읽기 전용�
 불투명도·색 마스크·좌우 반전은 반복되는 모든 이미지에 적용됩니다. 별도 설정 UI는 없으며
 실제 말풍선과 기존 미리보기는 같은 그리기 경로를 사용합니다. 폴더·ZIP 가져오기도 옵션과 이미지를
 보존합니다. 구버전은 반복 옵션을 무시하므로 반복을 요구하는 배포 팩의 최소 앱 버전은 0.15.10 이상으로 지정해야 합니다.
+
+### 회전·상하 반전·가로 반복 (0.15.11 이상)
+
+이미지 층은 `rotation`(도, -180~180, 이미지 중심 기준), `flipY`(상하 반전)를 쓸 수 있습니다.
+`"repeatX": {"gap": 2, "rightInset": 10}`은 `top-left`·`center-left`·`bottom-left` 앵커에서 본문 오른쪽으로
+반복하며, 본문 좌우 범위만 클립하므로 본문 위·아래 줄에도 쓸 수 있습니다. 나머지 규칙은 `repeatY`와 같습니다.
+구버전은 이 필드를 무시하므로 이 필드를 쓰는 배포 팩의 최소 앱 버전은 0.15.11 이상으로 지정합니다.
+
+사용자 말풍선 테마도 같은 앵커·그리기 경로를 쓰는 장식 층(`decor`)을 가집니다. 사용자 층은 이미지를
+`user:<id>`(이미지 보관함) 또는 `pkg:<펫 id>/<패키지 안 경로>`로 가리키고 상자 안에서 비율을 유지합니다.
+점은 코드로 그리는 기본 장식 `ornament:dot`으로 넣을 수 있습니다. 사용자 테마는 펫 장식의 `innerBorder`·`halo`·
+`contentPadding`도 직접 정할 수 있고, 펫 패키지로 내보내면 이 값이 `frame`의 같은 필드로 들어갑니다.
 
 새 형식을 추가할 때는 기존 버전을 자동 감지하고 잘못된 필드가 안전한 기본값으로
 대체되거나 명확한 로드 오류가 되도록 해야 합니다. Public 빌드는 `distribution=public`

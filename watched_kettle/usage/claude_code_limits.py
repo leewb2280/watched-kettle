@@ -57,7 +57,7 @@ def account_hash(config_dir):
     for candidate in (folder / ".claude.json", folder.parent / ".claude.json"):
         try:
             value = json.loads(candidate.read_text(encoding="utf-8"))
-        except (OSError, ValueError, UnicodeDecodeError):
+        except OSError, ValueError, UnicodeDecodeError:
             continue
         account = value.get("oauthAccount") if isinstance(value, dict) else None
         uuid = account.get("accountUuid") if isinstance(account, dict) else None
@@ -190,5 +190,5 @@ def _epoch(value):
         return None
     try:
         return datetime.fromtimestamp(value, timezone.utc)
-    except (OSError, OverflowError, ValueError):
+    except OSError, OverflowError, ValueError:
         return None

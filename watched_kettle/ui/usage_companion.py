@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 
 from PySide6.QtCore import QEvent, QObject, QPoint, QTimer
+from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import QApplication
 
 from watched_kettle.pet.placement import create_saved_placement, restore_window_position
@@ -120,6 +121,8 @@ class UsageCompanionController(QObject):
         pet.installEventFilter(self)
         self._watched_screens = []
         app = QApplication.instance()
+        if not isinstance(app, QGuiApplication):
+            app = None
         if app is not None:
             app.screenAdded.connect(self._screen_added)
             app.screenRemoved.connect(self._screens_changed)
@@ -316,7 +319,7 @@ class UsageCompanionController(QObject):
         if getattr(self.window, "dragging", False):
             return
         app = QApplication.instance()
-        if self.usage_viewmodel.widget_detached and app is not None:
+        if self.usage_viewmodel.widget_detached and isinstance(app, QGuiApplication):
             target = restore_window_position(
                 self.usage_viewmodel.widget_placement,
                 app.screens(),
@@ -371,16 +374,16 @@ class UsageCompanionController(QObject):
         self._preview_release.stop()
         self._release_preview()
         app = QApplication.instance()
-        if app is not None:
+        if isinstance(app, QGuiApplication):
             try:
                 app.screenAdded.disconnect(self._screen_added)
                 app.screenRemoved.disconnect(self._screens_changed)
-            except (RuntimeError, TypeError):
+            except RuntimeError, TypeError:
                 pass
         for screen in self._watched_screens:
             try:
                 screen.availableGeometryChanged.disconnect(self._screens_changed)
-            except (RuntimeError, TypeError):
+            except RuntimeError, TypeError:
                 pass
         self._watched_screens.clear()
         self.pet.removeEventFilter(self)

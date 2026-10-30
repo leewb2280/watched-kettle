@@ -38,6 +38,16 @@ declare global {
     settings?: {
       request: import("./protocol.generated").Request;
       file: import("./protocol.generated").FileRequest;
+      dropImages: (
+        files: FileList | File[],
+        kind: import("./protocol.generated").ElementKind,
+        options?: import("./protocol.generated").ImportOptions,
+      ) => Promise<import("./protocol.generated").ElementImported>;
+      pasteImage: (
+        file: File,
+        kind: import("./protocol.generated").ElementKind,
+        options?: import("./protocol.generated").ImportOptions,
+      ) => Promise<import("./protocol.generated").ElementImported>;
       onEvent: (listener: (value: SettingsEvent) => void) => () => void;
       ready: () => Promise<Ready>;
       openLanguagePackFolder: () => Promise<{ opened: boolean }>;

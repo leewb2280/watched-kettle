@@ -98,8 +98,52 @@ def detect_sprite_version(atlas: Image.Image):
     raise ValueError(t("message.0149", value0=atlas.size))
 
 
+def load_appearance_frames(directory, manifest, frames, look_frames, version):
+    from io import BytesIO
+    from watched_kettle.pet.appearance_assets import (
+        MAX_APPEARANCE_IMAGE_BYTES,
+        parse_appearance_set,
+        validate_appearance_image,
+        invalid_appearance,
+    )
+    from watched_kettle.pet.import_package import read_local
+
+    spec = parse_appearance_set(manifest)
+    if spec is None:
+        return None, {}, {}
+    if version != 2:
+        raise invalid_appearance()
+    variants, transitions = {}, {}
+    for variant in spec.variants:
+        raw = read_local(directory, variant.path, MAX_APPEARANCE_IMAGE_BYTES)
+        with Image.open(BytesIO(raw), formats=PET_IMAGE_FORMATS) as image:
+            atlas = validate_appearance_image(image)
+        if variant.id == spec.default:
+            variants[variant.id] = (frames, look_frames)
+        else:
+            looks = extract_look_frames(atlas, 2)
+            if manifest.get("mirrorRightLookFromLeft", False):
+                looks = mirror_right_look_from_left(looks)
+            variants[variant.id] = (extract_frames(atlas), looks)
+    for transition in spec.transitions:
+        raw = read_local(directory, transition.path, MAX_APPEARANCE_IMAGE_BYTES)
+        with Image.open(BytesIO(raw), formats=PET_IMAGE_FORMATS) as image:
+            strip = validate_appearance_image(image, frames=transition.frames)
+        transitions[(transition.source, transition.target)] = [
+            QPixmap.fromImage(
+                ImageQt(
+                    strip.crop(
+                        (c * FRAME_WIDTH, 0, (c + 1) * FRAME_WIDTH, FRAME_HEIGHT)
+                    )
+                )
+            )
+            for c in range(transition.frames)
+        ]
+    return spec, variants, transitions
+
+
 def extract_frames(atlas: Image.Image):
-    frames = {}
+    frames: dict = {}
 
     for state, info in ANIMATIONS.items():
         row = info["row"]

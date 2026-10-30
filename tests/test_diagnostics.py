@@ -10,6 +10,7 @@ from watched_kettle.application.diagnostics import DiagnosticsExporter
 from watched_kettle.application.logging import (
     LOGGER_NAME,
     LOG_SCHEMA_VERSION,
+    _safe_event_fields,
     close_logging,
     configure_logging,
     log_event,
@@ -62,6 +63,34 @@ class DiagnosticLoggingTests(unittest.TestCase):
             message = next(row for row in rows if row["event"] == "message")
             self.assertNotIn("person@example.com", message["message"])
             self.assertNotIn("private request", message["message"])
+
+    def test_event_fields_keep_only_identifier_strings(self):
+        kept = {
+            "operation": "account/rateLimits/read",
+            "operation_id": "0f3a9c2e5b7d4e1f8a6c3b2d1e0f9a8b",
+            "error_code": "-32600",
+            "reason": "missing_start",
+            "target_version": "0.15.10",
+            "scope": "",
+            "duration_ms": 12,
+            "ready": True,
+        }
+        self.assertEqual(_safe_event_fields(kept), kept)
+
+        leaked = {
+            "reason": "비밀 프롬프트 내용",
+            "operation": "git push --force",
+            "result": "/home/user/private.txt",
+            "state": "C:/Users/example/secret.txt",
+            "phase": "C:\\Users\\example\\secret.txt",
+            "error_code": "person@example.com",
+            "source": "prompt=hello",
+            "thread_ref": "a" * 65,
+            "duration_ms": "12",
+        }
+        self.assertEqual(
+            _safe_event_fields(leaked), dict.fromkeys(leaked, "<redacted>")
+        )
 
     def test_existing_text_log_is_preserved_as_legacy(self):
         with TemporaryDirectory() as directory:

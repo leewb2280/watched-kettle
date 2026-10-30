@@ -22,6 +22,9 @@ export function PetImportPreview({
   reduceMotion: boolean;
 }) {
   const [state, setState] = useState("idle");
+  const [appearanceId, setAppearanceId] = useState(
+    prepared.appearanceChoices?.[0]?.id,
+  );
   const [strip, setStrip] = useState<ImportPreview | null>(null);
   const [frame, setFrame] = useState(0);
   const [playing, setPlaying] = useState(!reduceMotion);
@@ -33,7 +36,7 @@ export function PetImportPreview({
     let active = true;
     setStrip(null);
     setFrame(0);
-    const key = `${prepared.token}:${row}`;
+    const key = `${prepared.token}:${appearanceId ?? ""}:${row}`;
     const old = cache.current.get(key);
     if (old) setStrip(old);
     else
@@ -41,6 +44,7 @@ export function PetImportPreview({
         .settings!.request("pet.import.preview", {
           token: prepared.token,
           state: row,
+          ...(appearanceId ? { appearanceId } : {}),
         })
         .then((value) => {
           if (!active) return;
@@ -54,7 +58,7 @@ export function PetImportPreview({
     return () => {
       active = false;
     };
-  }, [prepared.token, row]);
+  }, [prepared.token, appearanceId, row]);
   useEffect(() => {
     if (reduceMotion) setPlaying(false);
   }, [reduceMotion]);
@@ -84,6 +88,22 @@ export function PetImportPreview({
         )}
       </div>
       <div className="import-animation-controls">
+        {!!prepared.appearanceChoices?.length && (
+          <label className="import-appearance-control">
+            {t("pet.appearance.title")}
+            <select
+              aria-label={t("pet.appearance.title")}
+              value={appearanceId}
+              onChange={(event) => setAppearanceId(event.target.value)}
+            >
+              {prepared.appearanceChoices.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label>
           {t("pet.import.animation")}
           <select

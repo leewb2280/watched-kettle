@@ -53,12 +53,24 @@ def migrate_legacy_data_root(local=None):
         return "none"
     if legacy.is_symlink() or legacy.is_junction():
         return "skipped_link"
+    # The new folder holds only disposable files here, but another start may
+    # have just moved the old data into it. Move it aside instead of deleting,
+    # and put it back if the old folder is gone by now.
+    aside = None
     try:
         if current.exists():
-            shutil.rmtree(current)
+            aside = local / f"{APPLICATION_ID}.replaced-{os.getpid()}"
+            os.rename(current, aside)
         os.rename(legacy, current)
     except OSError:
+        if aside is not None and not current.exists():
+            try:
+                os.rename(aside, current)
+            except OSError:
+                pass
         return "kept_legacy"
+    if aside is not None:
+        shutil.rmtree(aside, ignore_errors=True)
     return "migrated"
 
 

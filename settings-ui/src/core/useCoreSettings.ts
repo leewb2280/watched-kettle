@@ -26,9 +26,12 @@ export function useCoreSettings(shell: Shell, page: Page) {
 
   const [importPet, setImportPet] = useState(false);
 
+  const [linkPet, setLinkPet] = useState(false);
+
   useEffect(() => {
     if (!shell.visible || page !== "pet") {
       setImportPet(false);
+      setLinkPet(false);
       setManager(false);
     }
   }, [shell.visible, page]);
@@ -37,6 +40,7 @@ export function useCoreSettings(shell: Shell, page: Page) {
 
   const [petTab, setPetTab] = useState(petTabs[0]);
 
+  const bubbleEditor = useBubbleEditor(shell);
   const {
     editor,
     setEditor,
@@ -48,8 +52,6 @@ export function useCoreSettings(shell: Shell, page: Page) {
     setPreview,
     previewSample,
     setPreviewSample,
-    stickerSlot,
-    setStickerSlot,
     editorBusy,
     setEditorBusy,
     editorError,
@@ -67,7 +69,7 @@ export function useCoreSettings(shell: Shell, page: Page) {
     closeEditor,
     saveEditor,
     assetChange,
-  } = useBubbleEditor(shell);
+  } = bubbleEditor;
 
   const petPreviewSequence = useRef(0);
 
@@ -117,7 +119,11 @@ export function useCoreSettings(shell: Shell, page: Page) {
   );
 
   const currentPreview =
-    petPreview?.petId === snapshot.pet.pet_id ? petPreview : null;
+    petPreview?.petId === snapshot.pet.pet_id &&
+    (petPreview.appearanceId ?? null) ===
+      (snapshot.pet.appearance?.current_id ?? null)
+      ? petPreview
+      : null;
 
   const previewImage = currentPreview?.image || current?.thumbnail;
 
@@ -143,6 +149,9 @@ export function useCoreSettings(shell: Shell, page: Page) {
     try {
       const next = await window.settings!.request("pet.preview", {
         petId,
+        ...(petId === snapshot.pet.pet_id && snapshot.pet.appearance
+          ? { appearanceId: snapshot.pet.appearance.current_id }
+          : {}),
       });
       if (sequence === petPreviewSequence.current && next.petId === petId) {
         setPetPreview(next);
@@ -169,7 +178,12 @@ export function useCoreSettings(shell: Shell, page: Page) {
           .catch(fail);
       }
       window
-        .settings!.request("pet.preview", { petId })
+        .settings!.request("pet.preview", {
+          petId,
+          ...(snapshot.pet.appearance
+            ? { appearanceId: snapshot.pet.appearance.current_id }
+            : {}),
+        })
         .then((value) => {
           const next = value;
           if (
@@ -191,7 +205,12 @@ export function useCoreSettings(shell: Shell, page: Page) {
         ++petPreviewSequence.current;
       };
     }
-  }, [snapshot.pet.pet_id, shell.visible, page]);
+  }, [
+    snapshot.pet.pet_id,
+    snapshot.pet.appearance?.current_id,
+    shell.visible,
+    page,
+  ]);
 
   // Dynamic controls come from the validated Python snapshot.
   const change = (key: string, value: Scalar | undefined) =>
@@ -218,6 +237,8 @@ export function useCoreSettings(shell: Shell, page: Page) {
     change,
     movementScreen,
     setImportPet,
+    linkPet,
+    setLinkPet,
     openCatalogManager,
     shell,
     openEditor,
@@ -247,14 +268,13 @@ export function useCoreSettings(shell: Shell, page: Page) {
     setEditorError,
     previewSample,
     setPreviewSample,
-    stickerSlot,
-    setStickerSlot,
     preview,
     editorNotice,
     renderError,
     editorError,
     rebaseEditor,
     reloadSavedTheme,
+    bubbleEditor,
   };
 }
 export type CoreSettingsState = ReturnType<typeof useCoreSettings>;

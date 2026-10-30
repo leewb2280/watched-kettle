@@ -50,7 +50,7 @@ def open_app(name, backend_factory, backend=None):
         if backend.start(installations[0]):
             return AppOpenResult(True, operation="started")
         return AppOpenResult(False, t("launcher.start_failed", app=name))
-    except (OSError, ValueError, AttributeError, ET.ParseError):
+    except OSError, ValueError, AttributeError, ET.ParseError:
         return AppOpenResult(False, t("launcher.access_failed", app=name))
 
 

@@ -31,6 +31,7 @@ class FakeInstaller:
     def __init__(self, can_apply=True, has_changes=True):
         self.plan = SimpleNamespace(can_apply=can_apply, has_changes=has_changes)
         self.calls = []
+        self.pruned = 0
 
     def preview_install(self):
         self.calls.append("preview_install")
@@ -42,6 +43,9 @@ class FakeInstaller:
 
     def apply(self, plan):
         self.calls.append("apply")
+
+    def prune_backups(self):
+        self.pruned += 1
 
 
 def fully_installed(installer):
@@ -70,6 +74,17 @@ class IntegrationSetupTests(unittest.TestCase):
             parse_tool_choices(["--codex"])
         self.assertEqual(self.run_setup("--codex=yes", codex=FakeInstaller()), 2)
         self.assertEqual(self.run_setup(), 2)
+
+    def test_every_install_trims_old_backups_even_without_changes(self):
+        codex = FakeInstaller(has_changes=False)
+        claude = FakeInstaller(has_changes=False)
+
+        self.assertEqual(
+            self.run_setup("--codex=on", codex=codex, claude_code=claude), 0
+        )
+
+        self.assertEqual(codex.calls, ["preview_install"])
+        self.assertEqual((codex.pruned, claude.pruned), (1, 1))
 
     def test_each_named_tool_gets_its_hook_and_switch(self):
         codex, claude = FakeInstaller(), FakeInstaller()

@@ -121,6 +121,11 @@ ANIMATIONS = {
 }
 
 
+def scaled_animation_ms(base_ms, speed_percent):
+    """Time for one frame (or one timed action) at the chosen animation speed."""
+    return max(16, round(base_ms * 100 / speed_percent))
+
+
 # 현재는 문제 확인을 위한 테스트 모드.
 #
 # "running-right":

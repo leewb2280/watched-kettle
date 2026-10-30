@@ -30,7 +30,7 @@ def _needs_review(translation, entry):
         return False
     try:
         validate_value(value, entry)
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return True
     return False
 

@@ -275,7 +275,7 @@ class InstalledPets:
                     description=str(manifest.get("description", ""))[:1000],
                 )
                 self.entries[key] = directory
-            except (OSError, ValueError):
+            except OSError, ValueError:
                 row["error"] = t("pet.import.invalid_package")
             rows.append(row)
         return rows

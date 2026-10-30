@@ -5,9 +5,8 @@
 
 from __future__ import annotations
 
-from watched_kettle.localization import t
-
 import json
+import os
 import re
 import math
 import time
@@ -25,6 +24,10 @@ from watched_kettle.state.event_names import (
 
 MAX_HOOK_INPUT_BYTES = 256 * 1024
 MAX_IPC_EVENT_BYTES = 2 * 1024
+# A tool that runs Codex for its own work (another agent's reviewer, a script)
+# sets this to "internal" so the run never shows as a user conversation. Hooks
+# inherit Codex's environment; no other value can raise a session to "main".
+INTERNAL_SESSION_ENV = "WATCHED_KETTLE_AGENT_SCOPE"
 
 CODEX_HOOK_EVENTS = {
     "SessionStart": "idle",
@@ -75,7 +78,7 @@ def codex_tool_kind(name, arguments=None):
             return ""
         try:
             arguments = json.loads(arguments)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return ""
     if not isinstance(arguments, dict):
         return ""
@@ -116,7 +119,7 @@ def read_hook_payload(stream):
 
     try:
         payload = json.loads(raw.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError):
+    except UnicodeDecodeError, json.JSONDecodeError:
         return None
     return payload if isinstance(payload, dict) else None
 
@@ -127,7 +130,7 @@ def normalize_codex_hook(payload):
         return None
 
     hook_name = payload.get("hook_event_name")
-    event = CODEX_HOOK_EVENTS.get(hook_name)
+    event = CODEX_HOOK_EVENTS.get(str(hook_name))
     if event is None:
         return None
     if hook_name == "SessionStart" and payload.get("source") == "compact":
@@ -150,6 +153,8 @@ def normalize_codex_hook(payload):
         "session_id": session_id,
         "agent_scope": "subagent" if is_subagent else "unknown",
     }
+    if os.environ.get(INTERNAL_SESSION_ENV) == "internal":
+        normalized["agent_scope"] = "internal"
     if hook_name in {"PreCompact", "PostCompact"} or (
         hook_name == "SessionStart" and payload.get("source") == "compact"
     ):
@@ -198,11 +203,11 @@ def sanitize_pet_event(payload):
         event = normalize_event_name(payload.get("event"))
         if event != "notification":
             return None
+        # An empty message gets its default text in the app; the hook bridge
+        # does not load the message catalog (ADR 0004).
         message = str(payload.get("message") or payload.get("title") or "").strip()[
             :120
         ]
-        if not message:
-            message = t("message.0109")
         sanitized = {
             "source": "schedule",
             "event": "notification",

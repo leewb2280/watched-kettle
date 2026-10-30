@@ -1147,11 +1147,13 @@ class VolatileUsageRepository:
         summaries.sort(key=lambda r: r.thread_hash)
         summaries.sort(
             key=lambda r: (
-                r.total_tokens if r.total_tokens is not None else -1,
-                r.completed_at,
-            )
-            if order == "top"
-            else (r.completed_at,),
+                (
+                    r.total_tokens if r.total_tokens is not None else -1,
+                    r.completed_at,
+                )
+                if order == "top"
+                else (r.completed_at,)
+            ),
             reverse=True,
         )
         return ConversationPage(

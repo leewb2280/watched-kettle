@@ -142,9 +142,12 @@ class Translator:
         value = self.messages.get(key, entry["value"])
         if isinstance(value, (dict, MappingProxyType)):
             count = values.get(entry.get("plural", ""))
-            valid = not isinstance(count, bool) and isinstance(count, (int, float))
             try:
-                valid = valid and math.isfinite(count)
+                valid = (
+                    not isinstance(count, bool)
+                    and isinstance(count, (int, float))
+                    and math.isfinite(count)
+                )
             except OverflowError:
                 valid = False
             category = (
@@ -155,7 +158,7 @@ class Translator:
             return str(value)
         try:
             return str(value).format_map(values)
-        except (KeyError, ValueError, TypeError):
+        except KeyError, ValueError, TypeError:
             # An application formatting defect must not take down the UI.
             return str(
                 entry["value"].get("other", "")

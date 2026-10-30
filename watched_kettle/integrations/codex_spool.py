@@ -95,7 +95,7 @@ def drain_spooled_events(
                 if len(raw) <= MAX_IPC_EVENT_BYTES:
                     decoded = json.loads(raw.decode("utf-8"))
                     payload = sanitize_pet_event(decoded)
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        except OSError, UnicodeDecodeError, json.JSONDecodeError:
             payload = None
         finally:
             try:

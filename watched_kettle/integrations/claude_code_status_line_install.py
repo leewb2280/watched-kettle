@@ -35,6 +35,7 @@ from watched_kettle.integrations.codex_install import (
     StaleHookPlanError,
     _atomic_write_text,
     _backup,
+    prune_backups,
     _fingerprint,
     _read_utf8,
 )
@@ -79,7 +80,7 @@ def _encoded_script(command):
         return ""
     try:
         return base64.b64decode(words[-1], validate=True).decode("utf-16-le")
-    except (binascii.Error, UnicodeDecodeError):
+    except binascii.Error, UnicodeDecodeError:
         return ""
 
 
@@ -250,12 +251,16 @@ class ClaudeCodeStatusLineInstaller:
         if plan.config_text == "" and self.sidecar_path.exists():
             self.sidecar_path.unlink()
             changed.append(self.sidecar_path)
+        self.prune_backups()
         return HookApplyResult(
             operation=plan.operation,
             changed_paths=tuple(changed),
             backup_paths=tuple(backups),
             status=self.inspect(),
         )
+
+    def prune_backups(self):
+        prune_backups(self.settings_path)
 
     def _original(self):
         text, error = _read_utf8(self.sidecar_path)

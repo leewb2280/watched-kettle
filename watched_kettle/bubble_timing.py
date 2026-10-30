@@ -9,7 +9,7 @@ DURATION_KINDS = ("result", "general", "schedule", "completion")
 def normalize_duration(value: object) -> int:
     try:
         seconds = int(str(value))
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         seconds = 8
     return min(60, max(5, seconds))
 

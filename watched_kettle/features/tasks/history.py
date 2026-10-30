@@ -323,7 +323,7 @@ class HistoryReader(QObject):
                 self.items = [row["item"] for row in rows]
                 self.next_items = self.cursor("items", result)
                 self.later(self.consume_items)
-        except (ValueError, TypeError, KeyError):
+        except ValueError, TypeError, KeyError:
             self.fail(
                 "분석하지 못함 — 대화 형식 또는 페이지 순서를 확인할 수 없습니다."
             )

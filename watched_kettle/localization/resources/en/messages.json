@@ -2152,10 +2152,6 @@
     "sourceRevision": 1,
     "value": "Appearance"
   },
-  "message.0537": {
-    "sourceRevision": 1,
-    "value": "Appears and disappears immediately when reduced motion is enabled."
-  },
   "message.0538": {
     "sourceRevision": 1,
     "value": "Behavior"
@@ -3856,35 +3852,15 @@
   },
   "message.0984": {
     "sourceRevision": 1,
-    "value": "Design presets"
-  },
-  "message.0985": {
-    "sourceRevision": 1,
-    "value": "Custom decoration images"
+    "value": "Presets"
   },
   "message.0986": {
     "sourceRevision": 1,
     "value": "Adding or deleting images takes effect immediately and is not undone when you cancel design changes."
   },
-  "message.0987": {
-    "sourceRevision": 1,
-    "value": "Add pattern"
-  },
-  "message.0988": {
-    "sourceRevision": 1,
-    "value": "Add decoration"
-  },
-  "message.0989": {
-    "sourceRevision": 1,
-    "value": "Add photo"
-  },
   "message.0990": {
     "sourceRevision": 1,
     "value": "Add border image"
-  },
-  "message.0991": {
-    "sourceRevision": 1,
-    "value": "Add sticker"
   },
   "message.0992": {
     "sourceRevision": 1,
@@ -3909,10 +3885,6 @@
   "message.0997": {
     "sourceRevision": 1,
     "value": "Project card"
-  },
-  "message.0998": {
-    "sourceRevision": 1,
-    "value": "Sticker to place by clicking the preview"
   },
   "message.1000": {
     "sourceRevision": 1,
@@ -4002,13 +3974,9 @@
     "sourceRevision": 1,
     "value": "Glow"
   },
-  "message.1022": {
-    "sourceRevision": 1,
-    "value": "Frame"
-  },
   "message.1023": {
     "sourceRevision": 1,
-    "value": "Fill opacity"
+    "value": "Fill strength"
   },
   "message.1024": {
     "sourceRevision": 1,
@@ -4036,23 +4004,23 @@
   },
   "message.1030": {
     "sourceRevision": 1,
-    "value": "Background photo"
+    "value": "Image"
   },
   "message.1031": {
     "sourceRevision": 1,
-    "value": "Photo opacity"
+    "value": "Image opacity"
   },
   "message.1032": {
-    "sourceRevision": 1,
-    "value": "Photo horizontal position"
+    "sourceRevision": 2,
+    "value": "Horizontal position"
   },
   "message.1033": {
-    "sourceRevision": 1,
-    "value": "Photo vertical position"
+    "sourceRevision": 2,
+    "value": "Vertical position"
   },
   "message.1034": {
     "sourceRevision": 1,
-    "value": "Photo zoom"
+    "value": "Image zoom"
   },
   "message.1035": {
     "sourceRevision": 1,
@@ -4061,22 +4029,6 @@
   "message.1036": {
     "sourceRevision": 1,
     "value": "Border corner size"
-  },
-  "message.1037": {
-    "sourceRevision": 1,
-    "value": "Sticker {value0}"
-  },
-  "message.1038": {
-    "sourceRevision": 1,
-    "value": "Sticker {value0} horizontal position"
-  },
-  "message.1039": {
-    "sourceRevision": 1,
-    "value": "Sticker {value0} vertical position"
-  },
-  "message.1040": {
-    "sourceRevision": 1,
-    "value": "Sticker {value0} size"
   },
   "message.1041": {
     "sourceRevision": 1,
@@ -4202,21 +4154,13 @@
     "sourceRevision": 1,
     "value": "Magnet"
   },
-  "message.1072": {
-    "sourceRevision": 1,
-    "value": "Shape & border"
-  },
   "message.1073": {
     "sourceRevision": 1,
     "value": "Decorations"
   },
   "message.1074": {
     "sourceRevision": 1,
-    "value": "Photos & images"
-  },
-  "message.1075": {
-    "sourceRevision": 1,
-    "value": "Text & spacing"
+    "value": "Background image"
   },
   "message.1076": {
     "sourceRevision": 1,
@@ -4524,15 +4468,15 @@
   },
   "message.1154": {
     "sourceRevision": 1,
-    "value": "Add"
+    "value": "Add pet"
   },
   "message.1155": {
-    "sourceRevision": 2,
-    "value": "Import a PNG/WebP image, ZIP or pet folder, install command, or a pet installed in Codex. After adding it, select the pet to use."
+    "sourceRevision": 3,
+    "value": "Choose where to import your pet from."
   },
   "message.1156": {
-    "sourceRevision": 1,
-    "value": "Choose another file"
+    "sourceRevision": 2,
+    "value": "Choose another pet"
   },
   "message.1157": {
     "sourceRevision": 1,
@@ -4548,7 +4492,7 @@
   },
   "message.1163": {
     "sourceRevision": 1,
-    "value": " · You can delete the original file after registration."
+    "value": "You can delete the original file after adding the pet."
   },
   "message.1164": {
     "sourceRevision": 1,
@@ -5214,6 +5158,13 @@
     "value": "Startup and recovery",
     "sourceRevision": 1
   },
+  "usage.codex_reset_credits": {
+    "sourceRevision": 1,
+    "value": {
+      "one": "{count} usage reset credit",
+      "other": "{count} usage reset credits"
+    }
+  },
   "usage.projects": {
     "value": "Projects · {count}",
     "sourceRevision": 1
@@ -5698,19 +5649,19 @@
   },
   "pet.import.command_tab": {
     "sourceRevision": 1,
-    "value": "Install command"
+    "value": "Paste a command"
   },
   "pet.import.installed_tab": {
     "sourceRevision": 1,
-    "value": "Pets installed in Codex"
+    "value": "Import from Codex"
   },
   "pet.import.command_help": {
     "sourceRevision": 1,
-    "value": "Paste an install command from CodexPetDB or Pets Codex. The app reads the command and downloads the pet directly; no CLI installation is needed."
+    "value": "Paste an install command from CodexPetDB or Pets Codex. The app downloads the pet without running the command."
   },
   "pet.import.fetch": {
     "sourceRevision": 1,
-    "value": "Download"
+    "value": "Get pet"
   },
   "pet.import.search": {
     "sourceRevision": 1,
@@ -5815,10 +5766,6 @@
     "sourceRevision": 1,
     "value": "Switch to this copy"
   },
-  "whats_new.01510.bubble_repeat": {
-    "sourceRevision": 1,
-    "value": "Pet bubble decorations can repeat to fit the bubble height."
-  },
   "update.auto_install_idle": {
     "sourceRevision": 1,
     "value": "Checks once a day, downloads new versions and applies them the next time the app starts."
@@ -5843,8 +5790,1016 @@
     "sourceRevision": 1,
     "value": "When a new version is found, downloads the changed files and applies them the next time the app starts. If the full installer is needed, it only tells you."
   },
-  "whats_new.01510.auto_update": {
+  "whats_new.01511.bubble_editor": {
     "sourceRevision": 1,
-    "value": "New versions download in the background and apply automatically the next time the app starts."
+    "value": "In Edit bubble design you can now pick the background, border, shape and decorations yourself, drag decorations into place, and save or share a design."
+  },
+  "whats_new.01511.pet_link": {
+    "sourceRevision": 1,
+    "value": "Join pets combines installed pets into the looks of one pet, with transitions between the looks."
+  },
+  "whats_new.01511.animation_speed": {
+    "sourceRevision": 1,
+    "value": "You can set the pet's animation speed from 50% to 200%."
+  },
+  "whats_new.01511.pet_manager_clicks": {
+    "sourceRevision": 1,
+    "value": "Switches and buttons in Manage pets no longer ignore a click right after another change."
+  },
+  "pet.appearance.title": {
+    "sourceRevision": 2,
+    "value": "Appearance"
+  },
+  "pet.appearance.auto": {
+    "sourceRevision": 1,
+    "value": "Automatic"
+  },
+  "pet.appearance.keep": {
+    "sourceRevision": 1,
+    "value": "Keep {name}"
+  },
+  "pet.appearance.current": {
+    "sourceRevision": 1,
+    "value": "Current: {name}"
+  },
+  "pet.appearance.pending": {
+    "sourceRevision": 1,
+    "value": "Waiting to switch to {name}"
+  },
+  "pet.appearance.transitioning": {
+    "sourceRevision": 1,
+    "value": "Changing appearance"
+  },
+  "pet.appearance.description": {
+    "sourceRevision": 2,
+    "value": "{state} · Automatic mode switches to another look at the chosen interval while the pet is idle and facing forward. Choosing a look turns automatic changes off."
+  },
+  "pet.appearance.invalid_package": {
+    "sourceRevision": 1,
+    "value": "The pet appearance assets or configuration are invalid."
+  },
+  "pet.appearance.unavailable": {
+    "sourceRevision": 1,
+    "value": "This pet does not support appearance changes."
+  },
+  "pet.appearance.help": {
+    "sourceRevision": 2,
+    "value": "Appearance help"
+  },
+  "pet.import.file_heading": {
+    "sourceRevision": 1,
+    "value": "Choose a pet file or folder"
+  },
+  "pet.import.file_help": {
+    "sourceRevision": 1,
+    "value": "Import a PNG or WebP sprite sheet, a ZIP package, or a complete pet folder."
+  },
+  "pet.import.command_example": {
+    "sourceRevision": 1,
+    "value": "Example: npx codexpetdb install PET_ID"
+  },
+  "pet.import.loading_installed": {
+    "sourceRevision": 1,
+    "value": "Loading pets installed in Codex."
+  },
+  "pet.import.no_search_results": {
+    "sourceRevision": 1,
+    "value": "No pets match your search."
+  },
+  "pet.import.confirm_title": {
+    "sourceRevision": 1,
+    "value": "Review your pet"
+  },
+  "pet.import.from_file": {
+    "sourceRevision": 1,
+    "value": "Imported from a file"
+  },
+  "pet.import.from_folder": {
+    "sourceRevision": 1,
+    "value": "Imported from a folder"
+  },
+  "pet.import.from_command": {
+    "sourceRevision": 1,
+    "value": "Imported using an install command"
+  },
+  "pet.import.from_installed": {
+    "sourceRevision": 1,
+    "value": "Imported from Codex"
+  },
+  "pet.import.sprite_version": {
+    "sourceRevision": 1,
+    "value": "Sprite V{version}"
+  },
+  "pet.import.restore_title": {
+    "sourceRevision": 1,
+    "value": "This pet is in the trash"
+  },
+  "pet.import.exists_title": {
+    "sourceRevision": 1,
+    "value": "This pet is already in your list"
+  },
+  "pet.import.added_title": {
+    "sourceRevision": 1,
+    "value": "Pet added"
+  },
+  "pet.appearance.interval": {
+    "sourceRevision": 1,
+    "value": "Automatic change interval"
+  },
+  "pet.appearance.interval.package": {
+    "sourceRevision": 1,
+    "value": "Pet default ({range})"
+  },
+  "pet.appearance.range.seconds": {
+    "sourceRevision": 1,
+    "value": "{min}–{max} seconds"
+  },
+  "pet.appearance.range.minutes": {
+    "sourceRevision": 1,
+    "value": "{min}–{max} minutes"
+  },
+  "pet.appearance.order": {
+    "sourceRevision": 1,
+    "value": "Automatic order"
+  },
+  "pet.appearance.order.package": {
+    "sourceRevision": 1,
+    "value": "Pet default ({order})"
+  },
+  "pet.appearance.order.random": {
+    "sourceRevision": 1,
+    "value": "Random"
+  },
+  "pet.appearance.order.sequence": {
+    "sourceRevision": 1,
+    "value": "In order"
+  },
+  "pet.link.transition_count": {
+    "sourceRevision": 1,
+    "value": "A transition needs 2–{max} frames."
+  },
+  "pet.link.transition_not_strip": {
+    "sourceRevision": 1,
+    "value": "A single image must be 192×208 cells laid out side by side. You can also use an animated GIF or WebP, or several PNG files."
+  },
+  "pet.link.transition_transparency": {
+    "sourceRevision": 1,
+    "value": "Every transition frame needs a transparent background."
+  },
+  "pet.link.transition_format": {
+    "sourceRevision": 1,
+    "value": "Only PNG, WebP and GIF images can be used."
+  },
+  "pet.link.transition_too_large": {
+    "sourceRevision": 1,
+    "value": "Each transition image can be up to 20 MB."
+  },
+  "pet.link.look_count": {
+    "sourceRevision": 1,
+    "value": "Choose 2–{max} looks."
+  },
+  "pet.link.not_v2": {
+    "sourceRevision": 1,
+    "value": "Can't be joined: not a V2 sprite sheet (1536×2288) with 16 look directions."
+  },
+  "pet.link.duplicate": {
+    "sourceRevision": 1,
+    "value": "The same pet can't be chosen twice."
+  },
+  "pet.link.label_required": {
+    "sourceRevision": 1,
+    "value": "Give every look a name."
+  },
+  "pet.link.transition_pick": {
+    "sourceRevision": 1,
+    "value": "Choose transition images"
+  },
+  "pet.link.transition_files": {
+    "sourceRevision": 1,
+    "value": "Transition images"
+  },
+  "pet.link.title": {
+    "sourceRevision": 1,
+    "value": "Join pets"
+  },
+  "pet.link.card": {
+    "sourceRevision": 1,
+    "value": "Combine pets into one pet's looks, with transition animations between them"
+  },
+  "pet.link.step.looks": {
+    "sourceRevision": 1,
+    "value": "Choose looks"
+  },
+  "pet.link.step.transitions": {
+    "sourceRevision": 1,
+    "value": "Add transitions"
+  },
+  "pet.link.step.confirm": {
+    "sourceRevision": 1,
+    "value": "Review"
+  },
+  "pet.link.next": {
+    "sourceRevision": 1,
+    "value": "Next"
+  },
+  "pet.link.create": {
+    "sourceRevision": 1,
+    "value": "Create pet"
+  },
+  "pet.link.created_title": {
+    "sourceRevision": 1,
+    "value": "Pet created"
+  },
+  "pet.link.looks_intro": {
+    "sourceRevision": 1,
+    "value": "Choose 2–{max} looks for one pet. They follow the order below, starting from the default look."
+  },
+  "pet.link.look_name": {
+    "sourceRevision": 1,
+    "value": "Look name"
+  },
+  "pet.link.default_look": {
+    "sourceRevision": 1,
+    "value": "Default look"
+  },
+  "pet.link.move_up": {
+    "sourceRevision": 1,
+    "value": "Move {name} up"
+  },
+  "pet.link.move_down": {
+    "sourceRevision": 1,
+    "value": "Move {name} down"
+  },
+  "pet.link.remove": {
+    "sourceRevision": 1,
+    "value": "Remove {name}"
+  },
+  "pet.link.add_look": {
+    "sourceRevision": 1,
+    "value": "Add a look"
+  },
+  "pet.link.choose_pet": {
+    "sourceRevision": 1,
+    "value": "Choose a pet"
+  },
+  "pet.link.transitions_intro": {
+    "sourceRevision": 1,
+    "value": "Add the animation shown when the look changes. Without one, the reverse transition plays backwards, or the two looks fade into each other."
+  },
+  "pet.link.kind.drawn": {
+    "sourceRevision": 1,
+    "value": "Transition, {count} frames"
+  },
+  "pet.link.kind.reversed": {
+    "sourceRevision": 1,
+    "value": "Reverse of the other direction"
+  },
+  "pet.link.kind.fade": {
+    "sourceRevision": 1,
+    "value": "Cross-fade"
+  },
+  "pet.link.resized": {
+    "sourceRevision": 1,
+    "value": "Scaled to fit the cell"
+  },
+  "pet.link.frame_interval": {
+    "sourceRevision": 1,
+    "value": "Frame interval (ms)"
+  },
+  "pet.link.play": {
+    "sourceRevision": 1,
+    "value": "Play {from} to {to}"
+  },
+  "pet.link.import_transition": {
+    "sourceRevision": 1,
+    "value": "Import the {from} to {to} transition"
+  },
+  "pet.link.clear_transition": {
+    "sourceRevision": 1,
+    "value": "Remove the {from} to {to} transition"
+  },
+  "pet.link.transition_help": {
+    "sourceRevision": 1,
+    "value": "A transition is a PNG or WebP of 192×208 cells side by side, an animated GIF or WebP, or several PNG files in name order. It needs a transparent background and 2–48 frames."
+  },
+  "pet.link.bubble": {
+    "sourceRevision": 1,
+    "value": "Bubble design"
+  },
+  "pet.link.bubble_none": {
+    "sourceRevision": 1,
+    "value": "App default bubble"
+  },
+  "pet.link.summary": {
+    "sourceRevision": 1,
+    "value": "{looks} looks · {drawn} transition images. The original pets stay as they are; this creates a new pet."
+  },
+  "pet.link.back": {
+    "sourceRevision": 1,
+    "value": "Back"
+  },
+  "pet.link.edit_title": {
+    "sourceRevision": 1,
+    "value": "Edit a joined pet"
+  },
+  "pet.link.edit_choose": {
+    "sourceRevision": 1,
+    "value": "Create a new one"
+  },
+  "pet.link.edit_note": {
+    "sourceRevision": 1,
+    "value": "Saving replaces {name} with this version. Its settings and list position carry over, and the previous pet moves to the trash."
+  },
+  "pet.link.replace": {
+    "sourceRevision": 1,
+    "value": "Save changes"
+  },
+  "pet.link.replaced_title": {
+    "sourceRevision": 1,
+    "value": "Pet updated"
+  },
+  "bubble.editor.gradient_angle": {
+    "sourceRevision": 1,
+    "value": "Gradient angle"
+  },
+  "bubble.editor.gradient.angle": {
+    "sourceRevision": 1,
+    "value": "Custom angle"
+  },
+  "bubble.editor.pattern_tile_size": {
+    "sourceRevision": 1,
+    "value": "Pattern size"
+  },
+  "bubble.editor.pattern_opacity": {
+    "sourceRevision": 1,
+    "value": "Pattern strength"
+  },
+  "bubble.editor.background_fit": {
+    "sourceRevision": 1,
+    "value": "Image fit"
+  },
+  "bubble.editor.fit.cover": {
+    "sourceRevision": 1,
+    "value": "Fill"
+  },
+  "bubble.editor.fit.contain": {
+    "sourceRevision": 1,
+    "value": "Fit whole photo"
+  },
+  "bubble.editor.fit.stretch": {
+    "sourceRevision": 1,
+    "value": "Stretch"
+  },
+  "bubble.editor.fit.tile": {
+    "sourceRevision": 1,
+    "value": "Tile"
+  },
+  "bubble.editor.fit.free": {
+    "sourceRevision": 1,
+    "value": "Place freely"
+  },
+  "bubble.editor.background_tile_size": {
+    "sourceRevision": 1,
+    "value": "Tile size"
+  },
+  "bubble.editor.background_blur": {
+    "sourceRevision": 1,
+    "value": "Image blur"
+  },
+  "bubble.editor.background_overlay": {
+    "sourceRevision": 1,
+    "value": "Readability overlay"
+  },
+  "bubble.editor.sample_long": {
+    "sourceRevision": 1,
+    "value": "Longer messages look like this. The bubble widens up to its maximum width, then wraps, and ends with an ellipsis after three lines."
+  },
+  "bubble.editor.tabs": {
+    "sourceRevision": 1,
+    "value": "Design sections"
+  },
+  "bubble.editor.tab.background": {
+    "sourceRevision": 1,
+    "value": "Background"
+  },
+  "bubble.editor.tab.border_shape": {
+    "sourceRevision": 1,
+    "value": "Border and shape"
+  },
+  "bubble.editor.tab.layout": {
+    "sourceRevision": 2,
+    "value": "Text & layout"
+  },
+  "bubble.editor.group.builtin": {
+    "sourceRevision": 1,
+    "value": "Built-in ornaments"
+  },
+  "bubble.editor.group.text": {
+    "sourceRevision": 1,
+    "value": "Text"
+  },
+  "bubble.editor.group.border_basic": {
+    "sourceRevision": 1,
+    "value": "Color & width"
+  },
+  "bubble.editor.group.border_style": {
+    "sourceRevision": 1,
+    "value": "Style & image"
+  },
+  "bubble.editor.group.effects": {
+    "sourceRevision": 1,
+    "value": "Outer effects"
+  },
+  "bubble.editor.group.box": {
+    "sourceRevision": 1,
+    "value": "Box"
+  },
+  "bubble.editor.group.size": {
+    "sourceRevision": 1,
+    "value": "Size & spacing"
+  },
+  "bubble.editor.add_background_image": {
+    "sourceRevision": 1,
+    "value": "Add background image"
+  },
+  "bubble.editor.background_width": {
+    "sourceRevision": 1,
+    "value": "Width"
+  },
+  "bubble.editor.background_height": {
+    "sourceRevision": 1,
+    "value": "Height"
+  },
+  "bubble.editor.background_ratio": {
+    "sourceRevision": 1,
+    "value": "Original ratio"
+  },
+  "bubble.editor.background_hint": {
+    "sourceRevision": 1,
+    "value": "Click the background image and drag to move it. Corners resize it and keep its shape (Shift resizes freely); sides stretch it one way."
+  },
+  "bubble.editor.group.placement": {
+    "sourceRevision": 1,
+    "value": "Placement"
+  },
+  "bubble.editor.group.image_effects": {
+    "sourceRevision": 1,
+    "value": "Effects"
+  },
+  "bubble.editor.background_focus_x": {
+    "sourceRevision": 1,
+    "value": "Visible part (horizontal)"
+  },
+  "bubble.editor.background_focus_y": {
+    "sourceRevision": 1,
+    "value": "Visible part (vertical)"
+  },
+  "bubble.editor.open_folder": {
+    "sourceRevision": 1,
+    "value": "Open folder"
+  },
+  "bubble.editor.delete_image": {
+    "sourceRevision": 1,
+    "value": "Delete this image"
+  },
+  "bubble.editor.open_folder_failed": {
+    "sourceRevision": 1,
+    "value": "Couldn't open the image folder."
+  },
+  "bubble.pattern.dots": {
+    "sourceRevision": 1,
+    "value": "Polka dots"
+  },
+  "bubble.pattern.gingham": {
+    "sourceRevision": 1,
+    "value": "Gingham"
+  },
+  "bubble.pattern.stripes": {
+    "sourceRevision": 1,
+    "value": "Diagonal stripes"
+  },
+  "bubble.pattern.hearts": {
+    "sourceRevision": 1,
+    "value": "Hearts"
+  },
+  "bubble.pattern.stars": {
+    "sourceRevision": 1,
+    "value": "Stars"
+  },
+  "bubble.pattern.flowers": {
+    "sourceRevision": 1,
+    "value": "Flowers"
+  },
+  "bubble.pattern.waves": {
+    "sourceRevision": 1,
+    "value": "Waves"
+  },
+  "bubble.pattern.grid": {
+    "sourceRevision": 1,
+    "value": "Grid"
+  },
+  "bubble.editor.long": {
+    "sourceRevision": 1,
+    "value": "Long message"
+  },
+  "bubble.editor.zoom": {
+    "sourceRevision": 1,
+    "value": "Preview zoom"
+  },
+  "bubble.editor.undo": {
+    "sourceRevision": 1,
+    "value": "Undo"
+  },
+  "bubble.editor.redo": {
+    "sourceRevision": 1,
+    "value": "Redo"
+  },
+  "bubble.editor.canvas_hint": {
+    "sourceRevision": 1,
+    "value": "Drag decorations to move them and use the corners to resize. Shift resizes freely, Alt turns off snapping, and arrow keys nudge by 1px."
+  },
+  "bubble.editor.rotate_hint": {
+    "sourceRevision": 1,
+    "value": "Drag to rotate · Shift for 15° steps"
+  },
+  "bubble.editor.layer": {
+    "sourceRevision": 1,
+    "value": "Decoration"
+  },
+  "bubble.editor.layers": {
+    "sourceRevision": 1,
+    "value": "Decoration layers"
+  },
+  "bubble.editor.body_marker": {
+    "sourceRevision": 1,
+    "value": "Bubble body"
+  },
+  "bubble.editor.add_image": {
+    "sourceRevision": 1,
+    "value": "Import image"
+  },
+  "bubble.editor.add_from_library": {
+    "sourceRevision": 1,
+    "value": "Add from library"
+  },
+  "bubble.editor.add_ornament": {
+    "sourceRevision": 1,
+    "value": "Add built-in ornament"
+  },
+  "bubble.editor.ornament_layers": {
+    "sourceRevision": 1,
+    "value": "Built-in ornament layers"
+  },
+  "bubble.editor.pet_images": {
+    "sourceRevision": 1,
+    "value": "This pet's decoration images"
+  },
+  "bubble.editor.my_images": {
+    "sourceRevision": 1,
+    "value": "My images"
+  },
+  "bubble.editor.package_layers": {
+    "sourceRevision": 1,
+    "value": "Show pet decoration layers"
+  },
+  "bubble.editor.layer_limit": {
+    "sourceRevision": 1,
+    "value": "You can add up to {count} decorations."
+  },
+  "bubble.editor.empty_layers": {
+    "sourceRevision": 1,
+    "value": "No decorations yet. Import an image or add one from your library."
+  },
+  "bubble.editor.selected_none": {
+    "sourceRevision": 1,
+    "value": "Select a decoration in the preview or the list to adjust its details."
+  },
+  "bubble.editor.hide_layer": {
+    "sourceRevision": 1,
+    "value": "Hide {name}"
+  },
+  "bubble.editor.show_layer": {
+    "sourceRevision": 1,
+    "value": "Show {name}"
+  },
+  "bubble.editor.lock_layer": {
+    "sourceRevision": 1,
+    "value": "Lock {name}"
+  },
+  "bubble.editor.unlock_layer": {
+    "sourceRevision": 1,
+    "value": "Unlock {name}"
+  },
+  "bubble.editor.raise": {
+    "sourceRevision": 1,
+    "value": "Bring {name} forward"
+  },
+  "bubble.editor.lower": {
+    "sourceRevision": 1,
+    "value": "Send {name} backward"
+  },
+  "bubble.editor.field.image": {
+    "sourceRevision": 1,
+    "value": "Image"
+  },
+  "bubble.editor.field.name": {
+    "sourceRevision": 1,
+    "value": "Name"
+  },
+  "bubble.editor.field.placement": {
+    "sourceRevision": 1,
+    "value": "Placement"
+  },
+  "bubble.editor.placement.front": {
+    "sourceRevision": 1,
+    "value": "In front of the bubble"
+  },
+  "bubble.editor.placement.back": {
+    "sourceRevision": 1,
+    "value": "Behind the bubble"
+  },
+  "bubble.editor.field.anchor": {
+    "sourceRevision": 1,
+    "value": "Anchor"
+  },
+  "bubble.editor.anchor.top-left": {
+    "sourceRevision": 1,
+    "value": "Top left"
+  },
+  "bubble.editor.anchor.top-center": {
+    "sourceRevision": 1,
+    "value": "Top center"
+  },
+  "bubble.editor.anchor.top-right": {
+    "sourceRevision": 1,
+    "value": "Top right"
+  },
+  "bubble.editor.anchor.center-left": {
+    "sourceRevision": 1,
+    "value": "Middle left"
+  },
+  "bubble.editor.anchor.center-right": {
+    "sourceRevision": 1,
+    "value": "Middle right"
+  },
+  "bubble.editor.anchor.bottom-left": {
+    "sourceRevision": 1,
+    "value": "Bottom left"
+  },
+  "bubble.editor.anchor.bottom-center": {
+    "sourceRevision": 1,
+    "value": "Bottom center"
+  },
+  "bubble.editor.anchor.bottom-right": {
+    "sourceRevision": 1,
+    "value": "Bottom right"
+  },
+  "bubble.editor.anchor.arc-top-left": {
+    "sourceRevision": 1,
+    "value": "Top-left corner curve"
+  },
+  "bubble.editor.field.width": {
+    "sourceRevision": 1,
+    "value": "Width"
+  },
+  "bubble.editor.field.height": {
+    "sourceRevision": 1,
+    "value": "Height"
+  },
+  "bubble.editor.field.rotation": {
+    "sourceRevision": 1,
+    "value": "Rotation"
+  },
+  "bubble.editor.field.alpha": {
+    "sourceRevision": 1,
+    "value": "Opacity"
+  },
+  "bubble.editor.field.tint": {
+    "sourceRevision": 1,
+    "value": "Color fill"
+  },
+  "bubble.editor.tint.none": {
+    "sourceRevision": 1,
+    "value": "Original colors"
+  },
+  "bubble.editor.tint.border": {
+    "sourceRevision": 1,
+    "value": "Follow the border color"
+  },
+  "bubble.editor.tint.background": {
+    "sourceRevision": 1,
+    "value": "Follow the background color"
+  },
+  "bubble.editor.tint.text": {
+    "sourceRevision": 1,
+    "value": "Follow the text color"
+  },
+  "bubble.editor.tint.shadow": {
+    "sourceRevision": 1,
+    "value": "Follow the shadow color"
+  },
+  "bubble.editor.tint.custom": {
+    "sourceRevision": 1,
+    "value": "Custom color"
+  },
+  "bubble.editor.field.mirror": {
+    "sourceRevision": 1,
+    "value": "Flip horizontally"
+  },
+  "bubble.editor.field.flip_y": {
+    "sourceRevision": 1,
+    "value": "Flip vertically"
+  },
+  "bubble.editor.field.repeat": {
+    "sourceRevision": 1,
+    "value": "Repeat"
+  },
+  "bubble.editor.repeat.none": {
+    "sourceRevision": 1,
+    "value": "No repeat"
+  },
+  "bubble.editor.repeat.x": {
+    "sourceRevision": 1,
+    "value": "Repeat across"
+  },
+  "bubble.editor.repeat.y": {
+    "sourceRevision": 1,
+    "value": "Repeat down"
+  },
+  "bubble.editor.field.repeat_gap": {
+    "sourceRevision": 1,
+    "value": "Repeat spacing"
+  },
+  "bubble.editor.field.repeat_inset": {
+    "sourceRevision": 1,
+    "value": "End margin"
+  },
+  "bubble.editor.field.position_x": {
+    "sourceRevision": 1,
+    "value": "Horizontal position"
+  },
+  "bubble.editor.field.position_y": {
+    "sourceRevision": 1,
+    "value": "Vertical position"
+  },
+  "bubble.editor.layer_group.position": {
+    "sourceRevision": 1,
+    "value": "Position and size"
+  },
+  "bubble.editor.layer_group.look": {
+    "sourceRevision": 1,
+    "value": "Color and flip"
+  },
+  "bubble.editor.layer_group.repeat": {
+    "sourceRevision": 1,
+    "value": "Repeat"
+  },
+  "bubble.editor.field.size": {
+    "sourceRevision": 1,
+    "value": "Size"
+  },
+  "bubble.editor.field.flip": {
+    "sourceRevision": 1,
+    "value": "Flip"
+  },
+  "bubble.editor.layer_more": {
+    "sourceRevision": 1,
+    "value": "More"
+  },
+  "bubble.editor.library_title": {
+    "sourceRevision": 1,
+    "value": "My images ({count})"
+  },
+  "bubble.editor.field.frame_style": {
+    "sourceRevision": 1,
+    "value": "Pet frame"
+  },
+  "bubble.editor.group.legacy_ornaments": {
+    "sourceRevision": 1,
+    "value": "Old corner ornaments"
+  },
+  "bubble.editor.duplicate": {
+    "sourceRevision": 1,
+    "value": "Duplicate"
+  },
+  "bubble.editor.mirror_copy": {
+    "sourceRevision": 1,
+    "value": "Mirrored copy"
+  },
+  "bubble.editor.delete_layer": {
+    "sourceRevision": 1,
+    "value": "Delete decoration"
+  },
+  "bubble.editor.library_hint": {
+    "sourceRevision": 1,
+    "value": "You can also drag image files here or onto the preview, or paste a copied image with Ctrl+V. Dropping on the preview or pasting adds it as a decoration right away. Any image works as a background, decoration or border."
+  },
+  "bubble.editor.import_trim": {
+    "sourceRevision": 1,
+    "value": "Trim transparent edges on import"
+  },
+  "bubble.editor.import_clear_white": {
+    "sourceRevision": 1,
+    "value": "Remove white background touching the edges"
+  },
+  "bubble.editor.delete_used": {
+    "sourceRevision": 1,
+    "value": "These pet designs use this image: {pets}. Deleting removes it from them too. Delete it?"
+  },
+  "bubble.editor.delete_used_designs": {
+    "sourceRevision": 1,
+    "value": "These saved designs use this image: {designs}. Deleting removes it from them too. Delete it?"
+  },
+  "bubble.editor.delete_used_both": {
+    "sourceRevision": 1,
+    "value": "Pet designs ({pets}) and saved designs ({designs}) use this image. Deleting removes it from them too. Delete it?"
+  },
+  "bubble.theme.tab": {
+    "sourceRevision": 1,
+    "value": "My themes"
+  },
+  "bubble.theme.title": {
+    "sourceRevision": 1,
+    "value": "Saved designs"
+  },
+  "bubble.theme.saved": {
+    "sourceRevision": 1,
+    "value": "Saved design list"
+  },
+  "bubble.theme.empty": {
+    "sourceRevision": 1,
+    "value": "No saved designs yet. Name and save the current design to use it with other pets too."
+  },
+  "bubble.theme.name": {
+    "sourceRevision": 1,
+    "value": "Design name"
+  },
+  "bubble.theme.save": {
+    "sourceRevision": 1,
+    "value": "Save current design"
+  },
+  "bubble.theme.saved_notice": {
+    "sourceRevision": 1,
+    "value": "Design saved. You can load it from any pet's bubble editor."
+  },
+  "bubble.theme.applied": {
+    "sourceRevision": 1,
+    "value": "Loaded {name}. Select Apply to keep it."
+  },
+  "bubble.theme.delete": {
+    "sourceRevision": 1,
+    "value": "Delete {name}"
+  },
+  "bubble.theme.delete_confirm": {
+    "sourceRevision": 1,
+    "value": "Delete the design {name}? Pets already using it keep their design."
+  },
+  "bubble.theme.export": {
+    "sourceRevision": 1,
+    "value": "Share as file"
+  },
+  "bubble.theme.exported": {
+    "sourceRevision": 1,
+    "value": "Design file saved."
+  },
+  "bubble.theme.import": {
+    "sourceRevision": 1,
+    "value": "Load file"
+  },
+  "bubble.theme.imported": {
+    "sourceRevision": 1,
+    "value": "Loaded {name}. Its images were added to My images. Select Apply to keep it."
+  },
+  "bubble.theme.package": {
+    "sourceRevision": 1,
+    "value": "Export for a pet package"
+  },
+  "bubble.theme.package_hint": {
+    "sourceRevision": 1,
+    "value": "Creates bubble-theme.json and a bubble folder in the chosen folder. Put its bubbleTheme into a pet's pet.json to make it that pet's own bubble."
+  },
+  "bubble.theme.packaged": {
+    "sourceRevision": 1,
+    "value": "Pet package files created."
+  },
+  "bubble.theme.packaged_omitted": {
+    "sourceRevision": 1,
+    "value": "Pet package files created. Fields a package can't carry were left out: {fields}"
+  },
+  "bubble.theme.default_file": {
+    "sourceRevision": 1,
+    "value": "Bubble design"
+  },
+  "bubble.theme.export_title": {
+    "sourceRevision": 1,
+    "value": "Save design file"
+  },
+  "bubble.theme.import_title": {
+    "sourceRevision": 1,
+    "value": "Load design file"
+  },
+  "bubble.theme.package_title": {
+    "sourceRevision": 1,
+    "value": "Choose a folder for the pet package files"
+  },
+  "bubble.theme.name_required": {
+    "sourceRevision": 1,
+    "value": "Give the design a name."
+  },
+  "bubble.theme.library_full": {
+    "sourceRevision": 1,
+    "value": "You can save up to {max} designs. Delete one you no longer use."
+  },
+  "bubble.theme.missing": {
+    "sourceRevision": 1,
+    "value": "The saved design wasn't found."
+  },
+  "bubble.theme.invalid_file": {
+    "sourceRevision": 1,
+    "value": "This isn't a bubble design file, or it's damaged."
+  },
+  "bubble.theme.write_failed": {
+    "sourceRevision": 1,
+    "value": "The file couldn't be saved. Check the location and permissions."
+  },
+  "bubble.editor.field.inner_border_custom": {
+    "sourceRevision": 1,
+    "value": "Set the inner line"
+  },
+  "bubble.editor.field.inner_border_color": {
+    "sourceRevision": 1,
+    "value": "Inner line color"
+  },
+  "bubble.editor.field.inner_border_alpha": {
+    "sourceRevision": 1,
+    "value": "Inner line opacity"
+  },
+  "bubble.editor.group.halo": {
+    "sourceRevision": 1,
+    "value": "Halo"
+  },
+  "bubble.editor.field.halo_custom": {
+    "sourceRevision": 1,
+    "value": "Set the halo"
+  },
+  "bubble.editor.field.halo_color": {
+    "sourceRevision": 1,
+    "value": "Halo color"
+  },
+  "bubble.editor.field.halo_alpha": {
+    "sourceRevision": 1,
+    "value": "Halo opacity"
+  },
+  "bubble.editor.field.halo_width": {
+    "sourceRevision": 1,
+    "value": "Halo width"
+  },
+  "bubble.editor.field.halo_offset_y": {
+    "sourceRevision": 1,
+    "value": "Halo vertical offset"
+  },
+  "bubble.editor.field.halo_grow": {
+    "sourceRevision": 1,
+    "value": "Halo spread"
+  },
+  "bubble.editor.group.content": {
+    "sourceRevision": 1,
+    "value": "Text spacing"
+  },
+  "bubble.editor.field.content_custom": {
+    "sourceRevision": 1,
+    "value": "Set text spacing"
+  },
+  "bubble.editor.field.content_top": {
+    "sourceRevision": 1,
+    "value": "Top spacing"
+  },
+  "bubble.editor.field.content_bottom": {
+    "sourceRevision": 1,
+    "value": "Bottom spacing"
+  },
+  "bubble.editor.field.content_left": {
+    "sourceRevision": 1,
+    "value": "Extra left spacing"
+  },
+  "bubble.editor.ornament.dot": {
+    "sourceRevision": 1,
+    "value": "Dot"
+  },
+  "bubble.editor.pet_layer_tag": {
+    "sourceRevision": 1,
+    "value": "Pet frame"
+  },
+  "bubble.editor.pet_layers_hint": {
+    "sourceRevision": 1,
+    "value": "Press a pet frame decoration to move or edit it right away."
+  },
+  "bubble.editor.pet_layers_adopted": {
+    "sourceRevision": 1,
+    "value": "You're editing a copy of the pet frame decorations. Pack updates won't change them. Use Pet's default design or Undo to go back to the pet frame."
+  },
+  "pet.animation_speed": {
+    "sourceRevision": 1,
+    "value": "Pet animation speed"
   }
 }

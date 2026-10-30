@@ -385,6 +385,7 @@ In `Customize → Pet`, set the pet, its size, gaze range, idle activities, walk
 The last pet and its screen position are restored on the next start. If the saved monitor is gone, the pet moves to a safe position on the main screen.
 
 - **Pet opacity**: 50–100% (in 5% steps, default 100%). Values below 50% are blocked because the pet becomes hard to find on the desktop.
+- **Pet animation speed**: 50–200% (in 10% steps, default 100%). Changes how fast actions such as idle and working move, for every pet. Idle actions like waving also take longer or shorter so they move the same number of times. Look transitions, auto movement speed and the wait between idle actions stay the same.
 - **Ground shadow** (off by default): draws a faint shadow under the pet's feet.
 - **Fade in and out** (on by default): the pet fades gradually when hidden and shown again. With `Reduce motion` on in `App settings`, it appears and disappears instantly.
 - **Show current activity below pet**: the caption below the pet shows the working tools (Codex, Claude Code) with colored dots. It follows the app theme colors.
@@ -426,15 +427,41 @@ are moved to the new folder automatically on the first start.
 
 ### Bubble design
 
-Change the design in `Edit bubble design` under `Customize → Bubbles`. Start from a preset at the top (the default cream, sage, graphite, sky, paper note and pop, plus
-themes provided by pets), then expand the Color / Shape & border / Decorations / Photos & images / Text & spacing groups to adjust items.
-Choosing a preset keeps the photos, border images and stickers you added.
+Select `Edit bubble design` under `Customize → Bubbles` to open the bubble editor for the current pet. The `Background` / `Border and shape` /
+`Decorations` / `Text & layout` / `My themes` tabs are on the left, and the preview and presets on the right. In a narrow window the preview stays at the top.
+Changes are kept only when you select `Apply`, and the pet's bubbles change right away.
 
-- **Background photo**: drawn clipped to the bubble's shape, with adjustable strength, focus and zoom. The photo is drawn over the bubble color at the chosen strength so the text stays readable.
-- **Border image**: stretches an image in nine slices instead of the drawn border. You can set the corner size.
-- **Stickers**: add up to three, each with a position and size. Clicking the preview on the right moves the selected sticker to that spot.
-- Images can be PNG, WebP or JPEG (20 MB or less). On import, the orientation is corrected, the image is reduced to fit within 1024px and saved again, and metadata such as the photo's location is not kept.
-- The preview can switch between `Short notification` and `Project card`, and is drawn the same way as real bubbles.
+- **Preview**: switch between `Short notification`, `Long message` and `Project card`, and zoom to 100% or 200%. It is drawn the same way as real bubbles.
+  `Undo` and `Redo` (Ctrl+Z, Ctrl+Y) step through your changes. `Pet's default design` goes back to the design the pet ships with,
+  and `Reload saved values` to the design you last applied.
+- **Presets**: cream, sage, graphite, sky, paper note and pop change only colors, shapes and layout.
+  Your images, decoration layers, the pet's character frame and any inner line, halo or text spacing you set stay as they are.
+- **Background**: set the bubble color, gradient (vertical, horizontal or by angle) and fill strength. Put a built-in pattern (polka dots, gingham, diagonal
+  stripes, hearts, stars, flowers, waves, grid) or one of your photos in `Background image`, and choose `Fill`, `Fit whole photo`, `Stretch`, `Tile` or
+  `Place freely`. A freely placed image can be dragged on the preview and resized from its corners. You can also blur the image and add a
+  `Readability overlay` of the bubble color so text stays readable.
+- **Border and shape**: set the border color and width, its style (standard line, double line, accent line), a border image stretched in nine slices instead
+  of the drawn border, the bubble shape and corner radius, the tail, and the shadow and glow. With a double line, `Set the inner line` sets the
+  inner line's color and opacity, and `Set the halo` draws a band around the body (color, opacity, width, vertical offset, spread).
+  When they are off, the pet frame's values (or the defaults) are used.
+- **Decorations**: add up to 24 layers of images and built-in ornaments (cat ears, wings, horns, stars, ribbon, dot and more). Drag them on the
+  preview, resize from the corners and turn them with the handle on top (Shift resizes freely and turns in 15° steps, Alt turns off snapping,
+  arrow keys nudge by 1px). Each layer can sit in front of or behind the body and has an anchor, opacity, tint, horizontal and vertical flips
+  and horizontal or vertical repeat; layers can be duplicated, mirrored, hidden and locked. Image files dropped or pasted on the preview become layers too.
+- **Pet frame**: pets with a character frame draw it as well. Press a pet frame decoration on the preview or in the layer list and the frame
+  becomes your own decoration layers at that moment, ready to move and edit. Pack updates no longer change the copied decorations; if you leave
+  them alone, the pet frame keeps following the pack. `Pet's default design` or Undo brings the pet frame back.
+- **Text & layout**: set the text color, bold and alignment, the source label style, the minimum and maximum width and side spacing, and the
+  card alignment of stacked cards. `Set text spacing` changes the spacing above, below and to the left of the text inside the body.
+- **My themes**: name and save the current design (up to 64) to load it from any pet's editor. A design saved on another pet takes the current
+  pet's character frame. `Share as file` saves the design and the images it uses as one ZIP file, and `Load file` adds that file's images to
+  My images and loads the design. `Export for a pet package` creates `bubble-theme.json` and `bubble/` images for a pet package, leaving out
+  and naming what a package can't carry (background photos, border images, built-in ornament layers).
+- **My images**: imported images are kept in `My images` and can be used with every pet. Importing the same picture again or saving the same
+  design again adds no copy. `Open folder` opens the image folder, and `Delete this image` first names the pets and saved designs that use it.
+  Adding or deleting images takes effect immediately and is not undone when you cancel design changes.
+- Images can be PNG, WebP or JPEG (20 MB or less). On import, the orientation is corrected, the image is reduced to fit within 1024px and
+  saved again, and metadata such as the photo's location is not kept.
 
 ## Notification history and connections
 

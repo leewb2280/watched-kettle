@@ -15,6 +15,9 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 
 static class WatchedKettleLauncher
@@ -28,6 +31,16 @@ static class WatchedKettleLauncher
     const string ReadyMarker = ".ready";
     // Read by the app on its next start (watched_kettle/application/update_check.py).
     const string ResultFile = "update-result.txt";
+    const string BuildProfileFile = "BUILD_PROFILE.txt";
+    // Setup checks a freshly copied runtime with this before swapping it in.
+    // It runs here, not in the runtime, because a runtime missing a DLL shows
+    // an error dialog that would stall a silent install.
+    const string VerifyFlag = "--verify-runtime";
+    const string ManifestFile = "PACKAGE_MANIFEST.sha256.json";
+    // One entry as scripts/release_artifacts.py writes it.
+    static readonly Regex ManifestEntry = new Regex(
+        "\"path\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"\\s*,\\s*\"size\"\\s*:\\s*(\\d+)\\s*,\\s*\"sha256\"\\s*:\\s*\"([0-9a-f]{64})\"");
+    static readonly Regex ManifestCount = new Regex("\"fileCount\"\\s*:\\s*(\\d+)");
     const string ApplyMutex = @"Local\watched-kettle-update-apply";
     // Long enough for the app, its settings window and a hook bridge call to exit.
     const int ApplyWaitMilliseconds = 30000;
@@ -41,6 +54,8 @@ static class WatchedKettleLauncher
     {
         string runtimeRoot = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "runtime");
         string arguments = ArgumentsAfterProgram(Environment.CommandLine);
+        if (StartsWithFlag(arguments, VerifyFlag))
+            return VerifyRuntime(arguments.Substring(VerifyFlag.Length).Trim().Trim('"')) ? 0 : 1;
         bool applyRequested = StartsWithFlag(arguments, ApplyFlag);
         if (applyRequested)
             arguments = arguments.Substring(ApplyFlag.Length).TrimStart(' ', '\t');
@@ -155,6 +170,19 @@ static class WatchedKettleLauncher
         {
             return;
         }
+        // A full install after the app staged an update copies a newer runtime
+        // and may leave the staged one behind. Only a newer version swaps in;
+        // anything else is dropped so it never replaces what Setup installed.
+        if (Directory.Exists(current) && !IsNewer(version, InstalledVersion(current)))
+        {
+            try
+            {
+                Directory.Delete(next, true);
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+            return;
+        }
         string old = current + ".old";
         if (Directory.Exists(old))
         {
@@ -211,6 +239,97 @@ static class WatchedKettleLauncher
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }
         WriteResult(runtimeRoot, "applied", version, "");
+    }
+
+    // Every file the runtime's package manifest lists has its size and SHA-256.
+    // Never shows a dialog: Setup may run silently.
+    static bool VerifyRuntime(string root)
+    {
+        try
+        {
+            string text = File.ReadAllText(Path.Combine(root, ManifestFile), Encoding.UTF8);
+            Match count = ManifestCount.Match(text);
+            MatchCollection entries = ManifestEntry.Matches(text);
+            if (!count.Success || int.Parse(count.Groups[1].Value) != entries.Count || entries.Count == 0)
+                return false;
+            using (SHA256 sha = SHA256.Create())
+            {
+                foreach (Match entry in entries)
+                {
+                    string relative = Regex.Unescape(entry.Groups[1].Value);
+                    foreach (string part in relative.Split('/'))
+                    {
+                        if (part.Length == 0 || part == "." || part == ".." || part.Contains(":") || part.Contains("\\"))
+                            return false;
+                    }
+                    string path = Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
+                    FileInfo info = new FileInfo(path);
+                    if (!info.Exists || info.Length != long.Parse(entry.Groups[2].Value))
+                        return false;
+                    using (FileStream stream = File.OpenRead(path))
+                    {
+                        string digest = BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", "").ToLowerInvariant();
+                        if (digest != entry.Groups[3].Value)
+                            return false;
+                    }
+                }
+            }
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    // version= from the runtime's BUILD_PROFILE.txt (scripts/build_windows.ps1).
+    static string InstalledVersion(string runtime)
+    {
+        try
+        {
+            foreach (string line in File.ReadAllLines(Path.Combine(runtime, BuildProfileFile)))
+            {
+                if (line.StartsWith("version="))
+                    return line.Substring("version=".Length).Trim();
+            }
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+        return null;
+    }
+
+    // Same rule as update_check._version: three numbers, an optional "v".
+    static Version ParseVersion(string value)
+    {
+        if (value == null)
+            return null;
+        value = value.Trim();
+        if (value.StartsWith("v"))
+            value = value.Substring(1);
+        string[] parts = value.Split('.');
+        if (parts.Length != 3)
+            return null;
+        int[] numbers = new int[3];
+        for (int index = 0; index < 3; index++)
+        {
+            if (parts[index].Length == 0)
+                return null;
+            foreach (char character in parts[index])
+            {
+                if (character < '0' || character > '9')
+                    return null;
+            }
+            if (!int.TryParse(parts[index], out numbers[index]))
+                return null;
+        }
+        return new Version(numbers[0], numbers[1], numbers[2]);
+    }
+
+    static bool IsNewer(string staged, string installed)
+    {
+        Version next = ParseVersion(staged);
+        Version current = ParseVersion(installed);
+        return next != null && current != null && next > current;
     }
 
     static void WriteResult(string runtimeRoot, string state, string version, string reason)

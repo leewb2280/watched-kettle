@@ -5,6 +5,7 @@ from time import monotonic
 
 from PySide6.QtCore import QObject, QThread, QTimer, Qt, Signal, Slot
 
+from watched_kettle.thread_shutdown import wait_for_thread
 from watched_kettle.activity_diagnostics import (
     DiagnosticRecorder,
     diagnostic_guard,
@@ -19,6 +20,9 @@ MAX_TARGETS = 128
 PAGE_SIZE = 20
 MAX_PAGES = 2
 RECHECK_SECONDS = 30
+# With no turn left to check, the App Server is closed after this long and
+# started again for the next turn; an idle app keeps one process fewer.
+IDLE_CLOSE_SECONDS = 60
 
 
 class _TurnStatusWorker(QObject):
@@ -39,6 +43,7 @@ class _TurnStatusWorker(QObject):
         self.unsupported = False
         self.enabled = True
         self.cursor = 0
+        self.idle_since = None
         self.diagnostics = DiagnosticRecorder()
         self.diagnostics.callback = lambda event, **fields: self.diagnostic.emit(
             self.epoch, event, fields
@@ -81,11 +86,28 @@ class _TurnStatusWorker(QObject):
                 lambda ready, c=client: self.ready(ready) if self.client is c else None
             )
             client.response_received.connect(
-                lambda *args, c=client: self.response(*args)
-                if self.client is c
-                else None
+                lambda *args, c=client: (
+                    self.response(*args) if self.client is c else None
+                )
             )
             client.start()
+
+    def _close_when_idle(self):
+        """True while nothing is to be checked; closes the client after a while."""
+        if self.targets or self.pending:
+            self.idle_since = None
+            return False
+        if self.client is None:
+            return True
+        now = self.clock()
+        if self.idle_since is None:
+            self.idle_since = now
+        elif now - self.idle_since >= IDLE_CLOSE_SECONDS:
+            self.client.close()
+            self.client.deleteLater()
+            self.client = None
+            self.idle_since = None
+        return True
 
     def ready(self, ready):
         self.connection += 1
@@ -96,6 +118,8 @@ class _TurnStatusWorker(QObject):
 
     @Slot()
     def pump(self):
+        if self._close_when_idle():
+            return
         if not self.enabled or not self.targets or self.unsupported or self.pending:
             return
         self._ensure_client()
@@ -265,4 +289,4 @@ class CodexTurnStatusMonitor(QObject):
         self.enabled = False
         if self._thread.isRunning():
             self.stop_requested.emit()
-            self._thread.wait()
+            wait_for_thread(self._thread, "integrations.codex_turn_status")

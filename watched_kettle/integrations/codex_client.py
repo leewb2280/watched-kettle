@@ -4,23 +4,45 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 
 from watched_kettle.integrations.codex_hooks import encode_pet_event
+from watched_kettle.integrations.pipe_names import (
+    AGENT_PIPE_PREFIX,
+    LEGACY_AGENT_PIPE,
+    agent_pipe_name,
+    ensure_pipe_id,
+)
 
 
-WATCHED_KETTLE_SERVER_NAME = "watched-kettle-agent-v1"
 CONNECT_TIMEOUT_MS = 500
+# A busy or stuck app must not hold the agent's tool call; the event then goes
+# to the spool. If the app did read the pipe late, it drops the spooled copy as
+# a duplicate (codex_ipc.CodexHookServer).
+RESPONSE_TIMEOUT_MS = 1500
 
 
-def configured_pet_server_name():
-    """Return the pipe name, honoring the isolation override used by tests."""
-    return os.environ.get("WATCHED_KETTLE_SERVER_NAME") or WATCHED_KETTLE_SERVER_NAME
+def configured_pet_server_name(create=False):
+    """Return this user's hook pipe name, honoring the test override.
+
+    The app passes ``create`` to make the identifier on first start; hook
+    processes only read it and get "" before the app has ever run.
+    """
+    name = agent_pipe_name()
+    if not name and create:
+        value = ensure_pipe_id()
+        name = AGENT_PIPE_PREFIX + value if value else LEGACY_AGENT_PIPE
+    return name
 
 
-def send_pet_event(payload, server_name=WATCHED_KETTLE_SERVER_NAME):
+def send_pet_event(payload, server_name=None):
     """Send one event and require an acknowledgement from the pet process."""
     encoded = encode_pet_event(payload)
     if encoded is None:
+        return False
+    if server_name is None:
+        server_name = configured_pet_server_name()
+    if not server_name:
         return False
     if os.name == "nt":
         return _send_windows_named_pipe(encoded, server_name)
@@ -64,6 +86,16 @@ def _send_windows_named_pipe(encoded, server_name):
         wintypes.LPVOID,
     )
     read_file.restype = wintypes.BOOL
+    peek_named_pipe = kernel32.PeekNamedPipe
+    peek_named_pipe.argtypes = (
+        wintypes.HANDLE,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        wintypes.LPDWORD,
+        wintypes.LPDWORD,
+        wintypes.LPDWORD,
+    )
+    peek_named_pipe.restype = wintypes.BOOL
     close_handle = kernel32.CloseHandle
     close_handle.argtypes = (wintypes.HANDLE,)
     close_handle.restype = wintypes.BOOL
@@ -72,6 +104,8 @@ def _send_windows_named_pipe(encoded, server_name):
     generic_write = 0x40000000
     open_existing = 3
     error_pipe_busy = 231
+    # Only let the server identify this process, never act as it.
+    security_identification = 0x00100000 | 0x00010000
     invalid_handle = ctypes.c_void_p(-1).value
     pipe_name = rf"\\.\pipe\{server_name}"
 
@@ -81,7 +115,7 @@ def _send_windows_named_pipe(encoded, server_name):
         0,
         None,
         open_existing,
-        0,
+        security_identification,
         None,
     )
     if handle == invalid_handle and ctypes.get_last_error() == error_pipe_busy:
@@ -92,7 +126,7 @@ def _send_windows_named_pipe(encoded, server_name):
                 0,
                 None,
                 open_existing,
-                0,
+                security_identification,
                 None,
             )
     if handle == invalid_handle:
@@ -111,6 +145,19 @@ def _send_windows_named_pipe(encoded, server_name):
             None,
         ) or written.value != len(encoded):
             return False
+
+        available = wintypes.DWORD()
+        deadline = time.monotonic() + RESPONSE_TIMEOUT_MS / 1000
+        while True:
+            if not peek_named_pipe(
+                handle, None, 0, None, ctypes.byref(available), None
+            ):
+                return False
+            if available.value:
+                break
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(0.001)
 
         response = ctypes.create_string_buffer(16)
         bytes_read = wintypes.DWORD()
@@ -143,6 +190,6 @@ def _send_qt_local_socket(encoded, server_name):
     if not socket.waitForReadyRead(CONNECT_TIMEOUT_MS):
         socket.abort()
         return False
-    acknowledged = bytes(socket.readAll()).startswith(b"OK\n")
+    acknowledged = bytes(socket.readAll().data()).startswith(b"OK\n")
     socket.disconnectFromServer()
     return acknowledged

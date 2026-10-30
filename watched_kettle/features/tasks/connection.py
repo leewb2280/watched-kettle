@@ -228,7 +228,7 @@ class DesktopExecutionAdapter(QObject):
                     raise ValueError("thread_mismatch")
                 self.threads[thread["id"]] = thread
                 self.read_next()
-        except (ValueError, TypeError, KeyError, AttributeError, OSError):
+        except ValueError, TypeError, KeyError, AttributeError, OSError:
             self.invalidate(
                 "Desktop 전체 실행 상태 또는 작업 경로를 확인하지 못했습니다."
             )

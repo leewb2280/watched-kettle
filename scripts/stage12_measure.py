@@ -676,7 +676,7 @@ def wait_count(path, expected, timeout=5.0):
 def read_health(path):
     try:
         return json.loads(Path(path).read_text(encoding="utf-8")).get("outcome")
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return None
 
 

@@ -114,8 +114,9 @@ def outputs():
             "export type Args<M extends RendererCommand> = CommandMap[M]['args'];",
             "export type Result<M extends RendererCommand> = CommandMap[M]['result'];",
             "export type Request = <M extends RendererCommand>(method: M, ...args: {} extends Args<M> ? [args?: Args<M>] : [args: Args<M>]) => Promise<Result<M>>;",
-            "export type FileResult<P extends 'pet' | 'pet-folder' | 'import' | 'export'> = Cancelled | (P extends 'pet' | 'pet-folder' ? PetImportJob : P extends 'import' ? ElementImported : Saved);",
-            "export type FileRequest = <P extends 'pet' | 'pet-folder' | 'import' | 'export'>(purpose: P, ...args: P extends 'import' ? [kind: ElementKind] : []) => Promise<FileResult<P>>;",
+            "export type FilePurpose = 'pet' | 'pet-folder' | 'import' | 'export' | 'link-transition' | 'theme-export' | 'theme-import' | 'theme-package';",
+            "export type FileResult<P extends FilePurpose> = Cancelled | (P extends 'pet' | 'pet-folder' ? PetImportJob : P extends 'import' ? ElementImported : P extends 'link-transition' ? PetLinkTransition : P extends 'theme-import' ? BubbleThemeLoaded : P extends 'theme-package' ? BubbleThemePackaged : Saved);",
+            "export type FileRequest = <P extends FilePurpose>(purpose: P, ...args: P extends 'import' ? [kind: ElementKind, options?: ImportOptions] : P extends 'link-transition' ? [pair: PetLinkPair] : P extends 'theme-export' ? [file: { name: string; theme: SpeechBubbleTheme }] : P extends 'theme-package' ? [file: { theme: SpeechBubbleTheme }] : []) => Promise<FileResult<P>>;",
         ]
     )
     exposed = {"renderer": public, "assistant": assistant}

@@ -413,17 +413,20 @@ class ClaudeCodeUsageService(QObject):
     def _changed_files(self):
         cutoff = self.repository.cutoff.timestamp()
         work = []
-        for count, (path, session_id, part) in enumerate(
-            transcript_files(self.config_dir)
-        ):
-            if count >= MAX_FILES:
-                break
+        # The limit counts files inside the retention window only: folders are
+        # listed in name order, so a cap on every file could stop before the
+        # recent sessions of someone with a long history.
+        recent = 0
+        for path, session_id, part in transcript_files(self.config_dir):
             try:
                 stat = path.stat()
             except OSError:
                 continue
             if stat.st_mtime < cutoff:
                 continue
+            recent += 1
+            if recent > MAX_FILES:
+                break
             if part == MAIN_PART:
                 self._remember_names(path, session_id)
             file_hash = hash_identifier(str(path))

@@ -127,7 +127,7 @@ class TaskWorker(QObject):
                     self.repository.preferences().get("excluded_projects", ())
                 )
                 self.problem = ""
-            except (OSError, ValueError, sqlite3.Error):
+            except OSError, ValueError, sqlite3.Error:
                 if self.repository:
                     self.repository.set_account(None)
                 self.problem = (
@@ -613,7 +613,7 @@ class TaskWorker(QObject):
                     else (),
                 }
             )
-        except (OSError, ValueError, TypeError, sqlite3.Error):
+        except OSError, ValueError, TypeError, sqlite3.Error:
             if self.executor:
                 self.executor.paused = True
             self.notice.emit(

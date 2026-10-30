@@ -1,5 +1,5 @@
 import { t } from "../localization.cjs";
-import { Check, Info, X } from "lucide-react";
+import { Check, ChevronDown, Info, X } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type {
   Control,
@@ -63,8 +63,17 @@ export function Switch({
   );
 }
 // A small "i" whose text shows on hover and on keyboard focus.
-export function InfoTip({ label, text }: { label: string; text: string }) {
-  const id = useId();
+export function InfoTip({
+  label,
+  text,
+  id: descriptionId,
+}: {
+  label: string;
+  text: string;
+  id?: string;
+}) {
+  const generatedId = useId();
+  const id = descriptionId ?? generatedId;
   return (
     <span
       className="info-tip"
@@ -86,6 +95,7 @@ export function Modal({
   close,
   footer,
   error,
+  className = "",
 }: {
   title: string;
   children: ReactNode;
@@ -93,6 +103,7 @@ export function Modal({
   footer?: ReactNode;
   // Rendered inside the dialog: page banners and toasts sit under its backdrop.
   error?: ReactNode;
+  className?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -103,7 +114,7 @@ export function Modal({
   return (
     <dialog
       ref={ref}
-      className="modal"
+      className={`modal ${className}`}
       aria-label={title}
       onCancel={(event) => {
         event.preventDefault();
@@ -133,12 +144,21 @@ export function Modal({
     </dialog>
   );
 }
+// How often a live slider redraws while it moves.
+const LIVE_INTERVAL = 40;
+
+/**
+ * A slider. Without `preview` it saves a short while after it stops moving;
+ * with it, moving only previews and the value is saved once on release.
+ */
 export function Range({
   field,
   change,
+  preview,
 }: {
   field: NumberControl;
   change: (value: Scalar | undefined) => void;
+  preview?: (value: number) => void;
 }) {
   const [value, setValue] = useState(field.value ?? field.min ?? 0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -146,6 +166,7 @@ export function Range({
   const dirty = useRef(false);
   const callback = useRef(change);
   callback.current = change;
+  const sent = useRef(0);
   useEffect(() => {
     if (!dirty.current) {
       setValue(field.value);
@@ -169,6 +190,10 @@ export function Range({
       change(latest.current);
     }
   };
+  const show = () => {
+    sent.current = Date.now();
+    preview?.(latest.current);
+  };
   const displayValue = `${value}${field.unit ?? ""}`;
   return (
     <div className="range-control">
@@ -188,7 +213,9 @@ export function Range({
           latest.current = next;
           dirty.current = true;
           clearTimeout(timer.current);
-          timer.current = setTimeout(flush, 180);
+          if (!preview) timer.current = setTimeout(flush, 180);
+          else if (Date.now() - sent.current >= LIVE_INTERVAL) show();
+          else timer.current = setTimeout(show, LIVE_INTERVAL);
         }}
         onPointerUp={flush}
         onKeyUp={flush}
@@ -455,8 +482,15 @@ export function NumberInput({
         }}
       />
       {hasRange && (
-        <small id={`field-${field.key}-range`} className="number-range">
-          {field.min}–{field.max}
+        <small
+          id={`field-${field.key}-range`}
+          className="number-range"
+          title={`${field.min}–${field.max}${field.unit ?? ""}`}
+        >
+          {/* Compact layouts show only the unit; the range stays readable. */}
+          <span className="number-range-values">
+            {field.min}–{field.max}
+          </span>
           {field.unit ?? ""}
         </small>
       )}
@@ -586,12 +620,20 @@ function HotkeyInput({
 export function Field({
   field,
   change,
+  preview,
   extra,
+  descriptionTipLabel,
 }: {
   field: Control;
   change: (value: Scalar | undefined) => void;
+  /** Live slider values before `change` saves the last one. */
+  preview?: (value: number) => void;
   extra?: ReactNode;
+  descriptionTipLabel?: string;
 }) {
+  const descriptionAsTooltip = Boolean(
+    descriptionTipLabel && field.description,
+  );
   const described =
     field.description && field.kind !== "pet_size"
       ? `field-${field.key}-description`
@@ -602,19 +644,40 @@ export function Field({
         field.kind === "pet_size" ? "pet-size-row" : ""
       } ${field.kind === "optional_number" ? "optional-number-row" : ""} ${
         field.disabled ? "is-disabled" : ""
-      }`}
+      } ${descriptionAsTooltip ? "description-tooltip-row" : ""}`}
     >
       {field.description && field.kind !== "pet_size" ? (
         <div className="field-label">
-          <label id={`field-${field.key}-label`} htmlFor={`field-${field.key}`}>
-            {field.label}
-          </label>
-          <p
-            id={`field-${field.key}-description`}
-            className="field-description"
-          >
-            {field.description}
-          </p>
+          {descriptionAsTooltip ? (
+            <div className="heading-title">
+              <label
+                id={`field-${field.key}-label`}
+                htmlFor={`field-${field.key}`}
+              >
+                {field.label}
+              </label>
+              <InfoTip
+                label={descriptionTipLabel || field.label}
+                text={field.description}
+                id={described}
+              />
+            </div>
+          ) : (
+            <>
+              <label
+                id={`field-${field.key}-label`}
+                htmlFor={`field-${field.key}`}
+              >
+                {field.label}
+              </label>
+              <p
+                id={`field-${field.key}-description`}
+                className="field-description"
+              >
+                {field.description}
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <label id={`field-${field.key}-label`} htmlFor={`field-${field.key}`}>
@@ -634,37 +697,49 @@ export function Field({
         ) : field.kind === "pet_size" ? (
           <PetSize field={field} change={change} />
         ) : field.kind === "range" ? (
-          <Range field={field} change={change} />
+          <Range field={field} change={change} preview={preview} />
         ) : field.kind === "select" ? (
-          <select
-            id={`field-${field.key}`}
-            aria-label={field.label}
-            aria-describedby={described}
-            disabled={field.disabled}
-            value={String(field.value ?? "")}
-            onChange={(event) =>
-              change(
-                field.options?.find(
-                  (option) => String(option.value) === event.target.value,
-                )?.value,
-              )
-            }
-          >
-            {!field.options?.some((option) => option.value === field.value) && (
-              <option value={String(field.value ?? "")}>
-                {field.value || t("message.0977")}
-              </option>
+          <>
+            <select
+              className={descriptionAsTooltip ? "button" : undefined}
+              id={`field-${field.key}`}
+              aria-label={field.label}
+              aria-describedby={described}
+              disabled={field.disabled}
+              value={String(field.value ?? "")}
+              onChange={(event) =>
+                change(
+                  field.options?.find(
+                    (option) => String(option.value) === event.target.value,
+                  )?.value,
+                )
+              }
+            >
+              {!field.options?.some(
+                (option) => option.value === field.value,
+              ) && (
+                <option value={String(field.value ?? "")}>
+                  {field.value || t("message.0977")}
+                </option>
+              )}
+              {field.options?.map((option) => (
+                <option
+                  key={String(option.value)}
+                  value={String(option.value)}
+                  disabled={option.disabled}
+                >
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {descriptionAsTooltip && (
+              <ChevronDown
+                className="select-chevron"
+                size={14}
+                aria-hidden="true"
+              />
             )}
-            {field.options?.map((option) => (
-              <option
-                key={String(option.value)}
-                value={String(option.value)}
-                disabled={option.disabled}
-              >
-                {option.label}
-              </option>
-            ))}
-          </select>
+          </>
         ) : field.kind === "color" ? (
           <input
             id={`field-${field.key}`}
@@ -754,6 +829,7 @@ export function Fields({
   hideTitles,
   fieldExtras,
   groupRows,
+  descriptionTips,
 }: {
   controls: Control[];
   change: (key: string, value: Scalar | undefined) => void;
@@ -761,6 +837,7 @@ export function Fields({
   hideTitles?: boolean;
   fieldExtras?: Record<string, ReactNode>;
   groupRows?: Record<string, ReactNode>;
+  descriptionTips?: Record<string, string>;
 }) {
   return (
     <>
@@ -783,6 +860,7 @@ export function Fields({
                 field={field}
                 change={(value) => change(field.key, value)}
                 extra={fieldExtras?.[field.key]}
+                descriptionTipLabel={descriptionTips?.[field.key]}
               />
             ))}
           {groupRows?.[group]}

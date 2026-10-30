@@ -157,7 +157,8 @@ class PetTrashService:
         return discover_pets_in_roots(self.roots)
 
     def duplicate_ids(self):
-        seen, duplicates = {}, set()
+        seen: dict = {}
+        duplicates: set = set()
         for root in self.roots:
             for entry in discover_pets(root):
                 directory = entry.directory.resolve()
@@ -183,7 +184,7 @@ class PetTrashService:
             ):
                 return t("message.0169")
             return ""
-        except (OSError, PetTrashError):
+        except OSError, PetTrashError:
             return t("message.0170")
 
     def _original(self, record):
@@ -284,7 +285,7 @@ class PetTrashService:
             self._forget(pet_id)
             record["state"] = "trashed"
             self._write(record)
-        except (OSError, PetTrashError):
+        except OSError, PetTrashError:
             # Restore the physical package first; keep journaled restore intent
             # if saving settings is still unavailable.
             if package.exists() and not entry.directory.exists():
@@ -372,7 +373,7 @@ class PetTrashService:
         """Converge journaled intent; ambiguous data remains with a visible issue."""
         try:
             rows = self.records()
-        except (OSError, PetTrashError):
+        except OSError, PetTrashError:
             self.issues = [t("message.0186")]
             return self.issues
         issues = list(self.issues)

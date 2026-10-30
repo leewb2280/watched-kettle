@@ -7,3 +7,8 @@ AI 이미지 생성으로 만들었고 기존 캐릭터 이미지나 로고를 �
 - 라이선스: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). 코드의 MIT 라이선스와 별개입니다.
 
 다시 배포할 때는 저작자 표기, 라이선스 링크, 변경 여부를 함께 적어 주세요.
+
+# 말풍선 배경 무늬
+
+`bubble-patterns/`의 무늬 타일은 `scripts/generate_bubble_patterns.py`가 도형으로 그린 이미지입니다.
+외부 이미지를 쓰지 않았고 코드와 같은 MIT 라이선스를 따릅니다.

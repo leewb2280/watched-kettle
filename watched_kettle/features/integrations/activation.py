@@ -10,6 +10,8 @@ tool's events (docs/bubble-architecture.md 2절).
 
 from __future__ import annotations
 
+from typing import Any
+
 from watched_kettle.localization import t
 
 from dataclasses import dataclass
@@ -25,7 +27,7 @@ MANAGED_STATES = ("installed", "partial", "drifted", "other_copy")
 @dataclass(frozen=True)
 class ActivationStep:
     provider: str
-    plan: object | None
+    plan: Any
     error: str = ""
 
 
@@ -203,7 +205,7 @@ def migrate_tool_activation(preferences, claude_code_installer, status_line_inst
         except Exception:
             continue
         # Hooks count even when Claude Code turned every hook off.
-        if status.state in MANAGED_STATES or getattr(status, "installed_events", 0):
+        if status.state in MANAGED_STATES or getattr(status, "installed_events", False):
             enabled = True
     preferences.save_claude_code_usage_enabled(enabled)
     settings.setValue(ACTIVATION_MIGRATION_KEY, 1)

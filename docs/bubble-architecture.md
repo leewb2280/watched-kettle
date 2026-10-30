@@ -95,13 +95,19 @@ flowchart TD
     JOB --> READ[import_sources·import_package: 공개 출처 조회·패키지 검증]
     READ --> IMP
     IMP --> PRE[토큰 기반 프레임 줄: 가져오기 창 안의 동작 미리보기]
-    PRE --> ER
+    PRE --> IF[가져오기 창: 입력 선택·펫 확인·정적 결과]
+    IF --> ER
     IMP --> CAT[사용자 펫 목록: 추가 후 기존 선택 경로로 사용]
     EA --> VM2[PetViewModel: 현재 펫 교체·목록 저장]
     EA --> BC[PetBatchController: 확정 대상·항목별 Qt 작업·진행·중단]
     BC --> VM2
     BC --> PT
     VM2 --> PT[PetTrashService: 사용자 패키지 이동·복원·영구 삭제]
+    EA --> AVM[PetViewModel: 외형 명령 전달]
+    AVM --> ASUR[DesktopPet: 외형 선택·안전 조건]
+    AMENU[펫 우클릭 외형 선택] --> ASUR
+    ASUR --> ACTRL[AppearanceController: 모드·목표·전환 타이머]
+    ACTRL --> AFR[외형별 동작·시선 프레임과 전환 표시]
     PT --> TR[탐색 경로 밖 pet-trash: 작업 기록·패키지]
     TR --> REC[초기 펫 선택 전 미완료 작업 복구]
     CP[앱 외부에서 준비한 완성된 펫 패키지] --> PF[사용자 펫 폴더]
@@ -120,7 +126,10 @@ flowchart TD
 `AgentActivityService`·펫 애니메이션 경로로 재전달하지 않는다. 복구 이후 새 활동은 일반 이벤트 경로를 따른다.
 
 Codex 관리 hook의 Windows 명령은 `integrations/codex_install.py`가 명시적인
-`powershell.exe -EncodedCommand` 호출로 만든다. UTF-16LE로 인코딩한 스크립트가 경로·인자를
+`powershell.exe -EncodedCommand` 호출로 만든다. 실행 파일은 시스템 PowerShell의 절대 경로
+(`%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`)로 적어, 바깥 셸이 현재 폴더(프로젝트)를
+먼저 찾더라도 그 폴더의 같은 이름 파일을 실행하지 않는다. 0.15.11까지 쓴 이름만 적은 형식도 설치됨으로 보고,
+다음 설치·복구 때 새 형식으로 바꾼다. UTF-16LE로 인코딩한 스크립트가 경로·인자를
 단일 인용하고 호출 연산자 `&`로 실행하므로, 바깥 셸이 PowerShell 또는 cmd여도 경로의
 공백·한글·특수문자가 재해석되지 않고 원래 JSON 표준입력을 브리지에 전달한다.
 개발용 관리 스크립트와 배포본 브리지에 같은 생성 규칙을 쓰며, 일반 `command`의 관리 표식으로
@@ -162,6 +171,8 @@ Claude Code는 중단·권한 거절·패널 닫기 때 종료 이벤트를 보�
 | 책임 | 현재 구현 | 이곳에서 결정하지 않을 것 |
 |---|---|---|
 | 펫 외부 자산 입력·로컬 등록 | `pet/import_sources.py`는 두 공개 출처와 읽기 전용 Codex 목록, `pet/import_package.py`는 경로·크기·지원 정보·장식 검증, `pet/importer.py`는 식별자·준비·원자적 저장 | 명령 실행·Codex 설정 수정·활동 이벤트 생성 |
+| 가져오기 화면 단계·독립 미리보기 | `PetImportDialog`는 입력·확인·결과와 준비·설치 목록 요청 세대, `PetImportPreview`는 동작·외형·프레임 재생 수명을 소유한다 | 패키지 검증·등록 저장·현재 펫 선택 정책·활동/알림 상태 |
+| 펫 외형 자산·자동/수동 전환 | `appearance_assets`는 Qt 독립 자산 검증, `AppearanceController`는 외형·목표·타이머, 펫 창은 안전 조건과 프레임 적용, 설정·우클릭은 같은 펫 명령 전달 | 활동/알림 상태 생성·초기화, 테마·표시 기한·클릭 대상·스크롤 변경 |
 | 비동기 펫 준비·가져오기 미리보기 | `application/settings_ui/pet_import.py`는 한 worker·취소·작업 ID, 설정 어댑터는 준비 결과 수용·기한·등록 신호, React는 토큰으로 받은 프레임 줄 재생 | 실제 펫 상태·알림·테마 선택 변경 |
 | 언어팩 검증·표시 문구·불변 사전 전달 | 공통 localization 모듈, application/localization.py, 설정 프로토콜과 host | 활동 상태·표시 기한·이동 대상 |
 | 언어 적용을 위한 앱 재시작 | `application/restart.py`, `app.py`; host는 작업 중 거부와 콜백 호출만 담당 | 활동 상태 해석·복구 정책·표시 기한 변경 |
@@ -191,7 +202,7 @@ Claude Code는 중단·권한 거절·패널 닫기 때 종료 이벤트를 보�
 | 제목 측정·최대 두 줄·말줄임 | `ui/wrapped_title_button.py` | 프로젝트 집계 |
 | 공통 창·글꼴·외형·배치 계산 | `ui/speech_bubble_window.py`, `speech_bubble_paint.py`, `speech_bubble_decorations.py` | 알림 전달 정책 |
 | 테마 정규화·자산·편집 | `pet/bubble_theme.py`, `ui/bubble_elements.py`, 미리보기 `ui/bubble_theme_preview.py`, 초안·미리보기 세대는 `settings-ui/src/core/useBubbleEditor.ts`, 표시는 `core/BubbleEditorDialog.tsx` | 실행 상태 변경 |
-| 펫 패키지의 바깥 장식 검증·등록과 그리기 | `pet/bubble_frame.py`(로더가 `pet:<id>`로 등록; repeatY 옵션 검증), `ui/speech_bubble_frame.py`(본문 높이 내 완전한 이미지 반복) | 상태·표시 기한·창 배치 결정 |
+| 펫 패키지의 바깥 장식 검증·등록과 그리기 | `pet/bubble_frame.py`(로더가 `pet:<id>`로 등록; repeatY 옵션 검증), `ui/speech_bubble_frame.py`(본문 높이 내 완전한 이미지 반복, 사용자 테마가 직접 정한 안쪽 선·후광·글 여백이 있으면 펫 장식 값 대신 사용) | 상태·표시 기한·창 배치 결정 |
 | 펫·위젯 고정(클릭 통과)과 전역 단축키 | 펫 창 플래그는 `pet/window.py`, 버튼 말풍선은 `ActionableBubbleController.sync_click_through`, 위젯은 `ui/usage_widget/window.py`, 단축키 등록은 `integrations/windows_hotkeys.py`, 조립은 두 runtime의 `application/click_through.py` | 말풍선 상태·표시 기한·클릭 대상 변경, 고정 여부로 활동 상태 추정 |
 | 펫 더블클릭의 설정 조회·명시적 이동 | `application/pet_actions.py`, 신호는 `pet/pointer_interaction.py`, 두 runtime이 생성·종료 | 활동·알림·애니메이션 상태 변경, 마지막 이벤트로 목적지 추정 |
 | Codex·VS Code 앱 자체 열기 | 공통 창 찾기·복원·활성화·시작은 `integrations/windows_apps.py`, 등록 GUI 경로 조회는 `codex_launcher.py`(패키지·`codex` 처리기)와 `vscode_launcher.py`(`vscode` 처리기) | URL 이동·새 대화·세션 재개·수집 서비스 활성화, Claude Code 확장 링크 호출 |
@@ -259,8 +270,15 @@ worker는 출처별 서비스에만 켜기·끄기를 전달하며, ViewModel은
 홈과 사용량 현황의 한도는 Codex와 Claude Code의 별도 영역으로 표시한다.
 reserve는 `base_model_inference` 또는 서버 한도 이름의 `reserve`로 식별하고 Codex 그룹 안에서
 일반 한도 다음 마지막 카드로 표시한다. 분류는 `usage/models.py`, DTO 전달은 `application/settings_ui/assistant.py`,
-화면 배치는 `settings-ui/src/AssistantPages.tsx`가 맡는다. 두 출처 중 하나만 켜져도 사용량 위젯을
+화면 배치는 `settings-ui/src/assistant/QuotaGroups.tsx`가 맡는다. 두 출처 중 하나만 켜져도 사용량 위젯을
 유지하며 해당 출처의 행만 표시한다. 두 출처가 모두 꺼지면 위젯을 숨긴다.
+사용량 현황의 Codex 영역은 기존 `UsageSnapshot.reset_credit_count`가 숫자이면 `사용량 리셋권 N개`를
+영역 제목 줄 오른쪽 배지로 표시한다. 리셋권은 특정 한도 카드가 아니라 계정 전체 값이기 때문이다.
+0개도 숨기지 않고 흐린 배지로 표시한다. 값 미제공·계정 확인 중·Codex 비활성 상태와 홈의 간략 한도에는
+표시하지 않는다. 한도 카드가 없어도 개수를 받았으면 표시한다. 서버 응답 수집·계정 상태·스냅샷 전달은
+기존 경로가 소유하고 React는 표시만 한다. 초기화 실행 명령은 추가하지 않는다
+(BA-01·BA-07·BA-10 보존, 필수 구조 규칙 변경 없음). `settings-ui/scripts/language-qa.cjs`가
+한국어·영어의 0·1·복수 개수와 배지 위치, 미제공·계정 확인·비활성·한도 카드 부재·홈 비표시를 검증한다.
 
 사용 스위치는 연결·진단 화면에만 있다. 켜기·끄기는 `integration.preview`의 `enable`·`disable`로 바뀌는 내용을
 먼저 보여 주고 `integration.apply`로 적용한다. 취소하면 파일과 스위치를 유지하며 다른 도구는 바꾸지 않는다.
@@ -317,6 +335,16 @@ Claude Code가 실행되는 VS Code의 가장 앞 창을 그대로 앞으로 가
 초안·필터 상태를 유지한다. 펫 이미지는 기존 미리보기 조회를 홈 표시 시에도 사용하며
 펫 단독에서 비서 snapshot을 요청하지 않는다(BA-01·BA-06·BA-07·BA-10).
 
+### 펫의 외형 전환
+
+선택적 패키지 외형은 작업 애니메이션과 별도 표시 상태다. 자동은 1~3분 간격으로 요청하고
+수동은 자동을 끄며 선택을 저장한다. 정면 idle의 안전 조건을 300ms 유지한 뒤 전환한다.
+전환 때문에 펫을 다시 선택하거나 작업 상태를 바꾸지 않는다. 작업·드래그·시선 추적이
+시작되면 전환을 취소하고 확정 외형으로 기존 동작을 즉시 표시한다. 숨김·교체·종료 때
+타이머를 정리하며 다시 보일 때 과거 자동 요청을 몰아서 재생하지 않는다.
+설정 snapshot과 현재 외형 미리보기만 갱신하며 카드·알림 수명과 테마는 그대로다.
+BA-01·BA-06·BA-07·BA-10을 보존한다. 세부 계약은 [외형 전환](pet-appearance.md)을 따른다.
+
 ## 3. 카드 종류와 표시량
 
 사용량 서비스가 같은 계정의 일반 갱신 알림을 확인한 경우 기존 연결을 유지하며
@@ -346,6 +374,12 @@ Claude Code가 실행되는 VS Code의 가장 앞 창을 그대로 앞으로 가
 API의 `subAgent`·`threadSpawn`과 로그의 `subagent`·`thread_spawn`을 모두 해석한다.
 `ephemeral=true`와 내부 에이전트 출처는 내부 세션, 명시적 부모·spawn 출처는 하위 에이전트로
 구분한다. 내부·자식 근거가 주 대화 근거보다 우선하며 제목·프로젝트 연결만으로 승격하지 않는다.
+다른 도구가 자기 작업으로 Codex를 실행할 때(예: Claude Code가 띄운 리뷰)는 `WATCHED_KETTLE_AGENT_SCOPE=internal`을
+붙인다. hook은 Codex의 환경을 물려받으므로 `codex_hooks.py`가 이 값을 보고 `internal`을 보낸다.
+저장된 `exec` 세션은 로그와 `thread/read`에서 주 대화로 읽히지만, `codex_ipc.py`는 hook의 `internal`을
+로그 근거로 덮어쓰지 않는다. 이 값은 `internal`만 인정하며 주 대화나 하위 에이전트를 주장하는 데 쓰지 않는다.
+저장되는 세션은 로그가 hook보다 먼저 읽히면 잠깐 주 대화로 보였다가 숨겨질 수 있다. 그래서 이런 실행은
+`--ephemeral`과 함께 쓴다. 저장되지 않는 세션은 hook만 들어오므로 처음부터 내부 세션이고, 이름 조회도 하지 않는다.
 필드 누락·새 출처·조회 실패(`-32600` 포함)는 미확인으로 남기고 기존 백오프로 재조회한다.
 목록에 없다는 사실이나 제목·프로젝트가 없다는 사실로 내부 세션을 확정하지 않는다.
 미확인 상태에서도 턴·도구·질문 관계는 수집하되 카드·설정창 알림 기록·펫 집계·일시/지속 알림과 효과에서
@@ -639,6 +673,7 @@ Codex의 `wait_agent`·`collaboration.wait_agent`·`functions.wait_agent` 호출
 
 ## 5. 레이아웃과 외형
 
+- 여러 펫이 같은 매니페스트 테마를 쓰더라도 장식 이미지는 각 패키지 안에 포함하고 `pet:<id>`로 따로 등록한다. 다른 펫의 설치 경로에 의존하지 않으며, 테마 재사용은 상태·표시 기한·설정 선택을 공유하는 의미가 아니다(BA-01·BA-06·BA-07).
 - 프로젝트 헤더는 프로젝트명과 집계를 한 줄로 유지한다. 테마 최대 너비보다 헤더가 길면 카드가 더 넓어질 수 있다. 실제 화면 너비도 넘을 때만 헤더 글꼴을 축소한다.
 - 제목은 자연 너비만큼 카드를 먼저 넓히고 적용 가능한 최대 너비에 도달한 뒤 줄바꿈한다. 최대 두 줄 이후에는 말줄임한다. 원문은 툴팁과 접근성 이름에 남긴다.
 - 너비 측정과 줄바꿈은 같은 `QTextLayout` 규칙을 사용하고 자연 너비를 올림한다. 정수 반올림으로 짧은 제목이 불필요하게 두 줄이 되는 회귀를 방지한다.
@@ -651,6 +686,7 @@ Codex의 `wait_agent`·`collaboration.wait_agent`·`functions.wait_agent` 호출
 - `bubble_row_membership`은 카드의 스크롤 영역에 행이 포함된 관측이다. 화면에 보인 행이라고 해석하지 않는다. `bubble_card_visibility`는 실제 창 표시이며 공간 부족·프로젝트 상한·끄기·일시 중지·펫 숨김·미리보기·종료를 구분한다. 창 삭제는 활동 종료 판정이 아니다(BA-04·BA-06).
 - 미확정 카드에서 확정 프로젝트로 이동하면 프로젝트 키가 바뀌므로 창·행의 재생성은 허용한다. 이 경우에도 활동 ID·턴·기한·클릭 대상은 유지하며, 같은 대화를 두 카드에 중복해서 남기지 않고 이동 대상 카드의 기존 행을 보존한다.
 - 기본 배치는 펫 위의 세로 스택이며 우선 카드가 펫에 가깝다. 화면 작업 영역 안으로 제한하고, 상단 충돌 시 옆 또는 아래 공간으로 옮긴다. 필요한 경우 펫과 겹치는 부분을 마스킹한다. 배치를 위해 펫을 이동하지 않는다.
+- 이웃 카드 창은 장식 여백(펫 프레임 `insets`와 장식이 넘는 범위)의 위·아래 중 작은 쪽만큼 겹친다(`bubble_stack_overlap`). 겹치는 곳은 두 창의 빈 여백뿐이라 본문·버튼은 다른 창에 덮이지 않고, 본문 사이 간격은 쌓기 간격(6px)에 큰 쪽 여백을 더한 값이다. 위 카드 아래 장식과 아래 카드 위 장식이 같은 쪽에 있으면 가까이 붙을 수 있다. 실사용 카드와 펫 단독 미리보기가 같은 계산을 쓴다(BA-05·BA-06 보존).
 - 실사용 카드 경로는 현재 꼬리를 지정하지 않는다(`set_tail_side(None)`). 테마와 기반 창에 꼬리 기능이 있다는 사실과 실사용 카드의 현재 표현을 구분한다.
 - 공통 테마는 색·도형·테두리·장식·너비·배율을 담당한다. 프로젝트 헤더와 행의 정렬은 전용 레이아웃이 결정하므로 테마의 일반 텍스트 정렬을 그대로 적용하는 구조가 아니다.
 
@@ -755,6 +791,18 @@ worker 결과는 같은 작업 ID와 취소 상태가 유효할 때만 Qt 설정
 변경하지 않습니다. 준비 만료는 재생으로 연장하지 않습니다. 입력·지원 범위·상한은
 [펫 패키지 규격](pet-package-format.md)을 따릅니다.
 
+가져오기 창은 입력 선택·펫 확인·결과 단계로 표시합니다. 입력 탭은 준비 전 화면에만
+두며 준비가 완료되면 별도 다음 버튼 없이 확인 화면으로 이동합니다. 확인 화면의
+다른 펫 선택은 준비 토큰·미리보기·이름 초안을 폐기하고 마지막 탭·명령어·검색어를
+유지한 입력 화면으로 돌아갑니다. 창 숨김·닫기·취소에도 기존 준비 취소와 응답 세대
+검증을 적용하며, 설치 목록 조회는 별도 요청 세대로 늦은 응답을 버립니다.
+단계는 React 가져오기 창이 소유하고 준비·등록·저장은 기존 worker·명령 큐·서비스가
+소유합니다. 확인 화면 안에서만 동작을 재생하고 결과 화면은 정적인 썸네일을 표시합니다.
+추가·중복·복원 결과와 명시적인 사용 요청을 구분하며 등록·복원만으로 현재 펫을
+바꾸지 않습니다. 파일 경로는 기존처럼 main과 Python에만 두고 새 입력 경로나
+활동·알림 상태를 만들지 않습니다(BA-01·BA-06·BA-07·BA-10).
+
+
 펫 관리는 즉시 저장하며 선택 창·트레이에서의 표시 여부와 현재 사용 중인 펫을 구분합니다.
 현재 펫은 숨길 수 없으며, 숨긴 펫을 사용하면 해당 항목만 표시로 되돌립니다. 사용자 펫 폴더의
 패키지만 `pet-trash`로 이동할 수 있고 기본 제공·외부 경로·중복 ID·파일 연결이 있는 패키지는
@@ -837,6 +885,7 @@ ID·경로를 덮어쓰지 않습니다. 영구 삭제와 비우기는 사용자
 | 규칙·변경 영역 | 관련 회귀 테스트 (`tests/`의 모듈명) |
 |---|---|
 | BA-01 계층 의존·상태 소유권 | `test_bubble_architecture`, `test_bubble_state_regressions` |
+| BA-01·BA-06·BA-07·BA-10 펫의 독립 외형 전환 | `test_pet_appearance`, `test_pet_window`, `test_pet_preferences`, `test_pet_menu`, `test_settings_bridge`, `test_settings_protocol`, `test_pet_importer`, `test_build_profiles`, `test_title_activity_stability` |
 | BA-02·BA-08 식별·중복·승인 | `test_bubble_state_regressions`, `test_ghost_activity`, `test_fork_log_identity`, `test_bubble_permission_states`, `test_claude_code_activity` |
 | BA-03·BA-04 수명·기한 | `test_project_completion_rows`, `test_notification_service`, `test_bubble_timing`, `test_bubble_latency`, `test_claude_code_activity` |
 | BA-05·BA-06 외형·정렬·스크롤·소속 이동 | `test_project_completion_rows`, `test_bubble_title_width`, `test_bubble_customization`, `test_title_activity_stability` |

@@ -33,6 +33,15 @@ DEFAULT_POLL_INTERVAL_MS = 250
 USAGE_POLL_SECONDS = 0.750
 MAX_LOG_LINE_BYTES = 4 * 1024 * 1024
 MAX_TRACKED_FILES = 128
+# Searching the dated folders on every 250 ms poll was most of the app's idle
+# CPU. A finished search runs again when a folder's modified time changes (a
+# file was added) or, as a backstop, after this many seconds.
+DISCOVERY_INTERVAL_SECONDS = 30.0
+# Logs that have not grown for this long are checked every COLD_CHECK_POLLS
+# polls (5 s) instead of every poll; a session usually writes every few
+# seconds while it runs, and hooks carry the live events.
+COLD_AFTER_SECONDS = 120.0
+COLD_CHECK_POLLS = 20
 REPLAY_GRACE_SECONDS = 5
 HEARTBEAT_INTERVAL_SECONDS = 10
 _ROLLOUT_ID = re.compile(
@@ -165,6 +174,10 @@ class CodexLogMonitor(QObject):
         self.usage_event_count = 0
         self.usage_regression_count = 0
         self._discovery = None
+        self._next_discovery = 0.0
+        self._discovered_folders = None
+        self._last_growth = {}
+        self._polls = 0
         self._recovery = OrderedDict()
         self._recovery_confirmed = set()
         self._recovery_confirmation_turns = {}
@@ -249,7 +262,16 @@ class CodexLogMonitor(QObject):
             self._budget_bytes = 1024 * 1024
             self._budget_records = 200
             self._deadline = monotonic() + 0.020
+            self._polls += 1
+            cold_check = self._polls % COLD_CHECK_POLLS == 0
+            now = monotonic()
             for path in paths:
+                if (
+                    not cold_check
+                    and now - self._last_growth.setdefault(path, now)
+                    >= COLD_AFTER_SECONDS
+                ):
+                    continue
                 try:
                     self._read_new_records(path)
                     self._file_errors.pop(path, None)
@@ -337,7 +359,7 @@ class CodexLogMonitor(QObject):
                 for (_, line), ordinal in zip(lines, scan.cursor.line_ordinals):
                     try:
                         scan.consume(json.loads(line), ordinal)
-                    except (UnicodeError, ValueError):
+                    except UnicodeError, ValueError:
                         continue
                 if scan.cursor.offset < scan.end:
                     continue
@@ -413,6 +435,13 @@ class CodexLogMonitor(QObject):
 
     def _discover_recent_files(self):
         if self._discovery is None:
+            folders = self._folder_signature()
+            if (
+                folders == self._discovered_folders
+                and monotonic() < self._next_discovery
+            ):
+                return
+            self._discovered_folders = folders
             self._discovery = iter(
                 path
                 for directory in self._recent_directories()
@@ -425,6 +454,7 @@ class CodexLogMonitor(QObject):
             path = next(self._discovery, None)
             if path is None:
                 self._discovery = None
+                self._next_discovery = monotonic() + DISCOVERY_INTERVAL_SECONDS
                 break
             if path in self._positions:
                 continue
@@ -464,7 +494,7 @@ class CodexLogMonitor(QObject):
             return
         try:
             record = json.loads(line.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError):
+        except UnicodeDecodeError, json.JSONDecodeError:
             return
         self._remember_session_metadata(path, record)
         if self._history_starts.get(path, 0):
@@ -501,6 +531,15 @@ class CodexLogMonitor(QObject):
             self._history_starts[path] = boundary
         return True
 
+    def _folder_signature(self):
+        signature = []
+        for directory in self._recent_directories():
+            try:
+                signature.append((directory, directory.stat().st_mtime_ns))
+            except OSError:
+                signature.append((directory, None))
+        return tuple(signature)
+
     def _recent_directories(self):
         current = self._now()
         for day in (current, current - timedelta(days=1)):
@@ -524,7 +563,7 @@ class CodexLogMonitor(QObject):
             return None
         try:
             parsed = cast(value)
-        except (TypeError, ValueError, OverflowError):
+        except TypeError, ValueError, OverflowError:
             return None
         return parsed if parsed >= 0 else None
 
@@ -546,7 +585,7 @@ class CodexLogMonitor(QObject):
         for line_offset, line in lines:
             try:
                 record = json.loads(line.decode("utf-8"))
-            except (UnicodeDecodeError, json.JSONDecodeError):
+            except UnicodeDecodeError, json.JSONDecodeError:
                 continue
             found.extend(self._extract_usage_records(path, record, line_offset))
         self._usage_positions[path] = cursor.offset
@@ -567,6 +606,7 @@ class CodexLogMonitor(QObject):
             stat.st_ino,
         ):
             return
+        self._last_growth[path] = monotonic()
         lines, used_bytes, used_records = cursor.read(
             path,
             self._budget_bytes,
@@ -593,7 +633,7 @@ class CodexLogMonitor(QObject):
         self._next_ordinals[path] = ordinal + 1
         try:
             record = json.loads(line.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError):
+        except UnicodeDecodeError, json.JSONDecodeError:
             return
 
         if self._remember_session_metadata(path, record):
@@ -923,6 +963,7 @@ class CodexLogMonitor(QObject):
         self._last_heartbeats.pop(path, None)
 
     def _forget(self, path):
+        self._last_growth.pop(path, None)
         self._clear_lifecycle(path)
         self._usage_cursors.pop(path, None)
         self._event_cursors.pop(path, None)

@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import unittest
 from unittest.mock import patch
 from pathlib import Path
@@ -110,6 +111,188 @@ class BubbleElementRegistryTests(unittest.TestCase):
             registry = BubbleElementRegistry(elements)
 
             self.assertEqual(registry.elements, ())
+
+    def test_images_folder_holds_only_images_and_one_library_lists_them(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.png"
+            self.write_image(source)
+            registry = BubbleElementRegistry(root / "elements")
+
+            first = registry.import_image(source, "ornament", "first")
+            second = registry.import_image(source, "photo", "second")
+
+            images = registry.images_root
+            self.assertEqual(
+                sorted(path.name for path in images.iterdir()),
+                sorted([first.image_path.name, second.image_path.name]),
+            )
+            library = json.loads(
+                (root / "elements" / "library.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                [entry["name"] for entry in library["elements"]], ["first", "second"]
+            )
+            self.assertEqual(
+                sorted(path.name for path in (root / "elements").iterdir()),
+                ["images", "library.json"],
+            )
+            self.assertTrue(registry.delete(first.reference))
+            self.assertFalse(first.image_path.exists())
+            library = json.loads(
+                (root / "elements" / "library.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                [entry["id"] for entry in library["elements"]], [second.id]
+            )
+
+    def test_old_notes_beside_images_move_into_the_library_once(self):
+        with TemporaryDirectory() as directory:
+            elements = Path(directory) / "elements"
+            elements.mkdir()
+            kept, orphan = "b" * 32, "c" * 32
+            self.write_image(elements / f"{kept}.png")
+            for element_id in (kept, orphan):
+                (elements / f"{element_id}.json").write_text(
+                    json.dumps(
+                        {
+                            "id": element_id,
+                            "name": element_id[:4],
+                            "kind": "photo",
+                            "image": f"{element_id}.png",
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+            (elements / "notes.json").write_text("{}", encoding="utf-8")
+
+            registry = BubbleElementRegistry(elements)
+
+            element = registry.get(f"user:{kept}")
+            self.assertEqual((element.name, element.kind), ("bbbb", "photo"))
+            self.assertEqual(element.image_path, registry.images_root / f"{kept}.png")
+            self.assertFalse(registry.pixmap(element.reference).isNull())
+            # The note whose image was deleted by hand is cleaned up; files
+            # the app did not write are left alone.
+            self.assertEqual(
+                sorted(path.name for path in elements.iterdir()),
+                ["images", "library.json", "notes.json"],
+            )
+            self.assertEqual(
+                [item.id for item in BubbleElementRegistry(elements).elements], [kept]
+            )
+
+    def test_an_image_deleted_in_the_folder_leaves_the_library(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.png"
+            other = root / "other.png"
+            self.write_image(source)
+            self.write_image(other, color=(0, 0, 255, 180))
+            registry = BubbleElementRegistry(root / "elements")
+            gone = registry.import_image(source, "ornament", "gone")
+            kept = registry.import_image(other, "ornament", "kept")
+
+            gone.image_path.unlink()
+            registry.refresh()
+
+            self.assertEqual([item.id for item in registry.elements], [kept.id])
+            library = json.loads(
+                (root / "elements" / "library.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual([entry["id"] for entry in library["elements"]], [kept.id])
+
+    def test_the_same_pixels_reuse_one_element_per_kind(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.png"
+            self.write_image(source)
+            registry = BubbleElementRegistry(root / "elements")
+            first = registry.import_image(source, "sticker", "first")
+            again = registry.import_image(source, "sticker", "again")
+            other_kind = registry.import_image(source, "ornament")
+            self.assertEqual(again.id, first.id)
+            self.assertEqual(again.name, "first")
+            self.assertNotEqual(other_kind.id, first.id)
+            # The match survives a restart; deleting the element forgets it.
+            reopened = BubbleElementRegistry(root / "elements")
+            self.assertEqual(reopened.import_image(source, "sticker").id, first.id)
+            reopened.delete(first.reference)
+            self.assertNotEqual(reopened.import_image(source, "sticker").id, first.id)
+
+    def test_old_copies_get_digests_and_are_found_as_duplicates(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.png"
+            self.write_image(source)
+            elements = root / "elements"
+            images = elements / "images"
+            images.mkdir(parents=True)
+            ids = ["a" * 32, "b" * 32, "c" * 32]
+            for element_id in ids:
+                shutil.copyfile(source, images / f"{element_id}.png")
+            # Stored before pixel digests: no "pixels" key.
+            (elements / "library.json").write_text(
+                json.dumps(
+                    dict(
+                        format=1,
+                        elements=[
+                            dict(
+                                id=ids[0],
+                                name="old",
+                                kind="sticker",
+                                image=f"{ids[0]}.png",
+                            ),
+                            dict(
+                                id=ids[1],
+                                name="copy",
+                                kind="sticker",
+                                image=f"{ids[1]}.png",
+                            ),
+                            dict(
+                                id=ids[2],
+                                name="other kind",
+                                kind="ornament",
+                                image=f"{ids[2]}.png",
+                            ),
+                        ],
+                    )
+                ),
+                encoding="utf-8",
+            )
+
+            registry = BubbleElementRegistry(elements)
+
+            library = json.loads(
+                (elements / "library.json").read_text(encoding="utf-8")
+            )
+            self.assertTrue(all(entry.get("pixels") for entry in library["elements"]))
+            self.assertEqual(registry.duplicates(), [(ids[0], [ids[1]])])
+            # The picture is matched to the oldest copy, so saving adds nothing.
+            self.assertEqual(registry.import_image(source, "sticker").id, ids[0])
+            registry.delete(f"user:{ids[1]}")
+            self.assertEqual(registry.duplicates(), [])
+
+    def test_an_unreadable_library_is_kept_aside_not_written_over(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.png"
+            self.write_image(source)
+            elements = root / "elements"
+            elements.mkdir()
+            (elements / "library.json").write_text("{broken", encoding="utf-8")
+            registry = BubbleElementRegistry(elements)
+            self.assertEqual(registry.elements, ())
+            self.assertEqual(
+                (elements / "library.json").read_text(encoding="utf-8"), "{broken"
+            )
+
+            element = registry.import_image(source, "ornament", "new")
+
+            self.assertEqual(
+                (elements / "library.json.bak").read_text(encoding="utf-8"), "{broken"
+            )
+            self.assertEqual([item.id for item in registry.elements], [element.id])
 
 
 class BubbleCustomizerTests(unittest.TestCase):

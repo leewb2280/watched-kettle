@@ -2,6 +2,7 @@ import { t } from "../../localization.cjs";
 import { Modal } from "../components";
 import { errorText } from "../errors";
 import { PetImportDialog } from "../PetImportDialog";
+import { PetLinkDialog } from "../PetLinkDialog";
 import { PetManagerDialog } from "../PetManagerDialog";
 import { BubbleEditorDialog } from "./BubbleEditorDialog";
 import { orderedCatalog } from "./petCatalog";
@@ -16,6 +17,8 @@ export function CoreDialogs(
     | "setPicker"
     | "change"
     | "setImportPet"
+    | "linkPet"
+    | "setLinkPet"
     | "shell"
     | "importPet"
     | "picker"
@@ -24,30 +27,7 @@ export function CoreDialogs(
     | "command"
     | "manager"
     | "setManager"
-    | "editor"
-    | "closeEditor"
-    | "resetDraft"
-    | "dirty"
-    | "editorBusy"
-    | "editorStale"
-    | "saveEditor"
-    | "setResetDraft"
-    | "setEditorNotice"
-    | "setDraft"
-    | "draft"
-    | "assetChange"
-    | "setEditor"
-    | "setEditorError"
-    | "previewSample"
-    | "setPreviewSample"
-    | "stickerSlot"
-    | "setStickerSlot"
-    | "preview"
-    | "editorNotice"
-    | "renderError"
-    | "editorError"
-    | "rebaseEditor"
-    | "reloadSavedTheme"
+    | "bubbleEditor"
   >,
 ) {
   const {
@@ -58,6 +38,8 @@ export function CoreDialogs(
     setPicker,
     change,
     setImportPet,
+    linkPet,
+    setLinkPet,
     shell,
     importPet,
     picker,
@@ -66,35 +48,21 @@ export function CoreDialogs(
     command,
     manager,
     setManager,
-    editor,
-    closeEditor,
-    resetDraft,
-    dirty,
-    editorBusy,
-    editorStale,
-    saveEditor,
-    setResetDraft,
-    setEditorNotice,
-    setDraft,
-    draft,
-    assetChange,
-    setEditor,
-    setEditorError,
-    previewSample,
-    setPreviewSample,
-    stickerSlot,
-    setStickerSlot,
-    preview,
-    editorNotice,
-    renderError,
-    editorError,
-    rebaseEditor,
-    reloadSavedTheme,
+    bubbleEditor,
   } = props;
   return (
     <>
       {importPet && (
         <PetImportDialog shell={shell} close={() => setImportPet(false)} />
+      )}
+      {linkPet && (
+        <PetLinkDialog
+          shell={shell}
+          close={() => {
+            setLinkPet(false);
+            loadCatalog().catch(fail);
+          }}
+        />
       )}
       {picker && catalog && (
         <Modal
@@ -133,7 +101,11 @@ export function CoreDialogs(
           }}
         />
       )}
-      <BubbleEditorDialog {...props} />
+      <BubbleEditorDialog
+        bubble={bubbleEditor}
+        snapshot={snapshot}
+        command={command}
+      />
     </>
   );
 }

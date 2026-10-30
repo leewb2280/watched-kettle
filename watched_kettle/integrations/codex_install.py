@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 
 from watched_kettle.integrations.codex_paths import codex_home
+from watched_kettle.integrations.windows_paths import powershell_path
 import re
 import shlex
 import sys
@@ -123,7 +124,11 @@ def build_managed_hook(project_root=None, executable=None):
 
 def _bundle_hook(executable):
     command_windows = _windows_command(
-        executable, "--codex-hook-bridge", "--managed-id", MANAGED_MARKER
+        executable,
+        "--codex-hook-bridge",
+        "--managed-id",
+        MANAGED_MARKER,
+        shell=_hook_shell(),
     )
     command = (
         f"{shlex.quote(str(executable))} --codex-hook-bridge "
@@ -138,7 +143,7 @@ def _source_hook(project_root):
     bridge = project_root / ".codex" / "hooks" / "codex_pet_bridge.py"
     # The wrapper's first parameter is ManagedId. Quoted '-ManagedId' would
     # bind as a positional value, rather than a PowerShell parameter name.
-    command_windows = _windows_command(wrapper, MANAGED_MARKER)
+    command_windows = _windows_command(wrapper, MANAGED_MARKER, shell=_hook_shell())
     command = (
         f"{shlex.quote(str(python))} {shlex.quote(str(bridge))} "
         f"--managed-id {shlex.quote(MANAGED_MARKER)}"
@@ -163,7 +168,7 @@ def other_copy_hook(hook):
         expected = _source_hook(project_root)
     else:
         expected = _bundle_hook(executable)
-    return expected if hook == expected else None
+    return expected if hook in _accepted_forms(expected) else None
 
 
 def _windows_executable(command_windows):
@@ -174,10 +179,32 @@ def _windows_executable(command_windows):
     try:
         encoded = command_windows.rsplit(prefix, 1)[1].strip()
         script = base64.b64decode(encoded, validate=True).decode("utf-16-le")
-    except (ValueError, UnicodeDecodeError):
+    except ValueError, UnicodeDecodeError:
         return None
     match = re.search(r"& '((?:[^']|'')*)'", script)
     return Path(match.group(1).replace("''", "'")) if match else None
+
+
+def _hook_shell():
+    """The system PowerShell by path, when the path needs no quoting."""
+    path = powershell_path()
+    return path if re.fullmatch(r"[A-Za-z]:[\\\w.\-]+", path) else "powershell.exe"
+
+
+def _accepted_forms(hook):
+    """The hook as written now, and as 0.15.11 and earlier wrote it.
+
+    Earlier versions called ``powershell.exe`` by name. A ``cmd`` that runs the
+    command looks for that name in the project folder first, so new hooks
+    name the system PowerShell by path; old ones still count as installed
+    and are rewritten on the next install or repair.
+    """
+    command = hook.get("commandWindows")
+    prefix = _hook_shell() + " "
+    if not (isinstance(command, str) and command.startswith(prefix)):
+        return [hook]
+    legacy = {**hook, "commandWindows": "powershell.exe " + command[len(prefix) :]}
+    return [hook, legacy]
 
 
 def _hook_entry(command, command_windows):
@@ -201,6 +228,10 @@ class CodexHookInstaller:
         self.hooks_path = Path(hooks_path)
         self.config_path = Path(config_path)
         self.managed_hook = deepcopy(managed_hook or build_managed_hook())
+
+    @property
+    def _accepted_hooks(self):
+        return _accepted_forms(self.managed_hook)
 
     def inspect(self):
         hooks_exists = self.hooks_path.is_file()
@@ -402,6 +433,7 @@ class CodexHookInstaller:
         for path, text in writes:
             _atomic_write_text(path, text)
             changed_paths.append(path)
+        self.prune_backups()
 
         return HookApplyResult(
             operation=plan.operation,
@@ -409,6 +441,9 @@ class CodexHookInstaller:
             backup_paths=tuple(backup_paths),
             status=self.inspect(),
         )
+
+    def prune_backups(self):
+        prune_backups(self.hooks_path, self.config_path)
 
     def _read_hooks(self):
         text, read_error = _read_utf8(self.hooks_path)
@@ -461,7 +496,7 @@ class CodexHookInstaller:
                     if not _is_managed_hook(hook):
                         continue
                     markers += 1
-                    if hook == self.managed_hook:
+                    if hook in self._accepted_hooks:
                         exact += 1
                         if event in MANAGED_HOOK_EVENTS:
                             installed += 1
@@ -481,7 +516,7 @@ class CodexHookInstaller:
             return False
         first = next(iter(found.values()))
         return (
-            first != self.managed_hook
+            first not in self._accepted_hooks
             and all(hook == first for hook in found.values())
             and other_copy_hook(first) is not None
         )
@@ -642,6 +677,38 @@ def _fingerprint(path):
         raise HookInstallError(t("message.0121", value0=error)) from error
 
 
+# Each change keeps a copy of the file it replaces; only the newest few stay.
+BACKUP_KEEP = 5
+_BACKUP_STAMP = re.compile(r"\.backup-\d{8}-\d{6}-\d{6}")
+
+
+def prune_backups(*paths, keep=BACKUP_KEEP):
+    """Delete this app's ``<name>.backup-<time>`` copies beyond the newest ``keep``.
+
+    Only names in the exact format ``_backup`` writes are touched, so backups
+    the user made by hand stay. Failures are ignored: a leftover copy is
+    harmless.
+    """
+    for path in paths:
+        path = Path(path)
+        try:
+            backups = [
+                entry
+                for entry in path.parent.iterdir()
+                if entry.name.startswith(path.name)
+                and _BACKUP_STAMP.fullmatch(entry.name[len(path.name) :])
+                and entry.is_file()
+            ]
+        except OSError:
+            continue
+        # The time stamp sorts in name order.
+        for entry in sorted(backups, key=lambda item: item.name)[: -keep or None]:
+            try:
+                entry.unlink()
+            except OSError:
+                pass
+
+
 def _backup(path):
     path = Path(path)
     if not path.is_file():
@@ -673,7 +740,7 @@ def _atomic_write_text(path, text):
         raise HookInstallError(t("message.0123", value0=error)) from error
 
 
-def _windows_command(executable, *arguments):
+def _windows_command(executable, *arguments, shell="powershell.exe"):
     """Keep the invocation opaque to the caller's PowerShell or cmd parser.
 
     A quoted executable alone is a string expression in PowerShell. Encode the
@@ -689,6 +756,6 @@ def _windows_command(executable, *arguments):
     script += "; exit $LASTEXITCODE"
     encoded = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
     return (
-        "powershell.exe -NoLogo -NoProfile -NonInteractive "
+        f"{shell} -NoLogo -NoProfile -NonInteractive "
         "-ExecutionPolicy Bypass -EncodedCommand " + encoded
     )

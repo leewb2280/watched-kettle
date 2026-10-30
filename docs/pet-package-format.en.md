@@ -14,6 +14,45 @@ For security, `spritesheetPath` cannot point outside the pet directory.
   waiting, running, review
 - The last two rows of V2 are frames for looking in 16 directions.
 
+## Optional appearance changes (`appearanceSet`)
+
+The base V1/V2 formats stay the same. An optional `appearanceSet` lets one V2 pet switch between looks.
+The default look's path must equal the top-level `spritesheetPath`. Apps that do not know the extension
+show only the default look.
+
+Version 1 declares exactly two looks with Korean and English `labels` and both transitions. Version 2
+(0.15.11 or newer) declares two to six looks. A look may use one plain `label` instead of `labels`;
+language names fall back from the current language to English to the first name. `transitions` lists only
+drawn pairs and may be empty: a pair drawn only in the other direction plays in reverse, and a pair with
+neither cross-fades the two front idle frames for about 0.4 seconds. Optional `auto` sets automatic timing:
+integer `minSeconds` and `maxSeconds` from 10 to 3600 (smaller first) and an `order` of `random` (any
+other look) or `sequence` (declaration order). Without it the app uses 60–180 seconds at random. Users can
+change the interval and order per pet.
+
+```json
+"appearanceSet": {
+  "version": 2,
+  "default": "day",
+  "variants": [
+    {"id": "day", "label": "Day", "spritesheetPath": "spritesheet.webp"},
+    {"id": "night", "labels": {"ko": "밤", "en": "Night"}, "spritesheetPath": "appearance/night.webp"},
+    {"id": "rain", "label": "Rain", "spritesheetPath": "appearance/rain.webp"}
+  ],
+  "transitions": [
+    {"from": "day", "to": "night", "spritesheetPath": "appearance/day-night.webp", "frames": 12, "intervalMs": 60}
+  ],
+  "auto": {"minSeconds": 60, "maxSeconds": 180, "order": "sequence"}
+}
+```
+
+Look IDs are 1–64 characters of lowercase letters, digits, underscores and hyphens starting with a letter;
+`auto` is reserved. IDs and asset paths must be unique. Every look is a still 1536×2288 PNG/WebP with all
+nine actions and sixteen look directions. A transition is a still image of same-sized cells laid out
+horizontally: 2–32 frames in version 1, 2–48 in version 2, each 16–1000 ms. Each file may be up to 20 MiB,
+and the package, path and link limits still apply. Folder and ZIP imports validate and normalize the
+declaration and images and include them in the content identity. Appearance changes need 0.15.11 or newer;
+older apps show only the default look.
+
 ## Main manifest fields
 
 Besides still PNG/WebP images (20 MiB or less), **Import pet** in settings also accepts a ZIP, a pet folder, an install command and pets installed in Codex
@@ -85,8 +124,8 @@ pets folder uses the same decorations. Values are pixels at 100% scale and grow 
 | `contentPadding` | `[top, bottom, extra left]` padding inside the body |
 | `innerBorder` | `color` and `alpha` of the inner line of a double border |
 | `halo` | A halo around the body: `color`, `alpha`, `width`, `minWidth`, `offsetY`, `grow`, `radiusDelta` |
-| `backdrop` | A list of layers drawn below the bubble surface (up to 8) |
-| `overlay` | A list of layers drawn above the bubble surface (up to 8) |
+| `backdrop` | A list of layers drawn below the bubble surface (up to 16; 8 in 0.15.10 and older) |
+| `overlay` | A list of layers drawn above the bubble surface (up to 16; 8 in 0.15.10 and older) |
 
 A layer is drawn `x` and `y` away from its `anchor` (the body's `top-left`, `top-center`, `top-right`, `center-left`, `center-right`, `bottom-left`,
 `bottom-center` or `bottom-right`, or `arc-top-left`, the 45° point of the rounded top-left corner). An image layer uses `image` (a PNG or WebP inside the package, 4 MB or less), `width` and `height`,
@@ -110,6 +149,18 @@ Missing or invalid repeat settings, unsupported anchors and circle layers retain
 Opacity, tint and horizontal mirroring apply to every copy. No new settings UI is required; live bubbles and
 the existing preview share the painter. Folder and ZIP import preserve the options and image.
 Older apps ignore this option, so distribution packs requiring repetition must set their minimum app version to 0.15.10 or newer.
+
+### Rotation, vertical flip and horizontal repeat (0.15.11 or newer)
+
+Image layers accept `rotation` (degrees from -180 to 180, around the image center) and `flipY` (vertical flip).
+`"repeatX": {"gap": 2, "rightInset": 10}` repeats towards the body's right edge from `top-left`, `center-left`
+and `bottom-left` anchors. Only the body's horizontal range is clipped, so rows above or below the body work too.
+Other rules match `repeatY`. Older apps ignore these fields, so distribution packs using them must set their
+minimum app version to 0.15.11 or newer.
+
+User bubble themes have decoration layers (`decor`) with the same anchors and painter. A user layer names its
+image as `user:<id>` (image library) or `pkg:<pet id>/<path inside the package>` and keeps the image's aspect
+ratio inside its box.
 
 When adding a new format, existing versions must be detected automatically, and invalid fields must either fall back to
 safe defaults or produce a clear load error. Public builds include only `distribution=public`

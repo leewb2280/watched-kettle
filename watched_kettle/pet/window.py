@@ -1,5 +1,6 @@
 # pet_window.py
 
+from typing import Any
 from pathlib import Path
 from dataclasses import replace
 from watched_kettle.bubble_timing import BubbleDurationPolicy
@@ -22,6 +23,7 @@ from watched_kettle.config import (
     LOOK_RANGE_STEP,
     PET_WIDTH_OPTIONS,
     DEFAULT_PET_WIDTH,
+    scaled_animation_ms,
 )
 
 from watched_kettle.app_preferences import (
@@ -29,7 +31,11 @@ from watched_kettle.app_preferences import (
     normalize_bubble_duration_seconds,
     normalize_bubble_scale,
 )
-from watched_kettle.pet.loader import load_pet
+from watched_kettle.pet.loader import load_pet, load_appearance_frames
+from watched_kettle.pet.appearance_controller import (
+    AppearanceController,
+    AppearanceTransitions,
+)
 from watched_kettle.pet.activity_controller import (
     IdleActivityController,
     load_idle_activities,
@@ -108,6 +114,7 @@ class DesktopPet(
         self.bubble_duration_policy = self.app_preferences.load_bubble_duration_policy()
         self.bubble_theme_mode = self.app_preferences.load_bubble_theme_mode()
         self.opacity_percent = self.app_preferences.load_pet_opacity()
+        self.animation_speed_percent = self.app_preferences.load_pet_animation_speed()
         self.shadow_enabled = self.app_preferences.load_pet_shadow()
         self.fade_enabled = self.app_preferences.load_pet_fade()
         # Clicks pass through to the windows behind; tray and hotkey undo it.
@@ -115,7 +122,7 @@ class DesktopPet(
         self.click_through_bubbles = (
             self.app_preferences.load_pet_click_through_bubbles()
         )
-        self._fade_animation = None
+        self._fade_animation: Any = None
         self.activity_labels_enabled = (
             self.app_preferences.load_activity_labels_enabled()
         )
@@ -125,6 +132,7 @@ class DesktopPet(
         self.direction_score = 0
         self.double_click_waving = False
         self.pointer_near = False
+        self.appearance_controller: Any = None
         self.movement_test_active = False
         self._position_persistence_ready = False
         self.usage_widget_available = False
@@ -204,6 +212,7 @@ class DesktopPet(
         self.setup_bubble()
         self.setup_activity_caption()
         self.setup_agent_state()
+        self.setup_appearance()
         self.setup_look_tracking()
         self.setup_position_persistence()
         # Puts the pet, bubbles and widget back on top when Windows drops them.
@@ -216,6 +225,99 @@ class DesktopPet(
         self.move_to_initial_position()
 
         self.set_state("idle")
+
+    def setup_appearance(self, bundle=None):
+        previous = self.appearance_controller
+        if previous is not None:
+            previous.shutdown()
+            previous.deleteLater()
+        spec, self._appearance_frames, transitions = (
+            bundle
+            if bundle is not None
+            else load_appearance_frames(
+                self.pet_directory,
+                self.manifest,
+                self.frames,
+                self.look_frames,
+                self.sprite_version,
+            )
+        )
+        self.appearance_controller = None
+        if spec is None:
+            return
+        mode = self.preferences.load_appearance_mode(spec.ids)
+        current = (
+            self.preferences.load_appearance_id(spec.ids, spec.default)
+            if mode == "auto"
+            else mode
+        )
+        self._apply_appearance(current)
+        self.preferences.save_appearance_id(current)
+        self.appearance_controller = AppearanceController(
+            spec,
+            AppearanceTransitions(
+                spec,
+                transitions,
+                lambda identifier: self._appearance_frames[identifier][0]["idle"][0],
+            ),
+            mode=mode,
+            current=current,
+            can_start=self._can_start_appearance,
+            on_commit=self._apply_appearance,
+            on_change=self.refresh_controls,
+            on_frame=self.update,
+            save_mode=self.preferences.save_appearance_mode,
+            save_current=self.preferences.save_appearance_id,
+            interval=self.preferences.load_appearance_interval(),
+            order=self.preferences.load_appearance_order(),
+            parent=self,
+        )
+        if self.isVisible():
+            self.appearance_controller.resume()
+
+    def _apply_appearance(self, identifier):
+        self.frames, self.look_frames = self._appearance_frames[identifier]
+        if self.current_state in self.frames:
+            self.current_frame %= len(self.frames[self.current_state])
+        self.renderer.clear()
+
+    def appearance_snapshot(self):
+        controller = self.appearance_controller
+        return controller.snapshot() if controller is not None else None
+
+    def set_appearance_mode(self, value):
+        if self.appearance_controller is None:
+            from watched_kettle.pet.appearance_assets import invalid_appearance
+
+            raise invalid_appearance()
+        self.appearance_controller.set_mode(value)
+
+    def set_appearance_timing(self, interval=None, order=None):
+        if self.appearance_controller is None:
+            from watched_kettle.pet.appearance_assets import invalid_appearance
+
+            raise invalid_appearance()
+        if interval is not None:
+            self.preferences.save_appearance_interval(interval)
+        if order is not None:
+            self.preferences.save_appearance_order(order)
+        self.appearance_controller.set_timing(interval, order)
+
+    def _can_start_appearance(self):
+        return (
+            self.isVisible()
+            and self.current_state == "idle"
+            and self.agent_controller.desired_state == "idle"
+            and not self.dragging
+            and not self.pointer_near
+            and self.look_direction_index is None
+            and not self.activity_controller.is_active
+            and not self.movement_controller.is_active
+        )
+
+    def _appearance_safety_changed(self):
+        if self.appearance_controller is not None:
+            self.appearance_controller.notify_safety()
 
     def setup_window(self):
         window_flags = Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool
@@ -244,6 +346,7 @@ class DesktopPet(
             can_start=self.can_start_idle_activity,
             on_start=self.start_ambient_activity,
             on_finish=self.finish_ambient_activity,
+            speed_percent=lambda: self.animation_speed_percent,
             parent=self,
         )
 
@@ -403,6 +506,19 @@ class DesktopPet(
         self.opacity_percent = self.app_preferences.save_pet_opacity(percent)
         self.update()
 
+    def frame_interval(self, state):
+        return scaled_animation_ms(
+            ANIMATIONS[state]["interval"], self.animation_speed_percent
+        )
+
+    def set_animation_speed_percent(self, percent):
+        self.animation_speed_percent = self.app_preferences.save_pet_animation_speed(
+            percent
+        )
+        # The playing animation keeps its frame and only changes pace.
+        if self.current_state is not None and self.timer.isActive():
+            self.timer.setInterval(self.frame_interval(self.current_state))
+
     def set_shadow_enabled(self, enabled):
         self.shadow_enabled = bool(enabled)
         self.app_preferences.save_pet_shadow(self.shadow_enabled)
@@ -414,6 +530,11 @@ class DesktopPet(
 
     def showEvent(self, event):
         super().showEvent(event)
+        if self.current_state is not None and not self.timer.isActive():
+            self.timer.start(self.frame_interval(self.current_state))
+        controller = getattr(self, "appearance_controller", None)
+        if controller is not None:
+            controller.resume()
         bubble_controller = getattr(self, "bubble_controller", None)
         if bubble_controller is not None:
             bubble_controller.owner_shown()
@@ -432,6 +553,11 @@ class DesktopPet(
             self.show_schedule_timer.start(0)
 
     def hideEvent(self, event):
+        # Frames of a hidden pet are never painted; showEvent restarts them.
+        self.timer.stop()
+        controller = getattr(self, "appearance_controller", None)
+        if controller is not None:
+            controller.suspend()
         bubble_controller = getattr(self, "bubble_controller", None)
         if bubble_controller is not None:
             bubble_controller.owner_hidden()
@@ -472,6 +598,8 @@ class DesktopPet(
             caption_controller.reposition()
 
     def closeEvent(self, event):
+        if self.appearance_controller is not None:
+            self.appearance_controller.shutdown()
         for timer in self.findChildren(QTimer):
             timer.stop()
         if getattr(self, "_position_persistence_ready", False):
@@ -634,6 +762,14 @@ class DesktopPet(
         self.set_bubble_theme_mode("custom", persist=persist)
         return self.custom_bubble_theme
 
+    def replace_custom_bubble_theme(self, theme):
+        """Rewrite the stored custom theme; the chosen theme mode stays."""
+        if self.bubble_theme_mode == "custom":
+            return self.set_custom_bubble_theme(theme)
+        self.custom_bubble_theme = theme
+        self.preferences.save_custom_bubble_theme(theme)
+        return theme
+
     def clear_custom_bubble_theme(self, persist=True):
         self.custom_bubble_theme = None
         if persist:
@@ -693,7 +829,7 @@ class DesktopPet(
     def set_look_range(self, look_range, persist=True):
         try:
             look_range = int(look_range)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return
         if not LOOK_RANGE_MIN <= look_range <= LOOK_RANGE_MAX:
             return
@@ -730,15 +866,14 @@ class DesktopPet(
 
         self.current_state = state
         self.current_frame = 0
+        self._appearance_safety_changed()
         self.activity_caption_controller.set_state(state)
 
         if state != "idle":
             self.look_direction_index = None
             self.activity_controller.delay_timer.stop()
 
-        interval = ANIMATIONS[state]["interval"]
-
-        self.timer.start(interval)
+        self.timer.start(self.frame_interval(state))
 
         if state == "idle":
             self.schedule_idle_activity()
@@ -749,7 +884,8 @@ class DesktopPet(
 
     def can_start_idle_activity(self):
         return (
-            self.current_state == "idle"
+            not (self.appearance_controller and self.appearance_controller.pending)
+            and self.current_state == "idle"
             and not self.dragging
             and not self.pointer_near
             and not self.movement_controller.is_active
@@ -758,7 +894,8 @@ class DesktopPet(
 
     def can_start_auto_movement(self):
         return (
-            self.current_state == "idle"
+            not (self.appearance_controller and self.appearance_controller.pending)
+            and self.current_state == "idle"
             and self.isVisible()
             and not self.dragging
             and not self.pointer_near
@@ -855,7 +992,12 @@ class DesktopPet(
             False,
         )
 
-        if (
+        transition_pixmap = (
+            self.appearance_controller.pixmap if self.appearance_controller else None
+        )
+        if transition_pixmap is not None:
+            pixmap = transition_pixmap
+        elif (
             self.current_state == "idle"
             and self.look_direction_index is not None
             and self.look_frames
@@ -911,12 +1053,15 @@ class DesktopPet(
             usage_widget_today_visible=self.usage_widget_today_visible,
             usage_widget_position_customized=(self.usage_widget_position_customized),
             usage_widget_click_through=self.usage_widget_click_through,
+            appearance=self.appearance_snapshot(),
         )
 
         if command is None:
             return
 
-        if command.name == "set_idle_activities_enabled":
+        if command.name == "set_pet_appearance":
+            self.set_appearance_mode(command.value)
+        elif command.name == "set_idle_activities_enabled":
             self.set_idle_activities_enabled(command.value)
 
         elif command.name == "set_auto_movement_enabled":
@@ -959,7 +1104,9 @@ class DesktopPet(
         return self.pointer_controller.setup_look_tracking()
 
     def mousePressEvent(self, event):
-        return self.pointer_controller.mousePressEvent(event)
+        result = self.pointer_controller.mousePressEvent(event)
+        self._appearance_safety_changed()
+        return result
 
     def mouseMoveEvent(self, event):
         return self.pointer_controller.mouseMoveEvent(event)
@@ -977,4 +1124,6 @@ class DesktopPet(
         return self.pointer_controller.finish_waving()
 
     def update_look_direction(self):
-        return self.pointer_controller.update_look_direction()
+        result = self.pointer_controller.update_look_direction()
+        self._appearance_safety_changed()
+        return result

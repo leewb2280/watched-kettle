@@ -14,11 +14,12 @@ from watched_kettle.integrations.codex_install import (
     LEGACY_MANAGED_MARKERS,
     MANAGED_HOOK_EVENTS,
     MANAGED_MARKER,
+    BACKUP_KEEP,
     StaleHookPlanError,
     build_managed_hook,
     default_hook_executable,
 )
-from scripts.check_edition_modules import check_edition_modules
+from scripts.check_edition_modules import HOOK_BRIDGE_FORBIDDEN, check_edition_modules
 
 
 OTHER_HOOK = {
@@ -64,7 +65,7 @@ def _warm_windows_powershell():
             timeout=60,
             check=False,
         )
-    except (OSError, subprocess.TimeoutExpired):
+    except OSError, subprocess.TimeoutExpired:
         pass
 
 
@@ -216,6 +217,27 @@ class CodexHookInstallerTests(unittest.TestCase):
         self.assertEqual(self.hooks_path.read_bytes(), before_hooks)
         self.assertEqual(self.config_path.read_bytes(), before_config)
 
+    def test_only_the_newest_app_backups_are_kept(self):
+        self.write_existing_settings()
+        folder = self.hooks_path.parent
+        for day in range(1, 9):
+            (folder / f"hooks.json.backup-202608{day:02d}-120000-000000").write_text(
+                "{}", encoding="utf-8"
+            )
+        (folder / "hooks.json.backup-mine").write_text("{}", encoding="utf-8")
+        (folder / "config.toml.backup-20260801-120000-000000").write_text(
+            "", encoding="utf-8"
+        )
+
+        self.installer.apply(self.installer.preview_install())
+
+        hooks = sorted(path.name for path in folder.glob("hooks.json.backup-2*"))
+        self.assertEqual(len(hooks), BACKUP_KEEP)
+        self.assertNotIn("hooks.json.backup-20260803-120000-000000", hooks)
+        self.assertIn("hooks.json.backup-20260808-120000-000000", hooks)
+        self.assertTrue((folder / "hooks.json.backup-mine").exists())
+        self.assertEqual(len(list(folder.glob("config.toml.backup-*"))), 2)
+
     def test_stale_preview_is_rejected(self):
         self.write_existing_settings()
         plan = self.installer.preview_install()
@@ -352,6 +374,41 @@ class CodexHookInstallerTests(unittest.TestCase):
         self.assertIn(MANAGED_MARKER, script)
         self.assertIn(MANAGED_MARKER, hook["command"])
 
+    def test_windows_command_names_powershell_by_path(self):
+        # A cmd that runs the hook would find a powershell.exe placed in the
+        # project folder before the real one.
+        hook = build_managed_hook(executable=self.root / "App" / "Bridge.exe")
+
+        program = hook["commandWindows"].split(" ", 1)[0]
+        self.assertTrue(Path(program).is_absolute())
+        self.assertEqual(Path(program).name.lower(), "powershell.exe")
+        self.assertEqual(Path(program).parent.name.lower(), "v1.0")
+
+    def test_hooks_with_bare_powershell_stay_installed_until_repaired(self):
+        executable = self.root / "Installed App" / "WatchedKettleHookBridge.exe"
+        self.installer = CodexHookInstaller(
+            hooks_path=self.hooks_path,
+            config_path=self.config_path,
+            managed_hook=build_managed_hook(executable=executable),
+        )
+        self.installer.apply(self.installer.preview_install())
+        text = self.hooks_path.read_text(encoding="utf-8")
+        program = self.installer.managed_hook["commandWindows"].split(" ", 1)[0]
+        self.hooks_path.write_text(
+            text.replace(json.dumps(program)[1:-1], "powershell.exe"),
+            encoding="utf-8",
+        )
+        self.assertNotIn(
+            json.dumps(program)[1:-1], self.hooks_path.read_text(encoding="utf-8")
+        )
+
+        self.assertEqual(self.installer.inspect().state, "installed")
+        self.installer.apply(self.installer.preview_repair())
+        self.assertIn(
+            json.dumps(program)[1:-1], self.hooks_path.read_text(encoding="utf-8")
+        )
+        self.assertEqual(self.installer.inspect().state, "installed")
+
     def test_repair_upgrades_bare_packaged_commands_without_changing_other_hooks(self):
         self.write_existing_settings()
         executable = self.root / "Installed App" / "WatchedKettleHookBridge.exe"
@@ -391,6 +448,36 @@ class CodexHookInstallerTests(unittest.TestCase):
         bridge.write_bytes(b"")
         self.assertEqual(default_hook_executable(app), bridge.resolve())
 
+    def test_hook_bridge_source_imports_stay_out_of_forbidden_modules(self):
+        # The packaged check sees only what PyInstaller collected; this one
+        # catches a forbidden import before a build.
+        modules = (
+            "watched_kettle.hook_bridge_entrypoint",
+            "watched_kettle.integrations.claude_code_status_line",
+            "watched_kettle.integrations.codex_client",
+        )
+        code = (
+            "import json, sys; "
+            + "; ".join(f"import {name}" for name in modules)
+            + "; print(json.dumps(sorted(sys.modules)))"
+        )
+        process = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+            cwd=Path(__file__).resolve().parents[1],
+            timeout=30,
+            check=True,
+        )
+        loaded = json.loads(process.stdout)
+        forbidden = [
+            name
+            for name in loaded
+            for prefix in HOOK_BRIDGE_FORBIDDEN
+            if name == prefix or name.startswith(prefix + ".")
+        ]
+        self.assertEqual(forbidden, [])
+
     def test_hook_bridge_archive_rejects_qt_and_application_modules(self):
         toc = self.root / "PYZ-01.toc"
         toc.write_text(
@@ -403,6 +490,10 @@ class CodexHookInstallerTests(unittest.TestCase):
                         ("PySide6.QtCore", "", "PYMODULE"),
                         ("dataclasses", "", "PYMODULE"),
                         ("watched_kettle.application.runtime", "", "PYMODULE"),
+                        ("babel.core", "", "PYMODULE"),
+                        ("multiprocessing", "", "PYMODULE"),
+                        ("pkgutil", "", "PYMODULE"),
+                        ("watched_kettle.localization.catalog", "", "PYMODULE"),
                     ],
                 )
             ),
@@ -411,7 +502,15 @@ class CodexHookInstallerTests(unittest.TestCase):
 
         self.assertEqual(
             check_edition_modules(toc, "hook-bridge"),
-            ["PySide6.QtCore", "dataclasses", "watched_kettle.application.runtime"],
+            [
+                "PySide6.QtCore",
+                "babel.core",
+                "dataclasses",
+                "multiprocessing",
+                "pkgutil",
+                "watched_kettle.application.runtime",
+                "watched_kettle.localization.catalog",
+            ],
         )
 
     def test_packaged_bridge_mode_queues_to_user_runtime_and_returns_json(self):

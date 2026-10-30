@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import (
     QBrush,
@@ -17,7 +19,6 @@ from watched_kettle.ui.speech_bubble_decorations import (
     paint_frame_image,
     paint_ornaments,
     paint_pattern,
-    paint_stickers,
 )
 from watched_kettle.ui import speech_bubble_frame as frames
 
@@ -152,8 +153,8 @@ def bubble_frame_insets(theme, scale=1.0):
     return frames.frame_insets(theme, scale)
 
 
-def paint_bubble_backdrop(painter, body_rect, theme, scale=1.0):
-    frames.paint_frame_backdrop(painter, body_rect, theme, scale)
+def paint_bubble_backdrop(painter, body_rect, theme, scale=1.0, registry=None):
+    frames.paint_frame_backdrop(painter, body_rect, theme, scale, registry)
 
 
 def paint_bubble_surface(
@@ -174,7 +175,7 @@ def paint_bubble_surface(
         painter.drawPath(path)
 
     painter.fillPath(path, theme_brush(body_rect, theme))
-    paint_background_image(painter, path, body_rect, theme, registry)
+    paint_background_image(painter, path, body_rect, theme, registry, scale)
     paint_pattern(painter, path, body_rect, theme, registry, scale)
     painter.setBrush(Qt.BrushStyle.NoBrush)
     painter.setPen(
@@ -214,8 +215,7 @@ def paint_bubble_surface(
 
     if decorations:
         paint_ornaments(painter, body_rect, theme, registry, scale)
-        paint_stickers(painter, body_rect, theme, registry, scale)
-    frames.paint_frame_overlay(painter, body_rect, theme, scale)
+    frames.paint_frame_overlay(painter, body_rect, theme, scale, registry)
     painter.restore()
 
 
@@ -228,6 +228,16 @@ def theme_brush(rect, theme):
         gradient = QLinearGradient(rect.topLeft(), rect.bottomLeft())
     elif theme.gradient == "horizontal":
         gradient = QLinearGradient(rect.topLeft(), rect.topRight())
+    elif theme.gradient == "angle":
+        # The gradient line crosses the whole body at the chosen angle.
+        angle = math.radians(theme.gradient_angle)
+        dx, dy = math.cos(angle), math.sin(angle)
+        reach = abs(rect.width() / 2 * dx) + abs(rect.height() / 2 * dy)
+        center = rect.center()
+        gradient = QLinearGradient(
+            QPointF(center.x() - dx * reach, center.y() - dy * reach),
+            QPointF(center.x() + dx * reach, center.y() + dy * reach),
+        )
     else:
         return QBrush(start)
     gradient.setColorAt(0.0, start)

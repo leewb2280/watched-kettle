@@ -19,6 +19,7 @@ from PySide6.QtWidgets import QApplication
 from watched_kettle import hook_bridge_entrypoint
 from watched_kettle.features.usage.viewmodel import UsageViewModel
 from watched_kettle.integrations.claude_code_status_line import (
+    find_bash,
     normalize_status_line,
     run_original,
 )
@@ -236,6 +237,77 @@ class StatusLineBridgeTests(unittest.TestCase):
             code = hook_bridge_entrypoint.run_status_line(io.BytesIO(b"{bad"), stdout)
 
         self.assertEqual((code, stdout.getvalue()), (0, b""))
+
+
+class StatusLineShellTests(unittest.TestCase):
+    """The user's own status line never runs a program from the project folder.
+
+    ``shutil.which`` and ``CreateProcess`` look in the current folder first;
+    Claude Code runs the status line inside the user's project.
+    """
+
+    def setUp(self):
+        directory = TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.root = Path(directory.name)
+        self.project = self.root / "project"
+        self.project.mkdir()
+        for name in ("bash.bat", "bash.cmd", "bash.exe", "powershell.exe"):
+            (self.project / name).write_bytes(b"")
+        previous = os.getcwd()
+        os.chdir(self.project)
+        self.addCleanup(os.chdir, previous)
+        self.windows = self.root / "Windows"
+
+    def environment(self, **values):
+        return {
+            "SystemRoot": str(self.windows),
+            "PATHEXT": ".COM;.EXE;.BAT;.CMD",
+            "PATH": os.pathsep.join([".", "", "project"]),
+            **values,
+        }
+
+    def test_planted_shells_in_the_project_are_ignored(self):
+        self.assertEqual(find_bash(self.environment()), "")
+        self.assertEqual(
+            find_bash(
+                self.environment(SHELL="bash.cmd", CLAUDE_CODE_GIT_BASH_PATH="bash")
+            ),
+            "",
+        )
+
+    def test_git_bash_is_found_next_to_git_on_path(self):
+        git = self.root / "Git"
+        (git / "cmd").mkdir(parents=True)
+        (git / "bin").mkdir()
+        (git / "cmd" / "git.exe").write_bytes(b"")
+        (git / "bin" / "bash.exe").write_bytes(b"")
+        environment = self.environment(PATH=os.pathsep.join([".", str(git / "cmd")]))
+
+        self.assertEqual(find_bash(environment), str(git / "bin" / "bash.exe"))
+
+    def test_windows_bash_starts_wsl_and_is_skipped(self):
+        system = self.windows / "System32"
+        system.mkdir(parents=True)
+        (system / "bash.exe").write_bytes(b"")
+
+        self.assertEqual(find_bash(self.environment(PATH=str(system))), "")
+
+    def test_without_bash_the_system_powershell_runs_by_path(self):
+        started = []
+
+        def run(arguments, **_options):
+            started.append(arguments)
+            return SimpleNamespace(stdout=b"line")
+
+        with patch("subprocess.run", run):
+            output = run_original("echo", b"", environment=self.environment())
+
+        self.assertEqual(output, b"line")
+        self.assertEqual(
+            Path(started[0][0]),
+            self.windows / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe",
+        )
 
 
 class LimitPolicyTests(unittest.TestCase):

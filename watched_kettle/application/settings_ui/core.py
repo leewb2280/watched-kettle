@@ -9,6 +9,7 @@ import base64
 from dataclasses import asdict
 from io import BytesIO
 import json
+from pathlib import Path
 
 from PIL import Image
 from PySide6.QtCore import (
@@ -25,7 +26,11 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QDesktopServices
 
 from watched_kettle import settings_protocol as wire_types
-from watched_kettle.app_preferences import DOUBLE_CLICK_ACTIONS
+from watched_kettle.app_preferences import (
+    DOUBLE_CLICK_ACTIONS,
+    PET_ANIMATION_SPEED_MAX,
+    PET_ANIMATION_SPEED_MIN,
+)
 from watched_kettle.application.about import about_info, licenses_folder
 from watched_kettle.application.click_through import PET_LOCK
 from watched_kettle.application.settings_ui.contracts import (
@@ -39,7 +44,16 @@ from watched_kettle.application.settings_ui.contracts import (
 )
 from watched_kettle.application.logging import log_event
 from watched_kettle.application.settings_ui.pet_batch import PetBatchController
+from watched_kettle.application.settings_ui import bubble_assets
+from watched_kettle.application.settings_ui.bubble_themes import (
+    BubbleThemeLibrary,
+    ThemeFileError,
+    export_package_theme,
+    export_theme_file,
+    import_theme_file,
+)
 from watched_kettle.application.settings_ui.pet_import import PetImportController
+from watched_kettle.application.settings_ui.pet_link import PetLinkSession
 from watched_kettle.application.update_check import (
     UpdateCheckSchedule,
     _version,
@@ -60,6 +74,8 @@ from watched_kettle.config import (
     PET_WIDTH_OPTIONS,
 )
 from watched_kettle.pet import bubble_theme as themes
+from watched_kettle.pet.bubble_decor import MAX_DECOR_LAYERS, DecorLayer
+from watched_kettle.pet.appearance_assets import APPEARANCE_INTERVALS, AUTO_ORDERS
 from watched_kettle.pet.bubble_frame import frame_style_for, registered_frame
 from watched_kettle.pet.catalog import order_pet_entries
 from watched_kettle.pet.import_package import PET_IMAGE_FORMATS
@@ -71,7 +87,11 @@ from watched_kettle.pet.importer import (
 from watched_kettle.pet.trash import PetTrashError
 from watched_kettle.preferences.hotkeys import format_hotkey
 from watched_kettle.ui.bubble_elements import BubbleElementError
-from watched_kettle.ui.bubble_theme_preview import BubbleThemePreview
+from watched_kettle.ui.bubble_theme_preview import (
+    PREVIEW_PIXEL_RATIO,
+    PREVIEW_SAMPLES,
+    render_bubble_preview,
+)
 from watched_kettle.ui.pet_controls import ACTION_TEST_STATES, size_label
 
 
@@ -82,16 +102,79 @@ THEME_UNITS = {
     "minimum_width": "px",
     "maximum_width": "px",
     "horizontal_padding": "px",
+    "gradient_angle": "°",
+    "pattern_tile_size": "px",
+    "pattern_opacity": "%",
+    "background_opacity": "%",
+    "background_zoom": "%",
+    "background_tile_size": "px",
+    "background_overlay": "%",
+    "background_x": "%",
+    "background_y": "%",
+    "background_width": "px",
+    "background_height": "px",
+    "halo_width": "px",
+    "halo_offset_y": "px",
+    "halo_grow": "px",
+    "content_top": "px",
+    "content_bottom": "px",
+    "content_left": "px",
 }
+# Steps other than 1 for integers and 0.05 for other decimals.
+THEME_STEPS = {
+    "background_x": 0.1,
+    "background_y": 0.1,
+    "halo_width": 0.5,
+    "halo_offset_y": 0.5,
+    "halo_grow": 0.5,
+}
+DECOR_LAYER_SAMPLE = asdict(DecorLayer(id="", name="", image=""))
 # The pet is placed and shown a moment after startup.
 UPDATED_NOTICE_DELAY_MS = 5000
 # Twice the largest CSS tile (110x120) so picker thumbnails stay sharp at 200%.
 CATALOG_THUMBNAIL_SIZE = (220, 240)
 
 
+def _wire_values(data, sample, text_limit):
+    """Require the sample's keys with JSON scalars of the same kinds."""
+    require(isinstance(data, dict) and set(data) == set(sample))
+    for key, value in sample.items():
+        raw = data[key]
+        if isinstance(value, bool):
+            boolean(raw)
+        elif isinstance(value, (float, int)):
+            require(type(raw) in (float, int) and -10000 < raw < 10000)
+        else:
+            text(raw, text_limit)
+
+
 def _choice_order(values):
     """Stable editor order with the neutral "none"/"standard" option first."""
     return sorted(values, key=lambda value: (value not in {"none", "standard"}, value))
+
+
+def _background_order(reference):
+    """No image first, then the built-in tiles in their gallery order."""
+    name = reference.removeprefix(themes.BUILTIN_BACKGROUND_PREFIX)
+    if name in themes.BACKGROUND_PATTERN_NAMES:
+        return themes.BACKGROUND_PATTERN_NAMES.index(name) + 1
+    return 0
+
+
+def _background_pattern_labels():
+    names = {
+        "dots": t("bubble.pattern.dots"),
+        "gingham": t("bubble.pattern.gingham"),
+        "stripes": t("bubble.pattern.stripes"),
+        "hearts": t("bubble.pattern.hearts"),
+        "stars": t("bubble.pattern.stars"),
+        "flowers": t("bubble.pattern.flowers"),
+        "waves": t("bubble.pattern.waves"),
+        "grid": t("bubble.pattern.grid"),
+    }
+    return {
+        themes.BUILTIN_BACKGROUND_PREFIX + name: label for name, label in names.items()
+    }
 
 
 def png_data(pixmap):
@@ -106,6 +189,13 @@ def png_data(pixmap):
 def png_bytes_data(data):
     require(len(data) <= 512 * 1024, code="response_limit")
     return "data:image/png;base64," + base64.b64encode(data).decode("ascii")
+
+
+def _seconds_range(low, high):
+    """ "10–30 seconds" or "1–3 minutes" for an automatic change range."""
+    if low % 60 or high % 60:
+        return t("pet.appearance.range.seconds", min=low, max=high)
+    return t("pet.appearance.range.minutes", min=low // 60, max=high // 60)
 
 
 def control(key, label, value, kind="bool", **extras):
@@ -144,6 +234,7 @@ class CoreSettingsAdapter(QObject):
         self._thumbnails = OrderedDict()
         self.pet_importer = PetImporter(self.pet_vm.pet.user_pets_root)
         self.pet_import = PetImportController(self)
+        self.pet_link = PetLinkSession(self)
         self.import_timer = QTimer(self)
         self.import_timer.setSingleShot(True)
         self.import_timer.setTimerType(Qt.TimerType.PreciseTimer)
@@ -261,7 +352,7 @@ class CoreSettingsAdapter(QObject):
             saved = json.loads(str(raw))
             self.validate_appearance(saved)
             return saved
-        except (ValueError, TypeError, CommandError):
+        except ValueError, TypeError, CommandError:
             return defaults
 
     @staticmethod
@@ -330,6 +421,18 @@ class CoreSettingsAdapter(QObject):
                 group=t("message.0536"),
             ),
             control(
+                "animation_speed",
+                t("pet.animation_speed"),
+                s.animation_speed_percent,
+                "range",
+                min=PET_ANIMATION_SPEED_MIN,
+                max=PET_ANIMATION_SPEED_MAX,
+                step=10,
+                unit="%",
+                groupId="pet_appearance",
+                group=t("message.0536"),
+            ),
+            control(
                 "shadow",
                 t("message.0524"),
                 s.shadow,
@@ -342,7 +445,6 @@ class CoreSettingsAdapter(QObject):
                 s.fade,
                 groupId="pet_appearance",
                 group=t("message.0536"),
-                description=t("message.0537"),
             ),
             control(
                 "activity_labels",
@@ -416,6 +518,91 @@ class CoreSettingsAdapter(QObject):
                     description=t("click_through.bubbles_description"),
                 )
             )
+        if s.appearance is not None:
+            appearance = s.appearance
+            names = {row.id: row.label for row in appearance.choices}
+            state = (
+                t("pet.appearance.transitioning")
+                if appearance.transitioning
+                else t("pet.appearance.pending", name=names[appearance.target_id])
+                if appearance.pending
+                else t("pet.appearance.current", name=names[appearance.current_id])
+            )
+            controls.append(
+                control(
+                    "pet_appearance",
+                    t("pet.appearance.title"),
+                    appearance.mode,
+                    "select",
+                    options=[dict(value="auto", label=t("pet.appearance.auto"))]
+                    + [
+                        dict(
+                            value=row.id, label=t("pet.appearance.keep", name=row.label)
+                        )
+                        for row in appearance.choices
+                    ],
+                    groupId="pet_behavior",
+                    group=t("message.0538"),
+                    description=t("pet.appearance.description", state=state),
+                )
+            )
+            package = appearance.package_auto
+            # Timing only matters while the pet changes looks by itself.
+            controls.append(
+                control(
+                    "pet_appearance_interval",
+                    t("pet.appearance.interval"),
+                    appearance.interval,
+                    "select",
+                    options=[
+                        dict(
+                            value="package",
+                            label=t(
+                                "pet.appearance.interval.package",
+                                range=_seconds_range(
+                                    package.min_seconds, package.max_seconds
+                                ),
+                            ),
+                        )
+                    ]
+                    + [
+                        dict(value=key, label=_seconds_range(*bounds))
+                        for key, bounds in APPEARANCE_INTERVALS.items()
+                    ],
+                    groupId="pet_behavior",
+                    group=t("message.0538"),
+                    disabled=appearance.mode != "auto",
+                )
+            )
+            if len(appearance.choices) > 2:
+                orders = {
+                    "random": t("pet.appearance.order.random"),
+                    "sequence": t("pet.appearance.order.sequence"),
+                }
+                controls.append(
+                    control(
+                        "pet_appearance_order",
+                        t("pet.appearance.order"),
+                        appearance.order,
+                        "select",
+                        options=[
+                            dict(
+                                value="package",
+                                label=t(
+                                    "pet.appearance.order.package",
+                                    order=orders[package.order],
+                                ),
+                            )
+                        ]
+                        + [
+                            dict(value=key, label=label)
+                            for key, label in orders.items()
+                        ],
+                        groupId="pet_behavior",
+                        group=t("message.0538"),
+                        disabled=appearance.mode != "auto",
+                    )
+                )
         # Without a saved custom theme the "custom" mode falls back to the pet's
         # own design, so say so instead of letting the choice look ignored.
         has_custom = self.pet_vm.pet.custom_bubble_theme is not None
@@ -618,9 +805,29 @@ class CoreSettingsAdapter(QObject):
         )
 
     @staticmethod
-    def _idle_cell(entry):
+    def _idle_cell(entry, appearance_id=None):
         """Return the first idle cell cropped to its content plus an 8px margin."""
-        with Image.open(entry.spritesheet_path, formats=PET_IMAGE_FORMATS) as atlas:
+        source = entry.spritesheet_path
+        if appearance_id is not None:
+            from watched_kettle.pet.appearance_assets import (
+                parse_appearance_set,
+                invalid_appearance,
+            )
+            from watched_kettle.pet.import_package import read_local, MAX_MANIFEST_BYTES
+
+            manifest = json.loads(
+                read_local(entry.directory, "pet.json", MAX_MANIFEST_BYTES).decode(
+                    "utf-8-sig"
+                )
+            )
+            spec = parse_appearance_set(manifest)
+            if spec is None or appearance_id not in spec.ids:
+                raise invalid_appearance()
+            variant = next(v for v in spec.variants if v.id == appearance_id)
+            source = BytesIO(
+                read_local(entry.directory, variant.path, 20 * 1024 * 1024)
+            )
+        with Image.open(source, formats=PET_IMAGE_FORMATS) as atlas:
             frame = atlas.crop((0, 0, FRAME_WIDTH, FRAME_HEIGHT)).convert("RGBA")
         alpha_bounds = frame.getchannel("A").getbbox()
         content_bounds = alpha_bounds or (0, 0, FRAME_WIDTH, FRAME_HEIGHT)
@@ -643,7 +850,7 @@ class CoreSettingsAdapter(QObject):
                 self._thumbnails.move_to_end(key)
                 return self._thumbnails[key]
             image, _, _ = self._idle_cell(entry)
-        except (OSError, ValueError):
+        except OSError, ValueError:
             return ""
         image.thumbnail(CATALOG_THUMBNAIL_SIZE, Image.Resampling.LANCZOS)
         encoded = BytesIO()
@@ -654,8 +861,12 @@ class CoreSettingsAdapter(QObject):
             self._thumbnails.popitem(last=False)
         return result
 
-    def pet_preview(self, pet_id) -> wire_types.PetPreview:
+    def pet_preview(self, pet_id, appearance_id=None) -> wire_types.PetPreview:
         pet_id = text(pet_id, 200)
+        if appearance_id is not None:
+            appearance_id = text(appearance_id, 64)
+        elif pet_id == self.pet_vm.snapshot.pet_id and self.pet_vm.snapshot.appearance:
+            appearance_id = self.pet_vm.snapshot.appearance.current_id
         entry = next(
             (
                 candidate
@@ -667,7 +878,7 @@ class CoreSettingsAdapter(QObject):
         if entry is None:
             raise CommandError("pet_missing", t("message.0532"))
         try:
-            cropped, content_bounds, crop_bounds = self._idle_cell(entry)
+            cropped, content_bounds, crop_bounds = self._idle_cell(entry, appearance_id)
         except (OSError, ValueError) as error:
             raise CommandError("pet_preview_failed", t("message.0543")) from error
         encoded = BytesIO()
@@ -676,6 +887,7 @@ class CoreSettingsAdapter(QObject):
         content_left, content_top, content_right, content_bottom = content_bounds
         return dict(
             petId=entry.id,
+            appearanceId=appearance_id,
             revision=self.revision,
             image=png_bytes_data(encoded.getvalue()),
             sourceSize=dict(width=FRAME_WIDTH, height=FRAME_HEIGHT),
@@ -693,7 +905,54 @@ class CoreSettingsAdapter(QObject):
             ),
         )
 
+    def _merge_duplicate_images(self):
+        """Fold library copies of one picture into its oldest copy.
+
+        Copies stored before pixel digests stay in the library until every
+        pet design and saved design points at the kept copy; only then are
+        they deleted, so a failed write never leaves a design without its image.
+        """
+        registry = self.pet_vm.bubble_editor_state.registry
+        settings = self.preferences.settings
+        current = self.pet_vm.pet.preferences.prefix
+        for kept, copies in registry.duplicates():
+            replacements = {f"user:{copy}": f"user:{kept}" for copy in copies}
+
+            def replaced(value, replacements=replacements):
+                for old, new in replacements.items():
+                    value = value.replace(old, new)
+                return value
+
+            try:
+                for key in settings.allKeys():
+                    parts = key.split("/")
+                    if (
+                        len(parts) != 3
+                        or parts[0] != "pets"
+                        or parts[2] != "bubbleCustomTheme"
+                        or key.startswith(f"{current}/")
+                    ):
+                        continue
+                    value = str(settings.value(key) or "")
+                    if replaced(value) != value:
+                        settings.setValue(key, replaced(value))
+                self.bubble_themes.replace_images(replacements)
+                theme = self.pet_vm.pet.custom_bubble_theme
+                if theme is not None:
+                    value = json.dumps(themes.bubble_theme_to_dict(theme))
+                    if replaced(value) != value:
+                        # Opening the editor must not choose the custom theme.
+                        self.pet_vm.replace_custom_bubble_theme(
+                            themes.bubble_theme_from_dict(json.loads(replaced(value)))
+                        )
+                self._sync()
+            except OSError, CommandError:
+                continue
+            for copy in copies:
+                registry.delete(f"user:{copy}")
+
     def editor(self) -> wire_types.BubbleEditor:
+        self._merge_duplicate_images()
         state = self.pet_vm.bubble_editor_state
         # "standard" plus the frame this pet package ships, if any.
         frame_styles = ["standard"]
@@ -704,21 +963,32 @@ class CoreSettingsAdapter(QObject):
             if style not in frame_styles and registered_frame(style) is not None:
                 frame_styles.append(style)
         return dict(
-            theme=cast(wire_types.SpeechBubbleTheme, asdict(state.theme)),
+            theme=cast(
+                wire_types.SpeechBubbleTheme, themes.bubble_theme_to_dict(state.theme)
+            ),
             packageTheme=cast(
-                wire_types.SpeechBubbleTheme, asdict(state.package_theme)
+                wire_types.SpeechBubbleTheme,
+                themes.bubble_theme_to_dict(state.package_theme),
             ),
             revision=self.revision,
             petId=self.pet_vm.snapshot.pet_id,
-            elements=[
-                dict(id=e.reference, name=e.name, kind=e.kind)
-                for e in state.registry.elements
-            ],
+            elements=bubble_assets.library_entries(state.registry),
+            ornaments=bubble_assets.ornament_entries(state.theme),
+            packageImages=bubble_assets.package_entries(self.pet_vm.snapshot.pet_id),
+            packageDecor=bubble_assets.package_decor(self.pet_vm.snapshot.pet_id),
+            frameValues=bubble_assets.package_frame_values(
+                self.pet_vm.snapshot.pet_id, state.package_theme
+            ),
             presets=themes.bubble_theme_presets(),
             choices={
                 "shape": _choice_order(themes.BUBBLE_SHAPES),
                 "tail": _choice_order(themes.BUBBLE_TAILS),
                 "gradient": _choice_order(themes.BUBBLE_GRADIENTS),
+                # Library images follow the built-in tiles in the editor.
+                "background_image": sorted(
+                    themes.BUILTIN_BACKGROUND_IMAGES, key=_background_order
+                ),
+                "background_fit": ["cover", "contain", "stretch", "tile", "free"],
                 "border_style": _choice_order(themes.BUBBLE_BORDER_STYLES),
                 "header_style": _choice_order(themes.BUBBLE_HEADER_STYLES),
                 "frame_style": frame_styles,
@@ -734,7 +1004,9 @@ class CoreSettingsAdapter(QObject):
                 key: dict(
                     min=minimum,
                     max=maximum,
-                    step=0.05 if isinstance(minimum, float) else 1,
+                    step=THEME_STEPS.get(
+                        key, 0.05 if isinstance(minimum, float) else 1
+                    ),
                     unit=THEME_UNITS.get(key, ""),
                 )
                 for key, (minimum, maximum) in themes.BUBBLE_THEME_LIMITS.items()
@@ -745,23 +1017,22 @@ class CoreSettingsAdapter(QObject):
                     if style == "standard"
                     else t("message.0552")
                     for style in frame_styles
-                }
+                },
+                "background_image": _background_pattern_labels(),
             },
         )
 
     def _theme(self, data):
-        require(
-            isinstance(data, dict)
-            and set(data) == set(asdict(themes.DEFAULT_BUBBLE_THEME))
-        )
-        for key, value in asdict(themes.DEFAULT_BUBBLE_THEME).items():
-            raw = data[key]
-            if isinstance(value, bool):
-                boolean(raw)
-            elif isinstance(value, (float, int)):
-                require(type(raw) in (float, int) and -10000 < raw < 10000)
-            else:
-                text(raw, 100)
+        sample = themes.bubble_theme_to_dict(themes.DEFAULT_BUBBLE_THEME)
+        require(isinstance(data, dict) and isinstance(data.get("decor"), list))
+        layers = data["decor"]
+        require(len(layers) <= MAX_DECOR_LAYERS)
+        for layer in layers:
+            # Images may be "pkg:<pet id>/<path>", longer than other text.
+            _wire_values(layer, DECOR_LAYER_SAMPLE, 300)
+        scalars = {key: value for key, value in data.items() if key != "decor"}
+        del sample["decor"]
+        _wire_values(scalars, sample, 100)
         return themes.bubble_theme_from_dict(data)
 
     def _context(self, args):
@@ -793,6 +1064,7 @@ class CoreSettingsAdapter(QObject):
             "settings.set",
             "pet.select",
             "pet.import.commit",
+            "pet.link.create",
             "pet.catalog.save",
             "pet.action",
             "bubble.save",
@@ -844,13 +1116,40 @@ class CoreSettingsAdapter(QObject):
                     if isinstance(error, PetTrashError)
                     else t("message.0553"),
                 ) from error
+        if method.startswith("bubble.theme."):
+            return self._theme_command(method, args)
+        if method == "element.usage":
+            return self.element_usage(text(args.get("reference"), 80))
+        if method == "element.open_folder":
+            # The images folder opens in Explorer; its path never reaches the
+            # renderer. The library file beside it stays out of sight.
+            root = self.pet_vm.bubble_editor_state.registry.images_root
+            root.mkdir(parents=True, exist_ok=True)
+            require(
+                QDesktopServices.openUrl(QUrl.fromLocalFile(str(root))),
+                t("bubble.editor.open_folder_failed"),
+            )
+            return dict(opened=True)
         if method == "pet.preview":
-            return self.pet_preview(args.get("petId"))
+            return self.pet_preview(args.get("petId"), args.get("appearanceId"))
         if method == "pet.import.cancel":
             self.cancel_pet_import(text(args.get("token"), 80))
             return dict(cancelled=True)
         if method == "pet.import.commit":
             return self._commit_pet_import(args)
+        if method == "pet.link.sources":
+            return self.pet_link.sources()
+        if method == "pet.link.load":
+            return self.pet_link.load(args)
+        if method == "pet.link.preview":
+            return self.pet_link.preview(args)
+        if method == "pet.link.transition.clear":
+            return self.pet_link.clear(args)
+        if method == "pet.link.reset":
+            self.pet_link.reset()
+            return dict(cancelled=True)
+        if method == "pet.link.create":
+            return self.pet_link.create(args)
         if method.startswith("pet.import."):
             try:
                 if method in {"pet.import.start", "pet.import.installed.start"}:
@@ -879,7 +1178,11 @@ class CoreSettingsAdapter(QObject):
                     )
                 if method == "pet.import.preview":
                     data, count, interval = self.pet_importer.preview(
-                        text(args.get("token"), 80), text(args.get("state"), 30)
+                        text(args.get("token"), 80),
+                        text(args.get("state"), 30),
+                        text(args["appearanceId"], 64)
+                        if "appearanceId" in args
+                        else None,
                     )
                     require(len(data) < 2 * 1024 * 1024, code="response_limit")
                     return dict(
@@ -1006,16 +1309,17 @@ class CoreSettingsAdapter(QObject):
 
     def _render_bubble(self, args):
         theme = self._theme(args.get("theme"))
-        preview = BubbleThemePreview(
+        image, geometry = render_bubble_preview(
+            theme,
             self.pet_vm.bubble_editor_state.registry,
-            sample=choice(args.get("sample", "notice"), ("notice", "project")),
+            choice(args.get("sample", "notice"), PREVIEW_SAMPLES),
         )
-        try:
-            preview.resize(600, 260)
-            preview.set_theme(theme)
-            return dict(image=png_data(preview.grab()), theme=asdict(theme))
-        finally:
-            preview.deleteLater()
+        return dict(
+            image=png_data(image),
+            theme=themes.bubble_theme_to_dict(theme),
+            geometry=geometry,
+            pixelRatio=PREVIEW_PIXEL_RATIO,
+        )
 
     def _set_setting(self, args):
         self._context(args)
@@ -1036,10 +1340,31 @@ class CoreSettingsAdapter(QObject):
             actions[key](boolean(value))
         elif key == "opacity":
             self.pet_vm.set_opacity(integer(value, 50, 100))
+        elif key == "animation_speed":
+            self.pet_vm.set_animation_speed(
+                integer(value, PET_ANIMATION_SPEED_MIN, PET_ANIMATION_SPEED_MAX)
+            )
         elif key == "width":
             self.pet_vm.set_width(choice(value, PET_WIDTH_OPTIONS))
         elif key == "look":
             self.pet_vm.set_look_range(integer(value, LOOK_RANGE_MIN, LOOK_RANGE_MAX))
+        elif key == "pet_appearance":
+            appearance = self.pet_vm.snapshot.appearance
+            if appearance is None:
+                raise CommandError("unsupported", t("pet.appearance.unavailable"))
+            allowed = ["auto"] + [row.id for row in appearance.choices]
+            self.pet_vm.set_appearance_mode(choice(value, allowed))
+        elif key in {"pet_appearance_interval", "pet_appearance_order"}:
+            if self.pet_vm.snapshot.appearance is None:
+                raise CommandError("unsupported", t("pet.appearance.unavailable"))
+            if key == "pet_appearance_interval":
+                self.pet_vm.set_appearance_timing(
+                    interval=choice(value, ["package", *APPEARANCE_INTERVALS])
+                )
+            else:
+                self.pet_vm.set_appearance_timing(
+                    order=choice(value, ["package", *AUTO_ORDERS])
+                )
         elif key == "screen":
             allowed = [
                 row["value"]
@@ -1131,7 +1456,7 @@ class CoreSettingsAdapter(QObject):
                     try:
                         service.delete(record["trashId"])
                         deleted += 1
-                    except (PetTrashError, OSError):
+                    except PetTrashError, OSError:
                         failed.append(record["trashId"])
                 result = dict(deleted=deleted, failed=failed)
         except (PetTrashError, OSError) as error:
@@ -1238,17 +1563,25 @@ class CoreSettingsAdapter(QObject):
         except PetImportError as error:
             raise CommandError("pet_import_invalid", str(error)) from error
         self.import_timer.start(IMPORT_LIFETIME_SECONDS * 1000)
-        return dict(
-            token=prepared.token,
-            name=prepared.name,
-            thumbnail=png_bytes_data(prepared.thumbnail),
-            spriteVersion=prepared.version,
-        )
+        from watched_kettle.application.settings_ui.pet_import import preparation
 
-    def import_element(self, path, kind):
+        details = preparation(prepared)
+        result = dict(
+            token=details["token"],
+            name=details["name"],
+            thumbnail=details["thumbnail"],
+            spriteVersion=details["spriteVersion"],
+        )
+        if details.get("appearanceChoices"):
+            result["appearanceChoices"] = details["appearanceChoices"]
+        return result
+
+    def import_element(self, path, kind, trim=False, clear_white=False):
         choice(kind, ("pattern", "ornament", "photo", "frame", "sticker"))
         try:
-            element = self.pet_vm.bubble_editor_state.registry.import_image(path, kind)
+            element = self.pet_vm.bubble_editor_state.registry.import_image(
+                path, kind, trim=trim, clear_white=clear_white
+            )
         except BubbleElementError as error:
             # The registry explains size/format problems; keep that message
             # instead of the host's generic ValueError fallback.
@@ -1257,6 +1590,81 @@ class CoreSettingsAdapter(QObject):
         self.revision += 1
         self.changed.emit("settings")
         return dict(id=element.reference)
+
+    @property
+    def bubble_themes(self):
+        registry = self.pet_vm.bubble_editor_state.registry
+        return BubbleThemeLibrary(registry.root.parent / "bubble-themes", registry)
+
+    def _theme_command(self, method, args):
+        library = self.bubble_themes
+        try:
+            if method == "bubble.theme.save":
+                theme = self._theme(args.get("theme"))
+                image, _geometry = render_bubble_preview(
+                    theme, library.registry, "notice"
+                )
+                library.save(
+                    text(args.get("name"), 60),
+                    theme,
+                    image.scaledToWidth(
+                        320, Qt.TransformationMode.SmoothTransformation
+                    ),
+                )
+                self.pet_vm.refresh_bubble_elements()
+            elif method == "bubble.theme.delete":
+                library.delete(text(args.get("id"), 32))
+            elif method == "bubble.theme.load":
+                # A design saved on another pet takes this pet's own frame.
+                theme = themes.with_own_frame(
+                    library.load(text(args.get("id"), 32)), self.pet_vm.pet.manifest
+                )
+                return dict(theme=themes.bubble_theme_to_dict(theme), name="")
+        except ThemeFileError as error:
+            raise CommandError("theme_invalid", str(error)) from error
+        return dict(themes=library.entries())
+
+    def theme_file(self, method, args):
+        """Main-process theme file work; paths never reach the renderer."""
+        library = self.bubble_themes
+        path = Path(text(args.get("path"), 32768))
+        try:
+            if method == "file.theme.export":
+                export_theme_file(
+                    path,
+                    text(args.get("name", ""), 60),
+                    self._theme(args.get("theme")),
+                    library.registry,
+                )
+                return dict(saved=True)
+            if method == "file.theme.package":
+                omitted = export_package_theme(
+                    path, self._theme(args.get("theme")), library.registry
+                )
+                return dict(saved=True, omitted=omitted)
+            name, theme = import_theme_file(path, library.registry)
+        except ThemeFileError as error:
+            raise CommandError("theme_invalid", str(error)) from error
+        self.pet_vm.refresh_bubble_elements()
+        self.revision += 1
+        self.changed.emit("settings")
+        return dict(theme=themes.bubble_theme_to_dict(theme), name=name)
+
+    def element_usage(self, reference) -> wire_types.ElementUsage:
+        """Pets and saved designs whose bubble design uses an image, by name."""
+        names = {entry.id: entry.display_name for entry in self.pet_vm.all_pets()}
+        settings = self.preferences.settings
+        used = []
+        for key in settings.allKeys():
+            parts = key.split("/")
+            if len(parts) != 3 or parts[0] != "pets" or parts[2] != "bubbleCustomTheme":
+                continue
+            if reference in str(settings.value(key) or "") and parts[1] in names:
+                used.append(names[parts[1]])
+        return dict(
+            pets=sorted(used, key=str.casefold),
+            designs=sorted(self.bubble_themes.names_using(reference), key=str.casefold),
+        )
 
     def _save_language(self, args):
         self._context(args)

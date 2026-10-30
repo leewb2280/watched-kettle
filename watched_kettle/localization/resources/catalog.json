@@ -3967,13 +3967,6 @@
       "context": "watched_kettle\\application\\settings_ui\\core.py:245",
       "domain": "core"
     },
-    "message.0537": {
-      "value": "움직임 줄이기를 켜면 바로 나타나고 사라집니다.",
-      "revision": 1,
-      "variables": {},
-      "context": "watched_kettle\\application\\settings_ui\\core.py:270",
-      "domain": "core"
-    },
     "message.0538": {
       "value": "동작·화면",
       "revision": 1,
@@ -7027,14 +7020,7 @@
       "domain": "core"
     },
     "message.0984": {
-      "value": "디자인 프리셋",
-      "revision": 1,
-      "variables": {},
-      "context": "settings-ui\\src\\core\\BubbleEditorDialog.tsx",
-      "domain": "core"
-    },
-    "message.0985": {
-      "value": "사용자 장식 이미지",
+      "value": "프리셋",
       "revision": 1,
       "variables": {},
       "context": "settings-ui\\src\\core\\BubbleEditorDialog.tsx",
@@ -7047,36 +7033,8 @@
       "context": "settings-ui\\src\\core\\BubbleEditorDialog.tsx",
       "domain": "core"
     },
-    "message.0987": {
-      "value": "무늬 추가",
-      "revision": 1,
-      "variables": {},
-      "context": "settings-ui\\src\\core\\BubbleEditorDialog.tsx",
-      "domain": "core"
-    },
-    "message.0988": {
-      "value": "장식 추가",
-      "revision": 1,
-      "variables": {},
-      "context": "settings-ui\\src\\core\\BubbleEditorDialog.tsx",
-      "domain": "core"
-    },
-    "message.0989": {
-      "value": "사진 추가",
-      "revision": 1,
-      "variables": {},
-      "context": "settings-ui\\src\\core\\BubbleEditorDialog.tsx",
-      "domain": "core"
-    },
     "message.0990": {
       "value": "테두리 이미지 추가",
-      "revision": 1,
-      "variables": {},
-      "context": "settings-ui\\src\\core\\BubbleEditorDialog.tsx",
-      "domain": "core"
-    },
-    "message.0991": {
-      "value": "스티커 추가",
       "revision": 1,
       "variables": {},
       "context": "settings-ui\\src\\core\\BubbleEditorDialog.tsx",
@@ -7121,13 +7079,6 @@
     },
     "message.0997": {
       "value": "프로젝트 카드",
-      "revision": 1,
-      "variables": {},
-      "context": "settings-ui\\src\\core\\BubbleEditorDialog.tsx",
-      "domain": "core"
-    },
-    "message.0998": {
-      "value": "미리보기를 눌러 놓을 스티커",
       "revision": 1,
       "variables": {},
       "context": "settings-ui\\src\\core\\BubbleEditorDialog.tsx",
@@ -7287,15 +7238,8 @@
       "context": "settings-ui\\src\\core\\bubbleTheme.ts",
       "domain": "core"
     },
-    "message.1022": {
-      "value": "프레임",
-      "revision": 1,
-      "variables": {},
-      "context": "settings-ui\\src\\core\\bubbleTheme.ts",
-      "domain": "core"
-    },
     "message.1023": {
-      "value": "채우기 농도",
+      "value": "바탕색 진하기",
       "revision": 1,
       "variables": {},
       "context": "settings-ui\\src\\core\\bubbleTheme.ts",
@@ -7344,35 +7288,35 @@
       "domain": "core"
     },
     "message.1030": {
-      "value": "배경 사진",
+      "value": "이미지",
       "revision": 1,
       "variables": {},
       "context": "settings-ui\\src\\core\\bubbleTheme.ts",
       "domain": "core"
     },
     "message.1031": {
-      "value": "사진 진하기",
+      "value": "이미지 진하기",
       "revision": 1,
       "variables": {},
       "context": "settings-ui\\src\\core\\bubbleTheme.ts",
       "domain": "core"
     },
     "message.1032": {
-      "value": "사진 가로 위치",
-      "revision": 1,
+      "value": "가로 위치",
+      "revision": 2,
       "variables": {},
-      "context": "settings-ui\\src\\core\\bubbleTheme.ts",
+      "context": "말풍선 꾸미기 배경 탭: 직접 배치한 배경 이미지 가운데의 가로 위치",
       "domain": "core"
     },
     "message.1033": {
-      "value": "사진 세로 위치",
-      "revision": 1,
+      "value": "세로 위치",
+      "revision": 2,
       "variables": {},
-      "context": "settings-ui\\src\\core\\bubbleTheme.ts",
+      "context": "말풍선 꾸미기 배경 탭: 직접 배치한 배경 이미지 가운데의 세로 위치",
       "domain": "core"
     },
     "message.1034": {
-      "value": "사진 확대",
+      "value": "이미지 확대",
       "revision": 1,
       "variables": {},
       "context": "settings-ui\\src\\core\\bubbleTheme.ts",
@@ -7389,42 +7333,6 @@
       "value": "테두리 모서리 크기",
       "revision": 1,
       "variables": {},
-      "context": "settings-ui\\src\\core\\bubbleTheme.ts",
-      "domain": "core"
-    },
-    "message.1037": {
-      "value": "스티커 {value0}",
-      "revision": 1,
-      "variables": {
-        "value0": "string"
-      },
-      "context": "settings-ui\\src\\core\\bubbleTheme.ts",
-      "domain": "core"
-    },
-    "message.1038": {
-      "value": "스티커 {value0} 가로 위치",
-      "revision": 1,
-      "variables": {
-        "value0": "string"
-      },
-      "context": "settings-ui\\src\\core\\bubbleTheme.ts",
-      "domain": "core"
-    },
-    "message.1039": {
-      "value": "스티커 {value0} 세로 위치",
-      "revision": 1,
-      "variables": {
-        "value0": "string"
-      },
-      "context": "settings-ui\\src\\core\\bubbleTheme.ts",
-      "domain": "core"
-    },
-    "message.1040": {
-      "value": "스티커 {value0} 크기",
-      "revision": 1,
-      "variables": {
-        "value0": "string"
-      },
       "context": "settings-ui\\src\\core\\bubbleTheme.ts",
       "domain": "core"
     },
@@ -7645,13 +7553,6 @@
       "context": "settings-ui\\src\\core\\bubbleTheme.ts",
       "domain": "core"
     },
-    "message.1072": {
-      "value": "모양·테두리",
-      "revision": 1,
-      "variables": {},
-      "context": "settings-ui\\src\\core\\bubbleTheme.ts",
-      "domain": "core"
-    },
     "message.1073": {
       "value": "장식",
       "revision": 1,
@@ -7660,14 +7561,7 @@
       "domain": "core"
     },
     "message.1074": {
-      "value": "사진·이미지",
-      "revision": 1,
-      "variables": {},
-      "context": "settings-ui\\src\\core\\bubbleTheme.ts",
-      "domain": "core"
-    },
-    "message.1075": {
-      "value": "글자·여백",
+      "value": "배경 이미지",
       "revision": 1,
       "variables": {},
       "context": "settings-ui\\src\\core\\bubbleTheme.ts",
@@ -8212,22 +8106,22 @@
       "domain": "core"
     },
     "message.1154": {
-      "value": "추가",
+      "value": "펫 추가",
       "revision": 1,
       "variables": {},
       "context": "settings-ui\\src\\PetImportDialog.tsx",
       "domain": "core"
     },
     "message.1155": {
-      "value": "PNG/WebP 이미지, ZIP·펫 폴더, 설치 명령어 또는 Codex에 설치된 펫을 가져옵니다. 추가한 뒤 사용할 펫을 선택하세요.",
-      "revision": 2,
+      "value": "가져올 펫이 있는 곳을 선택하세요.",
+      "revision": 3,
       "variables": {},
       "context": "Pet import sources and preview",
       "domain": "core"
     },
     "message.1156": {
-      "value": "다른 파일 선택",
-      "revision": 1,
+      "value": "다른 펫 선택",
+      "revision": 2,
       "variables": {},
       "context": "settings-ui\\src\\PetImportDialog.tsx",
       "domain": "core"
@@ -8254,7 +8148,7 @@
       "domain": "core"
     },
     "message.1163": {
-      "value": " · 등록 후 원본 파일을 지워도 사용할 수 있습니다.",
+      "value": "추가한 뒤에는 원본 파일을 지워도 사용할 수 있습니다.",
       "revision": 1,
       "variables": {},
       "context": "settings-ui\\src\\PetImportDialog.tsx",
@@ -9450,6 +9344,16 @@
       "context": "Localization UI",
       "domain": "core"
     },
+    "usage.codex_reset_credits": {
+      "value": "사용량 리셋권 {count}개",
+      "revision": 1,
+      "variables": {
+        "count": "number"
+      },
+      "context": "사용량 현황의 Codex 영역에서 서버가 제공한 리셋권 보유 개수를 표시. 0개도 표시하며 실행 기능은 제공하지 않음",
+      "domain": "assistant",
+      "plural": "count"
+    },
     "usage.projects": {
       "value": "프로젝트 · {count}개",
       "revision": 1,
@@ -10367,28 +10271,28 @@
       "domain": "core"
     },
     "pet.import.command_tab": {
-      "value": "설치 명령어",
+      "value": "명령어 붙여넣기",
       "revision": 1,
       "variables": {},
       "context": "Pet import sources and preview",
       "domain": "core"
     },
     "pet.import.installed_tab": {
-      "value": "Codex에 설치된 펫",
+      "value": "Codex에서 가져오기",
       "revision": 1,
       "variables": {},
       "context": "Pet import sources and preview",
       "domain": "core"
     },
     "pet.import.command_help": {
-      "value": "CodexPetDB 또는 Pets Codex에서 복사한 설치 명령을 붙여 넣으세요. 명령을 해석해 직접 다운로드하며 별도 CLI 설치는 필요하지 않습니다.",
+      "value": "CodexPetDB·Pets Codex의 설치 명령을 붙여 넣으세요. 명령을 실행하지 않고 펫을 다운로드합니다.",
       "revision": 1,
       "variables": {},
       "context": "Pet import sources and preview",
       "domain": "core"
     },
     "pet.import.fetch": {
-      "value": "다운로드",
+      "value": "가져오기",
       "revision": 1,
       "variables": {},
       "context": "Pet import sources and preview",
@@ -10572,13 +10476,6 @@
       "context": "settings-ui\\src\\assistant\\Connections.tsx; connection hero button",
       "domain": "assistant"
     },
-    "whats_new.01510.bubble_repeat": {
-      "value": "펫 말풍선의 장식 개수가 말풍선 높이에 맞춰 바뀔 수 있어요.",
-      "revision": 1,
-      "variables": {},
-      "context": "펫 패키지의 선택적 세로 반복 장식; 0.15.10 새 기능",
-      "domain": "core"
-    },
     "update.auto_install_idle": {
       "value": "하루에 한 번 확인하고, 새 버전은 받아 뒀다가 다음 시작 때 적용합니다.",
       "revision": 1,
@@ -10625,11 +10522,1858 @@
       "context": "settings-ui\\src\\core\\CoreAppPage.tsx; switch description",
       "domain": "core"
     },
-    "whats_new.01510.auto_update": {
-      "value": "새 버전을 찾으면 백그라운드로 받아 두고 다음에 앱을 켤 때 자동으로 적용해요.",
+    "whats_new.01511.bubble_editor": {
+      "value": "말풍선 꾸미기에서 배경·테두리·모양·장식을 직접 고르고, 장식을 끌어서 배치하고, 디자인을 저장·공유할 수 있어요.",
       "revision": 1,
       "variables": {},
-      "context": "0.15.10 새 기능; 자동 업데이트",
+      "context": "0.15.11 새 기능; 말풍선 자유 꾸미기 편집기",
+      "domain": "core"
+    },
+    "whats_new.01511.pet_link": {
+      "value": "펫 잇기로 설치된 펫 여러 마리를 한 펫의 모습으로 묶고, 모습 사이 전환을 넣을 수 있어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "0.15.11 새 기능; 펫 잇기와 외형 전환",
+      "domain": "core"
+    },
+    "whats_new.01511.animation_speed": {
+      "value": "펫 애니메이션 속도를 50~200%로 조절할 수 있어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "0.15.11 새 기능; 펫 애니메이션 속도",
+      "domain": "core"
+    },
+    "whats_new.01511.pet_manager_clicks": {
+      "value": "펫 관리에서 동작 직후 바로 누른 스위치·버튼이 무시되던 문제를 고쳤어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "0.15.11 새 기능; 펫 관리 연속 동작 수정",
+      "domain": "core"
+    },
+    "pet.appearance.title": {
+      "value": "모습",
+      "revision": 2,
+      "variables": {},
+      "context": "펫의 자동·수동 외형 전환",
+      "domain": "core"
+    },
+    "pet.appearance.auto": {
+      "value": "자동 전환",
+      "revision": 1,
+      "variables": {},
+      "context": "펫의 자동·수동 외형 전환",
+      "domain": "core"
+    },
+    "pet.appearance.keep": {
+      "value": "{name} 유지",
+      "revision": 1,
+      "variables": {
+        "name": "string"
+      },
+      "context": "펫의 자동·수동 외형 전환",
+      "domain": "core"
+    },
+    "pet.appearance.current": {
+      "value": "현재: {name}",
+      "revision": 1,
+      "variables": {
+        "name": "string"
+      },
+      "context": "펫의 자동·수동 외형 전환",
+      "domain": "core"
+    },
+    "pet.appearance.pending": {
+      "value": "{name}(으)로 전환 대기",
+      "revision": 1,
+      "variables": {
+        "name": "string"
+      },
+      "context": "펫의 자동·수동 외형 전환",
+      "domain": "core"
+    },
+    "pet.appearance.transitioning": {
+      "value": "모습 전환 중",
+      "revision": 1,
+      "variables": {},
+      "context": "펫의 자동·수동 외형 전환",
+      "domain": "core"
+    },
+    "pet.appearance.description": {
+      "value": "{state} · 자동은 펫이 정면으로 쉬고 있을 때 정한 간격마다 다른 모습으로 바꿔요. 직접 고르면 자동이 꺼져요.",
+      "revision": 2,
+      "variables": {
+        "state": "string"
+      },
+      "context": "펫의 자동·수동 외형 전환",
+      "domain": "core"
+    },
+    "pet.appearance.invalid_package": {
+      "value": "펫의 외형 전환 자산이나 설정이 올바르지 않습니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "펫의 자동·수동 외형 전환",
+      "domain": "core"
+    },
+    "pet.appearance.unavailable": {
+      "value": "이 펫은 외형 전환을 지원하지 않습니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "펫의 자동·수동 외형 전환",
+      "domain": "core"
+    },
+    "pet.appearance.help": {
+      "value": "모습 안내",
+      "revision": 2,
+      "variables": {},
+      "context": "머리 모습 선택 옆 정보 아이콘의 접근성 이름",
+      "domain": "core"
+    },
+    "pet.import.file_heading": {
+      "value": "펫 파일이나 폴더를 선택하세요",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 가져오기 단계·입력·결과 안내",
+      "domain": "core"
+    },
+    "pet.import.file_help": {
+      "value": "PNG·WebP 스프라이트, ZIP 패키지 또는 완성된 펫 폴더를 불러올 수 있습니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 가져오기 단계·입력·결과 안내",
+      "domain": "core"
+    },
+    "pet.import.command_example": {
+      "value": "예: npx codexpetdb install PET_ID",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 가져오기 단계·입력·결과 안내",
+      "domain": "core"
+    },
+    "pet.import.loading_installed": {
+      "value": "Codex에 설치된 펫을 불러오는 중입니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 가져오기 단계·입력·결과 안내",
+      "domain": "core"
+    },
+    "pet.import.no_search_results": {
+      "value": "검색어와 일치하는 펫이 없습니다.",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 가져오기 단계·입력·결과 안내",
+      "domain": "core"
+    },
+    "pet.import.confirm_title": {
+      "value": "추가할 펫을 확인하세요",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 가져오기 단계·입력·결과 안내",
+      "domain": "core"
+    },
+    "pet.import.from_file": {
+      "value": "파일에서 가져옴",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 가져오기 단계·입력·결과 안내",
+      "domain": "core"
+    },
+    "pet.import.from_folder": {
+      "value": "폴더에서 가져옴",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 가져오기 단계·입력·결과 안내",
+      "domain": "core"
+    },
+    "pet.import.from_command": {
+      "value": "설치 명령어로 가져옴",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 가져오기 단계·입력·결과 안내",
+      "domain": "core"
+    },
+    "pet.import.from_installed": {
+      "value": "Codex 설치 목록에서 가져옴",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 가져오기 단계·입력·결과 안내",
+      "domain": "core"
+    },
+    "pet.import.sprite_version": {
+      "value": "스프라이트 V{version}",
+      "revision": 1,
+      "variables": {
+        "version": "number"
+      },
+      "context": "펫 가져오기 단계·입력·결과 안내",
+      "domain": "core"
+    },
+    "pet.import.restore_title": {
+      "value": "휴지통에 있는 펫이에요",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 가져오기 단계·입력·결과 안내",
+      "domain": "core"
+    },
+    "pet.import.exists_title": {
+      "value": "이미 추가된 펫이에요",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 가져오기 단계·입력·결과 안내",
+      "domain": "core"
+    },
+    "pet.import.added_title": {
+      "value": "펫을 추가했어요",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 가져오기 단계·입력·결과 안내",
+      "domain": "core"
+    },
+    "pet.appearance.interval": {
+      "value": "자동 전환 간격",
+      "revision": 1,
+      "variables": {},
+      "context": "펫의 자동 외형 전환 간격 선택",
+      "domain": "core"
+    },
+    "pet.appearance.interval.package": {
+      "value": "펫 기본값({range})",
+      "revision": 1,
+      "variables": {
+        "range": "string"
+      },
+      "context": "펫의 자동 외형 전환 간격: 패키지가 정한 범위",
+      "domain": "core"
+    },
+    "pet.appearance.range.seconds": {
+      "value": "{min}~{max}초",
+      "revision": 1,
+      "variables": {
+        "min": "number",
+        "max": "number"
+      },
+      "context": "펫의 자동 외형 전환 간격 범위(초)",
+      "domain": "core"
+    },
+    "pet.appearance.range.minutes": {
+      "value": "{min}~{max}분",
+      "revision": 1,
+      "variables": {
+        "min": "number",
+        "max": "number"
+      },
+      "context": "펫의 자동 외형 전환 간격 범위(분)",
+      "domain": "core"
+    },
+    "pet.appearance.order": {
+      "value": "자동 전환 순서",
+      "revision": 1,
+      "variables": {},
+      "context": "모습이 셋 이상인 펫의 자동 전환 순서 선택",
+      "domain": "core"
+    },
+    "pet.appearance.order.package": {
+      "value": "펫 기본값({order})",
+      "revision": 1,
+      "variables": {
+        "order": "string"
+      },
+      "context": "펫의 자동 외형 전환 순서: 패키지가 정한 순서",
+      "domain": "core"
+    },
+    "pet.appearance.order.random": {
+      "value": "무작위",
+      "revision": 1,
+      "variables": {},
+      "context": "펫의 자동 외형 전환 순서 선택지",
+      "domain": "core"
+    },
+    "pet.appearance.order.sequence": {
+      "value": "차례대로",
+      "revision": 1,
+      "variables": {},
+      "context": "펫의 자동 외형 전환 순서 선택지",
+      "domain": "core"
+    },
+    "pet.link.transition_count": {
+      "value": "전환은 2~{max}프레임이어야 해요.",
+      "revision": 1,
+      "variables": {
+        "max": "number"
+      },
+      "context": "펫 잇기: 전환 이미지 프레임 수 오류",
+      "domain": "core"
+    },
+    "pet.link.transition_not_strip": {
+      "value": "한 장짜리 이미지는 192×208 칸을 가로로 이어 붙인 전환 이미지여야 해요. 움직이는 GIF·WebP나 여러 장의 PNG도 쓸 수 있어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 전환 이미지 형식 안내",
+      "domain": "core"
+    },
+    "pet.link.transition_transparency": {
+      "value": "전환 프레임마다 투명한 배경이 있어야 해요.",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 불투명한 전환 프레임 오류",
+      "domain": "core"
+    },
+    "pet.link.transition_format": {
+      "value": "PNG·WebP·GIF 이미지만 쓸 수 있어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 전환 이미지 파일 형식 오류",
+      "domain": "core"
+    },
+    "pet.link.transition_too_large": {
+      "value": "전환 이미지는 한 파일에 20MB까지예요.",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 전환 이미지 크기 오류",
+      "domain": "core"
+    },
+    "pet.link.look_count": {
+      "value": "모습은 2~{max}개를 고를 수 있어요.",
+      "revision": 1,
+      "variables": {
+        "max": "number"
+      },
+      "context": "펫 잇기: 모습 개수 오류",
+      "domain": "core"
+    },
+    "pet.link.not_v2": {
+      "value": "16방향 시선이 있는 V2 스프라이트(1536×2288)가 아니라서 이을 수 없어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 이을 수 없는 펫의 이유",
+      "domain": "core"
+    },
+    "pet.link.duplicate": {
+      "value": "같은 펫을 두 번 고를 수 없어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 같은 펫 중복 선택 오류",
+      "domain": "core"
+    },
+    "pet.link.label_required": {
+      "value": "모습마다 이름을 적어 주세요.",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 모습 이름 누락 오류",
+      "domain": "core"
+    },
+    "pet.link.transition_pick": {
+      "value": "전환 이미지 고르기",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 전환 이미지 파일 선택 창 제목",
+      "domain": "core"
+    },
+    "pet.link.transition_files": {
+      "value": "전환 이미지",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 파일 선택 창의 형식 이름",
+      "domain": "core"
+    },
+    "pet.link.title": {
+      "value": "펫 잇기",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 여러 펫을 한 펫의 모습들로 묶는 기능 이름",
+      "domain": "core"
+    },
+    "pet.link.card": {
+      "value": "여러 펫을 한 펫의 모습으로 묶고 사이에 전환 애니메이션을 넣어요",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 화면의 펫 잇기 카드 설명",
+      "domain": "core"
+    },
+    "pet.link.step.looks": {
+      "value": "모습 고르기",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기 단계 이름",
+      "domain": "core"
+    },
+    "pet.link.step.transitions": {
+      "value": "전환 넣기",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기 단계 이름",
+      "domain": "core"
+    },
+    "pet.link.step.confirm": {
+      "value": "확인",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기 단계 이름",
+      "domain": "core"
+    },
+    "pet.link.next": {
+      "value": "다음",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 다음 단계 단추",
+      "domain": "core"
+    },
+    "pet.link.create": {
+      "value": "펫 만들기",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 묶은 펫을 만들어 등록하는 단추",
+      "domain": "core"
+    },
+    "pet.link.created_title": {
+      "value": "펫을 만들었어요",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기 완료 제목",
+      "domain": "core"
+    },
+    "pet.link.looks_intro": {
+      "value": "한 펫이 될 모습을 2~{max}개 고르세요. 첫 번째 모습부터 차례대로 이어지고, 기본 모습으로 시작해요.",
+      "revision": 1,
+      "variables": {
+        "max": "number"
+      },
+      "context": "펫 잇기 모습 고르기 안내",
+      "domain": "core"
+    },
+    "pet.link.look_name": {
+      "value": "모습 이름",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 각 모습의 이름 입력",
+      "domain": "core"
+    },
+    "pet.link.default_look": {
+      "value": "기본 모습",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 처음 보여 줄 모습 선택",
+      "domain": "core"
+    },
+    "pet.link.move_up": {
+      "value": "{name} 위로",
+      "revision": 1,
+      "variables": {
+        "name": "string"
+      },
+      "context": "펫 잇기 모습 순서 단추 이름",
+      "domain": "core"
+    },
+    "pet.link.move_down": {
+      "value": "{name} 아래로",
+      "revision": 1,
+      "variables": {
+        "name": "string"
+      },
+      "context": "펫 잇기 모습 순서 단추 이름",
+      "domain": "core"
+    },
+    "pet.link.remove": {
+      "value": "{name} 빼기",
+      "revision": 1,
+      "variables": {
+        "name": "string"
+      },
+      "context": "펫 잇기 모습 빼기 단추 이름",
+      "domain": "core"
+    },
+    "pet.link.add_look": {
+      "value": "모습 추가",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 설치된 펫을 모습으로 추가하는 선택",
+      "domain": "core"
+    },
+    "pet.link.choose_pet": {
+      "value": "펫 고르기",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기 모습 추가 선택의 첫 항목",
+      "domain": "core"
+    },
+    "pet.link.transitions_intro": {
+      "value": "모습이 바뀔 때 보여 줄 전환을 넣어요. 넣지 않으면 반대 방향 전환을 거꾸로 재생하거나, 두 모습을 부드럽게 겹쳐 바꿔요.",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기 전환 넣기 안내",
+      "domain": "core"
+    },
+    "pet.link.kind.drawn": {
+      "value": "전환 이미지 {count}프레임",
+      "revision": 1,
+      "variables": {
+        "count": "number"
+      },
+      "context": "펫 잇기: 그린 전환이 있는 쌍",
+      "domain": "core"
+    },
+    "pet.link.kind.reversed": {
+      "value": "반대 방향을 거꾸로 재생",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 반대 방향 전환을 거꾸로 쓰는 쌍",
+      "domain": "core"
+    },
+    "pet.link.kind.fade": {
+      "value": "부드럽게 겹쳐 바꾸기",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 전환 이미지가 없어 겹쳐 바꾸는 쌍",
+      "domain": "core"
+    },
+    "pet.link.resized": {
+      "value": "칸 크기에 맞춰 줄였어요",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 전환 프레임을 192×208 칸에 맞춰 줄였다는 안내",
+      "domain": "core"
+    },
+    "pet.link.frame_interval": {
+      "value": "프레임 간격(ms)",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 전환 프레임 사이 시간",
+      "domain": "core"
+    },
+    "pet.link.play": {
+      "value": "{from}에서 {to}(으)로 전환 재생",
+      "revision": 1,
+      "variables": {
+        "from": "string",
+        "to": "string"
+      },
+      "context": "펫 잇기 전환 미리보기 단추 이름",
+      "domain": "core"
+    },
+    "pet.link.import_transition": {
+      "value": "{from}에서 {to}(으)로 가는 전환 이미지 가져오기",
+      "revision": 1,
+      "variables": {
+        "from": "string",
+        "to": "string"
+      },
+      "context": "펫 잇기 전환 이미지 가져오기 단추 이름",
+      "domain": "core"
+    },
+    "pet.link.clear_transition": {
+      "value": "{from}에서 {to}(으)로 가는 전환 이미지 지우기",
+      "revision": 1,
+      "variables": {
+        "from": "string",
+        "to": "string"
+      },
+      "context": "펫 잇기 전환 이미지 지우기 단추 이름",
+      "domain": "core"
+    },
+    "pet.link.transition_help": {
+      "value": "전환 이미지는 192×208 칸을 가로로 이어 붙인 PNG·WebP, 움직이는 GIF·WebP, 또는 이름 순서대로 고른 여러 장의 PNG예요. 투명 배경이 필요하고 2~48프레임까지 넣을 수 있어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기 전환 이미지 형식 안내",
+      "domain": "core"
+    },
+    "pet.link.bubble": {
+      "value": "말풍선 디자인",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 묶은 펫이 쓸 말풍선 디자인을 고르는 선택",
+      "domain": "core"
+    },
+    "pet.link.bubble_none": {
+      "value": "앱 기본 말풍선",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기 말풍선 디자인 선택지",
+      "domain": "core"
+    },
+    "pet.link.summary": {
+      "value": "모습 {looks}개 · 전환 이미지 {drawn}개. 원래 펫은 그대로 두고 새 펫을 만들어요.",
+      "revision": 1,
+      "variables": {
+        "looks": "number",
+        "drawn": "number"
+      },
+      "context": "펫 잇기 확인 요약",
+      "domain": "core"
+    },
+    "pet.link.back": {
+      "value": "이전",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 이전 단계로 돌아가는 단추",
+      "domain": "core"
+    },
+    "pet.link.edit_title": {
+      "value": "묶음 펫 고치기",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 잇기로 만든 펫을 다시 여는 선택",
+      "domain": "core"
+    },
+    "pet.link.edit_choose": {
+      "value": "새로 만들기",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기 묶음 펫 고치기 선택의 첫 항목(고치지 않고 새로 만듦)",
+      "domain": "core"
+    },
+    "pet.link.edit_note": {
+      "value": "저장하면 {name}을(를) 이 내용으로 바꿔요. 펫 설정과 목록 위치는 그대로 옮기고, 이전 펫은 휴지통으로 보내요.",
+      "revision": 1,
+      "variables": {
+        "name": "string"
+      },
+      "context": "펫 잇기: 묶음 펫을 고쳐 저장할 때의 안내",
+      "domain": "core"
+    },
+    "pet.link.replace": {
+      "value": "바꿔 저장",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 고친 묶음 펫을 저장해 교체하는 단추",
+      "domain": "core"
+    },
+    "pet.link.replaced_title": {
+      "value": "펫을 바꿨어요",
+      "revision": 1,
+      "variables": {},
+      "context": "펫 잇기: 묶음 펫 교체 완료 제목",
+      "domain": "core"
+    },
+    "bubble.editor.gradient_angle": {
+      "value": "그라데이션 각도",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 각도 지정 그라데이션의 방향",
+      "domain": "core"
+    },
+    "bubble.editor.gradient.angle": {
+      "value": "각도 지정",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 그라데이션 방식 선택지",
+      "domain": "core"
+    },
+    "bubble.editor.pattern_tile_size": {
+      "value": "무늬 크기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 사용자 무늬 이미지 한 칸의 크기",
+      "domain": "core"
+    },
+    "bubble.editor.pattern_opacity": {
+      "value": "무늬 진하기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 사용자 무늬 이미지의 불투명도",
+      "domain": "core"
+    },
+    "bubble.editor.background_fit": {
+      "value": "이미지 채우기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 배경 사진을 본문에 맞추는 방식",
+      "domain": "core"
+    },
+    "bubble.editor.fit.cover": {
+      "value": "꽉 채우기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 배경 사진 채우기 선택지, 잘라서 가득 채움",
+      "domain": "core"
+    },
+    "bubble.editor.fit.contain": {
+      "value": "전체 보이기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 배경 사진 채우기 선택지, 사진 전체를 보임",
+      "domain": "core"
+    },
+    "bubble.editor.fit.stretch": {
+      "value": "늘이기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 배경 사진 채우기 선택지, 비율 무시",
+      "domain": "core"
+    },
+    "bubble.editor.fit.tile": {
+      "value": "바둑판",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 배경 사진 채우기 선택지, 반복",
+      "domain": "core"
+    },
+    "bubble.editor.fit.free": {
+      "value": "직접 배치",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 배경 사진 채우기 선택지, 위치와 크기를 직접 정함",
+      "domain": "core"
+    },
+    "bubble.editor.background_tile_size": {
+      "value": "바둑판 크기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 바둑판 배경 사진 한 칸의 크기",
+      "domain": "core"
+    },
+    "bubble.editor.background_blur": {
+      "value": "이미지 흐림",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 배경 사진 흐림 정도",
+      "domain": "core"
+    },
+    "bubble.editor.background_overlay": {
+      "value": "글자 가독성 덧칠",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 배경 사진 위에 말풍선 색을 덧칠하는 정도",
+      "domain": "core"
+    },
+    "bubble.editor.sample_long": {
+      "value": "긴 문장도 이렇게 보여요. 말풍선은 최대 너비까지 넓어진 뒤 줄을 바꾸고, 세 줄을 넘으면 말줄임표로 끝나요.",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 긴 문장 미리보기에 쓰는 예시 문장",
+      "domain": "core"
+    },
+    "bubble.editor.tabs": {
+      "value": "꾸미기 항목",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 편집 항목 탭 목록의 이름",
+      "domain": "core"
+    },
+    "bubble.editor.tab.background": {
+      "value": "배경",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 탭: 색·무늬·사진",
+      "domain": "core"
+    },
+    "bubble.editor.tab.border_shape": {
+      "value": "테두리·모양",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 편집기 탭 이름: 테두리 색·두께·이미지와 상자 모양·모서리·꼬리·그림자",
+      "domain": "core"
+    },
+    "bubble.editor.tab.layout": {
+      "value": "글자·배치",
+      "revision": 2,
+      "variables": {},
+      "context": "말풍선 꾸미기 탭: 글자·분류 표시·크기·여백",
+      "domain": "core"
+    },
+    "bubble.editor.group.builtin": {
+      "value": "기본 장식",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 펫 장식과 앱이 그리는 장식을 고르는 묶음",
+      "domain": "core"
+    },
+    "bubble.editor.group.text": {
+      "value": "글자",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 글자 색·굵기·정렬 묶음",
+      "domain": "core"
+    },
+    "bubble.editor.group.border_basic": {
+      "value": "색·두께",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 테두리 색과 두께 묶음 제목",
+      "domain": "core"
+    },
+    "bubble.editor.group.border_style": {
+      "value": "종류·이미지",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 테두리 종류와 테두리 이미지 묶음 제목",
+      "domain": "core"
+    },
+    "bubble.editor.group.effects": {
+      "value": "바깥 효과",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 그림자·후광 묶음 제목",
+      "domain": "core"
+    },
+    "bubble.editor.group.box": {
+      "value": "상자",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 말풍선 상자 모양과 모서리 묶음 제목",
+      "domain": "core"
+    },
+    "bubble.editor.group.size": {
+      "value": "크기·여백",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 너비·좌우 여백·쌓임 정렬 묶음 제목",
+      "domain": "core"
+    },
+    "bubble.editor.add_background_image": {
+      "value": "배경 이미지 추가",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 배경 탭: 이미지 파일을 골라 바로 배경으로 쓰는 버튼",
+      "domain": "core"
+    },
+    "bubble.editor.background_width": {
+      "value": "너비",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 배경 탭: 직접 배치한 배경 이미지의 가로 크기",
+      "domain": "core"
+    },
+    "bubble.editor.background_height": {
+      "value": "높이",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 배경 탭: 직접 배치한 배경 이미지의 세로 크기",
+      "domain": "core"
+    },
+    "bubble.editor.background_ratio": {
+      "value": "원래 비율로",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 배경 탭: 직접 배치한 배경 이미지의 높이를 이미지 원래 비율에 맞추는 버튼",
+      "domain": "core"
+    },
+    "bubble.editor.background_hint": {
+      "value": "배경 이미지를 눌러 끌면 옮겨져요. 모서리는 비율을 지키며 크기를 바꾸고(Shift는 자유롭게), 변은 한 방향만 늘이거나 줄여요.",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 배경 탭: 미리보기에서 배경 이미지를 다루는 방법 안내",
+      "domain": "core"
+    },
+    "bubble.editor.group.placement": {
+      "value": "배치",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 배경 탭: 배경 이미지의 위치와 크기 칸 묶음 제목",
+      "domain": "core"
+    },
+    "bubble.editor.group.image_effects": {
+      "value": "효과",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 배경 탭: 배경 이미지의 진하기·흐림·덧칠 칸 묶음 제목",
+      "domain": "core"
+    },
+    "bubble.editor.background_focus_x": {
+      "value": "보이는 위치(가로)",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 배경 탭: 꽉 채우기·전체 보이기에서 사진의 어느 부분을 보일지 정하는 가로 값",
+      "domain": "core"
+    },
+    "bubble.editor.background_focus_y": {
+      "value": "보이는 위치(세로)",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 배경 탭: 꽉 채우기·전체 보이기에서 사진의 어느 부분을 보일지 정하는 세로 값",
+      "domain": "core"
+    },
+    "bubble.editor.open_folder": {
+      "value": "폴더 열기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 가져온 이미지가 저장된 폴더를 탐색기로 여는 버튼",
+      "domain": "core"
+    },
+    "bubble.editor.delete_image": {
+      "value": "이 이미지 삭제",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 배경·테두리 탭: 지금 고른 내 이미지를 보관함에서 지우는 버튼",
+      "domain": "core"
+    },
+    "bubble.editor.open_folder_failed": {
+      "value": "이미지 폴더를 열지 못했어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 가져온 이미지 폴더를 탐색기로 열지 못했을 때 오류",
+      "domain": "core"
+    },
+    "bubble.pattern.dots": {
+      "value": "물방울",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 배경 이미지의 기본 무늬 템플릿 이름",
+      "domain": "core"
+    },
+    "bubble.pattern.gingham": {
+      "value": "체크",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 배경 이미지의 기본 무늬 템플릿 이름",
+      "domain": "core"
+    },
+    "bubble.pattern.stripes": {
+      "value": "사선 줄무늬",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 배경 이미지의 기본 무늬 템플릿 이름",
+      "domain": "core"
+    },
+    "bubble.pattern.hearts": {
+      "value": "하트",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 배경 이미지의 기본 무늬 템플릿 이름",
+      "domain": "core"
+    },
+    "bubble.pattern.stars": {
+      "value": "별",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 배경 이미지의 기본 무늬 템플릿 이름",
+      "domain": "core"
+    },
+    "bubble.pattern.flowers": {
+      "value": "꽃",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 배경 이미지의 기본 무늬 템플릿 이름",
+      "domain": "core"
+    },
+    "bubble.pattern.waves": {
+      "value": "물결",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 배경 이미지의 기본 무늬 템플릿 이름",
+      "domain": "core"
+    },
+    "bubble.pattern.grid": {
+      "value": "모눈",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 배경 이미지의 기본 무늬 템플릿 이름",
+      "domain": "core"
+    },
+    "bubble.editor.long": {
+      "value": "긴 문장",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 긴 문장 미리보기 선택 단추",
+      "domain": "core"
+    },
+    "bubble.editor.zoom": {
+      "value": "미리보기 확대",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 미리보기 확대 비율 단추 묶음",
+      "domain": "core"
+    },
+    "bubble.editor.undo": {
+      "value": "실행 취소",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 마지막 편집 되돌리기",
+      "domain": "core"
+    },
+    "bubble.editor.redo": {
+      "value": "다시 실행",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 되돌린 편집 다시 하기",
+      "domain": "core"
+    },
+    "bubble.editor.canvas_hint": {
+      "value": "장식을 끌어 옮기고 모서리로 크기를 바꿔요. Shift는 비율 없이 늘이기, Alt는 자석 끄기, 방향키는 1px씩 옮기기예요.",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 미리보기에서 장식을 다루는 방법 안내",
+      "domain": "core"
+    },
+    "bubble.editor.rotate_hint": {
+      "value": "끌어서 회전 · Shift는 15° 단위",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 장식 회전 손잡이 도움말",
+      "domain": "core"
+    },
+    "bubble.editor.layer": {
+      "value": "장식",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 이름 없는 장식 층의 기본 이름",
+      "domain": "core"
+    },
+    "bubble.editor.layers": {
+      "value": "장식 층",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 장식 층 목록 제목",
+      "domain": "core"
+    },
+    "bubble.editor.body_marker": {
+      "value": "말풍선 본문",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 목록: 앞 층과 뒤 층 사이의 본문 위치 표시",
+      "domain": "core"
+    },
+    "bubble.editor.add_image": {
+      "value": "이미지 가져오기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 이미지 파일을 가져와 장식 층으로 추가",
+      "domain": "core"
+    },
+    "bubble.editor.add_from_library": {
+      "value": "보관함에서 추가",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 가져온 이미지나 펫 장식 이미지를 장식 층으로 추가",
+      "domain": "core"
+    },
+    "bubble.editor.add_ornament": {
+      "value": "기본 장식 추가",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 탭: 고양이 귀·별 같은 기본 장식을 층으로 넣는 선택 칸",
+      "domain": "core"
+    },
+    "bubble.editor.ornament_layers": {
+      "value": "기본 장식 층",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 펫 패키지용 내보내기에서 넣지 못한 항목 이름: 코드로 그리는 기본 장식 층",
+      "domain": "core"
+    },
+    "bubble.editor.pet_images": {
+      "value": "이 펫 장식 이미지",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 보관함에서 추가 목록의 펫 패키지 이미지 묶음",
+      "domain": "core"
+    },
+    "bubble.editor.my_images": {
+      "value": "내 이미지",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 보관함에서 추가 목록의 사용자 이미지 묶음",
+      "domain": "core"
+    },
+    "bubble.editor.package_layers": {
+      "value": "펫 장식 층 표시",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 펫 패키지 장식 층을 그릴지 정하는 스위치",
+      "domain": "core"
+    },
+    "bubble.editor.layer_limit": {
+      "value": "장식은 {count}개까지 넣을 수 있어요.",
+      "revision": 1,
+      "variables": {
+        "count": "number"
+      },
+      "context": "말풍선 꾸미기: 장식 층 개수 상한 안내",
+      "domain": "core"
+    },
+    "bubble.editor.empty_layers": {
+      "value": "아직 장식이 없어요. 이미지를 가져오거나 보관함에서 추가해 보세요.",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 장식 층이 없을 때 안내",
+      "domain": "core"
+    },
+    "bubble.editor.selected_none": {
+      "value": "미리보기나 목록에서 장식을 고르면 세부 값을 바꿀 수 있어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 선택한 장식이 없을 때 안내",
+      "domain": "core"
+    },
+    "bubble.editor.hide_layer": {
+      "value": "{name} 숨기기",
+      "revision": 1,
+      "variables": {
+        "name": "string"
+      },
+      "context": "말풍선 꾸미기: 장식 층 숨김 단추의 이름",
+      "domain": "core"
+    },
+    "bubble.editor.show_layer": {
+      "value": "{name} 보이기",
+      "revision": 1,
+      "variables": {
+        "name": "string"
+      },
+      "context": "말풍선 꾸미기: 숨긴 장식 층 보이기 단추의 이름",
+      "domain": "core"
+    },
+    "bubble.editor.lock_layer": {
+      "value": "{name} 잠그기",
+      "revision": 1,
+      "variables": {
+        "name": "string"
+      },
+      "context": "말풍선 꾸미기: 장식 층을 끌어도 움직이지 않게 잠그는 단추의 이름",
+      "domain": "core"
+    },
+    "bubble.editor.unlock_layer": {
+      "value": "{name} 잠금 풀기",
+      "revision": 1,
+      "variables": {
+        "name": "string"
+      },
+      "context": "말풍선 꾸미기: 장식 층 잠금 풀기 단추의 이름",
+      "domain": "core"
+    },
+    "bubble.editor.raise": {
+      "value": "{name} 앞으로",
+      "revision": 1,
+      "variables": {
+        "name": "string"
+      },
+      "context": "말풍선 꾸미기: 장식 층을 한 칸 앞으로 옮기는 단추의 이름",
+      "domain": "core"
+    },
+    "bubble.editor.lower": {
+      "value": "{name} 뒤로",
+      "revision": 1,
+      "variables": {
+        "name": "string"
+      },
+      "context": "말풍선 꾸미기: 장식 층을 한 칸 뒤로 옮기는 단추의 이름",
+      "domain": "core"
+    },
+    "bubble.editor.field.image": {
+      "value": "이미지",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 설정: 그릴 이미지",
+      "domain": "core"
+    },
+    "bubble.editor.field.name": {
+      "value": "이름",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 설정: 목록에 보일 이름",
+      "domain": "core"
+    },
+    "bubble.editor.field.placement": {
+      "value": "놓는 위치",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 설정: 말풍선 앞 또는 뒤",
+      "domain": "core"
+    },
+    "bubble.editor.placement.front": {
+      "value": "말풍선 앞",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 놓는 위치 선택지",
+      "domain": "core"
+    },
+    "bubble.editor.placement.back": {
+      "value": "말풍선 뒤",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 놓는 위치 선택지",
+      "domain": "core"
+    },
+    "bubble.editor.field.anchor": {
+      "value": "기준점",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 설정: 말풍선 크기가 바뀌어도 거리를 유지할 본문 위치",
+      "domain": "core"
+    },
+    "bubble.editor.anchor.top-left": {
+      "value": "왼쪽 위",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 기준점 선택지",
+      "domain": "core"
+    },
+    "bubble.editor.anchor.top-center": {
+      "value": "위 가운데",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 기준점 선택지",
+      "domain": "core"
+    },
+    "bubble.editor.anchor.top-right": {
+      "value": "오른쪽 위",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 기준점 선택지",
+      "domain": "core"
+    },
+    "bubble.editor.anchor.center-left": {
+      "value": "왼쪽 가운데",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 기준점 선택지",
+      "domain": "core"
+    },
+    "bubble.editor.anchor.center-right": {
+      "value": "오른쪽 가운데",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 기준점 선택지",
+      "domain": "core"
+    },
+    "bubble.editor.anchor.bottom-left": {
+      "value": "왼쪽 아래",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 기준점 선택지",
+      "domain": "core"
+    },
+    "bubble.editor.anchor.bottom-center": {
+      "value": "아래 가운데",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 기준점 선택지",
+      "domain": "core"
+    },
+    "bubble.editor.anchor.bottom-right": {
+      "value": "오른쪽 아래",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 기준점 선택지",
+      "domain": "core"
+    },
+    "bubble.editor.anchor.arc-top-left": {
+      "value": "왼쪽 위 모서리 곡선",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 기준점 선택지: 둥근 모서리의 45° 지점",
+      "domain": "core"
+    },
+    "bubble.editor.field.width": {
+      "value": "너비",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 설정: 상자 너비",
+      "domain": "core"
+    },
+    "bubble.editor.field.height": {
+      "value": "높이",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 설정: 상자 높이",
+      "domain": "core"
+    },
+    "bubble.editor.field.rotation": {
+      "value": "회전",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 설정: 회전 각도",
+      "domain": "core"
+    },
+    "bubble.editor.field.alpha": {
+      "value": "불투명도",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 설정: 불투명도",
+      "domain": "core"
+    },
+    "bubble.editor.field.tint": {
+      "value": "색 입히기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 설정: 이미지 모양을 한 가지 색으로 칠하기",
+      "domain": "core"
+    },
+    "bubble.editor.tint.none": {
+      "value": "원래 색",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 색 입히기 선택지",
+      "domain": "core"
+    },
+    "bubble.editor.tint.border": {
+      "value": "테두리 색 따라가기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 색 입히기 선택지",
+      "domain": "core"
+    },
+    "bubble.editor.tint.background": {
+      "value": "배경 색 따라가기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 색 입히기 선택지",
+      "domain": "core"
+    },
+    "bubble.editor.tint.text": {
+      "value": "글자 색 따라가기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 색 입히기 선택지",
+      "domain": "core"
+    },
+    "bubble.editor.tint.shadow": {
+      "value": "그림자 색 따라가기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 색 입히기 선택지",
+      "domain": "core"
+    },
+    "bubble.editor.tint.custom": {
+      "value": "직접 고른 색",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 색 입히기 선택지",
+      "domain": "core"
+    },
+    "bubble.editor.field.mirror": {
+      "value": "좌우 반전",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 설정",
+      "domain": "core"
+    },
+    "bubble.editor.field.flip_y": {
+      "value": "상하 반전",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 설정",
+      "domain": "core"
+    },
+    "bubble.editor.field.repeat": {
+      "value": "반복",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 설정: 본문 가장자리를 따라 반복",
+      "domain": "core"
+    },
+    "bubble.editor.repeat.none": {
+      "value": "반복 안 함",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 반복 선택지",
+      "domain": "core"
+    },
+    "bubble.editor.repeat.x": {
+      "value": "가로로 반복",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 반복 선택지: 본문 오른쪽 끝까지",
+      "domain": "core"
+    },
+    "bubble.editor.repeat.y": {
+      "value": "세로로 반복",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 반복 선택지: 본문 아래 끝까지",
+      "domain": "core"
+    },
+    "bubble.editor.field.repeat_gap": {
+      "value": "반복 간격",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 설정: 반복되는 이미지 사이 간격",
+      "domain": "core"
+    },
+    "bubble.editor.field.repeat_inset": {
+      "value": "끝 여백",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 설정: 반복이 멈추는 본문 끝과의 거리",
+      "domain": "core"
+    },
+    "bubble.editor.field.position_x": {
+      "value": "가로 위치",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 속성: 층 가운데의 가로 위치(말풍선 본문 기준 %)",
+      "domain": "core"
+    },
+    "bubble.editor.field.position_y": {
+      "value": "세로 위치",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 속성: 층 가운데의 세로 위치(말풍선 본문 기준 %)",
+      "domain": "core"
+    },
+    "bubble.editor.layer_group.position": {
+      "value": "위치·크기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 속성 묶음 제목: 위치·너비·높이·회전",
+      "domain": "core"
+    },
+    "bubble.editor.layer_group.look": {
+      "value": "색·뒤집기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 속성 묶음 제목: 진하기·색 입히기·좌우·상하 뒤집기",
+      "domain": "core"
+    },
+    "bubble.editor.layer_group.repeat": {
+      "value": "반복 배치",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 속성 묶음 제목: 가장자리를 따라 반복해 놓기",
+      "domain": "core"
+    },
+    "bubble.editor.field.size": {
+      "value": "크기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 속성: 너비와 높이를 한 줄에 넣는 칸 이름",
+      "domain": "core"
+    },
+    "bubble.editor.field.flip": {
+      "value": "뒤집기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 속성: 좌우·상하 반전 버튼이 있는 줄 이름",
+      "domain": "core"
+    },
+    "bubble.editor.layer_more": {
+      "value": "자세히",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 층 속성: 이미지 바꾸기와 이름 칸을 접어 둔 부분 제목",
+      "domain": "core"
+    },
+    "bubble.editor.library_title": {
+      "value": "내 이미지 보관함 ({count})",
+      "revision": 1,
+      "variables": {
+        "count": "number"
+      },
+      "context": "말풍선 꾸미기 장식 탭: 가져온 내 이미지 목록의 접기 제목, 괄호 안은 이미지 개수",
+      "domain": "core"
+    },
+    "bubble.editor.field.frame_style": {
+      "value": "펫 장식 틀",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 탭: 펫 패키지가 주는 말풍선 장식 틀을 고르는 칸(기본 또는 펫 장식)",
+      "domain": "core"
+    },
+    "bubble.editor.group.legacy_ornaments": {
+      "value": "예전 좌우 장식",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 탭: 예전 테마의 왼쪽·오른쪽 장식 칸 묶음 제목(쓰는 테마에서만 보임)",
+      "domain": "core"
+    },
+    "bubble.editor.duplicate": {
+      "value": "복제",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 선택한 장식 층 복제",
+      "domain": "core"
+    },
+    "bubble.editor.mirror_copy": {
+      "value": "좌우 대칭 복제",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 선택한 장식을 본문 가운데 기준 반대쪽에 뒤집어 복제",
+      "domain": "core"
+    },
+    "bubble.editor.delete_layer": {
+      "value": "장식 삭제",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 선택한 장식 층 삭제",
+      "domain": "core"
+    },
+    "bubble.editor.library_hint": {
+      "value": "이미지 파일을 여기나 미리보기로 끌어다 놓거나, 복사한 이미지를 Ctrl+V로 붙여 넣을 수도 있어요. 미리보기에 놓거나 붙여 넣으면 바로 장식이 돼요. 어떤 이미지든 배경·장식·테두리 어디에나 쓸 수 있어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 이미지 보관함: 끌어다 놓기·붙여넣기 안내",
+      "domain": "core"
+    },
+    "bubble.editor.import_trim": {
+      "value": "가져올 때 투명한 가장자리 자르기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 이미지 가져오기 옵션",
+      "domain": "core"
+    },
+    "bubble.editor.import_clear_white": {
+      "value": "가장자리와 이어진 흰 배경 지우기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 이미지 가져오기 옵션: 그림 안쪽 흰색은 남김",
+      "domain": "core"
+    },
+    "bubble.editor.delete_used": {
+      "value": "이 이미지를 쓰는 펫 디자인이 있어요: {pets}. 삭제하면 그 디자인에서도 사라져요. 삭제할까요?",
+      "revision": 1,
+      "variables": {
+        "pets": "string"
+      },
+      "context": "말풍선 꾸미기: 저장된 디자인이 쓰는 이미지를 지울 때 확인",
+      "domain": "core"
+    },
+    "bubble.editor.delete_used_designs": {
+      "value": "저장한 디자인이 이 이미지를 써요: {designs}. 삭제하면 그 디자인에서도 사라져요. 삭제할까요?",
+      "revision": 1,
+      "variables": {
+        "designs": "string"
+      },
+      "context": "말풍선 꾸미기: 저장한 디자인 보관함이 쓰는 이미지를 지울 때 확인",
+      "domain": "core"
+    },
+    "bubble.editor.delete_used_both": {
+      "value": "이 이미지를 쓰는 펫 디자인({pets})과 저장한 디자인({designs})이 있어요. 삭제하면 그 디자인에서도 사라져요. 삭제할까요?",
+      "revision": 1,
+      "variables": {
+        "pets": "string",
+        "designs": "string"
+      },
+      "context": "말풍선 꾸미기: 펫 디자인과 저장한 디자인 보관함이 함께 쓰는 이미지를 지울 때 확인",
+      "domain": "core"
+    },
+    "bubble.theme.tab": {
+      "value": "내 테마",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 탭: 저장한 디자인과 파일 공유",
+      "domain": "core"
+    },
+    "bubble.theme.title": {
+      "value": "저장한 디자인",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 내 테마 탭의 카드 제목",
+      "domain": "core"
+    },
+    "bubble.theme.saved": {
+      "value": "저장한 디자인 목록",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 저장한 디자인 목록의 이름",
+      "domain": "core"
+    },
+    "bubble.theme.empty": {
+      "value": "아직 저장한 디자인이 없어요. 지금 디자인에 이름을 붙여 저장하면 다른 펫에서도 불러올 수 있어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 저장한 디자인이 없을 때 안내",
+      "domain": "core"
+    },
+    "bubble.theme.name": {
+      "value": "디자인 이름",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 저장할 디자인 이름 입력",
+      "domain": "core"
+    },
+    "bubble.theme.save": {
+      "value": "지금 디자인 저장",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 편집 중인 디자인을 보관함에 저장",
+      "domain": "core"
+    },
+    "bubble.theme.saved_notice": {
+      "value": "디자인을 저장했어요. 다른 펫의 꾸미기에서도 불러올 수 있어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 디자인 저장 완료 안내",
+      "domain": "core"
+    },
+    "bubble.theme.applied": {
+      "value": "{name} 디자인을 불러왔어요. 적용을 눌러야 저장돼요.",
+      "revision": 1,
+      "variables": {
+        "name": "string"
+      },
+      "context": "말풍선 꾸미기: 저장한 디자인을 불러온 뒤 안내",
+      "domain": "core"
+    },
+    "bubble.theme.delete": {
+      "value": "{name} 삭제",
+      "revision": 1,
+      "variables": {
+        "name": "string"
+      },
+      "context": "말풍선 꾸미기: 저장한 디자인 삭제 단추 이름",
+      "domain": "core"
+    },
+    "bubble.theme.delete_confirm": {
+      "value": "{name} 디자인을 삭제할까요? 이미 펫에 적용한 디자인은 그대로 남아요.",
+      "revision": 1,
+      "variables": {
+        "name": "string"
+      },
+      "context": "말풍선 꾸미기: 저장한 디자인 삭제 확인",
+      "domain": "core"
+    },
+    "bubble.theme.export": {
+      "value": "파일로 공유",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 지금 디자인을 이미지와 함께 ZIP 파일로 저장",
+      "domain": "core"
+    },
+    "bubble.theme.exported": {
+      "value": "디자인 파일을 저장했어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 디자인 파일 저장 완료 안내",
+      "domain": "core"
+    },
+    "bubble.theme.import": {
+      "value": "파일 불러오기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 공유받은 디자인 ZIP 파일 불러오기",
+      "domain": "core"
+    },
+    "bubble.theme.imported": {
+      "value": "{name} 파일을 불러왔어요. 이미지는 내 이미지에 추가했어요. 적용을 눌러야 저장돼요.",
+      "revision": 1,
+      "variables": {
+        "name": "string"
+      },
+      "context": "말풍선 꾸미기: 디자인 파일 불러온 뒤 안내",
+      "domain": "core"
+    },
+    "bubble.theme.package": {
+      "value": "펫 패키지용으로 내보내기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 펫 패키지에 넣을 bubble-theme.json과 bubble 이미지를 만듦",
+      "domain": "core"
+    },
+    "bubble.theme.package_hint": {
+      "value": "고른 폴더에 bubble-theme.json과 bubble 폴더를 만들어요. bubble-theme.json의 bubbleTheme을 펫의 pet.json에 넣으면 그 펫의 기본 말풍선이 돼요.",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 펫 패키지용 내보내기 설명",
+      "domain": "core"
+    },
+    "bubble.theme.packaged": {
+      "value": "펫 패키지용 파일을 만들었어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 펫 패키지용 내보내기 완료 안내",
+      "domain": "core"
+    },
+    "bubble.theme.packaged_omitted": {
+      "value": "펫 패키지용 파일을 만들었어요. 펫 패키지에 넣을 수 없는 항목은 뺐어요: {fields}",
+      "revision": 1,
+      "variables": {
+        "fields": "string"
+      },
+      "context": "말풍선 꾸미기: 사진·무늬 이미지처럼 패키지에 못 넣는 항목을 뺐다는 안내",
+      "domain": "core"
+    },
+    "bubble.theme.default_file": {
+      "value": "말풍선 디자인",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 이름 없는 디자인 파일의 기본 이름",
+      "domain": "core"
+    },
+    "bubble.theme.export_title": {
+      "value": "디자인 파일 저장",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 디자인 파일 저장 창 제목",
+      "domain": "core"
+    },
+    "bubble.theme.import_title": {
+      "value": "디자인 파일 불러오기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 디자인 파일 열기 창 제목",
+      "domain": "core"
+    },
+    "bubble.theme.package_title": {
+      "value": "펫 패키지용 파일을 만들 폴더 고르기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 펫 패키지용 내보내기 폴더 선택 창 제목",
+      "domain": "core"
+    },
+    "bubble.theme.name_required": {
+      "value": "디자인 이름을 적어 주세요.",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 디자인 저장: 이름 누락 오류",
+      "domain": "core"
+    },
+    "bubble.theme.library_full": {
+      "value": "디자인은 {max}개까지 저장할 수 있어요. 안 쓰는 디자인을 지워 주세요.",
+      "revision": 1,
+      "variables": {
+        "max": "number"
+      },
+      "context": "말풍선 디자인 저장: 개수 상한 오류",
+      "domain": "core"
+    },
+    "bubble.theme.missing": {
+      "value": "저장한 디자인을 찾지 못했어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 디자인 불러오기: 없는 디자인 오류",
+      "domain": "core"
+    },
+    "bubble.theme.invalid_file": {
+      "value": "말풍선 디자인 파일이 아니거나 손상됐어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 디자인 파일 불러오기 오류",
+      "domain": "core"
+    },
+    "bubble.theme.write_failed": {
+      "value": "파일을 저장하지 못했어요. 위치와 권한을 확인해 주세요.",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 디자인 파일·패키지용 내보내기 쓰기 오류",
+      "domain": "core"
+    },
+    "bubble.editor.field.inner_border_custom": {
+      "value": "안쪽 선 직접 정하기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 테두리 탭: 이중선의 안쪽 선 색·진하기를 펫 장식 대신 직접 정하는 스위치",
+      "domain": "core"
+    },
+    "bubble.editor.field.inner_border_color": {
+      "value": "안쪽 선 색",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 테두리 탭: 이중선 안쪽 선의 색",
+      "domain": "core"
+    },
+    "bubble.editor.field.inner_border_alpha": {
+      "value": "안쪽 선 진하기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 테두리 탭: 이중선 안쪽 선의 불투명도(%)",
+      "domain": "core"
+    },
+    "bubble.editor.group.halo": {
+      "value": "후광",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 테두리 탭: 본문 둘레 뒤에 그리는 둥근 빛 띠 묶음 제목",
+      "domain": "core"
+    },
+    "bubble.editor.field.halo_custom": {
+      "value": "후광 직접 정하기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 후광을 펫 장식 대신 직접 정하는 스위치",
+      "domain": "core"
+    },
+    "bubble.editor.field.halo_color": {
+      "value": "후광 색",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 후광 색",
+      "domain": "core"
+    },
+    "bubble.editor.field.halo_alpha": {
+      "value": "후광 진하기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 후광 불투명도(%)",
+      "domain": "core"
+    },
+    "bubble.editor.field.halo_width": {
+      "value": "후광 굵기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 후광 선 굵기(px), 0이면 후광 없음",
+      "domain": "core"
+    },
+    "bubble.editor.field.halo_offset_y": {
+      "value": "후광 위아래 위치",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 후광을 아래(+)·위(-)로 옮기는 거리(px)",
+      "domain": "core"
+    },
+    "bubble.editor.field.halo_grow": {
+      "value": "후광 간격",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 후광이 본문 가장자리에서 떨어지는 거리(px)",
+      "domain": "core"
+    },
+    "bubble.editor.group.content": {
+      "value": "글 여백",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 글자·배치 탭: 본문 안 글자 위·아래·왼쪽 여백 묶음 제목",
+      "domain": "core"
+    },
+    "bubble.editor.field.content_custom": {
+      "value": "글 여백 직접 정하기",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 글 여백을 펫 장식·기본값 대신 직접 정하는 스위치",
+      "domain": "core"
+    },
+    "bubble.editor.field.content_top": {
+      "value": "위 여백",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 본문 안 글자 위 여백(px)",
+      "domain": "core"
+    },
+    "bubble.editor.field.content_bottom": {
+      "value": "아래 여백",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 본문 안 글자 아래 여백(px)",
+      "domain": "core"
+    },
+    "bubble.editor.field.content_left": {
+      "value": "왼쪽 추가 여백",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기: 본문 안 글자 왼쪽에 더하는 여백(px)",
+      "domain": "core"
+    },
+    "bubble.editor.ornament.dot": {
+      "value": "점",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 탭: 테마 테두리 색으로 그리는 둥근 점 기본 장식 이름",
+      "domain": "core"
+    },
+    "bubble.editor.pet_layer_tag": {
+      "value": "펫 장식",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 탭: 펫 패키지가 그리는 장식 층에 붙는 표시. 누르면 내 장식 층으로 옮겨진다",
+      "domain": "core"
+    },
+    "bubble.editor.pet_layers_hint": {
+      "value": "펫 장식을 눌러 바로 옮기거나 고칠 수 있어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 미리보기 아래 안내: 펫 장식을 누르면 내 장식으로 옮겨져 바로 고칠 수 있음",
+      "domain": "core"
+    },
+    "bubble.editor.pet_layers_adopted": {
+      "value": "펫 장식을 내 장식으로 옮겨 고치고 있어요. 팩 업데이트는 이 장식에 반영되지 않아요. 펫 기본 디자인이나 실행 취소로 펫 장식으로 돌아갈 수 있어요.",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 꾸미기 장식 탭: 펫 장식을 내 장식으로 복사한 뒤 계속 보이는 안내",
+      "domain": "core"
+    },
+    "pet.animation_speed": {
+      "value": "펫 애니메이션 속도",
+      "revision": 1,
+      "variables": {},
+      "context": "watched_kettle\\application\\settings_ui\\core.py",
       "domain": "core"
     }
   },
@@ -10711,6 +12455,29 @@
     "whats_new.0159.codex_waits",
     "whats_new.0159.claude_background",
     "whats_new.0159.claude_open",
-    "whats_new.0159.other_install"
+    "whats_new.0159.other_install",
+    "whats_new.01510.auto_update",
+    "whats_new.01510.bubble_repeat",
+    "message.0998",
+    "message.1037",
+    "message.1038",
+    "message.1039",
+    "message.1040",
+    "message.1072",
+    "message.1075",
+    "bubble.editor.field.x",
+    "bubble.editor.field.y",
+    "bubble.editor.tab.border",
+    "bubble.editor.tab.shape",
+    "message.1022",
+    "message.0985",
+    "message.0987",
+    "message.0988",
+    "message.0989",
+    "message.0991",
+    "bubble.editor.start_from_pet",
+    "bubble.editor.start_from_pet_hint",
+    "message.0537",
+    "pet.animation_speed.description"
   ]
 }

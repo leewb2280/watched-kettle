@@ -102,6 +102,7 @@ The VS Code extension's terminal mode (`claudeCode.useTerminal`) runs the CLI, s
 - They are shown on Usage Overview, Home, the widget and the tray, with a notification the first time 70%, 90% and 100% are crossed in the same reset window. The first value after the app restarts does not trigger a notification.
 - Values whose reset time has passed are removed so they do not look current. Limit samples are kept for 8 days per Claude Code account.
 - If you had no status line of your own, the app shows a default two-line status line (connection and model / context, 5-hour, 7-day). This text is only printed to the screen; only the limit numbers are sent to the app.
+- If you had a status line of your own, the app runs its command the way Claude Code does, with Git Bash or, without Git Bash, Windows PowerShell, and shows its output unchanged. The shell is found by absolute path only (`SHELL`, `CLAUDE_CODE_GIT_BASH_PATH`, next to `git.exe` on `PATH`, the default install folders). A file of the same name in the project you are working in is never run.
 
 ### Task history
 

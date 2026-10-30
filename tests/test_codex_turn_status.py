@@ -7,6 +7,7 @@ from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 
 from watched_kettle.integrations.codex_turn_status import (
+    IDLE_CLOSE_SECONDS,
     CodexTurnStatusMonitor,
     _TurnStatusWorker,
 )
@@ -57,6 +58,26 @@ class TurnStatusTests(unittest.TestCase):
             dict(data=list(data), nextCursor=cursor),
             error,
         )
+
+    def test_app_server_closes_while_no_turn_is_left_and_returns_for_the_next(self):
+        self.sync()
+        first = self.worker.client
+        self.assertIsNotNone(first)
+        self.reply([{"id": "t", "status": "completed"}])
+        self.worker.sync((), self.worker.epoch)
+
+        self.worker.pump()
+        self.now += IDLE_CLOSE_SECONDS - 1
+        self.worker.pump()
+        self.assertIs(self.worker.client, first)
+        self.now += 1
+        self.worker.pump()
+        self.assertIsNone(self.worker.client)
+        self.assertFalse(first.ready)
+
+        self.sync(CodexTurnTarget("s", "t2", 1, 0))
+        self.assertIsNotNone(self.worker.client)
+        self.assertIsNot(self.worker.client, first)
 
     def test_terminal_mapping_is_exact_and_content_free(self):
         for status, expected in (

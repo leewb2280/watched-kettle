@@ -85,7 +85,6 @@ jobs:
           name: quality-reports
           path: |
             build/quality/coverage.*
-            build/quality/mypy-advisory*.txt
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v7
         if: ${{ failure() && steps.changes.outputs.docs_only != 'true' }}

@@ -9,13 +9,13 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QCoreApplication
 
-from watched_kettle.integrations.codex_client import (
-    WATCHED_KETTLE_SERVER_NAME,
-    configured_pet_server_name,
-)
+from watched_kettle.integrations.codex_client import configured_pet_server_name
 from watched_kettle.integrations.codex_ipc import CodexHookServer
+from watched_kettle.integrations.pipe_names import (
+    AGENT_PIPE_PREFIX,
+    INSTANCE_PIPE_PREFIX,
+)
 from watched_kettle.integrations.single_instance import (
-    DEFAULT_INSTANCE_SERVER_NAME,
     configured_instance_server_name,
 )
 from scripts.stage12_measure import (
@@ -78,12 +78,13 @@ class IsolationTests(unittest.TestCase):
         self.assertEqual(
             environment["WATCHED_KETTLE_SPOOL_DIRECTORY"], str(root / "spool")
         )
-        self.assertNotEqual(
-            environment["WATCHED_KETTLE_INSTANCE_SERVER_NAME"],
-            DEFAULT_INSTANCE_SERVER_NAME,
+        self.assertFalse(
+            environment["WATCHED_KETTLE_INSTANCE_SERVER_NAME"].startswith(
+                INSTANCE_PIPE_PREFIX
+            )
         )
-        self.assertNotEqual(
-            environment["WATCHED_KETTLE_SERVER_NAME"], WATCHED_KETTLE_SERVER_NAME
+        self.assertFalse(
+            environment["WATCHED_KETTLE_SERVER_NAME"].startswith(AGENT_PIPE_PREFIX)
         )
 
     def test_names_are_unique_per_run(self):
@@ -112,10 +113,10 @@ class IsolationTests(unittest.TestCase):
         with patch.dict(os.environ):
             os.environ.pop("WATCHED_KETTLE_INSTANCE_SERVER_NAME", None)
             os.environ.pop("WATCHED_KETTLE_SERVER_NAME", None)
-            self.assertEqual(
-                configured_instance_server_name(), DEFAULT_INSTANCE_SERVER_NAME
-            )
-            self.assertEqual(configured_pet_server_name(), WATCHED_KETTLE_SERVER_NAME)
+            instance = configured_instance_server_name()
+            self.assertTrue(instance.startswith(INSTANCE_PIPE_PREFIX))
+            agent = configured_pet_server_name()
+            self.assertEqual(agent, AGENT_PIPE_PREFIX + instance[-32:])
 
 
 class CycleMetricsTests(unittest.TestCase):

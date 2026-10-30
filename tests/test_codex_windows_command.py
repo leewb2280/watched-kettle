@@ -43,7 +43,9 @@ class WindowsHookCommandTests(unittest.TestCase):
             executable=Path("Installed App/$cash & 한글's (%)!.exe")
         )
         command = hook["commandWindows"]
-        self.assertTrue(command.startswith("powershell.exe -NoLogo -NoProfile"))
+        program, rest = command.split(" ", 1)
+        self.assertTrue(program.lower().endswith("powershell.exe"))
+        self.assertTrue(rest.startswith("-NoLogo -NoProfile"))
         script = base64.b64decode(command.split()[-1], validate=True).decode(
             "utf-16-le"
         )

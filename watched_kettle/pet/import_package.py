@@ -8,8 +8,6 @@ from pathlib import Path, PurePosixPath
 import stat
 from zipfile import BadZipFile, ZipFile
 
-from PIL import Image
-
 from watched_kettle.config import ANIMATIONS
 from watched_kettle.localization import t
 
@@ -164,6 +162,9 @@ def read_package(read):
 
 def normalize_manifest(raw, read):
     """Keep supported runtime fields, normalize images, report omitted fields."""
+    # Path and link policies are also used by dependency-free structure checks.
+    from PIL import Image
+
     result, assets, warnings = {}, {}, []
     if isinstance(raw.get("id"), str) and len(raw["id"]) <= 200:
         result["importOriginalId"] = raw["id"]
@@ -225,6 +226,7 @@ def normalize_manifest(raw, read):
                     raise invalid()
         result["idleActivities"] = values
     if "bubbleTheme" in raw:
+        from watched_kettle.pet.bubble_frame import MAX_FRAME_LAYERS
         from watched_kettle.pet.bubble_theme import (
             bubble_theme_from_dict,
             bubble_theme_to_dict,
@@ -240,13 +242,18 @@ def normalize_manifest(raw, read):
             ):
                 normalized[key] = "standard" if key == "frame_style" else "none"
                 warnings.append("bubbleTheme." + key)
+        # Decoration layers name images in the author's own library; a package
+        # ships its images through "frame" instead.
+        if normalized["decor"]:
+            warnings.append("bubbleTheme.decor")
+        normalized["decor"] = []
         if "frame" in theme:
             frame = deepcopy(theme["frame"])
             if not isinstance(frame, dict):
                 raise invalid()
             for group in ("backdrop", "overlay"):
                 layers = frame.get(group, [])
-                if not isinstance(layers, list) or len(layers) > 8:
+                if not isinstance(layers, list) or len(layers) > MAX_FRAME_LAYERS:
                     raise invalid()
                 for layer in layers:
                     if not isinstance(layer, dict):
@@ -283,6 +290,12 @@ def normalize_manifest(raw, read):
             normalized["frame"] = frame
             normalized.pop("frame_style", None)
         result["bubbleTheme"] = normalized
+    if "appearanceSet" in raw:
+        from watched_kettle.pet.appearance_assets import normalized_appearance_assets
+
+        appearance, appearance_assets = normalized_appearance_assets(raw, read)
+        result["appearanceSet"] = appearance
+        assets.update(appearance_assets)
     known = set(result) | {
         "id",
         "name",

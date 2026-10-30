@@ -1,5 +1,6 @@
 """Reusable project rows with status badges and a two-row scroll viewport."""
 
+from typing import Any
 from watched_kettle.localization import t
 
 from html import escape
@@ -64,7 +65,7 @@ class ProjectConversationRow(QFrame):
         self.setObjectName("projectConversationRow")
         self.router = router
         self.dismiss = dismiss
-        self.row = None
+        self.row: Any = None
         self.token = ""
         self.title = WrappedTitleButton(self)
         self.title.setFlat(True)
@@ -168,7 +169,7 @@ class ProjectBubbleRows(QScrollArea):
         self.router = router
         self.dismiss = dismiss
         self.rows = {}
-        self.ordered_ids = ()
+        self.ordered_ids: tuple = ()
         self.setFrameShape(QFrame.Shape.NoFrame)
         self.setWidgetResizable(False)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)

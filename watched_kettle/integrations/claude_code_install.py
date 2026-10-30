@@ -30,6 +30,7 @@ from watched_kettle.integrations.codex_install import (
     StaleHookPlanError,
     _atomic_write_text,
     _backup,
+    prune_backups,
     _fingerprint,
     _read_utf8,
     _windows_command,
@@ -255,12 +256,16 @@ class ClaudeCodeHookInstaller:
                 backup_paths.append(backup)
             _atomic_write_text(self.settings_path, plan.hooks_text)
             changed_paths.append(self.settings_path)
+        self.prune_backups()
         return HookApplyResult(
             operation=plan.operation,
             changed_paths=tuple(changed_paths),
             backup_paths=tuple(backup_paths),
             status=self.inspect(),
         )
+
+    def prune_backups(self):
+        prune_backups(self.settings_path)
 
     def _read_settings(self):
         text, error = _read_utf8(self.settings_path)
@@ -279,7 +284,7 @@ class ClaudeCodeHookInstaller:
         merged = self._remove_managed_hooks(payload)
         hooks = merged.setdefault("hooks", {})
         for event in MANAGED_HOOK_EVENTS:
-            group = {"hooks": [self._managed_hook(event)]}
+            group: dict[str, object] = {"hooks": [self._managed_hook(event)]}
             if event in TOOL_HOOK_EVENTS:
                 group = {"matcher": "*", **group}
             hooks.setdefault(event, []).append(group)

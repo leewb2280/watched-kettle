@@ -70,7 +70,7 @@ def _parse_line(line):
         return None
     try:
         entry = json.loads(line)
-    except (UnicodeDecodeError, ValueError):
+    except UnicodeDecodeError, ValueError:
         return None
     return entry if isinstance(entry, dict) else None
 
@@ -78,7 +78,7 @@ def _parse_line(line):
 def title_from_entry(entry):
     """Return ``(kind, title)`` for a title entry, else None."""
     kind = entry.get("type") if isinstance(entry, dict) else None
-    field = _TITLE_FIELDS.get(kind)
+    field = _TITLE_FIELDS.get(str(kind))
     value = entry.get(field) if field else None
     if not isinstance(value, str):
         return None

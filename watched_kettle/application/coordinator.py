@@ -45,7 +45,7 @@ class AppCoordinator:
             self.notification_service.submit(
                 NoticeRequest(
                     source="schedule",
-                    message=str(payload.get("message") or t("message.0034")),
+                    message=str(payload.get("message") or t("message.0109")),
                     urgency=str(payload.get("urgency") or "normal"),
                     session_id=str(payload.get("session_id") or "schedule"),
                     category="schedule",

@@ -269,7 +269,7 @@ def resume_time_text(at, now=None):
     """Local resume time: "15:20" today, "10/23 15:20" on another day; "" if invalid."""
     try:
         moment = datetime.fromtimestamp(at).astimezone()
-    except (ValueError, OSError, OverflowError):
+    except ValueError, OSError, OverflowError:
         return ""
     today = (now or datetime.now().astimezone()).date()
     clock = moment.strftime("%H:%M")

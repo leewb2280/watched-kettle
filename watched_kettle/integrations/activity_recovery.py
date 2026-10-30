@@ -120,5 +120,5 @@ def recorded_seconds(record):
         if stamp.tzinfo is None:
             stamp = stamp.replace(tzinfo=timezone.utc)
         return stamp.timestamp()
-    except (ValueError, OverflowError, OSError):
+    except ValueError, OverflowError, OSError:
         return 0.0

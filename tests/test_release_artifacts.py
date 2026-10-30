@@ -5,6 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from scripts.release_artifacts import (
+    check_bundle_pets,
     check_bundle_state,
     generate_manifest,
     verify_archive,
@@ -110,6 +111,55 @@ class BundleStateTests(unittest.TestCase):
                 "build machine path in: README.txt",
                 "build machine path in: licenses/DEPENDENCIES.json",
             ],
+        )
+
+
+class BundlePetTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = TemporaryDirectory()
+        self.bundle = Path(self.temp.name)
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def pet(self, relative, distribution):
+        path = self.bundle / relative / "pet.json"
+        path.parent.mkdir(parents=True)
+        path.write_text(json.dumps({"distribution": distribution}), encoding="utf-8")
+
+    def test_public_bundle_with_only_its_pets_passes(self):
+        self.pet("_internal/pets/mori-bot", "public")
+        self.assertEqual(
+            check_bundle_pets(self.bundle, ["pets/mori-bot"], "public"), []
+        )
+
+    def test_public_bundle_rejects_private_pets_anywhere(self):
+        self.pet("_internal/pets/mori-bot", "public")
+        self.pet("_internal/pets/secret", "private-beta")
+        self.pet("_internal/private-pets/other", "private-beta")
+
+        violations = check_bundle_pets(self.bundle, ["pets/mori-bot"], "public")
+
+        self.assertIn("unexpected pet package: pets/secret", violations)
+        self.assertIn(
+            "non-public pet manifest: _internal/pets/secret/pet.json", violations
+        )
+        self.assertIn("private pet folder: _internal/private-pets/", violations)
+
+    def test_missing_pet_is_reported(self):
+        self.assertEqual(
+            check_bundle_pets(self.bundle, ["pets/mori-bot"], "public"),
+            ["missing pet package: pets/mori-bot"],
+        )
+
+    def test_private_beta_bundle_keeps_public_and_private_pets(self):
+        self.pet("_internal/pets/mori-bot", "public")
+        self.pet("_internal/pets/secret", "private-beta")
+        self.assertEqual(
+            check_bundle_pets(
+                self.bundle, ["pets/mori-bot", "pets/secret"], "private-beta"
+            ),
+            [],
         )
 
 

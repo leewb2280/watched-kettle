@@ -2,7 +2,7 @@
 
 ## Electron settings interface
 
-The Windows distribution includes Electron 44.4.5 (MIT), its Chromium/Node.js
+The Windows distribution includes Electron 44.9.3 (MIT), its Chromium/Node.js
 components, React and React DOM 19.3.0 (MIT), and Lucide React 0.468.0 (ISC).
 The pinned dependency inventory is `settings-ui/pnpm-lock.yaml` in the source.
 The package includes Electron's `settings-ui/LICENSE` and

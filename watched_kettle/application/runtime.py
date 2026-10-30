@@ -88,7 +88,7 @@ class ApplicationRuntime(QObject):
         self.paths = paths or AppPaths.default()
         self._started = False
         self._closed = False
-        self.lifecycle_errors = {}
+        self.lifecycle_errors: dict = {}
         try:
             self.ui_font_family = configure_application_font(app)
 
@@ -445,7 +445,7 @@ class ApplicationRuntime(QObject):
             controller.set_inactivity_limit("claude_code", limit)
 
     def _widget_activity(self):
-        counts = {}
+        counts: dict = {}
         for card in self.projects.cards:
             entry = counts.setdefault(card.source, {"running": 0, "attention": 0})
             entry["running"] += card.working
@@ -480,7 +480,7 @@ class ApplicationRuntime(QObject):
         try:
             installer = self.integrations_vm.installer("claude_code")
             return installer.settings_path.parent.is_dir()
-        except (OSError, KeyError, AttributeError):
+        except OSError, KeyError, AttributeError:
             return False
 
     def tool_detected(self, tool):

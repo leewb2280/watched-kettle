@@ -7,12 +7,12 @@ from watched_kettle.localization import t
 import json
 import logging
 import os
-import shutil
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QProcess, QTimer, Signal
 
 from watched_kettle.application.logging import log_event
+from watched_kettle.integrations.windows_paths import find_on_path
 
 
 _SAFE_OPERATIONS = frozenset(
@@ -34,7 +34,8 @@ def find_codex_program():
     explicit = os.environ.get("CODEX_EXECUTABLE")
     if explicit and Path(explicit).is_file():
         return explicit
-    found = shutil.which("codex")
+    # Not shutil.which: it looks in the current folder before PATH.
+    found = find_on_path("codex")
     if found:
         return found
     local = os.environ.get("LOCALAPPDATA")
@@ -125,19 +126,19 @@ class CodexAppServerClient(QObject):
             lambda p=process: self._read_stderr() if self.process is p else None
         )
         process.started.connect(
-            lambda p=process: self._send_initialize_when_started()
-            if self.process is p
-            else None
+            lambda p=process: (
+                self._send_initialize_when_started() if self.process is p else None
+            )
         )
         process.finished.connect(
-            lambda *args, p=process: self._process_finished(*args)
-            if self.process is p
-            else None
+            lambda *args, p=process: (
+                self._process_finished(*args) if self.process is p else None
+            )
         )
         process.errorOccurred.connect(
-            lambda error, p=process: self._process_error(error)
-            if self.process is p
-            else None
+            lambda error, p=process: (
+                self._process_error(error) if self.process is p else None
+            )
         )
         process.setProgram(program)
         process.setArguments(list(self.server_arguments))
@@ -151,8 +152,11 @@ class CodexAppServerClient(QObject):
         process = self.process
         self.process = None
         if process is not None and process.state() != QProcess.ProcessState.NotRunning:
-            process.terminate()
-            if not process.waitForFinished(1000):
+            # The server exits within milliseconds at the end of its input
+            # (measured 2026-10-29). terminate() posts WM_CLOSE, which a console
+            # program never receives on Windows, so it only waited a second.
+            process.closeWriteChannel()
+            if not process.waitForFinished(500):
                 process.kill()
                 process.waitForFinished(1000)
         if process is not None:
@@ -246,7 +250,7 @@ class CodexAppServerClient(QObject):
                 continue
             try:
                 message = json.loads(line.decode("utf-8"))
-            except (UnicodeDecodeError, ValueError, TypeError):
+            except UnicodeDecodeError, ValueError, TypeError:
                 self._set_error(t("message.0107"))
                 continue
             self._handle_message(message)
@@ -279,7 +283,7 @@ class CodexAppServerClient(QObject):
                 return
             try:
                 request_id = int(message["id"])
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 return
             pending = self._pending.pop(request_id, None)
             if pending is None:
@@ -413,7 +417,7 @@ class CodexAppServerClient(QObject):
         ):
             try:
                 signal.disconnect()
-            except (RuntimeError, TypeError):
+            except RuntimeError, TypeError:
                 pass
         process.deleteLater()
 

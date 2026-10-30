@@ -1,5 +1,6 @@
 """Project and notification cards sharing the existing pet bubble theme."""
 
+from typing import Any
 from dataclasses import dataclass, replace
 from watched_kettle.localization import t
 
@@ -22,6 +23,7 @@ from watched_kettle.ui.wrapped_title_button import WrappedTitleButton
 from watched_kettle.ui.speech_bubble_controller import PetBubbleController
 from watched_kettle.ui.speech_bubble_window import (
     SpeechBubbleWindow,
+    bubble_stack_overlap,
     bubble_stack_positions,
 )
 
@@ -151,7 +153,9 @@ class ActionableBubbleWindow(SpeechBubbleWindow):
         self.summary_label.setWordWrap(False)
         has_summary = project and bool(content.summary)
         spacing = self._scaled(6) if has_summary else 0
-        self.header.layout().setSpacing(spacing)
+        layout = self.header.layout()
+        if layout is not None:
+            layout.setSpacing(spacing)
 
         rows = [] if compact else list(content.rows[:2])
         if not project:
@@ -334,8 +338,8 @@ class ActionableBubbleController(PetBubbleController):
         self._closed = False
         self._last_layout = None
         self._plan_key = None
-        self._plan = ()
-        self._measurer = None
+        self._plan: tuple = ()
+        self._measurer: Any = None
         self._project_generation = projects.generation
         super().__init__(pet, **kwargs)
         self.notifications.managed_delivery = True
@@ -689,6 +693,7 @@ class ActionableBubbleController(PetBubbleController):
                 gap=round(10 * self.scale_percent / 100),
                 stack_gap=max(1, round(6 * self.scale_percent / 100)),
                 alignment=self.theme.stack_alignment,
+                overlap=bubble_stack_overlap(self.theme, self.scale_percent / 100),
             )
             positions = self._avoid_pet_overlap(
                 positions, [entry[3] for entry in plan], bounds, obstacles
@@ -749,8 +754,8 @@ class ActionableBubbleController(PetBubbleController):
         recorder = self.activity_diagnostics
         if recorder.callback is None:
             return
-        rows = {}
-        observed_cards = {}
+        rows: dict = {}
+        observed_cards: dict = {}
         truncated = False
         for index, card in enumerate(cards):
             if len(observed_cards) >= 512:
@@ -850,7 +855,7 @@ class ActionableBubbleController(PetBubbleController):
         for rect in rects:
             column = column.united(rect)
         gap = max(1, round(10 * self.scale_percent / 100))
-        candidates = []
+        candidates: list = []
         for obstacle in obstacles:
             candidates.extend(
                 (

@@ -46,7 +46,7 @@ def read_report(path):
             return {}
         value = json.loads(path.read_text(encoding="utf-8"))
         return value if isinstance(value, dict) else {}
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return {}
 
 
@@ -64,7 +64,7 @@ def read_observation(path):
         for line in reversed(lines[1:-1] if start else lines[:-1]):
             try:
                 value = json.loads(line)
-            except (ValueError, UnicodeError):
+            except ValueError, UnicodeError:
                 continue
             if isinstance(value, dict):
                 return value
@@ -244,7 +244,7 @@ def supervise(
                     - datetime.fromisoformat(observation["observation_finished_at_utc"])
                 ).total_seconds(),
             )
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             issues.append("cleanup_timestamp_invalid")
     if cleanup_seconds is not None and cleanup_seconds > exit_timeout:
         if "exit_timeout" not in issues:

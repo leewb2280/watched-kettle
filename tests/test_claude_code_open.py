@@ -204,7 +204,9 @@ class OpenUrlTests(unittest.TestCase):
 
         self.assertTrue(open_url(QUrl(self.URL), shell.append, True, popen))
         args, options = started[0]
-        self.assertEqual(args[:2], ["rundll32.exe", "url.dll,FileProtocolHandler"])
+        self.assertEqual(Path(args[0]).name.lower(), "rundll32.exe")
+        self.assertTrue(Path(args[0]).is_absolute())
+        self.assertEqual(args[1], "url.dll,FileProtocolHandler")
         self.assertEqual(args[2], "vscode://file/C:/work/kettle%20demo")
         self.assertEqual(options["creationflags"], DETACHED_PROCESS)
         self.assertEqual(shell, [])

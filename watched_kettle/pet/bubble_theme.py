@@ -7,14 +7,26 @@ from watched_kettle.localization.collections import MessageId, MessageMapping
 from dataclasses import asdict, dataclass, replace
 
 from PySide6.QtGui import QColor
-from watched_kettle.pet.bubble_frame import frame_style_for, is_frame_style
+from watched_kettle.pet.bubble_decor import (
+    ORNAMENT_KINDS,
+    DecorLayer,
+    decor_from_list,
+    stickers_as_layers,
+)
+from watched_kettle.pet.bubble_frame import (
+    FRAME_STYLE_PREFIX,
+    frame_style_for,
+    is_frame_style,
+)
 
 
 DEFAULT_BUBBLE_THEME_MODE = "character"
 BUBBLE_THEME_MODES = frozenset({"character", "default", "custom"})
 BUBBLE_SHAPES = frozenset({"rounded", "cloud", "jelly", "comic", "tech"})
 BUBBLE_TAILS = frozenset({"none", "triangle", "curved", "stub", "angular", "droplet"})
-BUBBLE_GRADIENTS = frozenset({"solid", "vertical", "horizontal"})
+BUBBLE_GRADIENTS = frozenset({"solid", "vertical", "horizontal", "angle"})
+# "free" places the photo in its own box: background_x/y and width/height.
+BACKGROUND_FITS = frozenset({"cover", "contain", "stretch", "tile", "free"})
 BUBBLE_BORDER_STYLES = frozenset({"single", "double", "accent"})
 BUBBLE_HEADER_STYLES = frozenset({"none", "capsule", "tab", "ribbon", "panel"})
 # "standard" or "pet:<id>", a package frame registered by pet/bubble_frame.py.
@@ -22,20 +34,23 @@ BUBBLE_FRAME_STYLES = frozenset({"standard"})
 BUBBLE_STACK_ALIGNMENTS = frozenset({"center", "left"})
 BUBBLE_TEXT_ALIGNMENTS = frozenset({"center", "left"})
 BUILTIN_BUBBLE_PATTERNS = frozenset({"none", "dots", "stars", "grid"})
-BUILTIN_BUBBLE_ORNAMENTS = frozenset(
-    {
-        "none",
-        "cat-ear",
-        "small-wing",
-        "horn",
-        "bat-wing",
-        "star",
-        "sparkle",
-        "ribbon",
-        "goggles",
-        "magnet",
-    }
+# Tiles in assets/bubble-patterns, tinted with the border color when painted.
+# The order is the editor's.
+BACKGROUND_PATTERN_NAMES = (
+    "dots",
+    "gingham",
+    "stripes",
+    "hearts",
+    "stars",
+    "flowers",
+    "waves",
+    "grid",
 )
+BUILTIN_BACKGROUND_PREFIX = "builtin:"
+BUILTIN_BACKGROUND_IMAGES = frozenset(
+    {"none", *(BUILTIN_BACKGROUND_PREFIX + name for name in BACKGROUND_PATTERN_NAMES)}
+)
+BUILTIN_BUBBLE_ORNAMENTS = frozenset({"none", *ORNAMENT_KINDS})
 
 # Inclusive numeric bounds shared by normalization and the settings editor.
 BUBBLE_THEME_LIMITS = {
@@ -47,30 +62,85 @@ BUBBLE_THEME_LIMITS = {
     "minimum_width": (48, 240),
     "maximum_width": (140, 480),
     "horizontal_padding": (16, 64),
-    "background_opacity": (10, 100),
+    "gradient_angle": (0, 359),
+    "pattern_tile_size": (12, 96),
+    "pattern_opacity": (4, 60),
+    "background_opacity": (0, 100),
     "background_focus_x": (0, 100),
     "background_focus_y": (0, 100),
     "background_zoom": (100, 300),
+    "background_tile_size": (16, 256),
+    "background_blur": (0, 20),
+    "background_overlay": (0, 80),
+    "background_x": (0.0, 100.0),
+    "background_y": (0.0, 100.0),
+    "background_width": (8, 960),
+    "background_height": (8, 960),
     "frame_slice": (4, 64),
-    **{f"sticker_{slot}_{axis}": (0, 100) for slot in (1, 2, 3) for axis in ("x", "y")},
-    **{f"sticker_{slot}_size": (16, 96) for slot in (1, 2, 3)},
+    "inner_border_alpha": (0, 255),
+    "halo_alpha": (0, 255),
+    "halo_width": (0.0, 12.0),
+    "halo_offset_y": (-20.0, 20.0),
+    "halo_grow": (-10.0, 20.0),
+    "content_top": (0, 60),
+    "content_bottom": (0, 60),
+    "content_left": (0, 80),
 }
-STICKER_SLOTS = (1, 2, 3)
+# Fields a preset never changes: the user's images and decoration layers.
 IMAGE_THEME_KEYS = frozenset(
     {
         "background_image",
+        "background_fit",
         "background_opacity",
         "background_focus_x",
         "background_focus_y",
         "background_zoom",
+        "background_tile_size",
+        "background_blur",
+        "background_overlay",
+        "background_x",
+        "background_y",
+        "background_width",
+        "background_height",
         "frame_image",
         "frame_slice",
+        "package_layers",
+        "decor",
     }
-    | {
-        f"sticker_{slot}{suffix}"
-        for slot in STICKER_SLOTS
-        for suffix in ("", "_x", "_y", "_size")
+)
+# Values a pet frame supplies (its inner line, halo and text spacing) that a
+# user theme may set itself; each "*_custom" switch off keeps the pet's own.
+FRAME_THEME_KEYS = frozenset(
+    {
+        "inner_border_custom",
+        "inner_border_color",
+        "inner_border_alpha",
+        "halo_custom",
+        "halo_color",
+        "halo_alpha",
+        "halo_width",
+        "halo_offset_y",
+        "halo_grow",
+        "content_custom",
+        "content_top",
+        "content_bottom",
+        "content_left",
     }
+)
+# A preset also leaves the pet's character frame on: it restyles the bubble,
+# the frame belongs to the pet.
+PRESET_KEPT_KEYS = IMAGE_THEME_KEYS | FRAME_THEME_KEYS | {"frame_style"}
+_IMAGE_NUMBER_KEYS = (
+    "background_opacity",
+    "background_focus_x",
+    "background_focus_y",
+    "background_zoom",
+    "background_tile_size",
+    "background_blur",
+    "background_overlay",
+    "background_width",
+    "background_height",
+    "frame_slice",
 )
 
 
@@ -104,28 +174,55 @@ class SpeechBubbleTheme:
     stack_alignment: str = "center"
     text_alignment: str = "center"
     text_bold: bool = False
-    # User images (stage 14): a photo under the text, a 9-slice frame image
-    # that replaces the drawn border, and up to three stickers. Each is
-    # "none" or a "user:<id>" element from the user's bubble elements.
+    # Degrees for gradient "angle": 0 runs left to right, 90 top to bottom.
+    gradient_angle: int = 135
+    # Tile size and opacity of a user pattern image.
+    pattern_tile_size: int = 28
+    pattern_opacity: int = 16
+    # User images: a photo under the text and a 9-slice frame image that
+    # replaces the drawn border. Each is "none" or a "user:<id>" element;
+    # the photo may also be a "builtin:<name>" pattern tile.
     background_image: str = "none"
+    background_fit: str = "cover"
     background_opacity: int = 45
     background_focus_x: int = 50
     background_focus_y: int = 50
     background_zoom: int = 100
+    background_tile_size: int = 64
+    background_blur: int = 0
+    # Percent of the bubble color laid over the photo to keep text readable.
+    background_overlay: int = 0
+    # "free" fit: the photo's center in percent of the body and its size in
+    # pixels, so a longer bubble keeps the picture's shape and its side.
+    background_x: float = 50.0
+    background_y: float = 50.0
+    background_width: int = 120
+    background_height: int = 80
     frame_image: str = "none"
     frame_slice: int = 16
-    sticker_1: str = "none"
-    sticker_1_x: int = 88
-    sticker_1_y: int = 20
-    sticker_1_size: int = 32
-    sticker_2: str = "none"
-    sticker_2_x: int = 12
-    sticker_2_y: int = 80
-    sticker_2_size: int = 32
-    sticker_3: str = "none"
-    sticker_3_x: int = 50
-    sticker_3_y: int = 88
-    sticker_3_size: int = 32
+    # False hides the layers of the pet frame (frame_style) but keeps its
+    # spacing; set when the user copied those layers into decor to edit them.
+    package_layers: bool = True
+    # User decoration layers (pet/bubble_decor.py), drawn after the pet frame.
+    decor: tuple[DecorLayer, ...] = ()
+    # The double border's inner line; off uses the pet frame's or the border.
+    inner_border_custom: bool = False
+    inner_border_color: str = "#8c8377"
+    inner_border_alpha: int = 115
+    # A rounded line around the body, behind it; off uses the pet frame's.
+    # Width 0 draws none.
+    halo_custom: bool = False
+    halo_color: str = "#263246"
+    halo_alpha: int = 90
+    halo_width: float = 3.0
+    halo_offset_y: float = 0.0
+    halo_grow: float = 0.0
+    # Text spacing inside the body (top, bottom, extra left); off uses the
+    # pet frame's or the standard spacing.
+    content_custom: bool = False
+    content_top: int = 12
+    content_bottom: int = 14
+    content_left: int = 0
 
 
 DEFAULT_BUBBLE_THEME = SpeechBubbleTheme(
@@ -137,7 +234,8 @@ DEFAULT_BUBBLE_THEME = SpeechBubbleTheme(
 
 
 # Starting points for the editor's gallery in every build. Choosing one keeps
-# the user's photo, frame image and stickers (IMAGE_THEME_KEYS).
+# the user's photo, frame image, decoration layers and the pet's character
+# frame (PRESET_KEPT_KEYS).
 PUBLIC_BUBBLE_PRESETS = MessageMapping(
     {
         "cream": (MessageId("message.0131"), {}),
@@ -404,47 +502,112 @@ def bubble_theme_from_dict(raw_theme):
             raw_theme.get("text_bold", raw_theme.get("textBold")),
             DEFAULT_BUBBLE_THEME.text_bold,
         ),
+        gradient_angle=_bounded_int(
+            fill.get(
+                "angle",
+                raw_theme.get("gradient_angle", raw_theme.get("gradientAngle")),
+            ),
+            DEFAULT_BUBBLE_THEME.gradient_angle,
+            *BUBBLE_THEME_LIMITS["gradient_angle"],
+        ),
+        pattern_tile_size=_bounded_int(
+            raw_theme.get("pattern_tile_size"),
+            DEFAULT_BUBBLE_THEME.pattern_tile_size,
+            *BUBBLE_THEME_LIMITS["pattern_tile_size"],
+        ),
+        pattern_opacity=_bounded_int(
+            raw_theme.get("pattern_opacity"),
+            DEFAULT_BUBBLE_THEME.pattern_opacity,
+            *BUBBLE_THEME_LIMITS["pattern_opacity"],
+        ),
         **_image_fields(raw_theme),
+        **_frame_fields(raw_theme),
     )
 
 
-def _image_fields(raw_theme):
-    """User-image fields; only "none" or user elements are accepted."""
+def _frame_fields(raw_theme):
+    """The theme's own inner line, halo and text spacing (FRAME_THEME_KEYS)."""
     values = {
-        "background_image": _element_id(
-            raw_theme.get("background_image"), {"none"}, "none"
-        ),
-        "frame_image": _element_id(raw_theme.get("frame_image"), {"none"}, "none"),
+        key: _boolean(raw_theme.get(key), False)
+        for key in ("inner_border_custom", "halo_custom", "content_custom")
     }
+    for key in ("inner_border_color", "halo_color"):
+        values[key] = _color(raw_theme.get(key), getattr(DEFAULT_BUBBLE_THEME, key))
     for key in (
-        "background_opacity",
-        "background_focus_x",
-        "background_focus_y",
-        "background_zoom",
-        "frame_slice",
+        "inner_border_alpha",
+        "halo_alpha",
+        "content_top",
+        "content_bottom",
+        "content_left",
     ):
         values[key] = _bounded_int(
             raw_theme.get(key),
             getattr(DEFAULT_BUBBLE_THEME, key),
             *BUBBLE_THEME_LIMITS[key],
         )
-    for slot in STICKER_SLOTS:
-        name = f"sticker_{slot}"
-        values[name] = _element_id(raw_theme.get(name), {"none"}, "none")
-        for suffix in ("x", "y", "size"):
-            key = f"{name}_{suffix}"
-            values[key] = _bounded_int(
+    # Halves keep a pet halo's 2.5px offset when it is copied.
+    for key in ("halo_width", "halo_offset_y", "halo_grow"):
+        values[key] = (
+            round(
+                _bounded_float(
+                    raw_theme.get(key),
+                    getattr(DEFAULT_BUBBLE_THEME, key),
+                    *BUBBLE_THEME_LIMITS[key],
+                )
+                * 2
+            )
+            / 2
+        )
+    return values
+
+
+def _image_fields(raw_theme):
+    """User-image fields; only "none", built-in tiles or user elements."""
+    values = {
+        "background_image": _element_id(
+            raw_theme.get("background_image"), BUILTIN_BACKGROUND_IMAGES, "none"
+        ),
+        "background_fit": _choice(
+            raw_theme.get("background_fit"),
+            BACKGROUND_FITS,
+            DEFAULT_BUBBLE_THEME.background_fit,
+        ),
+        "frame_image": _element_id(raw_theme.get("frame_image"), {"none"}, "none"),
+        "package_layers": _boolean(
+            raw_theme.get("package_layers"), DEFAULT_BUBBLE_THEME.package_layers
+        ),
+        # Themes saved before decoration layers kept up to three stickers.
+        "decor": (
+            decor_from_list(raw_theme["decor"])
+            if "decor" in raw_theme
+            else stickers_as_layers(raw_theme)
+        ),
+    }
+    for key in _IMAGE_NUMBER_KEYS:
+        values[key] = _bounded_int(
+            raw_theme.get(key),
+            getattr(DEFAULT_BUBBLE_THEME, key),
+            *BUBBLE_THEME_LIMITS[key],
+        )
+    # Tenths of a percent keep a dragged photo where it was dropped.
+    for key in ("background_x", "background_y"):
+        values[key] = round(
+            _bounded_float(
                 raw_theme.get(key),
                 getattr(DEFAULT_BUBBLE_THEME, key),
                 *BUBBLE_THEME_LIMITS[key],
-            )
+            ),
+            1,
+        )
     return values
 
 
 def bubble_theme_to_dict(theme):
-    """Return stable JSON-compatible data for per-pet preferences."""
+    """Return stable JSON-compatible data for per-pet preferences and the wire."""
     normalized = theme if isinstance(theme, SpeechBubbleTheme) else DEFAULT_BUBBLE_THEME
-    return asdict(normalized)
+    data = asdict(normalized)
+    data["decor"] = [dict(layer) for layer in data["decor"]]
+    return data
 
 
 def resolve_bubble_theme(
@@ -455,10 +618,24 @@ def resolve_bubble_theme(
     """Resolve the user's mode against package and per-pet custom themes."""
     mode = normalize_bubble_theme_mode(mode)
     if mode == "custom" and custom_theme is not None:
-        return custom_theme
+        return with_own_frame(custom_theme, manifest)
     if mode in {"character", "custom"}:
         return bubble_theme_from_manifest(manifest) or DEFAULT_BUBBLE_THEME
     return DEFAULT_BUBBLE_THEME
+
+
+def with_own_frame(theme, manifest):
+    """The theme with another pet's frame swapped for this pet's own.
+
+    A design saved on one pet names that pet's frame ("pet:<id>"). On another
+    pet it means "the character frame", so it takes that pet's frame, or the
+    standard one when the pet ships none.
+    """
+    if not theme.frame_style.startswith(FRAME_STYLE_PREFIX):
+        return theme
+    package = bubble_theme_from_manifest(manifest)
+    own = package.frame_style if package is not None else "standard"
+    return theme if theme.frame_style == own else replace(theme, frame_style=own)
 
 
 def _color(value, fallback):
@@ -496,7 +673,7 @@ def _boolean(value, fallback):
 def _bounded_int(value, fallback, minimum, maximum):
     try:
         number = int(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         number = fallback
     return min(max(number, minimum), maximum)
 
@@ -504,7 +681,7 @@ def _bounded_int(value, fallback, minimum, maximum):
 def _bounded_float(value, fallback, minimum, maximum):
     try:
         number = float(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         number = fallback
     return min(max(number, minimum), maximum)
 
@@ -512,7 +689,8 @@ def _bounded_float(value, fallback, minimum, maximum):
 def bubble_theme_presets():
     """Gallery entries for the editor.
 
-    Values leave out IMAGE_THEME_KEYS so a preset never removes user images.
+    Values leave out PRESET_KEPT_KEYS so a preset never removes user images
+    or the pet's character frame.
     """
     entries = [
         (preset_id, label, bubble_theme_from_dict(dict(values)))
@@ -525,7 +703,7 @@ def bubble_theme_presets():
             values={
                 key: value
                 for key, value in asdict(theme).items()
-                if key not in IMAGE_THEME_KEYS
+                if key not in PRESET_KEPT_KEYS
             },
         )
         for preset_id, label, theme in entries

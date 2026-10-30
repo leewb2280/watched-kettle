@@ -60,6 +60,11 @@ $updateApiUrl = ""
 $updatePageUrl = ""
 $updateNotesUrl = ""
 if ($UpdateTestPort) {
+    # A test-channel build reads updates from this PC or the LAN. Signing marks
+    # a release build, which must only carry the official channel.
+    if ($signing) {
+        throw "-UpdateTestPort builds are never signed; build the release without it."
+    }
     & $python -c (
         "import sys; from watched_kettle.application.update_check import local_test_host; " +
         "sys.exit(0 if local_test_host(sys.argv[1]) else 1)"
@@ -276,6 +281,11 @@ if ($LASTEXITCODE -ne 0) {
 & $python -m scripts.release_artifacts inspect $bundle
 if ($LASTEXITCODE -ne 0) {
     throw "The bundle contains per-user state or build machine paths."
+}
+# A Public bundle must hold only public pets, exactly the ones its profile collects.
+& $python -m scripts.release_artifacts pets $bundle --profile $buildProfile
+if ($LASTEXITCODE -ne 0) {
+    throw "The bundled pet packages do not match the $buildProfile build profile."
 }
 Compress-Archive `
     -LiteralPath $bundle `

@@ -76,6 +76,8 @@ class TopmostGuard(QObject):
         if QGuiApplication.platformName() != "windows":
             return
         app = QGuiApplication.instance()
+        if not isinstance(app, QGuiApplication):
+            return
         app.screenAdded.connect(self._screens_changed)
         app.screenRemoved.connect(self._screens_changed)
         app.primaryScreenChanged.connect(self._screens_changed)

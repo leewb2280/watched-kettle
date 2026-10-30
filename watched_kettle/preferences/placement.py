@@ -74,7 +74,7 @@ class PlacementPreferences:
                 relative_x=float(values["relative_x"]),
                 relative_y=float(values["relative_y"]),
             )
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
         if placement.work_width <= 0 or placement.work_height <= 0:
             return None

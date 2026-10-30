@@ -3,6 +3,7 @@ import {
   ChevronRight,
   Folder,
   LayoutGrid,
+  Link2,
   Monitor,
   Palette,
   Play,
@@ -33,6 +34,7 @@ export function CorePetPage({
   change,
   movementScreen,
   setImportPet,
+  setLinkPet,
   openCatalogManager,
   shell,
 }: Pick<
@@ -55,6 +57,7 @@ export function CorePetPage({
   | "change"
   | "movementScreen"
   | "setImportPet"
+  | "setLinkPet"
   | "openCatalogManager"
   | "shell"
 >) {
@@ -161,6 +164,7 @@ export function CorePetPage({
               )}
               change={change}
               hideTitles
+              descriptionTips={{ pet_appearance: t("pet.appearance.help") }}
               fieldExtras={
                 movementScreen && movementScreen !== "current"
                   ? {
@@ -204,6 +208,14 @@ export function CorePetPage({
                 <span>
                   <strong>{t("message.1126")}</strong>
                   <small>{t("message.1127")}</small>
+                </span>
+                <ChevronRight size={16} />
+              </button>
+              <button className="link-card" onClick={() => setLinkPet(true)}>
+                <Link2 size={19} />
+                <span>
+                  <strong>{t("pet.link.title")}</strong>
+                  <small>{t("pet.link.card")}</small>
                 </span>
                 <ChevronRight size={16} />
               </button>

@@ -18,6 +18,27 @@ const out = process.env.SETTINGS_QA_OUT
       edition + (executable ? "-packaged" : ""),
     );
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+// A 24x16 pink dot imported as a bubble decoration.
+const QA_DECOR_PNG =
+  "iVBORw0KGgoAAAANSUhEUgAAABgAAAAQCAYAAAAMJL+VAAAAX0lEQVR42mNgoDFgJKTgTlTFf3zyKss6GEm2gJChpFjGRC3DcellopbhuMxgoqbh2Mxiorbh6JYw0TqZDhMLCGUWSvIEE7E5ktwMx0RKticnNzORWraQWlTQvLCjOQAAkzksGo3g2CIAAAAASUVORK5CYII=";
+// Two 192x208 frames joined as a transition between pets.
+const QA_LINK_STRIP =
+  "iVBORw0KGgoAAAANSUhEUgAAAYAAAADQCAYAAAAOPrb8AAAD5klEQVR42u3c0U0iUBRF0aOxFGqyCCugBCqwCGqiF6zA+KEiuNf6nsyEl8nd9z2JGwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/9uTIwBu5fJ+vH71Zw5vJ3NJAIDK0BcDAQAMfiEQAMDgF4Lf9uwIgEcY/rf4+wUA4I6HswjMExDQGvzzJOQGABj+bgMCABi+IiAAQHnoioAAAOFhKwICAIAAALUt2y1AAIDwcBUBAQDCQ1UEBAAAAQBq27RbgAAA4SEqAgIAgAAAte3ZLeBzL47gto7ny5f/GU+vB7/hEJhfBx0Z+mKArXl+dbQbgKH/2d8jBoAbQGDwuxVg+3cLmB8CG/5/9e8AbgDc8UB2G8D27xbgBhAc/m4DgADEh68IAAIQHroiwDz/+JwC0B22IgAIQHjIigC2Yp9XAMLDVQQAAQgPVREABACY5xCfWwBi27RbACAA4SEqAoAAACAAte3ZLYB5B/f5BaA7NEUAEAAABKC2LbsFMM8fzkEAABCA2JbsFgAIAIAAUNuO3QIAAYD5wSfd8xCA6FbsFgAIAIAAACAA8/zjcwMCAIAA2IJ9fuYbL85FAAAQAAAEAAABmPdv5wAIAAACAIAAACAA8+7tPJjvujsfAQBAAAAQAAAEYN67nQsgAAAIAAACAIAAACAAAAgAgAA4AgABmO+643xAAAAQAAAEAAABAEAAABAAAAQAAAEAQAAAEAAABAC4icPb6ckpOB8BAHADAEAAABAAAAQAAAEAQAAAEIBHcno9+B6085nvuuNc3AAA3AAAEAAABAAAAQBAAID5xovzEAAABGC+6+5cAAEAQAAAEABgfvDpHARg3rudByAAAAgAMM8fPr8AACAA8+7tHAABAEAAgHkH97kFAAABmPdvnx8QAGCeQ+b5RwBswT43IABAciu2/QsAgAA4giWfQzz/AAIArPI84vlHAPJbse0fEAAgsyXb/gUgvx3b/gEBADLbsu1fAPJbsu0fEAAgszXb/gUgvy3b/gEBCA5Nw5/q9mz7FwAgOEQNfwHIb8+2f0AAgkPU8Ke6Tdv+BQAIDlXDXwDy27Ttn+JwNfwFID9UDX9AAILD1fCnumXb/gUgPWQNf6rD1vAXgPSwNfypDl3DXwDSQ9fwpzp8Df/vcXg/4Hi+XA1/6i7vx6vBLwBCYPAjAob/PAHNk5DhzzwJGf5uAG4DBj9uAwa/AIiBoY8QGPwCIAaGPmJg6AMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwwD4ACPSydKCset8AAAAASUVORK5CYII=";
+// Electron shows window.confirm and alert as native message boxes, which
+// Playwright's "dialog" event never sees, so a QA run would wait for a person
+// to click them. Answer them inside the page instead, on every load.
+function answerDialogsInPage(page) {
+  const answer = () => {
+    window.qaConfirmations = [];
+    window.confirm = (message) => {
+      window.qaConfirmations.push(String(message));
+      return true;
+    };
+    window.alert = () => {};
+  };
+  return Promise.all([page.addInitScript(answer), page.evaluate(answer)]);
+}
+
 async function until(fn, timeout = 10000) {
   const end = Date.now() + timeout;
   // Attempts and the slowest one tell a slow backend from a lost action.
@@ -349,6 +370,7 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
     const page = await app.firstWindow();
     page.on("pageerror", (error) => metrics.errors.push(error.message));
     page.on("dialog", (dialog) => dialog.accept());
+    await answerDialogsInPage(page);
     await page
       .getByRole("heading", { name: "펫", exact: true, level: 1 })
       .waitFor();
@@ -374,10 +396,7 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
     assert.equal(await page.locator("h1").count(), 1);
     await page.screenshot({ path: path.join(out, "common-home.png") });
     // A pet gesture: it lives on the pet page's behavior tab.
-    await page
-      .getByRole("button", { name: "펫", exact: true })
-      .first()
-      .click();
+    await page.getByRole("button", { name: "펫", exact: true }).first().click();
     await page.getByRole("tab", { name: "동작·화면", exact: true }).click();
     const doubleClick = page.getByLabel("더블클릭 동작", { exact: true });
     assert.equal(await doubleClick.inputValue(), "settings_home");
@@ -528,9 +547,9 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       .click();
     assert.equal(
       await importDialog
-        .getByRole("button", { name: "추가", exact: true })
-        .isDisabled(),
-      true,
+        .getByRole("button", { name: "펫 추가", exact: true })
+        .count(),
+      0,
     );
     await pickerResult(connection.petImportInvalid);
     await importDialog
@@ -549,11 +568,13 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       path: path.join(out, "pet-import-preview.png"),
     });
     await importDialog
-      .getByRole("button", { name: "추가", exact: true })
+      .getByRole("button", { name: "펫 추가", exact: true })
       .click();
     await importDialog
       .getByText("을(를) 펫 목록에 추가했습니다.", { exact: false })
       .waitFor();
+    assert.equal(await importDialog.locator(".import-animation").count(), 0);
+    assert.equal(await importDialog.getByRole("tab").count(), 0);
     const importCatalog = await page.evaluate(() =>
       window.settings.request("pet.catalog"),
     );
@@ -586,7 +607,7 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       .click();
     await importDialog.getByLabel("펫 이름").fill("이름을 덮어쓰지 않음");
     await importDialog
-      .getByRole("button", { name: "추가", exact: true })
+      .getByRole("button", { name: "펫 추가", exact: true })
       .click();
     await importDialog.getByText(/이미 등록되어 있습니다/).waitFor();
     assert.equal(
@@ -624,6 +645,56 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       id: imported.id,
       nativePicker: "stubbed result; real IPC and backend",
     };
+    // Expiration keeps the confirmation form and draft available for recovery.
+    await pickerResult(connection.petImportSource);
+    await page
+      .getByRole("button", { name: "펫 가져오기", exact: false })
+      .click();
+    importDialog = page.getByRole("dialog", {
+      name: "펫 가져오기",
+      exact: true,
+    });
+    await importDialog
+      .getByRole("button", { name: "파일 선택", exact: true })
+      .click();
+    await importDialog.getByLabel("펫 이름").fill("만료된 이름 초안");
+    await fs.writeFile(
+      connection.control,
+      JSON.stringify({ action: "import_expire" }),
+    );
+    await until(() =>
+      fs.access(connection.control).then(
+        () => false,
+        () => true,
+      ),
+    );
+    await importDialog
+      .getByRole("button", { name: "펫 추가", exact: true })
+      .click();
+    await importDialog.getByRole("alert").getByText(/만료/).waitFor();
+    assert.equal(
+      await importDialog.getByLabel("펫 이름").inputValue(),
+      "만료된 이름 초안",
+    );
+    assert.equal(await importDialog.locator(".import-result").count(), 0);
+    await importDialog
+      .getByRole("button", { name: "다른 펫 선택", exact: true })
+      .click();
+    assert.equal(await importDialog.locator(".pet-import-preview").count(), 0);
+    assert.equal(
+      await importDialog
+        .getByRole("button", { name: "펫 추가", exact: true })
+        .count(),
+      0,
+    );
+    await importDialog
+      .getByRole("button", { name: "취소", exact: true })
+      .click();
+
+    await app.evaluate(({ dialog }) => {
+      dialog.showOpenDialog = globalThis.qaOriginalPicker;
+    });
+    metrics.petImport.expirationRecovery = true;
     const petSize = page.getByLabel("펫 크기", { exact: true });
     await petSize.fill("2");
     await until(
@@ -942,6 +1013,63 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
         .evaluate((node) => node === document.activeElement),
       true,
     );
+    // A second action 20-60ms after the first ran into the reload that the
+    // host's late invalidate starts, and the click was lost (fixed in 0.15.11).
+    // A short list shows it: with many pets the action outlasts the 80ms delay.
+    const rapid = await page.evaluate(
+      async ({ ids }) => {
+        const manager = document.querySelector("dialog .pet-manager");
+        const tick = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        const busy = () => manager.getAttribute("aria-busy") === "true";
+        const toggle = (id) =>
+          manager.querySelector(`[data-pet-id="${id}"] [role="switch"]`);
+        const checked = (id) => toggle(id).getAttribute("aria-checked");
+        const quiet = async () => {
+          let since = null;
+          for (;;) {
+            await tick(5);
+            if (busy()) since = null;
+            else if (performance.now() - (since ??= performance.now()) >= 400)
+              return;
+          }
+        };
+        const results = [];
+        for (const delay of [20, 30, 40, 50, 60]) {
+          const [first, second] = ids;
+          await quiet();
+          const before = checked(second);
+          toggle(first).click();
+          while (!busy()) await tick(1);
+          while (busy()) await tick(1);
+          const done = performance.now();
+          while (performance.now() - done < delay) await tick(1);
+          const disabled = toggle(second).disabled;
+          toggle(second).click();
+          await quiet();
+          results.push({
+            delay,
+            disabled,
+            applied: checked(second) !== before,
+          });
+          for (const id of ids) {
+            toggle(id).click();
+            await quiet();
+          }
+        }
+        return results;
+      },
+      {
+        ids: managerCatalog.entries
+          .map((entry) => entry.id)
+          .filter((id) => id !== managerCatalog.petId),
+      },
+    );
+    metrics.rapidPetActions = rapid;
+    assert.deepEqual(
+      rapid.filter((result) => !result.applied || result.disabled),
+      [],
+    );
+    await settled();
     await rowFor(imported.id).getByRole("switch").click();
     await until(async () =>
       (
@@ -1085,8 +1213,13 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       .getByRole("button", { name: "파일 선택", exact: true })
       .click();
     await importDialog
-      .getByRole("button", { name: "추가", exact: true })
+      .getByRole("button", { name: "펫 추가", exact: true })
       .click();
+    await importDialog.locator('[data-import-step="result"]').waitFor();
+    assert.equal(await importDialog.locator(".import-animation").count(), 0);
+    await importDialog.screenshot({
+      path: path.join(out, "pet-import-restore.png"),
+    });
     await importDialog
       .getByRole("button", { name: "휴지통에서 복원", exact: true })
       .click();
@@ -1097,6 +1230,12 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       .getByRole("button", { name: "닫기", exact: true })
       .last()
       .click();
+    assert.equal(
+      (await page.evaluate(() => window.settings.request("settings.snapshot")))
+        .pet.pet_id,
+      managerCatalog.petId,
+    );
+    metrics.petImport.trashRestoreWithoutSelection = true;
     await settled();
     await app.evaluate(({ dialog }) => {
       dialog.showOpenDialog = globalThis.qaOriginalPicker;
@@ -1523,28 +1662,440 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
           .getAttribute("src")) !== noticePreview,
     );
     await page.screenshot({ path: path.join(out, "editor-project.png") });
+    const projectPreview = await page
+      .getByAltText("현재 말풍선 디자인 미리보기")
+      .getAttribute("src");
     await page.getByRole("button", { name: "짧은 알림", exact: true }).click();
-    // Fields fold into groups; open the ones this check uses.
-    for (const group of ["모양·테두리", "장식"])
-      await page.locator("summary", { hasText: group }).click();
+    await until(
+      async () =>
+        (await page
+          .getByAltText("현재 말풍선 디자인 미리보기")
+          .getAttribute("src")) !== projectPreview,
+    );
+    // Fields live in tabs; the shape tab holds the corner radius.
+    const editorTab = (name) =>
+      page.getByRole("tab", { name, exact: true }).click();
+    await editorTab("테두리·모양");
     const radius = page.getByLabel("모서리 곡률", { exact: true });
-    // Out-of-range input is clamped on blur to the bound Python applies.
-    await page.getByText("6–24px", { exact: true }).waitFor();
-    await radius.fill("500");
-    await radius.press("Tab");
-    assert.equal(await radius.inputValue(), "24");
+    // Theme numbers are sliders that stop at the bound Python applies.
+    assert.equal(await radius.getAttribute("type"), "range");
+    await radius.focus();
+    await page.keyboard.press("End");
+    await until(async () => (await radius.inputValue()) === "24");
     assert.equal(
       await draftStatus.textContent(),
       themeModeBefore === "custom"
         ? "적용하지 않은 변경이 있어요."
         : "적용하면 테마가 '내가 꾸민 디자인'으로 바뀝니다.",
     );
+    await page.screenshot({ path: path.join(out, "editor-border.png") });
+    // Every tab keeps the dialog's height, so switching never moves it.
+    const editorHeight = async () =>
+      (await page.locator(".bubble-editor-modal").boundingBox()).height;
+    const borderHeight = await editorHeight();
+    await editorTab("글자·배치");
+    assert.equal(await editorHeight(), borderHeight);
+    await page.screenshot({ path: path.join(out, "editor-layout.png") });
+    await editorTab("장식");
+    // Built-in ornaments are added as layers under translated names; the old
+    // corner slots show only while a theme still uses them.
+    assert.equal(
+      await page.getByLabel("왼쪽 장식", { exact: true }).count(),
+      0,
+    );
     const ornamentOptions = await page
-      .getByLabel("왼쪽 장식", { exact: true })
-      .locator("option")
+      .getByLabel("기본 장식 추가", { exact: true })
+      .locator('option[value^="ornament:"]')
       .allTextContents();
-    assert.equal(ornamentOptions[0], "없음");
+    assert.equal(ornamentOptions.length, 10);
     assert.ok(ornamentOptions.every((label) => !/^[a-z-]+$/.test(label)));
+    // Import, library and ornaments share one row; the pet frame field sits
+    // in the layer card instead of a group of its own.
+    const addTops = await page
+      .locator(".decor-add-row > *")
+      .evaluateAll((items) =>
+        items.map((item) => Math.round(item.getBoundingClientRect().top)),
+      );
+    assert.equal(new Set(addTops).size, 1);
+    assert.equal(
+      await page.locator(".decor-panel #field-frame_style").count(),
+      1,
+    );
+    // A decoration: import an image as a layer, drag it on the real preview,
+    // undo, redo and delete it with the keyboard.
+    const decorImage = path.join(out, "qa-decor.png");
+    await fs.writeFile(decorImage, Buffer.from(QA_DECOR_PNG, "base64"));
+    await app.evaluate(({ dialog }, file) => {
+      if (!globalThis.qaOriginalPicker)
+        globalThis.qaOriginalPicker = dialog.showOpenDialog;
+      dialog.showOpenDialog = async () => ({
+        canceled: false,
+        filePaths: [file],
+      });
+    }, decorImage);
+    const previewImage = page.getByAltText("현재 말풍선 디자인 미리보기");
+    const undecorated = await previewImage.getAttribute("src");
+    await page
+      .getByRole("button", { name: "이미지 가져오기", exact: true })
+      .click();
+    const decorBox = page.locator(".canvas-layer.is-selected");
+    await decorBox.waitFor();
+    // Handles follow the preview geometry; wait for the decorated drawing.
+    await until(
+      async () => (await previewImage.getAttribute("src")) !== undecorated,
+    );
+    await app.evaluate(({ dialog }) => {
+      dialog.showOpenDialog = globalThis.qaOriginalPicker;
+    });
+    assert.equal(await page.locator(".layer-row").count(), 1);
+    // The position shows as percent of the body like the background photo;
+    // the anchor is picked from where the layer is placed.
+    const decorX = page.locator("#field-decor_position_x");
+    assert.equal(await decorX.getAttribute("type"), "range");
+    assert.equal(await page.getByLabel("기준점", { exact: true }).count(), 0);
+    const decorPercent = async () => Number(await decorX.inputValue());
+    const placed = await decorPercent();
+    assert.ok(placed > 50);
+    const decorStart = await decorBox.boundingBox();
+    await page.mouse.move(
+      decorStart.x + decorStart.width / 2,
+      decorStart.y + decorStart.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      decorStart.x - 120,
+      decorStart.y + decorStart.height / 2 + 4,
+      {
+        steps: 8,
+      },
+    );
+    await page.mouse.up();
+    // Fields show a new value one render after the drop.
+    await until(async () => (await decorPercent()) < placed - 10);
+    const moved = await decorPercent();
+    await page.screenshot({ path: path.join(out, "editor-decor.png") });
+    await page.keyboard.press("Control+z");
+    await until(async () => (await decorPercent()) === placed);
+    await page.keyboard.press("Control+y");
+    await until(async () => (await decorPercent()) === moved);
+    await page.keyboard.press("ArrowRight");
+    await until(async () => (await decorPercent()) > moved);
+    const nudged = await decorPercent();
+    // The position slider saves one undo step per change.
+    await decorX.focus();
+    await page.keyboard.press("End");
+    await until(async () => (await decorPercent()) > 140);
+    await decorBox.click();
+    await page.keyboard.press("Control+z");
+    await until(async () => (await decorPercent()) === nudged);
+    // Sizes stay typed; rotation is a slider like the other looks.
+    assert.equal(
+      await page.locator("#field-decor_width").getAttribute("type"),
+      "number",
+    );
+    const rotation = page.locator("#field-decor_rotation");
+    assert.equal(await rotation.getAttribute("type"), "range");
+    assert.equal(
+      await page.locator("#field-decor_alpha").getAttribute("type"),
+      "range",
+    );
+    await rotation.focus();
+    await page.keyboard.press("ArrowRight");
+    await until(async () => (await rotation.inputValue()) === "1");
+    await decorBox.click();
+    await page.keyboard.press("Control+z");
+    await until(async () => (await rotation.inputValue()) === "0");
+    // Layer settings fit one card; flips are toggle buttons on one row.
+    assert.equal(await page.locator(".decor-inspector").count(), 1);
+    const flipX = page.getByRole("button", { name: "좌우 반전", exact: true });
+    assert.equal(await flipX.getAttribute("aria-pressed"), "false");
+    await flipX.click();
+    await until(
+      async () => (await flipX.getAttribute("aria-pressed")) === "true",
+    );
+    await decorBox.click();
+    await page.keyboard.press("Control+z");
+    await until(
+      async () => (await flipX.getAttribute("aria-pressed")) === "false",
+    );
+    await page.keyboard.press("Delete");
+    await until(async () => (await page.locator(".layer-row").count()) === 0);
+    metrics.editorDecorDragUndoDelete = true;
+    // A built-in ornament becomes a selected layer drawn in the middle.
+    await page
+      .getByLabel("기본 장식 추가", { exact: true })
+      .selectOption("ornament:cat-ear");
+    await until(async () => (await page.locator(".layer-row").count()) === 1);
+    await decorBox.waitFor();
+    assert.equal(
+      await page.locator("#field-decor_image").inputValue(),
+      "ornament:cat-ear",
+    );
+    assert.equal(Math.round(Number(await decorX.inputValue())), 50);
+    await decorBox.click();
+    await page.keyboard.press("Delete");
+    await until(async () => (await page.locator(".layer-row").count()) === 0);
+    metrics.editorOrnamentLayer = true;
+    // A copied image pasted into the editor becomes a decoration layer.
+    await page.locator(".bubble-canvas").evaluate((canvas, data) => {
+      const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+      const clipboardData = new DataTransfer();
+      clipboardData.items.add(
+        new File([bytes], "copied.png", { type: "image/png" }),
+      );
+      canvas.dispatchEvent(
+        new ClipboardEvent("paste", { clipboardData, bubbles: true }),
+      );
+    }, QA_DECOR_PNG);
+    await until(async () => (await page.locator(".layer-row").count()) === 1);
+    await page.keyboard.press("Delete");
+    await until(async () => (await page.locator(".layer-row").count()) === 0);
+    metrics.editorDecorPaste = true;
+    // The background photo is a layer of its own on the background tab: drag
+    // it, resize it from a corner (shape kept) and a side (one way), undo.
+    await editorTab("배경");
+    await app.evaluate(({ dialog }, file) => {
+      if (!globalThis.qaOriginalPicker)
+        globalThis.qaOriginalPicker = dialog.showOpenDialog;
+      dialog.showOpenDialog = async () => ({
+        canceled: false,
+        filePaths: [file],
+      });
+    }, decorImage);
+    await page
+      .getByRole("button", { name: "배경 이미지 추가", exact: true })
+      .click();
+    const photoLayer = page.locator(".canvas-background");
+    await photoLayer.waitFor();
+    await app.evaluate(({ dialog }) => {
+      dialog.showOpenDialog = globalThis.qaOriginalPicker;
+    });
+    const photoFit = page.getByLabel("이미지 채우기", { exact: true });
+    assert.equal(await photoFit.inputValue(), "cover");
+    const body = await page.locator(".bubble-preview-image").boundingBox();
+    await page.mouse.move(body.x + body.width / 2, body.y + body.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(
+      body.x + body.width / 2 - 40,
+      body.y + body.height / 2,
+      {
+        steps: 6,
+      },
+    );
+    await page.mouse.up();
+    // The first drag places the photo freely from where it was drawn.
+    await until(async () => (await photoFit.inputValue()) === "free");
+    const photoX = page.getByLabel("가로 위치", { exact: true });
+    assert.ok(Number(await photoX.inputValue()) < 50);
+    const photoWidth = page.getByLabel("너비", { exact: true });
+    const photoHeight = page.getByLabel("높이", { exact: true });
+    // Out-of-range input is clamped on blur to the bound Python applies.
+    await page.getByText("8–960px", { exact: true }).first().waitFor();
+    await photoWidth.fill("5000");
+    await photoWidth.press("Tab");
+    assert.equal(await photoWidth.inputValue(), "960");
+    await photoWidth.fill("80");
+    await photoWidth.press("Tab");
+    await photoHeight.fill("60");
+    await photoHeight.press("Tab");
+    await photoX.fill("50");
+    await photoX.press("Tab");
+    const photoSize = async () => [
+      Number(await photoWidth.inputValue()),
+      Number(await photoHeight.inputValue()),
+    ];
+    await until(async () => {
+      const box = await photoLayer.boundingBox();
+      return box && Math.abs(box.width / box.height - 80 / 60) < 0.05;
+    });
+    await photoLayer.click();
+    const dragHandle = async (handle, dx, dy) => {
+      const box = await photoLayer
+        .locator(`.canvas-handle-${handle}`)
+        .boundingBox();
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(
+        box.x + box.width / 2 + dx,
+        box.y + box.height / 2 + dy,
+        { steps: 6 },
+      );
+      await page.mouse.up();
+    };
+    await dragHandle("se", 30, 4);
+    await until(async () => (await photoSize())[0] > 80);
+    const [cornerWidth, cornerHeight] = await photoSize();
+    assert.ok(Math.abs(cornerHeight / cornerWidth - 0.75) < 0.03);
+    await dragHandle("e", 24, 0);
+    await until(async () => (await photoSize())[0] > cornerWidth);
+    assert.equal((await photoSize())[1], cornerHeight);
+    await page.screenshot({ path: path.join(out, "editor-background.png") });
+    // Esc during a drag keeps the photo where it was.
+    const resized = await photoSize();
+    const handle = await photoLayer.locator(".canvas-handle-s").boundingBox();
+    await page.mouse.move(handle.x + 5, handle.y + 5);
+    await page.mouse.down();
+    await page.mouse.move(handle.x + 5, handle.y + 40, { steps: 4 });
+    await page.keyboard.press("Escape");
+    await page.mouse.up();
+    assert.deepEqual(await photoSize(), resized);
+    await page.keyboard.press("Control+z");
+    await until(async () => (await photoSize())[0] === cornerWidth);
+    // Background numbers are sliders except the free photo's size; moving
+    // one only previews, and letting go saves a single undo step.
+    const opacity = page.locator("#field-background_opacity");
+    assert.equal(await opacity.getAttribute("type"), "range");
+    assert.equal(await photoWidth.getAttribute("type"), "number");
+    assert.equal(await photoX.getAttribute("type"), "range");
+    const opacityBefore = await opacity.inputValue();
+    const track = await opacity.boundingBox();
+    await page.mouse.move(
+      track.x + track.width * 0.5,
+      track.y + track.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      track.x + track.width * 0.9,
+      track.y + track.height / 2,
+      { steps: 8 },
+    );
+    await page.mouse.up();
+    await until(async () => Number(await opacity.inputValue()) > 80);
+    await photoLayer.click();
+    await page.keyboard.press("Control+z");
+    await until(async () => (await opacity.inputValue()) === opacityBefore);
+    await page.getByLabel("이미지", { exact: true }).selectOption("none");
+    await photoLayer.waitFor({ state: "detached" });
+    // A pattern template is placed like an attached image; a photo picked
+    // while tiled fills the bubble so it can be picked on the preview too.
+    const photoImage = page.getByLabel("이미지", { exact: true });
+    await photoImage.selectOption("builtin:dots");
+    await photoFit.selectOption("tile");
+    await until(async () => (await photoLayer.count()) === 0);
+    await photoImage.selectOption("builtin:stars");
+    await until(async () => (await photoFit.inputValue()) === "free");
+    await photoLayer.waitFor();
+    assert.equal(await photoWidth.inputValue(), await photoHeight.inputValue());
+    // Only the user's own images can be deleted from the image field.
+    const deleteChosen = page.getByRole("button", {
+      name: "이 이미지 삭제",
+      exact: true,
+    });
+    assert.equal(await deleteChosen.count(), 0);
+    await photoFit.selectOption("tile");
+    const userPhoto = await photoImage.evaluate(
+      (select) =>
+        [...select.options].find((option) => option.value.startsWith("user:"))
+          .value,
+    );
+    await photoImage.selectOption(userPhoto);
+    await until(async () => (await photoFit.inputValue()) === "cover");
+    await photoLayer.waitFor();
+    // Deleting the chosen photo removes it from the library and the field.
+    await deleteChosen.click();
+    await until(async () => (await photoImage.inputValue()) === "none");
+    await photoLayer.waitFor({ state: "detached" });
+    assert.equal(
+      await photoImage.locator(`option[value="${userPhoto}"]`).count(),
+      0,
+    );
+    metrics.editorChosenImageDelete = true;
+    metrics.editorBackgroundLayer = true;
+    // Library images are deleted from the decoration tab, where the library
+    // is folded under a heading that counts its images.
+    await editorTab("장식");
+    const libraryRows = page.locator(".library-item");
+    const libraryCount = await libraryRows.count();
+    const libraryHeading = page.locator(".library-details > summary");
+    assert.equal(
+      await libraryHeading.textContent(),
+      `내 이미지 보관함 (${libraryCount})`,
+    );
+    assert.equal(
+      await page
+        .getByRole("button", { name: "폴더 열기", exact: true })
+        .count(),
+      0,
+    );
+    await libraryHeading.click();
+    await page
+      .getByRole("button", { name: "폴더 열기", exact: true })
+      .waitFor();
+    await libraryRows.last().hover();
+    await page
+      .getByRole("button", { name: "qa-decor 삭제", exact: true })
+      .last()
+      .click();
+    await until(async () => (await libraryRows.count()) === libraryCount - 1);
+    metrics.editorImageDelete = true;
+    // The deletes above asked through the page, not a native message box.
+    metrics.pageConfirmations = await page.evaluate(
+      () => window.qaConfirmations.length,
+    );
+    assert.ok(metrics.pageConfirmations > 0);
+    // My themes: save the design, apply it, share it as a file, load the file
+    // back and export it for a pet package. Only OS dialogs are replaced.
+    await editorTab("내 테마");
+    await page.getByLabel("디자인 이름", { exact: true }).fill("QA 디자인");
+    await page
+      .getByRole("button", { name: "지금 디자인 저장", exact: true })
+      .click();
+    const themeChip = page.locator(".theme-chip", { hasText: "QA 디자인" });
+    await themeChip.waitFor();
+    await themeChip.click();
+    await page
+      .locator(".editor-notice", { hasText: "QA 디자인 디자인을 불러왔어요" })
+      .waitFor();
+    const themeFile = path.join(out, "qa-theme.zip");
+    const packageFolder = path.join(out, "qa-theme-package");
+    await fs.mkdir(packageFolder, { recursive: true });
+    await app.evaluate(
+      ({ dialog }, { file, folder }) => {
+        globalThis.qaOriginalSave = dialog.showSaveDialog;
+        if (!globalThis.qaOriginalPicker)
+          globalThis.qaOriginalPicker = dialog.showOpenDialog;
+        dialog.showSaveDialog = async () => ({
+          canceled: false,
+          filePath: file,
+        });
+        dialog.showOpenDialog = async (_window, options) => ({
+          canceled: false,
+          filePaths: [
+            options.properties.includes("openDirectory") ? folder : file,
+          ],
+        });
+      },
+      { file: themeFile, folder: packageFolder },
+    );
+    await page
+      .getByRole("button", { name: "파일로 공유", exact: true })
+      .click();
+    await page
+      .locator(".editor-notice", { hasText: "디자인 파일을 저장했어요" })
+      .waitFor();
+    await page
+      .getByRole("button", { name: "파일 불러오기", exact: true })
+      .click();
+    await page
+      .locator(".editor-notice", { hasText: "파일을 불러왔어요" })
+      .waitFor();
+    await page
+      .getByRole("button", { name: "펫 패키지용으로 내보내기", exact: true })
+      .click();
+    await page
+      .locator(".editor-notice", { hasText: "펫 패키지용 파일을 만들었어요" })
+      .waitFor();
+    await app.evaluate(({ dialog }) => {
+      dialog.showSaveDialog = globalThis.qaOriginalSave;
+      dialog.showOpenDialog = globalThis.qaOriginalPicker;
+    });
+    const packaged = JSON.parse(
+      await fs.readFile(path.join(packageFolder, "bubble-theme.json"), "utf8"),
+    );
+    assert.ok(packaged.bubbleTheme);
+    await page.screenshot({ path: path.join(out, "editor-themes.png") });
+    metrics.editorThemes = true;
+    await editorTab("테두리·모양");
     // Host navigation and hide/reopen keep the mounted editor's unsaved draft.
     await fs.writeFile(
       connection.control,
@@ -1888,7 +2439,9 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
         order: (await page.getByLabel("프로젝트 정렬").boundingBox()).width,
       });
       const codexLayout = await historyLayout();
-      await page.screenshot({ path: path.join(out, "usage-codex-history.png") });
+      await page.screenshot({
+        path: path.join(out, "usage-codex-history.png"),
+      });
       // Claude Code history comes from the isolated transcript fixture.
       const sourceGroup = page.getByRole("group", { name: "기록 출처" });
       await sourceGroup
@@ -1985,9 +2538,7 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       );
       // Only the device record is cleared here; account history moved to
       // the history tab.
-      await page
-        .getByRole("button", { name: "지우기", exact: true })
-        .click();
+      await page.getByRole("button", { name: "지우기", exact: true }).click();
       await page
         .getByRole("dialog", { name: "기기 관측 기록 지우기" })
         .waitFor();
@@ -2387,7 +2938,9 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
         .first()
         .waitFor();
       assert.equal(
-        await page.locator(".record-row", { hasText: "연결 검증 알림" }).count(),
+        await page
+          .locator(".record-row", { hasText: "연결 검증 알림" })
+          .count(),
         0,
       );
       await kinds.getByRole("button", { name: /^전체 \d+$/ }).click();
@@ -2399,7 +2952,9 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
         connection.control,
         JSON.stringify({ action: "pending_notices" }),
       );
-      await page.getByRole("button", { name: "모두 확인", exact: true }).click();
+      await page
+        .getByRole("button", { name: "모두 확인", exact: true })
+        .click();
       await page.getByText("확인할 알림이 없어요.").waitFor();
       assert.ok(
         (
@@ -2572,6 +3127,44 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       firstFieldBox && firstFieldBox.y + firstFieldBox.height < viewport,
     );
     await page.screenshot({ path: path.join(out, "editor-narrow-dark.png") });
+    // Reopened after a cancel, a photo picked from the list is still a layer.
+    const pickPhoto = async () => {
+      const select = page.getByLabel("이미지", { exact: true });
+      await select.selectOption(
+        await select.evaluate(
+          (element) =>
+            [...element.options].find((option) =>
+              option.value.startsWith("user:"),
+            ).value,
+        ),
+      );
+      await page.locator(".canvas-background").waitFor();
+    };
+    // The library keeps one copy of a picture and the earlier check deleted
+    // it, so add the picture again before picking it from the list.
+    await app.evaluate(({ dialog }, file) => {
+      dialog.showOpenDialog = async () => ({
+        canceled: false,
+        filePaths: [file],
+      });
+    }, decorImage);
+    await page
+      .getByRole("button", { name: "배경 이미지 추가", exact: true })
+      .click();
+    await page.locator(".canvas-background").waitFor();
+    await app.evaluate(({ dialog }) => {
+      dialog.showOpenDialog = globalThis.qaOriginalPicker;
+    });
+    await pickPhoto();
+    await page
+      .getByRole("dialog", { name: /말풍선 꾸미기$/ })
+      .getByRole("button", { name: "취소", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "말풍선 꾸미기", exact: true })
+      .click();
+    await page.getByAltText("현재 말풍선 디자인 미리보기").waitFor();
+    await pickPhoto();
     await page
       .getByRole("dialog", { name: /말풍선 꾸미기$/ })
       .getByRole("button", { name: "취소", exact: true })
@@ -2588,6 +3181,122 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       ),
       true,
     );
+    // Join two installed pets: a cross-fade, then a drawn transition whose
+    // reverse plays backwards; the new pet appears in the catalog.
+    await page.getByRole("button", { name: "펫", exact: true }).click();
+    await page.getByRole("tab", { name: "외형·표시", exact: true }).click();
+    await page.getByRole("button", { name: /^펫 잇기/ }).click();
+    const linkDialog = page.getByRole("dialog", {
+      name: "펫 잇기",
+      exact: true,
+    });
+    const addLook = linkDialog.getByLabel("모습 추가", { exact: true });
+    await until(async () => (await addLook.locator("option").count()) >= 3);
+    await addLook.selectOption({ label: "Mori Bot" });
+    // Earlier checks trash the alternate Mori Bot; a batch QA copy remains.
+    await addLook.selectOption({ label: "일괄 QA 02" });
+    assert.equal(await linkDialog.locator(".link-look-row").count(), 2);
+    await linkDialog.getByRole("button", { name: "다음", exact: true }).click();
+    await linkDialog
+      .getByRole("button", {
+        name: "Mori Bot에서 일괄 QA 02(으)로 전환 재생",
+        exact: true,
+      })
+      .click();
+    await linkDialog.locator(".link-player img").waitFor();
+    assert.equal(
+      await linkDialog.locator(".link-player-kind").textContent(),
+      "부드럽게 겹쳐 바꾸기",
+    );
+    const linkStrip = path.join(out, "qa-link-strip.png");
+    await fs.writeFile(linkStrip, Buffer.from(QA_LINK_STRIP, "base64"));
+    await app.evaluate(({ dialog }, file) => {
+      if (!globalThis.qaOriginalPicker)
+        globalThis.qaOriginalPicker = dialog.showOpenDialog;
+      dialog.showOpenDialog = async () => ({
+        canceled: false,
+        filePaths: [file],
+      });
+    }, linkStrip);
+    await linkDialog
+      .getByRole("button", {
+        name: "Mori Bot에서 일괄 QA 02(으)로 가는 전환 이미지 가져오기",
+        exact: true,
+      })
+      .click();
+    await until(
+      async () =>
+        (await linkDialog.locator(".link-player-kind").textContent()) ===
+        "전환 이미지 2프레임",
+    );
+    await app.evaluate(({ dialog }) => {
+      dialog.showOpenDialog = globalThis.qaOriginalPicker;
+    });
+    const pairKinds = await linkDialog
+      .locator(".link-pair-kind")
+      .allTextContents();
+    assert.deepEqual(pairKinds, [
+      "전환 이미지 2프레임",
+      "반대 방향을 거꾸로 재생",
+    ]);
+    await page.screenshot({ path: path.join(out, "pet-link-transitions.png") });
+    await linkDialog.getByRole("button", { name: "다음", exact: true }).click();
+    await linkDialog.getByLabel("펫 이름", { exact: true }).fill("QA 잇기");
+    await linkDialog
+      .getByRole("button", { name: "펫 만들기", exact: true })
+      .click();
+    await linkDialog
+      .getByRole("heading", { name: "펫을 만들었어요", exact: true })
+      .waitFor();
+    await page.screenshot({ path: path.join(out, "pet-link-created.png") });
+    await linkDialog
+      .getByRole("button", { name: "닫기", exact: true })
+      .last()
+      .click();
+    assert.ok(
+      (
+        await page.evaluate(() => window.settings.request("pet.catalog"))
+      ).entries.some((entry) => entry.name === "QA 잇기"),
+    );
+    metrics.petLinkCreated = true;
+    // Editing the joined pet replaces it; the previous one goes to the trash.
+    await page.getByRole("button", { name: /^펫 잇기/ }).click();
+    const editSelect = linkDialog.getByLabel("묶음 펫 고치기", { exact: true });
+    await editSelect.selectOption({ label: "QA 잇기" });
+    await until(
+      async () => (await linkDialog.locator(".link-look-row").count()) === 2,
+    );
+    await linkDialog
+      .locator(".link-look-row input[type=text]")
+      .first()
+      .fill("아침");
+    await linkDialog.getByRole("button", { name: "다음", exact: true }).click();
+    assert.deepEqual(
+      await linkDialog.locator(".link-pair-kind").allTextContents(),
+      ["전환 이미지 2프레임", "반대 방향을 거꾸로 재생"],
+    );
+    await linkDialog.getByRole("button", { name: "다음", exact: true }).click();
+    await linkDialog.locator(".import-warning").waitFor();
+    await linkDialog
+      .getByRole("button", { name: "바꿔 저장", exact: true })
+      .click();
+    await linkDialog
+      .getByRole("heading", { name: "펫을 바꿨어요", exact: true })
+      .waitFor();
+    await linkDialog
+      .getByRole("button", { name: "닫기", exact: true })
+      .last()
+      .click();
+    const afterEdit = await page.evaluate(async () => ({
+      catalog: (await window.settings.request("pet.catalog")).entries.filter(
+        (entry) => entry.name === "QA 잇기",
+      ).length,
+      trash: (
+        await window.settings.request("pet.trash.list", { offset: 0 })
+      ).entries.filter((entry) => entry.name === "QA 잇기").length,
+    }));
+    assert.deepEqual(afterEdit, { catalog: 1, trash: 1 });
+    metrics.petLinkEdited = true;
     const pid = app.process().pid;
     const before = await app.evaluate(({ app }) =>
       app

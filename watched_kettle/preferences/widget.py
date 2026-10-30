@@ -38,7 +38,7 @@ class WidgetPreferences:
         for key in ("usage/widgetOffsetX", "usage/widgetOffsetY"):
             try:
                 value = int(self.settings.value(key, 0))
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 value = 0
             values.append(max(-4096, min(4096, value)))
         return tuple(values)
@@ -103,7 +103,7 @@ class WidgetPreferences:
     def _ensure_usage_widget_settings(self):
         try:
             version = int(self.settings.value("usage/widgetConfigVersion", 0) or 0)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             version = 0
         if version >= USAGE_WIDGET_CONFIG_VERSION:
             return
@@ -234,7 +234,7 @@ class WidgetPreferences:
             return DEFAULT_USAGE_WIDGET_SCALE
         try:
             basis_version = int(self.settings.value("usage/widgetScaleBasisVersion", 1))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             basis_version = 1
         if basis_version < USAGE_WIDGET_SCALE_BASIS_VERSION:
             scale_percent = migrate_legacy_usage_widget_scale(raw_value)

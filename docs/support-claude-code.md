@@ -102,6 +102,7 @@ VS Code 확장의 터미널 모드(`claudeCode.useTerminal`)는 CLI로 실행되
 - 사용량 현황·홈·위젯·트레이에 표시하고, 같은 초기화 구간에서 70·90·100%를 처음 넘으면 알린다. 앱을 다시 켠 뒤 첫 값은 알리지 않는다.
 - 초기화 시각이 지난 값은 현재 값처럼 보이지 않게 뺀다. 한도 표본은 Claude Code 계정별로 8일 보관한다.
 - 쓰던 status line이 없으면 앱이 두 줄짜리 기본 상태줄(연결·모델 / 컨텍스트·5시간·7일)을 보여 준다. 이 문구는 화면에만 출력하고 앱으로는 한도 숫자만 보낸다.
+- 쓰던 status line이 있으면 Claude Code처럼 Git Bash로, Git Bash가 없으면 Windows PowerShell로 그 명령을 실행해 출력을 그대로 보여 준다. 셸은 절대 경로로만 찾는다(`SHELL`·`CLAUDE_CODE_GIT_BASH_PATH`, `PATH`의 `git.exe` 옆, 기본 설치 위치). 작업 중인 프로젝트 폴더에 있는 같은 이름의 파일은 실행하지 않는다.
 
 ### 작업 기록
 

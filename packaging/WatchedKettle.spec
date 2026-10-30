@@ -18,6 +18,11 @@ from watched_kettle.build_profiles import (
 app_icon = project_root / "assets" / "app_icon.ico"
 app_icon_png = project_root / "assets" / "app_icon.png"
 checkmark_icon = project_root / "assets" / "ui" / "check-white.svg"
+# Built-in speech-bubble background tiles, used by both editions.
+bubble_pattern_datas = [
+    (str(path), "assets/bubble-patterns")
+    for path in sorted((project_root / "assets" / "bubble-patterns").glob("*.png"))
+]
 version_info = Path(
     os.environ.get("WATCHED_KETTLE_VERSION_FILE")
     or project_root / "build" / "windows_version_info.txt"
@@ -41,6 +46,7 @@ for source in collect_pet_build_sources(project_root, build_profile):
         (str(source.spritesheet_path), source.destination),
     ])
     pet_datas.extend((str(path), folder) for path, folder in source.frame_images)
+    pet_datas.extend((str(path), folder) for path, folder in source.appearance_images)
 
 font_root = project_root / "assets" / "fonts" / "Pretendard"
 font_datas = [
@@ -84,6 +90,7 @@ a = Analysis(
         + widget_datas
         + [(str(app_icon_png), "assets")]
         + [(str(checkmark_icon), "assets/ui")]
+        + bubble_pattern_datas
         + [(str(project_root / "THIRD_PARTY_NOTICES.md"), ".")]
         + notice_datas
     ),
@@ -185,6 +192,8 @@ bridge_parts = []
 if edition == "pet-assistant":
     # Codex runs the hook on every tool call (ADR 0004). Excluding inspect and
     # dataclasses also drops PyInstaller's inspect runtime hook (~20 ms per call).
+    # babel (through the message catalog) brought the pkgutil and
+    # multiprocessing runtime hooks, another ~20 ms per call.
     bridge = Analysis(
         [str(project_root / "main_hook_bridge.py")],
         pathex=[str(project_root)],
@@ -194,7 +203,17 @@ if edition == "pet-assistant":
         hookspath=[],
         hooksconfig={},
         runtime_hooks=[],
-        excludes=["PySide6", "shiboken6", "PIL", "inspect", "dataclasses"],
+        excludes=[
+            "PySide6",
+            "shiboken6",
+            "PIL",
+            "inspect",
+            "dataclasses",
+            "babel",
+            "watched_kettle.localization",
+            "multiprocessing",
+            "pkgutil",
+        ],
         noarchive=False,
         optimize=0,
     )

@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 from uuid import uuid4
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -16,6 +17,8 @@ from watched_kettle.integrations.codex_ipc import (
     PIPE_TRANSPORT,
 )
 from watched_kettle.integrations.codex_log import (
+    COLD_AFTER_SECONDS,
+    COLD_CHECK_POLLS,
     CodexLogMonitor,
     normalize_codex_log_record,
 )
@@ -402,6 +405,90 @@ class CodexLogMonitorTests(unittest.TestCase):
                 serialized = json.dumps(usage)
                 self.assertNotIn(str(rollout), serialized)
                 self.assertNotIn("prompt", serialized)
+            finally:
+                monitor.close()
+
+    def test_idle_polls_neither_search_folders_nor_open_unchanged_logs(self):
+        # Searching the dated folders and opening every log on each 250 ms
+        # poll was most of the app's idle CPU (PERF-02).
+        with TemporaryDirectory() as directory:
+            now = datetime(2026, 8, 31, 12, 0, tzinfo=timezone.utc)
+            day = Path(directory) / "2026" / "08" / "31"
+            day.mkdir(parents=True)
+            (day / f"rollout-2026-08-31T12-00-00-{uuid4()}.jsonl").write_text(
+                json.dumps({"type": "session_meta", "payload": {}}) + "\n",
+                encoding="utf-8",
+            )
+            monitor = CodexLogMonitor(directory, now=lambda: now)
+            searches, opens = [], []
+            real_glob, real_open = Path.glob, Path.open
+
+            def glob(path, pattern, **options):
+                searches.append(pattern)
+                return real_glob(path, pattern, **options)
+
+            def open_(path, *arguments, **options):
+                opens.append(path.name)
+                return real_open(path, *arguments, **options)
+
+            try:
+                monitor.start()
+                for _ in range(5):
+                    monitor.poll_now()
+                with (
+                    patch.object(Path, "glob", glob),
+                    patch.object(Path, "open", open_),
+                ):
+                    for _ in range(20):
+                        monitor.poll_now()
+                    self.assertEqual(searches, [])
+                    self.assertEqual(opens, [])
+                    # A new file changes the folder; the next poll finds it.
+                    new = day / f"rollout-2026-08-31T12-01-00-{uuid4()}.jsonl"
+                    new.write_text("", encoding="utf-8")
+                    monitor.poll_now()
+                    self.assertTrue(searches)
+                self.assertIn(new, monitor._positions)
+            finally:
+                monitor.close()
+
+    def test_logs_that_stopped_growing_are_checked_every_few_seconds(self):
+        with TemporaryDirectory() as directory:
+            now = datetime(2026, 8, 31, 12, 0, tzinfo=timezone.utc)
+            day = Path(directory) / "2026" / "08" / "31"
+            day.mkdir(parents=True)
+            rollout = day / f"rollout-2026-08-31T12-00-00-{uuid4()}.jsonl"
+            rollout.write_text("", encoding="utf-8")
+            monitor = CodexLogMonitor(directory, now=lambda: now)
+            clock = [1000.0]
+            checked = []
+            real_stat = Path.stat
+
+            def stat(path, *arguments, **options):
+                if path == rollout:
+                    checked.append(clock[0])
+                return real_stat(path, *arguments, **options)
+
+            try:
+                with patch(
+                    "watched_kettle.integrations.codex_log.monotonic",
+                    lambda: clock[0],
+                ):
+                    monitor.start()
+                    monitor.poll_now()
+                    clock[0] += COLD_AFTER_SECONDS
+                    with patch.object(Path, "stat", stat):
+                        for _ in range(COLD_CHECK_POLLS):
+                            monitor.poll_now()
+                    self.assertGreaterEqual(len(checked), 1)
+                    self.assertLessEqual(len(checked), 2)
+                    # Growth makes it hot again on its next check.
+                    rollout.write_text("{}\n", encoding="utf-8")
+                    checked.clear()
+                    with patch.object(Path, "stat", stat):
+                        for _ in range(COLD_CHECK_POLLS + 3):
+                            monitor.poll_now()
+                    self.assertGreater(len(checked), 3)
             finally:
                 monitor.close()
 

@@ -31,7 +31,7 @@ def run_package_smoke(pets_root, font_root=PRETENDARD_ROOT):
     try:
         for entry in entries:
             load_pet(entry.directory)
-    except (OSError, TypeError, UnicodeDecodeError, ValueError):
+    except OSError, TypeError, UnicodeDecodeError, ValueError:
         return 3
     finally:
         if QApplication.instance() is app:

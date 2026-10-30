@@ -72,7 +72,7 @@ class QueueRepository:
                 for row in rows:
                     try:
                         spec = TaskSpec.from_dict(self._open(row["payload"], row["id"]))
-                    except (ProtectionError, ValueError, TypeError, KeyError):
+                    except ProtectionError, ValueError, TypeError, KeyError:
                         continue
                     origin = self.origin_key(spec)
                     if origin:
@@ -97,7 +97,7 @@ class QueueRepository:
                     bytes(payload), (self._account() + "/" + identity).encode()
                 )
             )
-        except (ValueError, TypeError, UnicodeError):
+        except ValueError, TypeError, UnicodeError:
             raise ProtectionError("protected_data_unavailable") from None
 
     @contextmanager
@@ -145,14 +145,14 @@ class QueueRepository:
             if row["payload"] is not None:
                 try:
                     spec = TaskSpec.from_dict(self._open(row["payload"], row["id"]))
-                except (ProtectionError, ValueError, TypeError, KeyError):
+                except ProtectionError, ValueError, TypeError, KeyError:
                     reason, state = "decryption_failed", TaskState.NEEDS_REVIEW
             if spec is not None and reason == "source_version_upgrade":
                 spec = replace(spec, source_version="")
             if row["summary_payload"] is not None:
                 try:
                     summary = self._open(row["summary_payload"], row["id"] + "/summary")
-                except (ProtectionError, ValueError, TypeError, KeyError):
+                except ProtectionError, ValueError, TypeError, KeyError:
                     reason = "decryption_failed"
             result.append(
                 ReviewItem(

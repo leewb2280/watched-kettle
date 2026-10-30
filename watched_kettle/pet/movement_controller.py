@@ -1,5 +1,6 @@
 """Timed horizontal wandering for a desktop pet window."""
 
+from typing import Any
 import random
 
 from PySide6.QtCore import QElapsedTimer, QObject, QPoint, QRect, QTimer
@@ -80,9 +81,9 @@ class AutoMovementController(QObject):
         self.on_finish = on_finish
 
         self.active_state = None
-        self.target_x = None
+        self.target_x: Any = None
         self.current_x = None
-        self.locked_y = None
+        self.locked_y: Any = None
         self.locked_bounds = None
 
         self.delay_timer = QTimer(self)

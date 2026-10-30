@@ -22,12 +22,20 @@ THEME_WARNING = "bubbleTheme."
 def preparation(prepared) -> wire.PetPreparation:
     # Unused package fields are listed by name; another installation's
     # decoration references are explained once instead.
+    from watched_kettle.pet.appearance_assets import parse_appearance_set
+
+    spec = parse_appearance_set(
+        {**prepared.extras, "spritesheetPath": "spritesheet.webp"}
+    )
     return dict(
         token=prepared.token,
         name=prepared.name,
         thumbnail="data:image/png;base64,"
         + base64.b64encode(prepared.thumbnail).decode("ascii"),
         spriteVersion=prepared.version,
+        appearanceChoices=[dict(id=v.id, label=v.label) for v in spec.variants]
+        if spec
+        else [],
         description=prepared.extras.get("description", ""),
         source=prepared.source,
         warnings=[w for w in prepared.warnings if not w.startswith(THEME_WARNING)],

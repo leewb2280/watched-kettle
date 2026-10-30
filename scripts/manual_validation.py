@@ -290,7 +290,7 @@ def main():
                 if target.identity["sha256"] != args.sha256.lower():
                     target.close()
                     raise ValueError("Hash mismatch")
-            except (OSError, ValueError):
+            except OSError, ValueError:
                 self.status.setText(
                     "대상 프로세스를 확인하지 못했습니다. 측정은 시작하지 않았습니다."
                 )

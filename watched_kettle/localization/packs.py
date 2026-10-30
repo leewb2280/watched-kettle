@@ -197,7 +197,7 @@ class LanguagePacks:
         )
         try:
             english = load_pack(RESOURCE_ROOT / "en", official=True)
-        except (OSError, ValueError, UnicodeError, TypeError, KeyError):
+        except OSError, ValueError, UnicodeError, TypeError, KeyError:
             english = LanguagePack(
                 "official.en", "English", "en-US", official=True, error="invalid_pack"
             )

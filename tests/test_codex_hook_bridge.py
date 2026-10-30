@@ -1,3 +1,4 @@
+import base64
 import io
 import json
 import os
@@ -8,6 +9,7 @@ from tempfile import TemporaryDirectory
 import threading
 import time
 import unittest
+from unittest.mock import patch
 from uuid import uuid4
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -58,6 +60,11 @@ def _windows_powershell_command(script, *arguments):
     ]
 
 
+def _decoded_windows_hook(command):
+    encoded = command.split(" -EncodedCommand ", 1)[1]
+    return base64.b64decode(encoded).decode("utf-16-le")
+
+
 def _warm_windows_powershell():
     """Pay Windows PowerShell's first start on a fresh CI runner outside deadlines."""
     if os.name != "nt":
@@ -69,7 +76,7 @@ def _warm_windows_powershell():
             timeout=60,
             check=False,
         )
-    except (OSError, subprocess.TimeoutExpired):
+    except OSError, subprocess.TimeoutExpired:
         pass
 
 
@@ -291,9 +298,13 @@ class CodexLocalIpcTests(unittest.TestCase):
             command = hooks_config["hooks"]["PreToolUse"][0]["hooks"][0][
                 "commandWindows"
             ]
-            self.assertNotIn("Users\\", command)
-            self.assertIn(".codex\\hooks\\codex_pet_bridge.ps1", command)
-            self.assertIn("git rev-parse --show-toplevel", command)
+            # Codex may hand commandWindows to PowerShell, which would expand
+            # $variables inside a plain -Command string before it runs.
+            self.assertNotIn("$", command)
+            script = _decoded_windows_hook(command)
+            self.assertNotIn("Users\\", script)
+            self.assertIn(".codex\\hooks\\codex_pet_bridge.ps1", script)
+            self.assertIn("git rev-parse --show-toplevel", script)
             process_args = _windows_powershell_command(
                 ".codex/hooks/codex_pet_bridge.ps1"
             )
@@ -380,6 +391,47 @@ class CodexLocalIpcTests(unittest.TestCase):
             self.server.server.socketOptions(),
             QLocalServer.UserAccessOption,
         )
+
+    @unittest.skipUnless(PROJECT_CODEX_HOOKS.is_dir(), "development repository hook")
+    @unittest.skipUnless(os.name == "nt", "Windows hook command")
+    def test_project_hook_command_runs_under_cmd_and_powershell(self):
+        hooks_config = json.loads(Path(".codex/hooks.json").read_text())
+        command = hooks_config["hooks"]["Stop"][0]["hooks"][0]["commandWindows"]
+        environment = os.environ.copy()
+        environment["WATCHED_KETTLE_SERVER_NAME"] = (
+            f"watched-kettle-absent-{uuid4().hex}"
+        )
+        outer_shells = {
+            "cmd": {"args": command, "shell": True},
+            "powershell": {
+                "args": [
+                    str(_windows_powershell()),
+                    "-NoLogo",
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-Command",
+                    command,
+                ],
+                "shell": False,
+            },
+        }
+        for name, launch in outer_shells.items():
+            with self.subTest(outer_shell=name):
+                process = subprocess.run(
+                    launch["args"],
+                    input=b"{}",
+                    capture_output=True,
+                    env=environment,
+                    shell=launch["shell"],
+                    timeout=60,
+                    check=False,
+                )
+                diagnostic = (
+                    f"return_code={process.returncode}\n"
+                    f"stderr={process.stderr.decode('utf-8', errors='replace')}"
+                )
+                self.assertEqual(process.returncode, 0, diagnostic)
+                self.assertEqual(json.loads(process.stdout), {}, diagnostic)
 
     def test_missing_pet_process_fails_open_quickly(self):
         started = time.perf_counter()
@@ -708,6 +760,41 @@ class CodexLocalIpcTests(unittest.TestCase):
                 self.assertEqual(list(Path(directory).glob("*.json")), [])
             finally:
                 server.close()
+
+    def test_a_spool_larger_than_one_batch_drains_on_the_next_ticks(self):
+        # One drain takes at most 32 files; the rest must not wait for the
+        # folder to change again (they expire after a minute).
+        with TemporaryDirectory() as directory:
+            for index in range(40):
+                self.assertTrue(
+                    spool_pet_event(
+                        {
+                            "source": "codex",
+                            "event": "prompt",
+                            "session_id": f"s{index}",
+                        },
+                        directory,
+                    )
+                )
+            server = CodexHookServer(
+                f"watched-kettle-batch-spool-{uuid4().hex}",
+                spool_directory=directory,
+            )
+            received = []
+            server.payload_received.connect(received.append)
+            try:
+                server._drain_spool()
+                self.assertEqual(len(received), 32)
+                server._drain_spool()
+                self.assertEqual(len(received), 40)
+                self.assertEqual(list(Path(directory).glob("*.json")), [])
+                # An empty, unchanged folder is not listed again.
+                with patch.object(Path, "glob", side_effect=AssertionError):
+                    server._drain_spool()
+            finally:
+                server.close()
+                server.deleteLater()
+                QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
 
     def test_server_drains_user_managed_hook_queue(self):
         with TemporaryDirectory() as directory:

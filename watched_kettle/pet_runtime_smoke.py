@@ -51,8 +51,10 @@ def run_pet_runtime_smoke(arguments):
                 name.startswith(
                     (
                         "watched_kettle.features.tasks",
+                        "watched_kettle.storage",
                         "watched_kettle.usage",
                         "watched_kettle.integrations.codex_",
+                        "watched_kettle.integrations.execution_connection",
                     )
                 )
                 for name in sys.modules

@@ -64,7 +64,7 @@ class PetBatchController(QObject):
                     for row in reversed(job["results"])
                     if row["status"] == "succeeded" and row.get("trashId") in available
                 ]
-            except (OSError, PetTrashError):
+            except OSError, PetTrashError:
                 pass
         return deepcopy(result)
 

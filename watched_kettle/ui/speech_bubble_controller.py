@@ -1,5 +1,6 @@
 """Assistant notice prioritization, lifecycle merging, and history."""
 
+from typing import Any
 from watched_kettle.localization import t
 
 from dataclasses import dataclass, replace
@@ -20,6 +21,7 @@ from watched_kettle.ui.speech_bubble_window import (
     BUBBLE_GAP,
     BUBBLE_STACK_GAP,
     SpeechBubbleWindow,
+    bubble_stack_overlap,
     bubble_stack_positions,
 )
 from watched_kettle.pet.bubble_theme import DEFAULT_BUBBLE_THEME
@@ -66,7 +68,7 @@ class PetBubbleController(QObject):
         self._sequence = 0
         self._history = []
         self._history_fingerprints = {}
-        self._snoozed_until = None
+        self._snoozed_until: Any = None
         self._snooze_timer = QTimer(self)
         self._snooze_timer.setSingleShot(True)
         self._snooze_timer.timeout.connect(self.resume)
@@ -102,7 +104,7 @@ class PetBubbleController(QObject):
     @property
     def assistant_summary(self):
         """Return a privacy-safe count summary for tray and diagnostics."""
-        counts = {}
+        counts: dict = {}
         for entry in self._ordered_entries():
             notice = entry.notice
             if notice.kind == "preview":
@@ -320,6 +322,7 @@ class PetBubbleController(QObject):
                     round(BUBBLE_STACK_GAP * self.scale_percent / 100),
                 ),
                 alignment=self.theme.stack_alignment,
+                overlap=bubble_stack_overlap(self.theme, self.scale_percent / 100),
             )
 
         positions = calculate_positions()

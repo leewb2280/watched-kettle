@@ -30,7 +30,7 @@ def _number(value, cast=float):
     try:
         number = cast(value)
         return number if isfinite(number) else None
-    except (TypeError, ValueError, OverflowError):
+    except TypeError, ValueError, OverflowError:
         return None
 
 
@@ -44,7 +44,7 @@ def _utc_from_epoch(value):
         return None
     try:
         return datetime.fromtimestamp(seconds, timezone.utc)
-    except (OSError, OverflowError, ValueError):
+    except OSError, OverflowError, ValueError:
         return None
 
 
@@ -359,7 +359,7 @@ class DailyUsageBucket:
             return None
         try:
             parsed_date = date.fromisoformat(str(value.get("startDate"))[:10])
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
         return cls(parsed_date, _number(value.get("tokens"), int))
 

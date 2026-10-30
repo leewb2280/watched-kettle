@@ -10,6 +10,8 @@ from watched_kettle.state.presentation import (
 from watched_kettle.state.session_manager import AgentSessionManager
 from watched_kettle.ui.activity_caption import caption_position
 from watched_kettle.ui.speech_bubble import bubble_position, bubble_stack_positions
+from watched_kettle.ui.speech_bubble_window import bubble_stack_overlap
+from watched_kettle.pet.bubble_theme import DEFAULT_BUBBLE_THEME
 
 
 class FakeClock:
@@ -274,6 +276,17 @@ class SpeechBubblePositionTests(unittest.TestCase):
 
         self.assertEqual(len(positions), 2)
         self.assertGreater(positions[0].y(), positions[1].y())
+
+    def test_stack_overlap_shares_neighbouring_margins(self):
+        sizes = (QSize(220, 60), QSize(180, 40))
+        args = (QRect(350, 500, 120, 130), sizes, QRect(0, 0, 800, 700))
+        plain = bubble_stack_positions(*args)
+        shared = bubble_stack_positions(*args, overlap=10)
+
+        self.assertEqual(plain[0], shared[0])
+        self.assertEqual(plain[0].y() - plain[1].y(), 40 + 6)
+        self.assertEqual(shared[0].y() - shared[1].y(), 40 + 6 - 10)
+        self.assertEqual(bubble_stack_overlap(DEFAULT_BUBBLE_THEME), 0)
 
     def test_stream_stack_aligns_different_widths_to_the_left(self):
         positions = bubble_stack_positions(

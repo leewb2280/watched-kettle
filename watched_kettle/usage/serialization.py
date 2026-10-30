@@ -29,5 +29,5 @@ def decode_usage_record(value: object) -> TaskUsageRecord | None:
         if completed.tzinfo is None:
             completed = completed.replace(tzinfo=timezone.utc)
         return TaskUsageRecord(**{**value, "completed_at": completed})
-    except (KeyError, TypeError, ValueError):
+    except KeyError, TypeError, ValueError:
         return None

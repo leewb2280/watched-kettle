@@ -357,8 +357,8 @@ class MetadataTests(unittest.TestCase):
         self.worker.activity_diagnostics.callback = broken
         self.reply(data={"name": "private title"})
         self.assertEqual(len(self.results), 1)
-        self.worker.activity_diagnostics.callback = (
-            lambda event, **fields: self.records.append(("metadata", event, fields))
+        self.worker.activity_diagnostics.callback = lambda event, **fields: (
+            self.records.append(("metadata", event, fields))
         )
         self.worker.sync_targets({"claude_code:t": (1, 1, 3)}, 0)
         self.assertEqual(
@@ -668,8 +668,8 @@ class DisplayTests(unittest.TestCase):
             bubbles=self.controller,
             action_router=self.router,
         )
-        runtime._navigation_diagnostic_context = (
-            lambda ref: ApplicationRuntime._navigation_diagnostic_context(runtime, ref)
+        runtime._navigation_diagnostic_context = lambda ref: (
+            ApplicationRuntime._navigation_diagnostic_context(runtime, ref)
         )
         with TemporaryDirectory() as directory:
             paths = AppPaths(Path(directory))

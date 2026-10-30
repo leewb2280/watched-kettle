@@ -574,7 +574,7 @@ class QueueExecutor(QObject):
     def _current_locks(cwd):
         try:
             return resolve_lock_keys(cwd)
-        except (OSError, ValueError):
+        except OSError, ValueError:
             return None
 
     def notification(self, method, params):

@@ -1,3 +1,4 @@
+from typing import Any
 import random
 
 from PySide6.QtCore import QObject, QTimer
@@ -7,6 +8,7 @@ from watched_kettle.config import (
     DEFAULT_IDLE_ACTIVITIES,
     IDLE_ACTIVITY_MAX_DELAY,
     IDLE_ACTIVITY_MIN_DELAY,
+    scaled_animation_ms,
 )
 
 
@@ -16,7 +18,10 @@ def load_idle_activities(manifest, available_states):
         "idleActivities",
         DEFAULT_IDLE_ACTIVITIES,
     )
-    activities = []
+    activities: list[dict] = []
+    state: Any
+    weight: Any
+    duration: Any
 
     if not isinstance(configured, (list, tuple)):
         return activities
@@ -41,7 +46,7 @@ def load_idle_activities(manifest, available_states):
         try:
             weight = float(weight)
             duration = int(duration)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             continue
 
         if weight <= 0 or duration <= 0:
@@ -68,6 +73,7 @@ class IdleActivityController(QObject):
         can_start,
         on_start,
         on_finish,
+        speed_percent=lambda: 100,
         parent=None,
     ):
         super().__init__(parent)
@@ -76,6 +82,9 @@ class IdleActivityController(QObject):
         self.can_start = can_start
         self.on_start = on_start
         self.on_finish = on_finish
+        # An action lasts as many frames at any speed; only the wait between
+        # actions stays in real time.
+        self.speed_percent = speed_percent
         self.active_state = None
 
         self.delay_timer = QTimer(self)
@@ -114,7 +123,9 @@ class IdleActivityController(QObject):
 
         self.active_state = activity["state"]
         self.on_start(self.active_state)
-        self.end_timer.start(activity["duration"])
+        self.end_timer.start(
+            scaled_animation_ms(activity["duration"], self.speed_percent())
+        )
 
     def finish(self):
         if not self.is_active:

@@ -83,19 +83,9 @@ try {
         $env:WATCHED_KETTLE_EDITION = $oldEdition
         $env:LANGUAGE_QA_ROOT = $oldLanguageQaRoot
     }
-    $boundaryTargets = @(
-        "watched_kettle/storage", "watched_kettle/usage",
-        "watched_kettle/integrations/codex_log_worker.py", "watched_kettle/process_metrics.py",
-        "watched_kettle/preferences", "watched_kettle/features/pet/contracts.py",
-        "watched_kettle/ui/assistant_tray.py", "scripts/runtime_check.py",
-        "watched_kettle/features/tasks", "watched_kettle/integrations/codex_task_client.py",
-        "watched_kettle/features/project_activity", "watched_kettle/features/notifications",
-        "watched_kettle/bubble_timing.py",
-        "watched_kettle/settings_protocol.py", "scripts/generate_settings_protocol.py",
-        "watched_kettle/application/settings_ui"
-    )
-    Invoke-Checked "Required boundary types" {
-        & $python -m mypy @boundaryTargets --follow-imports=silent
+    # The files list in pyproject.toml: the whole package (no advisory debt).
+    Invoke-Checked "Required types" {
+        & $python -m mypy
     }
     if ($Quality) {
         Invoke-Checked "Regression tests, coverage gates and dependency audit" {

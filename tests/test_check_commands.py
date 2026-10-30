@@ -13,24 +13,6 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-BOUNDARIES = {
-    "watched_kettle/storage",
-    "watched_kettle/usage",
-    "watched_kettle/integrations/codex_log_worker.py",
-    "watched_kettle/process_metrics.py",
-    "watched_kettle/preferences",
-    "watched_kettle/features/pet/contracts.py",
-    "watched_kettle/ui/assistant_tray.py",
-    "scripts/runtime_check.py",
-    "watched_kettle/features/tasks",
-    "watched_kettle/integrations/codex_task_client.py",
-    "watched_kettle/features/project_activity",
-    "watched_kettle/features/notifications",
-    "watched_kettle/bubble_timing.py",
-    "watched_kettle/settings_protocol.py",
-    "scripts/generate_settings_protocol.py",
-    "watched_kettle/application/settings_ui",
-}
 DRIVER = r"""
 $ErrorActionPreference = "Stop"
 function global:Invoke-FakeTool {
@@ -179,14 +161,9 @@ class CheckCommandTests(unittest.TestCase):
         self.assertEqual(
             [call["edition"] for call in builds], ["pet-only", "pet-assistant"]
         )
-        strict = [
-            call
-            for call in commands(calls, "python", "-m", "mypy")
-            if "--follow-imports=silent" in call["arguments"]
-        ]
-        self.assertEqual(len(strict), 1)
-        self.assertEqual(set(strict[0]["arguments"][2:-1]), BOUNDARIES)
-        self.assertEqual(strict[0]["arguments"][-1], "--follow-imports=silent")
+        # One required run over pyproject.toml's files: the whole package.
+        types = commands(calls, "python", "-m", "mypy")
+        self.assertEqual([call["arguments"] for call in types], [["-m", "mypy"]])
 
     def assert_language_qa(self, calls):
         # Each English QA run drives the settings build made just before it.
@@ -237,9 +214,26 @@ class CheckCommandTests(unittest.TestCase):
         self.assertEqual(
             len(commands(calls, "python", "-m", "scripts.coverage_gate")), 1
         )
-        self.assertEqual(len(commands(calls, "python", "-m", "pip_audit")), 1)
+        self.assert_dependency_audits(calls)
         self.assertEqual(state["coverage"], "caller.coverage")
         self.assertFalse(commands(calls, "package"))
+
+    def assert_dependency_audits(self, calls):
+        audits = commands(calls, "python", "-m", "pip_audit")
+        self.assertEqual(
+            [
+                [value for value in call["arguments"] if value.endswith(".txt")]
+                for call in audits
+            ],
+            [
+                ["requirements.txt"],
+                ["requirements-build.txt", "requirements-dev.txt"],
+            ],
+        )
+        self.assertIn(
+            ["--dir", "settings-ui", "audit"],
+            [call["arguments"] for call in commands(calls, "pnpm")],
+        )
 
     def test_docs_only_uses_lightweight_checks(self):
         result, calls, _ = self.run_check(options={"DocsOnly": True})
@@ -264,7 +258,7 @@ class CheckCommandTests(unittest.TestCase):
 
     def test_common_check_failures_stop_quality_tests(self):
         for fail in (
-            ("python", "-m mypy *--follow-imports=silent"),
+            ("python", "-m mypy"),
             ("pnpm", "--dir settings-ui run check"),
             ("pnpm", "--dir settings-ui exec vite build"),
         ):
@@ -301,19 +295,15 @@ class CheckCommandTests(unittest.TestCase):
                 if module != "pip_audit":
                     self.assertFalse(commands(calls, "python", "-m", "pip_audit"))
 
-    def test_advisory_failure_does_not_weaken_other_gates(self):
-        result, calls, state = self.run_check(
-            options={"Quality": True}, fail=("python", "-m mypy")
-        )
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(len(commands(calls, "python", "-m", "pip_audit")), 1)
-        self.assertFalse(state["coverage_exists"])
-
     def test_quality_report_is_independent(self):
         result, calls, state = self.run_check(entry="report_quality.ps1")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertFalse(commands(calls, "node"))
-        self.assertFalse(commands(calls, "pnpm"))
+        # No settings UI build; only its package audit.
+        self.assertEqual(
+            [call["arguments"] for call in commands(calls, "pnpm")],
+            [["--dir", "settings-ui", "audit"]],
+        )
         self.assertEqual(len(commands(calls, "python", "-m", "coverage", "run")), 1)
         self.assertFalse(state["coverage_exists"])
 

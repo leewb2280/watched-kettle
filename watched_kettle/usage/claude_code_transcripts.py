@@ -124,7 +124,7 @@ class FilePass:
             return
         try:
             entry = json.loads(raw)
-        except (UnicodeDecodeError, ValueError):
+        except UnicodeDecodeError, ValueError:
             return
         if not isinstance(entry, dict):
             return
@@ -230,7 +230,7 @@ def read_custom_title(session_folder):
         value = json.loads(
             (Path(session_folder) / "custom-title.json").read_text(encoding="utf-8")
         )
-    except (OSError, ValueError, UnicodeDecodeError):
+    except OSError, ValueError, UnicodeDecodeError:
         return ""
     title = value.get("customTitle") if isinstance(value, dict) else None
     return " ".join(title.split())[:120] if isinstance(title, str) else ""

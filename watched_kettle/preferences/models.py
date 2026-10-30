@@ -69,7 +69,7 @@ def normalize_usage_widget_color(value):
 def normalize_usage_widget_opacity(value):
     try:
         value = int(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         value = DEFAULT_USAGE_WIDGET_OPACITY
     return min(USAGE_WIDGET_OPACITY_MAX, max(USAGE_WIDGET_OPACITY_MIN, value))
 
@@ -77,7 +77,7 @@ def normalize_usage_widget_opacity(value):
 def normalize_usage_widget_scale(value):
     try:
         value = int(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         value = DEFAULT_USAGE_WIDGET_SCALE
     value = min(USAGE_WIDGET_SCALE_MAX, max(USAGE_WIDGET_SCALE_MIN, value))
     return round(value / USAGE_WIDGET_SCALE_STEP) * USAGE_WIDGET_SCALE_STEP
@@ -86,7 +86,7 @@ def normalize_usage_widget_scale(value):
 def migrate_legacy_usage_widget_scale(value):
     try:
         value = int(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return DEFAULT_USAGE_WIDGET_SCALE
     value = min(
         LEGACY_USAGE_WIDGET_SCALE_MAX, max(LEGACY_USAGE_WIDGET_SCALE_MIN, value)
@@ -99,7 +99,7 @@ def normalize_usage_widget_hour_range(start_hour, end_hour):
     try:
         start_hour = int(start_hour)
         end_hour = int(end_hour)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return DEFAULT_USAGE_WIDGET_HOUR_RANGE
     if 0 <= start_hour <= 23 and 1 <= end_hour <= 24 and start_hour < end_hour:
         return start_hour, end_hour
@@ -113,7 +113,7 @@ def normalize_pet_id_list(value):
     if isinstance(value, str):
         try:
             value = json.loads(value)
-        except (TypeError, ValueError, json.JSONDecodeError):
+        except TypeError, ValueError, json.JSONDecodeError:
             return ()
     if not isinstance(value, (list, tuple)):
         return ()
@@ -132,7 +132,7 @@ def normalize_pet_id_list(value):
 def normalize_bubble_scale(value):
     try:
         scale = int(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         scale = DEFAULT_BUBBLE_SCALE
     scale = min(max(scale, BUBBLE_SCALE_MIN), BUBBLE_SCALE_MAX)
     steps = round((scale - BUBBLE_SCALE_MIN) / BUBBLE_SCALE_STEP)
@@ -142,7 +142,7 @@ def normalize_bubble_scale(value):
 def normalize_bubble_duration_seconds(value):
     try:
         seconds = int(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         seconds = DEFAULT_BUBBLE_DURATION_SECONDS
     return min(
         max(seconds, BUBBLE_DURATION_MIN_SECONDS),

@@ -253,7 +253,7 @@ class SettingsWindowHost(QObject):
                     )
                     continue
                 self._request(message)
-            except (ValueError, TypeError, CommandError):
+            except ValueError, TypeError, CommandError:
                 self._disconnect()
                 return
         if b"\n" in self.buffer:
@@ -284,7 +284,7 @@ class SettingsWindowHost(QObject):
             payload = dict(
                 id=request_id, ok=False, error=dict(code=error.code, message=str(error))
             )
-        except (OSError, ValueError, TypeError, RuntimeError, KeyError, AttributeError):
+        except OSError, ValueError, TypeError, RuntimeError, KeyError, AttributeError:
             payload = dict(
                 id=request_id,
                 ok=False,
@@ -343,7 +343,7 @@ class SettingsWindowHost(QObject):
                         )
                     )
                 )
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 return {}
         if method == "navigation.ack":
             target = self.navigation.pop(text(args.get("navigationId"), 80), None)
@@ -363,8 +363,13 @@ class SettingsWindowHost(QObject):
             return dict(confirmed=valid)
         if method == "file.import":
             return self.adapter.import_element(
-                Path(text(args.get("path"), 32768)), text(args.get("kind"), 20)
+                Path(text(args.get("path"), 32768)),
+                text(args.get("kind"), 20),
+                trim=args.get("trim") is True,
+                clear_white=args.get("clearWhite") is True,
             )
+        if method in {"file.theme.export", "file.theme.import", "file.theme.package"}:
+            return self.adapter.theme_file(method, args)
         if method == "file.pet.prepare":
             return self.adapter.prepare_pet_import(Path(text(args.get("path"), 32768)))
         if method == "file.pet.start":
@@ -372,6 +377,8 @@ class SettingsWindowHost(QObject):
             return self.adapter.pet_import.start(
                 path=Path(text(args.get("path"), 32768))
             )
+        if method == "file.link.transition":
+            return self.adapter.pet_link.add_transition(args, args.get("paths"))
         if method == "file.pet.cancel":
             self.adapter.cancel_pet_import()
             return dict(cancelled=True)

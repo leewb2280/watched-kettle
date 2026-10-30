@@ -32,11 +32,6 @@ function Invoke-QualityCheck {
 Push-Location $projectRoot
 try {
     $env:COVERAGE_FILE = $coverageFile
-    # Existing full-project typing debt remains an explicitly advisory artifact.
-    & $python -m mypy *> (Join-Path $qualityRoot "mypy-advisory.txt")
-    $typeExit = $LASTEXITCODE
-    "mypy_advisory_exit=$typeExit" | Set-Content (Join-Path $qualityRoot "mypy-advisory-status.txt")
-    Write-Host "Full-project mypy advisory exit: $typeExit"
     Invoke-QualityCheck { & $python -m coverage erase }
     Invoke-QualityCheck { & $python -m coverage run -m unittest discover -s tests -t . -v }
     Invoke-QualityCheck { & $python -m coverage report }
@@ -46,6 +41,11 @@ try {
     Invoke-QualityCheck { & $python -m scripts.coverage_gate $coverageJson }
     # Resolve transitive dependencies too; no --no-deps bypass.
     Invoke-QualityCheck { & $python -m pip_audit --cache-dir $auditCache -r requirements.txt }
+    # Build and test tools run on the developer's machine and in CI.
+    Invoke-QualityCheck { & $python -m pip_audit --cache-dir $auditCache -r requirements-build.txt -r requirements-dev.txt }
+    # All settings window packages: the shipped Electron is a devDependency,
+    # and the renderer build tools run here and in CI.
+    Invoke-QualityCheck { & pnpm.cmd --dir settings-ui audit }
 } finally {
     $env:COVERAGE_FILE = $previousCoverageFile
     Pop-Location

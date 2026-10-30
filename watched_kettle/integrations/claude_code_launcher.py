@@ -28,6 +28,7 @@ from PySide6.QtCore import QUrl
 
 from watched_kettle.integrations.claude_code_transcript import locate_transcript
 from watched_kettle.integrations.vscode_launcher import installed_vscode
+from watched_kettle.integrations.windows_paths import system_program
 
 
 CLAUDE_CODE_EXTENSION = "anthropic.claude-code"
@@ -63,7 +64,7 @@ def has_console():
         import ctypes
 
         return bool(ctypes.windll.kernel32.GetConsoleWindow())
-    except (AttributeError, OSError):
+    except AttributeError, OSError:
         return False
 
 
@@ -81,7 +82,7 @@ def open_url(url, shell_open, console=None, popen=subprocess.Popen):
         try:
             popen(
                 [
-                    "rundll32.exe",
+                    system_program("System32", "rundll32.exe"),
                     "url.dll,FileProtocolHandler",
                     url.toString(QUrl.ComponentFormattingOption.FullyEncoded),
                 ],
@@ -186,5 +187,5 @@ class ClaudeCodeLauncher:
             return False
         try:
             return bool(self.opener(url))
-        except (OSError, RuntimeError, ValueError):
+        except OSError, RuntimeError, ValueError:
             return False

@@ -1,5 +1,6 @@
 """Thread-owned usage runtime with a bounded GUI command mailbox."""
 
+from watched_kettle.thread_shutdown import wait_for_thread
 from watched_kettle.localization import t
 
 import sqlite3
@@ -84,6 +85,8 @@ class _UsageWorker(QObject):
         self.overflow = False
         self.request_id = 0
         self.wake_pending = False
+        # VACUUM at most once per run, at the first maintenance pass.
+        self.compacted = False
         self.wake_requested.connect(self.drain, Qt.ConnectionType.QueuedConnection)
 
     def enqueue(self, request_id, method, args):
@@ -184,6 +187,9 @@ class _UsageWorker(QObject):
                 self.service.repository.maintenance()
                 if self.claude.repository is not None:
                     self.claude.repository.prune()
+                if not self.compacted:
+                    self.compacted = True
+                    self.database.compact_if_sparse()
             except sqlite3.DatabaseError:
                 log_event(
                     "usage.worker",
@@ -608,4 +614,4 @@ class UsageWorkerService(QObject):
         self._worker.wake_requested.emit()
         # All operations have bounded SQLite waits; never terminate a thread
         # while it owns a database transaction.
-        self._thread.wait()
+        wait_for_thread(self._thread, "usage.worker")

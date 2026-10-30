@@ -11,6 +11,7 @@ from watched_kettle.config import (
     LOOK_RANGE_STEP,
     PET_WIDTH_OPTIONS,
 )
+from watched_kettle.pet.appearance_assets import APPEARANCE_INTERVALS, AUTO_ORDERS
 from watched_kettle.pet.bubble_frame import frame_style_for, is_frame_style
 from watched_kettle.pet.bubble_theme import (
     bubble_theme_from_dict,
@@ -42,14 +43,14 @@ class PetPreferences:
                 migrated_legacy_scale = True
                 try:
                     saved_width = float(legacy_scale) * FRAME_WIDTH
-                except (TypeError, ValueError):
+                except TypeError, ValueError:
                     saved_width = default_width
             else:
                 saved_width = default_width
 
         try:
             saved_width = int(round(float(saved_width)))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             saved_width = DEFAULT_PET_WIDTH
 
         selected_width = min(
@@ -95,6 +96,34 @@ class PetPreferences:
             bool(enabled),
         )
 
+    def load_appearance_mode(self, ids):
+        mode = self.settings.value(f"{self.prefix}/appearanceMode", "auto")
+        return mode if mode in ("auto", *ids) else "auto"
+
+    def save_appearance_mode(self, mode):
+        self.settings.setValue(f"{self.prefix}/appearanceMode", mode)
+
+    def load_appearance_id(self, ids, default):
+        value = self.settings.value(f"{self.prefix}/appearanceId", default)
+        return value if value in ids else default
+
+    def save_appearance_id(self, value):
+        self.settings.setValue(f"{self.prefix}/appearanceId", value)
+
+    def load_appearance_interval(self):
+        value = self.settings.value(f"{self.prefix}/appearanceInterval", "package")
+        return value if value in ("package", *APPEARANCE_INTERVALS) else "package"
+
+    def save_appearance_interval(self, value):
+        self.settings.setValue(f"{self.prefix}/appearanceInterval", value)
+
+    def load_appearance_order(self):
+        value = self.settings.value(f"{self.prefix}/appearanceOrder", "package")
+        return value if value in ("package", *AUTO_ORDERS) else "package"
+
+    def save_appearance_order(self, value):
+        self.settings.setValue(f"{self.prefix}/appearanceOrder", value)
+
     def load_always_on_top(self):
         return self.settings.value(
             f"{self.prefix}/alwaysOnTop",
@@ -130,7 +159,7 @@ class PetPreferences:
             return None
         try:
             data = json.loads(str(value))
-        except (TypeError, ValueError, json.JSONDecodeError):
+        except TypeError, ValueError, json.JSONDecodeError:
             return None
         if not isinstance(data, dict):
             return None
@@ -161,7 +190,7 @@ class PetPreferences:
         )
         try:
             saved_range = int(round(float(saved_range)))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             saved_range = DEFAULT_LOOK_RANGE
 
         saved_range = min(

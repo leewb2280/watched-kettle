@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable
 
 from PIL import UnidentifiedImageError
 from PySide6.QtCore import QUrl, Qt
@@ -18,12 +19,43 @@ from watched_kettle.pet.catalog import (
     discover_pets_in_roots,
     personalize_pet_catalog,
 )
-from watched_kettle.pet.loader import load_pet
+from watched_kettle.pet.loader import load_pet, load_appearance_frames
 from watched_kettle.pet.preferences import PetPreferences
 from watched_kettle.pet.bubble_theme import resolve_bubble_theme
 
 
 class PetPackageMixin:
+    # Supplied by DesktopPet (pet/window.py), the one class this is mixed into.
+    if TYPE_CHECKING:
+        manifest: dict[str, Any]
+        pet_directory: Path
+        activity_caption_controller: Any
+        activity_controller: Any
+        agent_controller: Any
+        app_preferences: Any
+        bubble_controller: Any
+        movement_controller: Any
+        pets_roots: Any
+        renderer: Any
+        shared_settings: Any
+        timer: Any
+        user_pets_root: Any
+        frameGeometry: Callable[..., Any]
+        height: Callable[..., Any]
+        isVisible: Callable[..., Any]
+        keep_on_screen: Callable[..., Any]
+        move: Callable[..., Any]
+        refresh_controls: Callable[..., Any]
+        set_state: Callable[..., Any]
+        setFixedSize: Callable[..., Any]
+        setup_appearance: Callable[..., Any]
+        setup_auto_movement: Callable[..., Any]
+        setup_idle_activities: Callable[..., Any]
+        setWindowFlag: Callable[..., Any]
+        show: Callable[..., Any]
+        update: Callable[..., Any]
+        width: Callable[..., Any]
+
     @property
     def pet_id(self):
         return str(self.manifest.get("id", self.pet_directory.name))
@@ -86,6 +118,9 @@ class PetPackageMixin:
 
         try:
             manifest, frames, look_frames, sprite_version = load_pet(next_pet.directory)
+            appearance_bundle = load_appearance_frames(
+                next_pet.directory, manifest, frames, look_frames, sprite_version
+            )
             next_pet_id = str(manifest.get("id", next_pet.directory.name))
             look_direction_offset = int(manifest.get("lookDirectionOffset", 0)) % 16
             look_direction_mirrored = bool(manifest.get("lookDirectionMirrored", False))
@@ -176,6 +211,7 @@ class PetPackageMixin:
             idle_activities_enabled,
         )
         self.setup_auto_movement(auto_movement_enabled)
+        self.setup_appearance(appearance_bundle)
         desired_state = self.agent_controller.desired_state
         self.set_state(
             desired_state if desired_state in self.frames else "idle",

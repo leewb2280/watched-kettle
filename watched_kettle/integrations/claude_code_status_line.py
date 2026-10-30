@@ -22,6 +22,13 @@ import time
 import unicodedata
 
 from watched_kettle.integrations.codex_hooks import _safe_id, sanitize_pet_event
+from watched_kettle.integrations.windows_paths import (
+    environment_value,
+    find_on_path,
+    is_absolute_file,
+    powershell_path,
+    system_root,
+)
 
 
 STATUS_LINE_EVENT = "rate_limits"
@@ -120,7 +127,7 @@ def read_layout(path):
         if len(data) > MAX_LAYOUT_BYTES:
             return _default_layout()
         return normalize_layout(json.loads(data.decode("utf-8")))
-    except (OSError, UnicodeDecodeError, ValueError):
+    except OSError, UnicodeDecodeError, ValueError:
         return _default_layout()
 
 
@@ -143,7 +150,7 @@ MAX_LANGUAGE_SNAPSHOT_BYTES = 4 * MAX_LANGUAGE_TEMPLATE_CHARS * 4 + 1024
 def _message(language, key, fallback, **values):
     try:
         return (language or {}).get(key, fallback).format_map(values)
-    except (KeyError, ValueError, TypeError, AttributeError, IndexError):
+    except KeyError, ValueError, TypeError, AttributeError, IndexError:
         return fallback.format_map(values)
 
 
@@ -239,7 +246,7 @@ def _clock(timestamp):
         return ""
     try:
         return f" ({time.strftime('%H:%M', time.localtime(timestamp))})"
-    except (OSError, OverflowError, ValueError):
+    except OSError, OverflowError, ValueError:
         return ""
 
 
@@ -330,7 +337,7 @@ def detected_ide(current_dir, config_dir=None):
             if lock.stat().st_size > MAX_IDE_LOCK_BYTES:
                 continue
             value = json.loads(lock.read_text(encoding="utf-8"))
-        except (OSError, ValueError, UnicodeDecodeError):
+        except OSError, ValueError, UnicodeDecodeError:
             continue
         if not isinstance(value, dict):
             continue
@@ -397,7 +404,7 @@ def read_original(path):
     """The status line configuration replaced at install time, if any."""
     try:
         value = json.loads(Path(path).read_text(encoding="utf-8"))
-    except (OSError, ValueError, UnicodeDecodeError):
+    except OSError, ValueError, UnicodeDecodeError:
         return None
     original = value.get("original") if isinstance(value, dict) else None
     if not isinstance(original, dict):
@@ -412,19 +419,16 @@ def run_original(command, data, environment=None):
     Claude Code uses Git Bash when it is installed and PowerShell otherwise.
     Failures return empty output; the agent is never blocked.
     """
-    # Only users with their own status line pay for these imports; the line
+    # Only users with their own status line pay for this import; the line
     # runs after every assistant message, so startup time matters (ADR 0004).
-    import shutil
     import subprocess
 
     environment = dict(os.environ if environment is None else environment)
-    shell = environment.get("SHELL") or ""
-    if not (shell and Path(shell).is_file()):
-        shell = shutil.which("bash") or ""
+    shell = find_bash(environment)
     arguments = (
         [shell, "-c", command]
         if shell
-        else ["powershell.exe", "-NoProfile", "-Command", command]
+        else [powershell_path(environment), "-NoProfile", "-Command", command]
     )
     try:
         completed = subprocess.run(
@@ -436,6 +440,38 @@ def run_original(command, data, environment=None):
             check=False,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
-    except (OSError, subprocess.SubprocessError, ValueError):
+    except OSError, subprocess.SubprocessError, ValueError:
         return b""
     return completed.stdout[:MAX_ORIGINAL_OUTPUT_BYTES]
+
+
+def find_bash(environment):
+    """Git Bash by absolute path only; the project folder is never searched.
+
+    Order: ``SHELL`` and Claude Code's ``CLAUDE_CODE_GIT_BASH_PATH`` when they
+    name a Windows file, then the Git for Windows next to ``git.exe`` on
+    ``PATH``, the usual install folders, and ``bash.exe`` on ``PATH`` outside
+    the Windows folder (whose ``bash.exe`` starts WSL, not Git Bash).
+    """
+    for name in ("SHELL", "CLAUDE_CODE_GIT_BASH_PATH"):
+        value = environment_value(environment, name)
+        if is_absolute_file(value):
+            return value
+    git = find_on_path("git.exe", environment)
+    candidates = []
+    if git:
+        folder = Path(git).parent
+        candidates += [folder / "bash.exe", folder.parent / "bin" / "bash.exe"]
+    for name in ("ProgramFiles", "ProgramW6432", "ProgramFiles(x86)"):
+        root = environment_value(environment, name)
+        if root:
+            candidates.append(Path(root) / "Git" / "bin" / "bash.exe")
+    local = environment_value(environment, "LOCALAPPDATA")
+    if local:
+        candidates.append(Path(local) / "Programs" / "Git" / "bin" / "bash.exe")
+    for candidate in candidates:
+        if is_absolute_file(str(candidate)):
+            return str(candidate)
+    found = find_on_path("bash.exe", environment)
+    windows = system_root(environment).rstrip("\\").casefold() + "\\"
+    return "" if found.casefold().startswith(windows) else found

@@ -168,9 +168,10 @@ class UsageWidgetModel(QObject):
             setattr(self, name, value)
         self.changed.emit()
 
-    labels = Property("QVariantMap", lambda self: self._labels, constant=True)
-    state = Property("QVariantMap", lambda self: self._state, notify=changed)
-    theme = Property("QVariantMap", lambda self: self._theme, notify=changed)
+    # PySide6 takes a Qt type name here; its stubs only list Python types.
+    labels = Property("QVariantMap", lambda self: self._labels, constant=True)  # type: ignore[arg-type]
+    state = Property("QVariantMap", lambda self: self._state, notify=changed)  # type: ignore[arg-type]
+    theme = Property("QVariantMap", lambda self: self._theme, notify=changed)  # type: ignore[arg-type]
     layout = Property(str, lambda self: self._layout, notify=changed)
     scale = Property(float, lambda self: self._scale, notify=changed)
     # Unfolds layout C without hovering, for previews and captures.

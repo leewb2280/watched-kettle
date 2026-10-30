@@ -29,6 +29,10 @@ def title_text_width(text, font):
 
 
 class WrappedTitleButton(QPushButton):
+    # Set by the bubbles that wire a button to an action.
+    action_connected: bool
+    action_token: object
+
     def set_title(self, text, width, padding=8, max_lines=2):
         self.setFixedWidth(width)
         available = max(1, width - padding)

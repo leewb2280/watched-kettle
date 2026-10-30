@@ -59,12 +59,17 @@ def run_integration_setup(arguments, preferences=None, installers=None):
         preferences = ApplicationPreferences()
     from watched_kettle.features.integrations.activation import ToolActivation
 
-    activation = ToolActivation(
-        preferences, installers if installers is not None else default_installers()
-    )
+    if installers is None:
+        installers = default_installers()
+    activation = ToolActivation(preferences, installers)
     exit_code = 0
     for tool, enabled in choices.items():
         result = activation.apply(activation.preview(tool, enabled))
         if not result.complete:
             exit_code = 2
+    # Earlier versions kept every backup; each install trims the old piles.
+    for installer in installers.values():
+        prune = getattr(installer, "prune_backups", None)
+        if prune is not None:
+            prune()
     return exit_code

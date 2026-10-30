@@ -41,7 +41,7 @@ def utc_timestamp(value):
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
         return parsed.astimezone(timezone.utc) if parsed.tzinfo is not None else None
-    except (ValueError, OverflowError):
+    except ValueError, OverflowError:
         return None
 
 
@@ -51,7 +51,7 @@ def nonnegative(value, cast=int):
     try:
         number = cast(value)
         return number if isfinite(number) and 0 <= number <= 2**63 - 1 else None
-    except (TypeError, ValueError, OverflowError):
+    except TypeError, ValueError, OverflowError:
         return None
 
 

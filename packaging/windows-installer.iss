@@ -147,6 +147,7 @@ en.ReadyEdition=Edition:
 en.ReadyTools=Tools in use:
 en.ReadyNoTools=None
 en.LegacyHookMigrateFailed=Could not move the Codex hook from the previous name to the new program. Repair it on the app's connection page.
+en.RuntimeSwapFailed=The new version could not be put in place. A version that was already installed is kept as it was. Close Watched Kettle and run Setup again.
 en.IntegrationsFailed=Some Codex or Claude Code connection settings could not be applied. Check the app's connection and diagnostics page.
 en.HookRemoveFailed=Could not remove the Codex and Claude Code hooks this app added, so the assistant files were kept. Run Setup again, or check each tool's hook settings.
 en.UninstallDataCaption=Uninstall Watched Kettle
@@ -203,6 +204,7 @@ ko.ReadyEdition=설치 구성:
 ko.ReadyTools=사용할 도구:
 ko.ReadyNoTools=없음
 ko.LegacyHookMigrateFailed=이전 이름의 Codex hook을 새 실행 파일로 옮기지 못했습니다. 앱의 연결 화면에서 hook을 복구해 주세요.
+ko.RuntimeSwapFailed=새 버전을 설치하지 못했습니다. 이미 설치되어 있던 버전은 그대로 두었습니다. Watched Kettle을 닫고 설치 프로그램을 다시 실행해 주세요.
 ko.IntegrationsFailed=Codex·Claude Code 연동 설정 일부를 적용하지 못했습니다. 앱의 연결·진단 화면에서 확인해 주세요.
 ko.HookRemoveFailed=이 앱이 추가한 Codex·Claude Code hook을 제거하지 못해 비서 파일을 남겨 두었습니다. 설치 프로그램을 다시 실행하거나 각 도구의 hook 설정을 확인해 주세요.
 ko.UninstallDataCaption=Watched Kettle 제거
@@ -246,10 +248,10 @@ Source: "{#LauncherExe}"; DestDir: "{app}"; DestName: "{#AppExe}"; Flags: ignore
 ; solidbreak gives each runtime its own compressed stream, so Setup does not
 ; decompress the edition it skips.
 #if WithPetOnlyRuntime
-Source: "{#PetOnlyBundleRoot}\*"; DestDir: "{app}\runtime\pet-only"; Flags: ignoreversion recursesubdirs createallsubdirs solidbreak; Check: InstallPetOnly
+Source: "{#PetOnlyBundleRoot}\*"; DestDir: "{app}\runtime\pet-only.install"; Flags: ignoreversion recursesubdirs createallsubdirs solidbreak; Check: InstallPetOnly
 #endif
 #if WithAssistantRuntime
-Source: "{#AssistantBundleRoot}\*"; DestDir: "{app}\runtime\pet-assistant"; Flags: ignoreversion recursesubdirs createallsubdirs solidbreak; Check: InstallAssistant
+Source: "{#AssistantBundleRoot}\*"; DestDir: "{app}\runtime\pet-assistant.install"; Flags: ignoreversion recursesubdirs createallsubdirs solidbreak; Check: InstallAssistant
 #endif
 #ifndef UpdateEdition
 ; Stage the new helper only when switching an older assistant installation to pet-only.
@@ -268,6 +270,18 @@ Type: dirifempty; Name: "{autoprograms}\Watched Kettle"
 Type: files; Name: "{autoprograms}\Codex Desktop Pets\Codex Desktop Pets.lnk"
 Type: dirifempty; Name: "{autoprograms}\Codex Desktop Pets"
 Type: files; Name: "{autodesktop}\Watched Kettle.lnk"; Tasks: not desktopicon
+; Setup copies each edition into runtime\<edition>.install and swaps it in
+; after the last file arrived (SwapInstalledRuntime), so files a newer version
+; no longer ships do not pile up. A folder left by a cancelled or failed
+; install is never used.
+Type: filesandordirs; Name: "{app}\runtime\pet-assistant.install"
+Type: filesandordirs; Name: "{app}\runtime\pet-only.install"
+; A partial update staged by the app before this install is older than what
+; Setup copies; the launcher must not swap it in later (ADR 0007).
+Type: filesandordirs; Name: "{app}\runtime\pet-assistant.next"
+Type: filesandordirs; Name: "{app}\runtime\pet-only.next"
+Type: filesandordirs; Name: "{app}\runtime\pet-assistant.old*"
+Type: filesandordirs; Name: "{app}\runtime\pet-only.old*"
 
 [Icons]
 Name: "{autoprograms}\Watched Kettle"; Filename: "{app}\{#AppExe}"; Comment: "{cm:ShortcutComment}"
@@ -283,7 +297,8 @@ Type: files; Name: "{app}\runtime\edition"
 Type: filesandordirs; Name: "{app}\runtime"
 
 [Run]
-Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,Watched Kettle}"; Flags: nowait postinstall skipifsilent
+; Neither starts the app when its new runtime could not be put in place.
+Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,Watched Kettle}"; Flags: nowait postinstall skipifsilent; Check: RuntimeReady
 ; The app's own update runs Setup with /VERYSILENT /RELAUNCH=1 and has already quit.
 Filename: "{app}\{#AppExe}"; Flags: nowait; Check: RelaunchRequested
 
@@ -294,8 +309,10 @@ const
   RemoveAllUserData = 2;
   ReparsePointAttribute = $400;
   RunKey = 'Software\Microsoft\Windows\CurrentVersion\Run';
-  // SingleInstanceCoordinator's endpoint (watched_kettle/integrations/single_instance.py).
-  InstancePipe = '\\.\pipe\watched-kettle-instance-v1';
+  // SingleInstanceCoordinator's endpoint (watched_kettle/integrations/pipe_names.py).
+  InstancePipePrefix = '\\.\pipe\watched-kettle-instance-v2-';
+  InstancePipeIdFile = '{localappdata}\WatchedKettle\runtime\pipe-id';
+  LegacyInstancePipe = '\\.\pipe\watched-kettle-instance-v1';
   GenericRead = $80000000;
   GenericWrite = $40000000;
   OpenExisting = 3;
@@ -313,6 +330,8 @@ type
   TProcessIds = array of Integer;
 
 var
+  // False once the copied runtime failed its check or could not be swapped in.
+  RuntimeSwapError: Boolean;
   // Install state of the chosen folder, read once before files change.
   DetectedDir: String;
   HadPetRuntime: Boolean;
@@ -807,6 +826,26 @@ begin
   Result := False;
 end;
 
+// The pipe name ends with the user's identifier from the app's runtime folder
+// (watched_kettle/integrations/pipe_names.py). Versions before 1.0 used a fixed
+// name, which is tried when the current one is not there.
+function OpenInstancePipe(): THandle;
+var
+  Id: AnsiString;
+  Value: String;
+begin
+  Result := THandle(-1);
+  if LoadStringFromFile(ExpandConstant(InstancePipeIdFile), Id) then begin
+    Value := Trim(String(Id));
+    if Length(Value) = 32 then
+      Result := CreateFileW(InstancePipePrefix + Value, GenericRead or GenericWrite,
+        0, 0, OpenExisting, 0, 0);
+  end;
+  if Result = THandle(-1) then
+    Result := CreateFileW(LegacyInstancePipe, GenericRead or GenericWrite, 0, 0,
+      OpenExisting, 0, 0);
+end;
+
 // Sends "quit" over the single-instance pipe and returns the open pipe, or
 // THandle(-1). The caller keeps it open while waiting, so the app has read the
 // request before Setup lets go of the connection.
@@ -814,8 +853,7 @@ function SendQuitRequest(): THandle;
 var
   Written: DWORD;
 begin
-  Result := CreateFileW(InstancePipe, GenericRead or GenericWrite, 0, 0,
-    OpenExisting, 0, 0);
+  Result := OpenInstancePipe();
   if Result = THandle(-1) then
     Log('The app pipe is not available: ' + IntToStr(DLLGetLastError))
   else if WriteFile(Result, 'quit' + #10, 5, Written, 0) then
@@ -1339,9 +1377,24 @@ end;
 // ---- Install steps ---------------------------------------------------------
 
 // The app's update button starts Setup this way after it quits itself.
+function RuntimeReady(): Boolean;
+begin
+  Result := not RuntimeSwapError;
+end;
+
 function RelaunchRequested(): Boolean;
 begin
-  Result := WizardSilent and (ExpandConstant('{param:RELAUNCH|0}') = '1');
+  Result := WizardSilent and (ExpandConstant('{param:RELAUNCH|0}') = '1') and RuntimeReady();
+end;
+
+// Setup cannot fail after its files are copied, so a runtime that was not put
+// in place ends with exit code 9 instead of 0 for whoever ran Setup.
+function GetCustomSetupExitCode(): Integer;
+begin
+  if RuntimeSwapError then
+    Result := 9
+  else
+    Result := 0;
 end;
 
 // Runs before Restart Manager looks at [Files], and also closes the edition
@@ -1378,6 +1431,57 @@ begin
   end;
 end;
 
+// Swaps runtime\<edition>.install in for runtime\<edition> once every file is
+// there. The copy is first checked against its package manifest, which
+// catches a file skipped after a copy error. The installed folder is renamed
+// aside and deleted last, so any failure keeps it; files only an earlier
+// version had go with it.
+function SwapInstalledRuntime(const Edition: String): Boolean;
+var
+  Current, Staged, Replaced: String;
+  Poll, ExitCode: Integer;
+begin
+  Current := ExpandConstant('{app}\runtime\') + Edition;
+  Staged := Current + '.install';
+  Replaced := Current + '.replaced';
+  Result := False;
+  if not DirExists(Staged) then begin
+    Log('The new runtime folder is missing: ' + Staged);
+    Exit;
+  end;
+  // The launcher checks it: it needs nothing from the runtime and never shows
+  // a dialog, while a runtime missing a DLL would stall a silent install.
+  if (not Exec(ExpandConstant('{app}\{#AppExe}'), '--verify-runtime "' + Staged + '"',
+               '', SW_HIDE, ewWaitUntilTerminated, ExitCode)) or (ExitCode <> 0) then begin
+    Log(Format('The new runtime failed its check (exit code %d).', [ExitCode]));
+    Exit;
+  end;
+  Result := True;
+  DelTree(Replaced, True, True, True);
+  if DirExists(Current) then begin
+    // A hook bridge started by an agent may hold a file for a moment.
+    Result := False;
+    for Poll := 0 to 40 do begin
+      if RenameFile(Current, Replaced) then begin
+        Result := True;
+        Break;
+      end;
+      Sleep(250);
+    end;
+    if not Result then begin
+      Log('Could not move the installed runtime aside: ' + Current);
+      Exit;
+    end;
+  end;
+  if not RenameFile(Staged, Current) then begin
+    Log('Could not move the new runtime in: ' + Staged);
+    RenameFile(Replaced, Current);
+    Result := False;
+    Exit;
+  end;
+  DelTree(Replaced, True, True, True);
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   ExitCode: Integer;
@@ -1389,6 +1493,13 @@ begin
     DetectInstalledState();
   if CurStep <> ssPostInstall then
     Exit;
+  // A failed swap keeps the installed runtime and its edition marker as they
+  // were, so nothing below may remove the other edition or record this one.
+  if not SwapInstalledRuntime(SelectedEdition()) then begin
+    RuntimeSwapError := True;
+    SuppressibleMsgBox(CustomMessage('RuntimeSwapFailed'), mbError, MB_OK, IDOK);
+    Exit;
+  end;
   HookRemoved := True;
   if InstallAssistant() then begin
     DelTree(ExpandConstant('{app}\runtime\pet-only'), True, True, True);

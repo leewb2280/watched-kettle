@@ -31,7 +31,7 @@ DESKTOP_CLASSES = {"Progman", "WorkerW"}
 # Enough to pass every window above ours on a busy desktop.
 MAX_WINDOWS_ABOVE = 512
 
-_api = None
+_api: tuple | bool | None = None
 
 
 def _windows():
@@ -83,7 +83,7 @@ def _windows():
             ctypes.c_void_p,
             wintypes.DWORD,
         )
-    except (ImportError, AttributeError, OSError):
+    except ImportError, AttributeError, OSError:
         return None
     _api = (ctypes, wintypes, user32, dwmapi, kernel32)
     return _api
@@ -96,7 +96,7 @@ def allow_foreground(pid):
         return False
     try:
         return bool(api[2].AllowSetForegroundWindow(int(pid)))
-    except (OSError, ValueError, OverflowError):
+    except OSError, ValueError, OverflowError:
         return False
 
 
@@ -124,7 +124,9 @@ def raise_topmost(hwnd):
 
 
 def _rect(api, hwnd):
-    ctypes, wintypes, user32 = api[:3]
+    import ctypes
+
+    _ctypes, wintypes, user32 = api[:3]
     rect = wintypes.RECT()
     if not user32.GetWindowRect(hwnd, ctypes.byref(rect)):
         return None
@@ -215,7 +217,9 @@ def idle_seconds():
     api = _windows()
     if api is None:
         return None
-    ctypes, wintypes, user32, _dwmapi, kernel32 = api
+    import ctypes
+
+    _ctypes, wintypes, user32, _dwmapi, kernel32 = api
 
     class LastInputInfo(ctypes.Structure):
         _fields_ = [("cbSize", wintypes.UINT), ("dwTime", wintypes.DWORD)]
@@ -237,7 +241,9 @@ def foreground_is_fullscreen(own=()):
     api = _windows()
     if api is None:
         return False
-    ctypes, wintypes, user32 = api[:3]
+    import ctypes
+
+    _ctypes, wintypes, user32 = api[:3]
     foreground = user32.GetForegroundWindow()
     if not foreground or foreground in {int(item) for item in own}:
         return False

@@ -84,6 +84,17 @@ def bubble_position(pet_rect, bubble_size, bounds, gap=BUBBLE_GAP):
     return bubble_stack_positions(pet_rect, (bubble_size,), bounds, gap=gap)[0]
 
 
+def bubble_stack_overlap(theme, scale=1.0):
+    """Pixels neighbouring cards share: the smaller of the top and bottom margins.
+
+    The upper card's bottom margin and the lower card's top margin hold only
+    decoration. Sharing the smaller one keeps each window clear of the other's
+    body, so the space between bodies follows the larger margin, not both.
+    """
+    _left, top, _right, bottom = bubble_frame_insets(theme, scale)
+    return int(min(top, bottom))
+
+
 def bubble_stack_positions(
     pet_rect,
     bubble_sizes,
@@ -92,16 +103,19 @@ def bubble_stack_positions(
     gap=BUBBLE_GAP,
     stack_gap=BUBBLE_STACK_GAP,
     alignment="center",
+    overlap=0,
 ):
     """Bottom-first cards above the pet, clamped independently on each axis.
 
     Layout reduction belongs to the controller. Obstacles never cause a side flip.
     Qt screen coordinates are logical pixels, including the eight pixel margin.
+    Neighbouring windows overlap by `overlap` (see bubble_stack_overlap).
     """
     del avoid_rects
     sizes = tuple(bubble_sizes)
     if not sizes:
         return ()
+    stack_gap -= overlap
     area = bounds.adjusted(8, 8, -8, -8)
     width = max(s.width() for s in sizes)
     height = sum(s.height() for s in sizes) + stack_gap * (len(sizes) - 1)
@@ -257,6 +271,43 @@ class SpeechBubbleWindow(QFrame):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
+        shadow_offset = self._scaled(BUBBLE_SHADOW_OFFSET)
+        bubble_rect = self.body_rect()
+        path = build_body_path(bubble_rect, self._theme, self.scale_factor)
+        tail = build_tail_path(
+            bubble_rect,
+            QRectF(self.rect()).adjusted(0, 0, 0, -shadow_offset),
+            self._tail_side,
+            self._theme,
+            half_base=self._scaled(BUBBLE_TAIL_HALF_BASE),
+        )
+        if tail is not None:
+            path = path.united(tail)
+        self._input_path = path
+        paint_bubble_backdrop(
+            painter,
+            bubble_rect,
+            self._theme,
+            self.scale_factor,
+            registry=self._element_registry,
+        )
+        shadow_path = QPainterPath(path)
+        shadow_path.translate(0, shadow_offset)
+        shadow_color = QColor(self._theme.shadow)
+        shadow_color.setAlpha(self._theme.shadow_alpha)
+        painter.fillPath(shadow_path, shadow_color)
+        paint_bubble_surface(
+            painter,
+            path,
+            bubble_rect,
+            self._theme,
+            registry=self._element_registry,
+            decorations=self._decorations_enabled,
+            scale=self.scale_factor,
+        )
+
+    def body_rect(self):
+        """The bubble body inside this window, without tail and decorations."""
         outline_width = max(
             1.0,
             self._theme.border_width * self.scale_factor,
@@ -285,37 +336,7 @@ class SpeechBubbleWindow(QFrame):
             bubble_rect.adjust(self.tail_size, 0, 0, 0)
         elif self._tail_side == "right":
             bubble_rect.adjust(0, 0, -self.tail_size, 0)
-        path = build_body_path(bubble_rect, self._theme, self.scale_factor)
-        tail = build_tail_path(
-            bubble_rect,
-            QRectF(self.rect()).adjusted(0, 0, 0, -shadow_offset),
-            self._tail_side,
-            self._theme,
-            half_base=self._scaled(BUBBLE_TAIL_HALF_BASE),
-        )
-        if tail is not None:
-            path = path.united(tail)
-        self._input_path = path
-        paint_bubble_backdrop(
-            painter,
-            bubble_rect,
-            self._theme,
-            self.scale_factor,
-        )
-        shadow_path = QPainterPath(path)
-        shadow_path.translate(0, shadow_offset)
-        shadow_color = QColor(self._theme.shadow)
-        shadow_color.setAlpha(self._theme.shadow_alpha)
-        painter.fillPath(shadow_path, shadow_color)
-        paint_bubble_surface(
-            painter,
-            path,
-            bubble_rect,
-            self._theme,
-            registry=self._element_registry,
-            decorations=self._decorations_enabled,
-            scale=self.scale_factor,
-        )
+        return bubble_rect
 
     @property
     def message(self):

@@ -130,9 +130,54 @@ ipcMain.handle("settings:language-folder", (event) => {
   validSender(event);
   return request("language.open_folder");
 });
-ipcMain.handle("settings:file", async (event, purpose, kind) => {
+const elementKinds = ["pattern", "ornament", "photo", "frame", "sticker"];
+// At most this many images enter the library from one pick, drop or paste.
+const MAX_IMPORT_FILES = 20;
+async function importElements(paths, kind, options) {
+  const flags = {
+    trim: options?.trim === true,
+    clearWhite: options?.clearWhite === true,
+  };
+  const ids = [];
+  for (const path of paths.slice(0, MAX_IMPORT_FILES))
+    ids.push((await request("file.import", { path, kind, ...flags })).id);
+  return { id: ids[ids.length - 1], ids };
+}
+// Dropped files arrive as paths the preload read from File objects; the
+// renderer itself never sees them.
+ipcMain.handle("settings:drop-import", async (event, paths, kind, options) => {
   validSender(event);
-  const elementKinds = ["pattern", "ornament", "photo", "frame", "sticker"];
+  if (
+    !Array.isArray(paths) ||
+    !paths.length ||
+    !paths.every((path) => typeof path === "string" && path) ||
+    !elementKinds.includes(kind)
+  )
+    throw new Error(t("message.1272"));
+  return importElements(paths, kind, options);
+});
+// A pasted image arrives as bytes (the preload reads the clipboard File); it is
+// imported from a temporary file that is removed right after.
+const MAX_PASTE_BYTES = 20 * 1024 * 1024;
+ipcMain.handle("settings:paste-import", async (event, data, kind, options) => {
+  validSender(event);
+  if (
+    !(data instanceof ArrayBuffer) ||
+    !data.byteLength ||
+    data.byteLength > MAX_PASTE_BYTES ||
+    !elementKinds.includes(kind)
+  )
+    throw new Error(t("message.1272"));
+  const file = join(os.tmpdir(), `watched-kettle-paste-${randomUUID()}.png`);
+  await fs.promises.writeFile(file, Buffer.from(data));
+  try {
+    return await importElements([file], kind, options);
+  } finally {
+    await fs.promises.rm(file, { force: true });
+  }
+});
+ipcMain.handle("settings:file", async (event, purpose, kind, options) => {
+  validSender(event);
   if (purpose === "pet" || purpose === "pet-folder") {
     // Discard the previous preparation even if the new picker is cancelled.
     await request("file.pet.cancel");
@@ -153,13 +198,71 @@ ipcMain.handle("settings:file", async (event, purpose, kind) => {
   if (purpose === "import" && elementKinds.includes(kind)) {
     const selected = await dialog.showOpenDialog(window, {
       title: t("message.1270"),
-      properties: ["openFile"],
+      properties: ["openFile", "multiSelections"],
       filters: [
         { name: t("message.1271"), extensions: ["png", "webp", "jpg", "jpeg"] },
       ],
     });
     if (selected.canceled) return { cancelled: true };
-    return request("file.import", { path: selected.filePaths[0], kind });
+    return importElements(selected.filePaths, kind, options);
+  }
+  // Theme files: the payload is the renderer's draft; paths stay here.
+  if (purpose === "theme-export" && kind && typeof kind === "object") {
+    const selected = await dialog.showSaveDialog(window, {
+      title: t("bubble.theme.export_title"),
+      defaultPath: `${String(kind.name || "bubble-theme").slice(0, 60)}.zip`,
+      filters: [{ name: "ZIP", extensions: ["zip"] }],
+    });
+    if (selected.canceled) return { cancelled: true };
+    return request("file.theme.export", {
+      path: selected.filePath,
+      name: String(kind.name || ""),
+      theme: kind.theme,
+    });
+  }
+  if (purpose === "theme-import") {
+    const selected = await dialog.showOpenDialog(window, {
+      title: t("bubble.theme.import_title"),
+      properties: ["openFile"],
+      filters: [{ name: "ZIP", extensions: ["zip"] }],
+    });
+    if (selected.canceled) return { cancelled: true };
+    return request("file.theme.import", { path: selected.filePaths[0] });
+  }
+  if (purpose === "theme-package" && kind && typeof kind === "object") {
+    const selected = await dialog.showOpenDialog(window, {
+      title: t("bubble.theme.package_title"),
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (selected.canceled) return { cancelled: true };
+    return request("file.theme.package", {
+      path: selected.filePaths[0],
+      theme: kind.theme,
+    });
+  }
+  if (
+    purpose === "link-transition" &&
+    kind &&
+    typeof kind.fromPetId === "string" &&
+    typeof kind.toPetId === "string"
+  ) {
+    // A strip, an animation, or several stills in name order.
+    const selected = await dialog.showOpenDialog(window, {
+      title: t("pet.link.transition_pick"),
+      properties: ["openFile", "multiSelections"],
+      filters: [
+        {
+          name: t("pet.link.transition_files"),
+          extensions: ["png", "webp", "gif"],
+        },
+      ],
+    });
+    if (selected.canceled) return { cancelled: true };
+    return request("file.link.transition", {
+      paths: selected.filePaths,
+      fromPetId: kind.fromPetId,
+      toPetId: kind.toPetId,
+    });
   }
   if (purpose === "export" && ready?.edition === "pet-assistant") {
     const selected = await dialog.showSaveDialog(window, {

@@ -27,6 +27,7 @@ def show_pet_context_menu(
     usage_widget_position_customized=False,
     usage_widget_click_through=False,
     menu_executor=None,
+    appearance=None,
 ):
     menu = QMenu(parent)
 
@@ -41,6 +42,20 @@ def show_pet_context_menu(
     auto_movement_action = menu.addAction(t("message.0260"))
     auto_movement_action.setCheckable(True)
     auto_movement_action.setChecked(auto_movement_enabled)
+
+    appearance_actions = {}
+    if appearance is not None:
+        appearance_menu = menu.addMenu(t("pet.appearance.title"))
+        appearance_group = QActionGroup(appearance_menu)
+        appearance_group.setExclusive(True)
+        for value, label in [("auto", t("pet.appearance.auto"))] + [
+            (v.id, t("pet.appearance.keep", name=v.label)) for v in appearance.choices
+        ]:
+            action = appearance_menu.addAction(label)
+            action.setCheckable(True)
+            action.setChecked(appearance.mode == value)
+            appearance_group.addAction(action)
+            appearance_actions[action] = value
 
     always_on_top_action = menu.addAction(t("message.0261"))
     always_on_top_action.setCheckable(True)
@@ -112,6 +127,8 @@ def show_pet_context_menu(
             "set_idle_activities_enabled",
             idle_activity_action.isChecked(),
         )
+    if selected in appearance_actions:
+        return PetMenuCommand("set_pet_appearance", appearance_actions[selected])
     if selected == auto_movement_action:
         return PetMenuCommand(
             "set_auto_movement_enabled",

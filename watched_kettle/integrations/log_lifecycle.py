@@ -112,7 +112,7 @@ def normalize_codex_log_record(
                 question_turn, pending = pending_async_questions[call_id]
                 try:
                     result = json.loads(payload.get("output") or "")
-                except (TypeError, ValueError):
+                except TypeError, ValueError:
                     result = None
                 if pending and not (
                     isinstance(result, dict) and result.get("accepted") is True
@@ -136,7 +136,8 @@ def normalize_codex_log_record(
         "agent_scope": agent_scope,
     }
     if event == "turn_mode":
-        normalized["collaboration_mode"] = collaboration["mode"]
+        # turn_mode is only produced from a dict with a valid "mode".
+        normalized["collaboration_mode"] = (collaboration or {})["mode"]
     if payload_type == "turn_aborted":
         normalized["outcome_reason"] = outcome_reason(code)
         if normalized["outcome_reason"] == "usage_limit":
@@ -162,7 +163,7 @@ def normalize_codex_log_record(
             if stamp.tzinfo is None:
                 stamp = stamp.replace(tzinfo=timezone.utc)
             normalized["collected_at"] = stamp.timestamp()
-        except (ValueError, OverflowError, OSError):
+        except ValueError, OverflowError, OSError:
             pass
     if event == "tool_start":
         normalized["tool_status"] = "started"

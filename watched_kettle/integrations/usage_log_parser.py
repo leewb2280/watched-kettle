@@ -109,7 +109,7 @@ class UsageLogParser:
                         if resets_epoch is not None
                         else None
                     )
-                except (ValueError, OverflowError, OSError):
+                except ValueError, OverflowError, OSError:
                     resets_at = None
                 extracted.append(
                     {

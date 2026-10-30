@@ -229,7 +229,7 @@ def validate_installer_revision() -> list[str]:
     try:
         record = json.loads(path.read_text(encoding="utf-8"))
         revision, recorded = record["revision"], record["sha256"]
-    except (OSError, ValueError, KeyError, TypeError):
+    except OSError, ValueError, KeyError, TypeError:
         return [f"{INSTALLER_REVISION_FILE.as_posix()}: missing or invalid"]
     if not isinstance(revision, int) or revision < 1:
         return [f"{INSTALLER_REVISION_FILE.as_posix()}: revision must be 1 or more"]

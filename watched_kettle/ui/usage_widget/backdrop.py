@@ -104,7 +104,7 @@ def high_contrast():
             SPI_GETHIGHCONTRAST, ctypes.sizeof(info), ctypes.byref(info), 0
         )
         return bool(ok) and bool(info.dwFlags & HCF_HIGHCONTRASTON)
-    except (AttributeError, OSError):
+    except AttributeError, OSError:
         return False
 
 

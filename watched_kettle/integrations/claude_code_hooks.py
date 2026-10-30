@@ -17,6 +17,7 @@ from watched_kettle.integrations.codex_hooks import (
     safe_project_label,
     sanitize_pet_event,
 )
+from watched_kettle.integrations.windows_paths import is_network_path
 
 
 CLAUDE_CODE_HOOK_EVENTS = {
@@ -200,7 +201,7 @@ def project_root(path):
                 if current != path and _broad_folder(current):
                     return path
                 return _repository_root(current, marker) or path
-        except (OSError, ValueError, UnicodeError):
+        except OSError, ValueError, UnicodeError:
             return path
         parent = ntpath.dirname(current)
         if parent == current:
@@ -225,13 +226,23 @@ def _repository_root(folder, marker):
     if not text or not text.startswith("gitdir:"):
         return None
     gitdir = ntpath.normpath(ntpath.join(folder, _windows_path(text[7:].strip())))
+    # A ".git" file can point anywhere. Opening a share would reach out to the
+    # network (and send Windows credentials) on every hook call.
+    if _leaves_local(folder, gitdir):
+        return folder
     common = _read_small(ntpath.join(gitdir, "commondir"))
     if common is None:
         return folder
     common = ntpath.normpath(ntpath.join(gitdir, _windows_path(common.strip())))
+    if _leaves_local(folder, common):
+        return folder
     if ntpath.basename(common).lower() == ".git":
         return ntpath.dirname(common)
     return common
+
+
+def _leaves_local(folder, path):
+    return is_network_path(path) and not is_network_path(folder)
 
 
 def _read_small(path):

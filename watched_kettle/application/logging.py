@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import json
 import logging
 import os
@@ -86,6 +88,26 @@ _EVENT_FIELDS = frozenset(
         "fallback_error_code",
     }
 )
+# Durations and counts; a string here is never a measurement.
+_NUMERIC_EVENT_FIELDS = frozenset(
+    {
+        "duration_ms",
+        "delay_ms",
+        "attempt",
+        "queue_size",
+        "bytes",
+        "linked",
+        "copied",
+        "extracted",
+        "member_count",
+    }
+)
+# String fields carry enums, hashes, exception names and RPC method names
+# ("account/usage/read"). Anything else (free text, absolute paths, emails)
+# is replaced whole instead of trusting every caller to pass safe values.
+_EVENT_TOKEN = re.compile(r"(?:[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)?")
+_EVENT_TOKEN_MAX = 64
+_REDACTED = "<redacted>"
 _EMAIL = re.compile(r"(?<![\w.+-])[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}(?![\w.-])")
 _WINDOWS_PATH = re.compile(r"(?i)(?:[A-Z]:\\|\\\\)[^\r\n\t\"<>|]+")
 _SENSITIVE_FIELD = re.compile(
@@ -103,17 +125,21 @@ def redact_diagnostic_text(value: object) -> str:
 
 
 def _safe_event_fields(fields):
-    safe = {}
+    safe: dict[str, Any] = {}
     for key, value in fields.items():
         key = str(key)
         if key not in _EVENT_FIELDS or value is None:
             continue
-        if isinstance(value, bool):
-            safe[key] = value
-        elif isinstance(value, (int, float)) and not isinstance(value, bool):
+        if isinstance(value, (bool, int, float)):
             safe[key] = value
         elif isinstance(value, str):
-            safe[key] = redact_diagnostic_text(value)
+            safe[key] = (
+                value
+                if key not in _NUMERIC_EVENT_FIELDS
+                and len(value) <= _EVENT_TOKEN_MAX
+                and _EVENT_TOKEN.fullmatch(value)
+                else _REDACTED
+            )
     return safe
 
 
@@ -146,7 +172,7 @@ class PrivacyFormatter(logging.Formatter):
     def formatException(self, exc_info):
         # Exception text may be arbitrary user content; retain types only.
         error = exc_info[1]
-        names = []
+        names: list[str] = []
         seen = set()
         while error is not None and id(error) not in seen and len(names) < 8:
             seen.add(id(error))
@@ -191,7 +217,9 @@ class SafeRotatingFileHandler(RotatingFileHandler):
             self.stream = self._open()
         self.stream.seek(0, 2)
         message = (self.format(record) + self.terminator).replace("\n", os.linesep)
-        encoded = message.encode(self.encoding, errors=self.errors or "strict")
+        encoded = message.encode(
+            self.encoding or "utf-8", errors=self.errors or "strict"
+        )
         return self.stream.tell() + len(encoded) >= self.maxBytes
 
     def handleError(self, record):
@@ -221,7 +249,7 @@ def _archive_legacy_log(log_path: Path):
         parsed = json.loads(first)
         if isinstance(parsed, dict) and parsed.get("schema") == LOG_SCHEMA_VERSION:
             return
-    except (OSError, IndexError, ValueError, TypeError):
+    except OSError, IndexError, ValueError, TypeError:
         pass
     target = log_path.with_name(f"{log_path.name}.legacy")
     index = 1
@@ -244,17 +272,19 @@ def configure_logging(log_directory: Path) -> Path | None:
         directory.mkdir(parents=True, exist_ok=True)
         log_path = directory / LOG_FILE_NAME
         _archive_legacy_log(log_path)
-        handler = SafeRotatingFileHandler(
+        handler: logging.Handler = SafeRotatingFileHandler(
             log_path,
             maxBytes=MAX_LOG_BYTES,
             backupCount=LOG_BACKUP_COUNT,
             encoding="utf-8",
         )
-    except (OSError, ValueError):
+    except OSError, ValueError:
         _LOG_FAILURES += 1
         handler = logging.NullHandler()
         log_path = None
-    setattr(handler, "_watched_kettle_handler", True)
+    # A marker attribute logging.Handler does not declare; setattr keeps the
+    # type checker quiet about it.
+    setattr(handler, "_watched_kettle_handler", True)  # noqa: B010
     handler.addFilter(PrivacyFilter())
     handler.setFormatter(
         PrivacyFormatter("%(asctime)s %(levelname)s %(name)s %(message)s")

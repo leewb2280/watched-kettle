@@ -217,6 +217,7 @@ export type PetPreview = {
   sourceSize: Size;
   contentBounds: Bounds;
   cropBounds: Bounds;
+  appearanceId?: string | null;
 };
 
 export type PetTrashEntry = {
@@ -275,6 +276,7 @@ export type PetPreparation = {
   name: string;
   thumbnail: string;
   spriteVersion: number;
+  appearanceChoices?: Array<PetAppearanceChoice>;
   description?: string;
   source?: string;
   warnings?: Array<string>;
@@ -318,6 +320,7 @@ export type ImportThumbnail = {
 export type ImportPreviewRequest = {
   token: string;
   state: string;
+  appearanceId?: string;
 };
 
 export type ImportPreview = {
@@ -355,10 +358,54 @@ export type Element = {
   id: string;
   name: string;
   kind: string;
+  thumbnail: string;
+  width: number;
+  height: number;
 };
 
 export type ElementImported = {
   id: string;
+  ids?: Array<string>;
+};
+
+export type ElementUsage = {
+  pets: Array<string>;
+  designs: Array<string>;
+};
+
+export type BubbleThemeEntry = {
+  id: string;
+  name: string;
+  savedAt: string;
+  thumbnail: string;
+};
+
+export type BubbleThemeList = {
+  themes: Array<BubbleThemeEntry>;
+};
+
+export type BubbleThemeId = {
+  id: string;
+};
+
+export type BubbleThemeLoaded = {
+  theme: SpeechBubbleTheme;
+  name: string;
+};
+
+export type BubbleThemePackaged = Saved & {
+  omitted: Array<string>;
+};
+
+export type BubbleThemeSave = {
+  name: string;
+  theme: SpeechBubbleTheme;
+};
+
+export type ThemeFile = {
+  path: string;
+  name?: string;
+  theme?: SpeechBubbleTheme;
 };
 
 export type ThemeLimit = {
@@ -380,19 +427,51 @@ export type BubbleEditor = {
   revision: number;
   petId: string;
   elements: Array<Element>;
+  ornaments: Array<Element>;
   choices: { [key: string]: Array<string> };
   limits: { [key: string]: ThemeLimit };
   labels: { [key: string]: { [key: string]: string } };
   presets: Array<ThemePreset>;
+  packageImages: Array<Element>;
+  packageDecor: Array<BubbleDecorLayer>;
+  frameValues: { [key: string]: Scalar };
+};
+
+export type BubbleBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type BubbleLayerBox = BubbleBox & {
+  id: string;
+  rotation: number;
+  anchorX: number;
+  anchorY: number;
+};
+
+export type BubbleGeometry = {
+  width: number;
+  height: number;
+  body: BubbleBox;
+  background: BubbleBox | null;
+  layers: Array<BubbleLayerBox>;
 };
 
 export type BubbleRender = {
   image: string;
   theme: SpeechBubbleTheme;
+  geometry: BubbleGeometry;
+  pixelRatio: number;
 };
 
 export type PetId = {
   petId: string;
+};
+
+export type PetPreviewRequest = PetId & {
+  appearanceId?: string;
 };
 
 export type SelectPet = Context & {
@@ -442,7 +521,7 @@ export type ThemeRequest = Context & {
 };
 
 export type RenderTheme = ThemeRequest & {
-  sample?: "notice" | "project";
+  sample?: "notice" | "long" | "project";
 };
 
 export type ElementDelete = Context & {
@@ -461,7 +540,7 @@ export type BooleanSetting = Context & {
 };
 
 export type NumberSetting = Context & {
-  key: "opacity" | "width" | "look" | "bubble_scale" | "bubble_duration";
+  key: "opacity" | "animation_speed" | "width" | "look" | "bubble_scale" | "bubble_duration";
   value: number;
 };
 
@@ -471,7 +550,7 @@ export type DurationSetting = Context & {
 };
 
 export type StringSetting = Context & {
-  key: "screen" | "bubble_theme" | "appearance:theme" | "appearance:material" | "languagePack";
+  key: "screen" | "bubble_theme" | "appearance:theme" | "appearance:material" | "languagePack" | "pet_appearance" | "pet_appearance_interval" | "pet_appearance_order";
   value: string;
 };
 
@@ -605,8 +684,88 @@ export type FilePath = {
   path: string;
 };
 
-export type ImportElement = FilePath & {
+export type ImportOptions = {
+  trim?: boolean;
+  clearWhite?: boolean;
+};
+
+export type ImportElement = FilePath & ImportOptions & {
   kind: ElementKind;
+};
+
+export type PetLinkPair = {
+  fromPetId: string;
+  toPetId: string;
+};
+
+export type PetLinkFiles = PetLinkPair & {
+  paths: Array<string>;
+};
+
+export type PetLinkSource = {
+  id: string;
+  name: string;
+  thumbnail: string;
+  problem: string;
+  hasBubble: boolean;
+  joined: boolean;
+};
+
+export type PetLinkTransition = PetLinkPair & {
+  frames: number;
+  intervalMs: number;
+  resized: boolean;
+};
+
+export type PetLinkTransitions = {
+  transitions: Array<PetLinkTransition>;
+};
+
+export type PetLinkSources = PetLinkTransitions & {
+  entries: Array<PetLinkSource>;
+  maxLooks: number;
+};
+
+export type PetLinkPreview = {
+  start: string;
+  end: string;
+  frames: Array<string>;
+  intervalMs: number;
+  kind: "drawn" | "reversed" | "fade";
+};
+
+export type PetLinkLook = {
+  petId: string;
+  label: string;
+};
+
+export type PetLinkInterval = PetLinkPair & {
+  intervalMs: number;
+};
+
+export type PetLinkAuto = {
+  minSeconds: number;
+  maxSeconds: number;
+  order: "random" | "sequence";
+};
+
+export type PetLinkCreate = {
+  looks: Array<PetLinkLook>;
+  defaultPetId: string;
+  name: string;
+  bubblePetId: string;
+  intervals: Array<PetLinkInterval>;
+  auto: PetLinkAuto;
+  replacePetId?: string;
+};
+
+export type PetLinkDraft = PetLinkTransitions & {
+  looks: Array<PetLinkLook>;
+  sources: Array<PetLinkSource>;
+  defaultPetId: string;
+  name: string;
+  bubblePetId: string;
+  auto: PetLinkAuto;
 };
 
 export type Invalidation = {
@@ -818,6 +977,29 @@ export type ClaudeCodeUsageSnapshot = {
   account_hash: string;
 };
 
+export type PetAppearanceChoice = {
+  id: string;
+  label: string;
+};
+
+export type PetAppearanceAuto = {
+  min_seconds: number;
+  max_seconds: number;
+  order: string;
+};
+
+export type PetAppearanceStatus = {
+  mode: string;
+  current_id: string;
+  target_id: string | null;
+  transitioning: boolean;
+  pending: boolean;
+  choices: Array<PetAppearanceChoice>;
+  interval: string;
+  order: string;
+  package_auto: PetAppearanceAuto;
+};
+
 export type PetSnapshot = {
   pet_id: string;
   display_name: string;
@@ -829,6 +1011,7 @@ export type PetSnapshot = {
   activity_labels_enabled: boolean;
   idle_activities_enabled: boolean;
   auto_movement_enabled: boolean;
+  appearance?: PetAppearanceStatus | null;
   pet_width: number;
   look_range: number;
   bubble_scale: number;
@@ -839,6 +1022,7 @@ export type PetSnapshot = {
   bubble_duration_policy: BubbleDurationPolicy;
   working_sources: Array<string>;
   opacity_percent: number;
+  animation_speed_percent: number;
   shadow: boolean;
   fade: boolean;
   click_through: boolean;
@@ -887,7 +1071,6 @@ export type ThemeBase = {
   ornament_right: string;
   ornament_scale: number;
   glow: boolean;
-  frame_style: string;
   fill_opacity: number;
   minimum_width: number;
   maximum_width: number;
@@ -895,28 +1078,64 @@ export type ThemeBase = {
   stack_alignment: string;
   text_alignment: string;
   text_bold: boolean;
+  gradient_angle: number;
+  pattern_tile_size: number;
+  pattern_opacity: number;
+};
+
+export type BubbleDecorLayer = {
+  id: string;
+  name: string;
+  image: string;
+  placement: string;
+  anchor: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  mirror: boolean;
+  flip_y: boolean;
+  alpha: number;
+  tint: string;
+  repeat: string;
+  repeat_gap: number;
+  repeat_inset: number;
+  hidden: boolean;
 };
 
 export type SpeechBubbleTheme = ThemeBase & {
+  frame_style: string;
   background_image: string;
+  background_fit: string;
   background_opacity: number;
   background_focus_x: number;
   background_focus_y: number;
   background_zoom: number;
+  background_tile_size: number;
+  background_blur: number;
+  background_overlay: number;
+  background_x: number;
+  background_y: number;
+  background_width: number;
+  background_height: number;
   frame_image: string;
   frame_slice: number;
-  sticker_1: string;
-  sticker_1_x: number;
-  sticker_1_y: number;
-  sticker_1_size: number;
-  sticker_2: string;
-  sticker_2_x: number;
-  sticker_2_y: number;
-  sticker_2_size: number;
-  sticker_3: string;
-  sticker_3_x: number;
-  sticker_3_y: number;
-  sticker_3_size: number;
+  package_layers: boolean;
+  decor: Array<BubbleDecorLayer>;
+  inner_border_custom: boolean;
+  inner_border_color: string;
+  inner_border_alpha: number;
+  halo_custom: boolean;
+  halo_color: string;
+  halo_alpha: number;
+  halo_width: number;
+  halo_offset_y: number;
+  halo_grow: number;
+  content_custom: boolean;
+  content_top: number;
+  content_bottom: number;
+  content_left: number;
 };
 
 export type BubbleDurationPolicy = {
@@ -1251,7 +1470,7 @@ export interface CommandMap {
 
   "pet.catalog": { args: Empty; result: PetCatalog };
 
-  "pet.preview": { args: PetId; result: PetPreview };
+  "pet.preview": { args: PetPreviewRequest; result: PetPreview };
 
   "pet.select": { args: SelectPet; result: Mutation };
 
@@ -1272,6 +1491,18 @@ export interface CommandMap {
   "pet.import.installed.start": { args: InstalledPetId; result: PetImportJob };
 
   "pet.import.preview": { args: ImportPreviewRequest; result: ImportPreview };
+
+  "pet.link.sources": { args: Empty; result: PetLinkSources };
+
+  "pet.link.load": { args: PetId; result: PetLinkDraft };
+
+  "pet.link.preview": { args: PetLinkPair; result: PetLinkPreview };
+
+  "pet.link.transition.clear": { args: PetLinkPair; result: PetLinkTransitions };
+
+  "pet.link.reset": { args: Empty; result: Cancelled };
+
+  "pet.link.create": { args: PetLinkCreate; result: PetRegistration };
 
   "pet.catalog.save": { args: CatalogSave; result: Mutation };
 
@@ -1302,6 +1533,18 @@ export interface CommandMap {
   "bubble.reset": { args: Context; result: Mutation };
 
   "element.delete": { args: ElementDelete; result: Mutation };
+
+  "element.usage": { args: ElementDelete; result: ElementUsage };
+
+  "element.open_folder": { args: Empty; result: Opened };
+
+  "bubble.theme.list": { args: Empty; result: BubbleThemeList };
+
+  "bubble.theme.save": { args: BubbleThemeSave; result: BubbleThemeList };
+
+  "bubble.theme.load": { args: BubbleThemeId; result: BubbleThemeLoaded };
+
+  "bubble.theme.delete": { args: BubbleThemeId; result: BubbleThemeList };
 
   "update.check": { args: Empty; result: Pending };
 
@@ -1337,7 +1580,15 @@ export interface CommandMap {
 
   "file.pet.cancel": { args: Empty; result: Cancelled };
 
+  "file.link.transition": { args: PetLinkFiles; result: PetLinkTransition };
+
   "file.export": { args: FilePath; result: Saved };
+
+  "file.theme.export": { args: ThemeFile; result: Saved };
+
+  "file.theme.import": { args: FilePath; result: BubbleThemeLoaded };
+
+  "file.theme.package": { args: ThemeFile; result: BubbleThemePackaged };
 
   "usage.snapshot": { args: Empty; result: UsageResponse };
 
@@ -1371,7 +1622,7 @@ export interface CommandMap {
 
 }
 
-export type RendererCommand = "language.list" | "language.refresh" | "language.copy" | "settings.snapshot" | "settings.set" | "pet.catalog" | "pet.preview" | "pet.select" | "pet.import.commit" | "pet.import.cancel" | "pet.import.start" | "pet.import.status" | "pet.import.stop" | "pet.import.installed" | "pet.import.installed.thumbnail" | "pet.import.installed.start" | "pet.import.preview" | "pet.catalog.save" | "pet.trash.list" | "pet.trash.move" | "pet.trash.restore" | "pet.trash.delete" | "pet.trash.empty" | "pet.trash.batch.start" | "pet.trash.batch.status" | "pet.trash.batch.cancel" | "pet.action" | "bubble.editor" | "bubble.render" | "bubble.save" | "bubble.reset" | "element.delete" | "update.check" | "update.download" | "update.apply" | "update.cancel" | "update.open" | "about.open_licenses" | "app.quit" | "app.restart" | "navigation.ack" | "window.subscribe" | "usage.snapshot" | "usage.widget_preview" | "usage.set" | "usage.query" | "usage.select" | "usage.move" | "usage.action" | "activity.snapshot" | "activity.clear" | "activity.confirm_all" | "activity.open" | "integration.snapshot" | "integration.preview" | "integration.apply" | "integration.set";
+export type RendererCommand = "language.list" | "language.refresh" | "language.copy" | "settings.snapshot" | "settings.set" | "pet.catalog" | "pet.preview" | "pet.select" | "pet.import.commit" | "pet.import.cancel" | "pet.import.start" | "pet.import.status" | "pet.import.stop" | "pet.import.installed" | "pet.import.installed.thumbnail" | "pet.import.installed.start" | "pet.import.preview" | "pet.link.sources" | "pet.link.load" | "pet.link.preview" | "pet.link.transition.clear" | "pet.link.reset" | "pet.link.create" | "pet.catalog.save" | "pet.trash.list" | "pet.trash.move" | "pet.trash.restore" | "pet.trash.delete" | "pet.trash.empty" | "pet.trash.batch.start" | "pet.trash.batch.status" | "pet.trash.batch.cancel" | "pet.action" | "bubble.editor" | "bubble.render" | "bubble.save" | "bubble.reset" | "element.delete" | "element.usage" | "element.open_folder" | "bubble.theme.list" | "bubble.theme.save" | "bubble.theme.load" | "bubble.theme.delete" | "update.check" | "update.download" | "update.apply" | "update.cancel" | "update.open" | "about.open_licenses" | "app.quit" | "app.restart" | "navigation.ack" | "window.subscribe" | "usage.snapshot" | "usage.widget_preview" | "usage.set" | "usage.query" | "usage.select" | "usage.move" | "usage.action" | "activity.snapshot" | "activity.clear" | "activity.confirm_all" | "activity.open" | "integration.snapshot" | "integration.preview" | "integration.apply" | "integration.set";
 
 export type Args<M extends RendererCommand> = CommandMap[M]['args'];
 
@@ -1379,6 +1630,8 @@ export type Result<M extends RendererCommand> = CommandMap[M]['result'];
 
 export type Request = <M extends RendererCommand>(method: M, ...args: {} extends Args<M> ? [args?: Args<M>] : [args: Args<M>]) => Promise<Result<M>>;
 
-export type FileResult<P extends 'pet' | 'pet-folder' | 'import' | 'export'> = Cancelled | (P extends 'pet' | 'pet-folder' ? PetImportJob : P extends 'import' ? ElementImported : Saved);
+export type FilePurpose = 'pet' | 'pet-folder' | 'import' | 'export' | 'link-transition' | 'theme-export' | 'theme-import' | 'theme-package';
 
-export type FileRequest = <P extends 'pet' | 'pet-folder' | 'import' | 'export'>(purpose: P, ...args: P extends 'import' ? [kind: ElementKind] : []) => Promise<FileResult<P>>;
+export type FileResult<P extends FilePurpose> = Cancelled | (P extends 'pet' | 'pet-folder' ? PetImportJob : P extends 'import' ? ElementImported : P extends 'link-transition' ? PetLinkTransition : P extends 'theme-import' ? BubbleThemeLoaded : P extends 'theme-package' ? BubbleThemePackaged : Saved);
+
+export type FileRequest = <P extends FilePurpose>(purpose: P, ...args: P extends 'import' ? [kind: ElementKind, options?: ImportOptions] : P extends 'link-transition' ? [pair: PetLinkPair] : P extends 'theme-export' ? [file: { name: string; theme: SpeechBubbleTheme }] : P extends 'theme-package' ? [file: { theme: SpeechBubbleTheme }] : []) => Promise<FileResult<P>>;

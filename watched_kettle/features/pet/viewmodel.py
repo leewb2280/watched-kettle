@@ -11,9 +11,13 @@ from PySide6.QtCore import QObject, Signal
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
 
-from watched_kettle.pet.bubble_theme import bubble_theme_from_manifest
+from watched_kettle.pet.bubble_theme import (
+    bubble_theme_from_manifest,
+    with_own_frame,
+)
 from watched_kettle.pet.trash import PetTrashService, PetTrashError
 from watched_kettle.bubble_timing import BubbleDurationPolicy
+from watched_kettle.pet.appearance_assets import AppearanceStatus
 
 if TYPE_CHECKING:
     from watched_kettle.pet.bubble_theme import SpeechBubbleTheme
@@ -43,10 +47,12 @@ class PetSnapshot:
     bubble_duration_policy: BubbleDurationPolicy = BubbleDurationPolicy()
     working_sources: tuple[str, ...] = ()
     opacity_percent: int = 100
+    animation_speed_percent: int = 100
     shadow: bool = False
     fade: bool = True
     click_through: bool = False
     click_through_bubbles: bool = False
+    appearance: AppearanceStatus | None = None
 
 
 @dataclass(frozen=True)
@@ -128,7 +134,7 @@ class PetViewModel(QObject):
                 )
         try:
             return self.packages.move(pet_id)
-        except (OSError, PetTrashError):
+        except OSError, PetTrashError:
             if previous_id == pet_id and any(
                 entry.id == pet_id for entry in self.all_pets()
             ):
@@ -142,12 +148,14 @@ class PetViewModel(QObject):
     def bubble_editor_state(self) -> BubbleEditorState:
         """Return immutable inputs needed to construct the bubble editor."""
         pet = self.pet
+        custom = pet.custom_bubble_theme
         return BubbleEditorState(
             display_name=pet.pet_display_name,
             registry=pet.bubble_element_registry,
             theme=(
-                pet.custom_bubble_theme
-                or bubble_theme_from_manifest(pet.manifest)
+                with_own_frame(custom, pet.manifest)
+                if custom is not None
+                else bubble_theme_from_manifest(pet.manifest)
                 or pet.bubble_controller.theme
             ),
             package_theme=(
@@ -162,6 +170,11 @@ class PetViewModel(QObject):
     def save_custom_bubble_theme(self, theme):
         """Apply and persist one custom theme for the current package."""
         self.pet.set_custom_bubble_theme(theme)
+        self.refresh()
+
+    def replace_custom_bubble_theme(self, theme):
+        """Rewrite the stored custom theme without switching to it."""
+        self.pet.replace_custom_bubble_theme(theme)
         self.refresh()
 
     def reset_custom_bubble_theme(self):
@@ -206,6 +219,10 @@ class PetViewModel(QObject):
         self.pet.set_opacity_percent(value)
         self.refresh()
 
+    def set_animation_speed(self, value):
+        self.pet.set_animation_speed_percent(value)
+        self.refresh()
+
     def set_shadow(self, value):
         self.pet.set_shadow_enabled(value)
         self.refresh()
@@ -220,6 +237,14 @@ class PetViewModel(QObject):
 
     def set_auto_movement_enabled(self, value):
         self.pet.set_auto_movement_enabled(value)
+        self.refresh()
+
+    def set_appearance_mode(self, value):
+        self.pet.set_appearance_mode(value)
+        self.refresh()
+
+    def set_appearance_timing(self, interval=None, order=None):
+        self.pet.set_appearance_timing(interval, order)
         self.refresh()
 
     def set_bubble_scale(self, value):
@@ -319,12 +344,14 @@ class PetViewModel(QObject):
             bubbles_enabled=self.pet.bubbles_enabled,
             activity_labels_enabled=self.pet.activity_labels_enabled,
             opacity_percent=self.pet.opacity_percent,
+            animation_speed_percent=self.pet.animation_speed_percent,
             shadow=self.pet.shadow_enabled,
             fade=self.pet.fade_enabled,
             click_through=self.pet.click_through,
             click_through_bubbles=self.pet.click_through_bubbles,
             idle_activities_enabled=self.pet.activity_controller.enabled,
             auto_movement_enabled=self.pet.movement_controller.enabled,
+            appearance=self.pet.appearance_snapshot(),
             pet_width=self.pet.pet_width,
             look_range=self.pet.look_range,
             bubble_scale=self.pet.bubble_scale,

@@ -1,5 +1,6 @@
 """Bounded, read-only metadata worker independent of usage collection."""
 
+from watched_kettle.thread_shutdown import wait_for_thread
 from watched_kettle.localization import t
 
 from collections import OrderedDict
@@ -47,7 +48,7 @@ def _read_desktop_project_index(path):
         if not path.is_file() or path.stat().st_size > MAX_DESKTOP_STATE_BYTES:
             return {}, set(), {}, {}
         payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, ValueError, TypeError):
+    except OSError, UnicodeError, ValueError, TypeError:
         return {}, set(), {}, {}
     if not isinstance(payload, dict):
         return {}, set(), {}, {}
@@ -141,8 +142,8 @@ class _MetadataWorker(QObject):
         self._maintenance = set()
         self.activity_diagnostics = DiagnosticRecorder()
         self._diagnostic_requests = OrderedDict()
-        self.activity_diagnostics.callback = (
-            lambda event, **fields: self.diagnostic_event.emit(event, fields)
+        self.activity_diagnostics.callback = lambda event, **fields: (
+            self.diagnostic_event.emit(event, fields)
         )
 
     @Slot()
@@ -956,4 +957,4 @@ class ConversationMetadataService(QObject):
         self.refresh_timer.stop()
         if self._thread.isRunning():
             self.stop_requested.emit()
-            self._thread.wait()
+            wait_for_thread(self._thread, "features.project_activity")

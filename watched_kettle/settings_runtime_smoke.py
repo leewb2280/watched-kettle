@@ -1,6 +1,7 @@
 """Packaged Electron lifecycle probe with temporary application settings."""
 
 import argparse
+from typing import Any, cast
 import json
 import os
 from pathlib import Path
@@ -15,7 +16,7 @@ def run_settings_smoke(arguments, runtime_factory, agent_controller_factory):
     parser.add_argument("--language", choices=("ko", "en"), default="ko")
     args = parser.parse_args(arguments)
     previous_local = os.environ.get("LOCALAPPDATA")
-    result = {"status": "failed", "phases": []}
+    result: dict[str, Any] = {"status": "failed", "phases": []}
     try:
         with TemporaryDirectory(prefix="watched-kettle-electron-smoke-") as directory:
             os.environ["LOCALAPPDATA"] = directory
@@ -27,7 +28,7 @@ def run_settings_smoke(arguments, runtime_factory, agent_controller_factory):
             from watched_kettle.application.localization import initialize_language
             from watched_kettle.pet.window import DesktopPet
 
-            app = QApplication.instance() or QApplication([])
+            app = cast(QApplication, QApplication.instance() or QApplication([]))
             app.setQuitOnLastWindowClosed(False)
             settings = QSettings(
                 str(Path(directory) / "settings.ini"), QSettings.Format.IniFormat

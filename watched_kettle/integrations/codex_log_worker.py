@@ -3,6 +3,7 @@
 from dataclasses import replace
 from PySide6.QtCore import QObject, QThread, Signal, Slot, Qt
 
+from watched_kettle.thread_shutdown import wait_for_thread
 from watched_kettle.integrations.codex_log import CodexLogMonitor
 from watched_kettle.usage.device import DeviceBatch, parse_device_batch
 
@@ -175,8 +176,8 @@ class ThreadedCodexLogMonitor(QObject):
         self._generation += 1
         if self.is_active and self._thread is not None:
             self.stop_requested.emit()
-            self._thread.wait()
-            self._thread.deleteLater()
+            if wait_for_thread(self._thread, "integrations.codex_log"):
+                self._thread.deleteLater()
             self._thread = None
         self._state = {
             "active": False,

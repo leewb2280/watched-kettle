@@ -187,6 +187,50 @@ def check_bundle_state(bundle_root: Path, forbidden_roots=None) -> list[str]:
     return violations
 
 
+def check_bundle_pets(bundle_root: Path, expected, profile: str) -> list[str]:
+    """Return pet packages that do not belong in a bundle of this profile.
+
+    expected holds the bundle's pet folders (pets/<name>) the build profile
+    collected. In a Public bundle every packaged manifest must say public, so
+    a private-beta pet cannot hide under any folder.
+    """
+    bundle_root = Path(bundle_root).resolve()
+    if not bundle_root.is_dir():
+        raise FileNotFoundError(f"Bundle directory does not exist: {bundle_root}")
+    expected = {str(value).casefold() for value in expected}
+    violations = []
+    found = set()
+    for manifest in sorted(bundle_root.rglob("pet.json")):
+        relative = manifest.relative_to(bundle_root).as_posix()
+        parts = manifest.relative_to(bundle_root).parts
+        if len(parts) >= 3 and parts[-3].casefold() == "pets":
+            found.add(f"pets/{parts[-2]}".casefold())
+        try:
+            distribution = json.loads(manifest.read_text(encoding="utf-8-sig")).get(
+                "distribution"
+            )
+        except OSError, ValueError, AttributeError:
+            violations.append(f"unreadable pet manifest: {relative}")
+            continue
+        if profile == "public" and distribution != "public":
+            violations.append(f"non-public pet manifest: {relative}")
+    for path in sorted(bundle_root.rglob("*")):
+        if (
+            profile == "public"
+            and path.is_dir()
+            and path.name.casefold() == "private-pets"
+        ):
+            relative = path.relative_to(bundle_root).as_posix()
+            violations.append(f"private pet folder: {relative}/")
+    violations.extend(
+        f"unexpected pet package: {name}" for name in sorted(found - expected)
+    )
+    violations.extend(
+        f"missing pet package: {name}" for name in sorted(expected - found)
+    )
+    return violations
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="operation", required=True)
@@ -196,9 +240,26 @@ def main() -> int:
     verify_parser.add_argument("archive", type=Path)
     inspect_parser = subparsers.add_parser("inspect")
     inspect_parser.add_argument("bundle", type=Path)
+    pets_parser = subparsers.add_parser("pets")
+    pets_parser.add_argument("bundle", type=Path)
+    pets_parser.add_argument("--profile", required=True)
     args = parser.parse_args()
     if args.operation == "manifest":
         print(generate_manifest(args.bundle))
+    elif args.operation == "pets":
+        from watched_kettle.build_profiles import collect_pet_build_sources
+
+        project_root = Path(__file__).resolve().parents[1]
+        expected = [
+            source.destination
+            for source in collect_pet_build_sources(project_root, args.profile)
+        ]
+        violations = check_bundle_pets(args.bundle, expected, args.profile)
+        for violation in violations:
+            print(violation)
+        if violations:
+            return 1
+        print(f"Bundled pets match the {args.profile} build profile.")
     elif args.operation == "inspect":
         violations = check_bundle_state(args.bundle)
         for violation in violations:

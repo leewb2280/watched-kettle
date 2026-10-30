@@ -92,9 +92,13 @@ export function PetManagerDialog({
     !!catalog &&
     (catalog.petId !== shell.snapshot.pet.pet_id ||
       catalog.revision !== shell.snapshot.revision);
-  const busy = saving || loading || contextChanged || batch.busy;
-  // Switching views is local. A late invalidate after a change reloads the
-  // lists again; disabling here on that reload swallowed an immediate click.
+  // A load blocks only while it changes what is shown: the first one or
+  // another trash page. The host's late invalidate (80ms after a change)
+  // reloads lists already shown; disabling on that reload swallowed a click
+  // about 20-60ms after an action. Commands still carry the revision.
+  const showing = loading && (!catalog || !trash || trash.offset !== offset);
+  const busy = saving || showing || contextChanged || batch.busy;
+  // Switching views is local, so only a running change disables it.
   const navigationBusy = saving || batch.busy;
 
   const load = async () => {
@@ -160,7 +164,7 @@ export function PetManagerDialog({
     args: Args<M>,
     message: string,
   ) => {
-    if (lock.current || loading || contextChanged || !catalog) return null;
+    if (lock.current || showing || contextChanged || !catalog) return null;
     lock.current = true;
     setBusy(true);
     setError("");
@@ -587,7 +591,7 @@ export function PetManagerDialog({
           </div>
           <div className="manager-feedback" ref={feedback} tabIndex={-1}>
             <span role="status">
-              {loading
+              {showing
                 ? t("message.1190")
                 : saving
                   ? t("message.1191")
