@@ -522,6 +522,7 @@ export type ThemeRequest = Context & {
 
 export type RenderTheme = ThemeRequest & {
   sample?: "notice" | "long" | "project";
+  pixelRatio?: 1 | 2 | 4 | 8;
 };
 
 export type ElementDelete = Context & {

@@ -96,6 +96,7 @@ export function Modal({
   footer,
   error,
   className = "",
+  cancel,
 }: {
   title: string;
   children: ReactNode;
@@ -104,6 +105,7 @@ export function Modal({
   // Rendered inside the dialog: page banners and toasts sit under its backdrop.
   error?: ReactNode;
   className?: string;
+  cancel?: () => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -116,9 +118,16 @@ export function Modal({
       ref={ref}
       className={`modal ${className}`}
       aria-label={title}
+      onKeyDown={(event) => {
+        if (cancel && event.key === "Escape" && !event.defaultPrevented) {
+          event.preventDefault();
+          event.stopPropagation();
+          cancel();
+        }
+      }}
       onCancel={(event) => {
         event.preventDefault();
-        close();
+        (cancel ?? close)();
       }}
     >
       <div className="modal-heading">

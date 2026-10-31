@@ -1,5 +1,5 @@
 import { t } from "../../localization.cjs";
-import { useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { BubbleDecorLayer, BubbleGeometry, Element } from "../types";
 import {
@@ -10,9 +10,15 @@ import {
   resizeBackground,
 } from "./bubbleBackground";
 import { Box, layerBox, placeLayer, snapBox } from "./bubbleDecor";
+import {
+  clampView,
+  imagePoint,
+  VIEW_PAD as PAD,
+  type View,
+} from "./bubbleViewport";
+import type { useBubbleEditor } from "./useBubbleEditor";
 
 // Room around the image so handles of layers at the edge stay reachable.
-const PAD = 28;
 const CORNERS = ["nw", "ne", "sw", "se"] as const;
 type Corner = (typeof CORNERS)[number];
 type Action = {
@@ -70,6 +76,7 @@ export function BubbleCanvas({
   background,
   petLayers = [],
   adopt,
+  viewport,
 }: {
   preview: string;
   geometry: BubbleGeometry;
@@ -89,7 +96,14 @@ export function BubbleCanvas({
   // into the user's own layers; adopt returns the copy of the pressed one.
   petLayers?: BubbleDecorLayer[];
   adopt?: (id: string) => BubbleDecorLayer | null;
+  viewport: ReturnType<typeof useBubbleEditor>;
 }) {
+  const surface = useRef<HTMLDivElement>(null);
+  const space = useRef(false);
+  const hovering = useRef(false);
+  const pan = useRef<{ x: number; y: number; view: View } | null>(null);
+  const capture = useRef<{ element: HTMLElement; id: number } | null>(null);
+  const view = viewport.view;
   const stage = useRef<HTMLDivElement>(null);
   const action = useRef<Action | null>(null);
   const backgroundAction = useRef<BackgroundAction | null>(null);
@@ -103,13 +117,127 @@ export function BubbleCanvas({
   const thumbnails = new Map(
     images.map((image) => [image.id, image.thumbnail]),
   );
+  const release = () => {
+    const held = capture.current;
+    capture.current = null;
+    if (held?.element.hasPointerCapture(held.id))
+      held.element.releasePointerCapture(held.id);
+  };
+  const capturePointer = (
+    event: ReactPointerEvent<HTMLElement>,
+    element = event.currentTarget,
+  ) => {
+    release();
+    element.setPointerCapture(event.pointerId);
+    capture.current = { element, id: event.pointerId };
+    viewport.beginInteraction();
+  };
+  const cancel = () => {
+    const active = !!(
+      action.current ||
+      backgroundAction.current ||
+      pan.current
+    );
+    if (pan.current) viewport.setViewState(pan.current.view);
+    pan.current = null;
+    action.current = null;
+    backgroundAction.current = null;
+    setLive(null);
+    dragging(null);
+    background?.cancel();
+    viewport.setInteracting(false);
+    release();
+    return active;
+  };
+  const latest = useRef({ cancel, viewport });
+  latest.current = { cancel, viewport };
+  viewport.interactionCancel.current = cancel;
+  useLayoutEffect(() => {
+    const element = surface.current!;
+    const observer = new ResizeObserver(() => {
+      latest.current.cancel();
+      latest.current.viewport.setViewportSize({
+        width: element.clientWidth,
+        height: element.clientHeight,
+      });
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  useEffect(() => {
+    const element = surface.current!;
+    const wheel = (event: WheelEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const rect = element.getBoundingClientRect();
+      const current = latest.current.viewport;
+      current.setZoom(
+        current.zoom *
+          Math.exp(
+            -Math.max(
+              -240,
+              Math.min(
+                240,
+                event.deltaY *
+                  (event.deltaMode === 1
+                    ? 16
+                    : event.deltaMode === 2
+                      ? element.clientHeight
+                      : 1),
+              ),
+            ) * 0.002,
+          ),
+        { x: event.clientX - rect.left, y: event.clientY - rect.top },
+      );
+    };
+    const blur = () => {
+      space.current = false;
+      latest.current.cancel();
+    };
+    const hidden = () => {
+      if (document.hidden) blur();
+    };
+    const keyDown = (event: KeyboardEvent) => {
+      if (
+        event.code !== "Space" ||
+        !hovering.current ||
+        (event.target as HTMLElement).closest(
+          "input, select, textarea, button, a, summary, [contenteditable=true]",
+        )
+      )
+        return;
+      space.current = true;
+      event.preventDefault();
+    };
+    const keyUp = (event: KeyboardEvent) => {
+      if (event.code === "Space") space.current = false;
+    };
+    element.addEventListener("wheel", wheel, { passive: false });
+    window.addEventListener("keydown", keyDown);
+    window.addEventListener("keyup", keyUp);
+    window.addEventListener("blur", blur);
+    document.addEventListener("visibilitychange", hidden);
+    return () => {
+      element.removeEventListener("wheel", wheel);
+      window.removeEventListener("keydown", keyDown);
+      window.removeEventListener("keyup", keyUp);
+      window.removeEventListener("blur", blur);
+      document.removeEventListener("visibilitychange", hidden);
+      latest.current.cancel();
+      latest.current.viewport.interactionCancel.current = null;
+    };
+  }, []);
 
   // Body-relative 100% pixels of a pointer position.
   const bodyPoint = (event: { clientX: number; clientY: number }) => {
-    const rect = stage.current!.getBoundingClientRect();
+    const rect = surface.current!.getBoundingClientRect();
+    const point = imagePoint(
+      { x: event.clientX - rect.left, y: event.clientY - rect.top },
+      view,
+    );
     return {
-      x: (event.clientX - rect.left - PAD) / zoom - body.x,
-      y: (event.clientY - rect.top - PAD) / zoom - body.y,
+      x: point.x - body.x,
+      y: point.y - body.y,
     };
   };
 
@@ -123,7 +251,7 @@ export function BubbleCanvas({
       stage.current?.focus({ preventScroll: true });
       if (locked.has(layer.id)) return;
       event.preventDefault();
-      event.currentTarget.setPointerCapture(event.pointerId);
+      capturePointer(event);
       action.current = {
         mode,
         layer,
@@ -144,7 +272,7 @@ export function BubbleCanvas({
       const copy = adopt(petLayer.id);
       if (!copy) return;
       stage.current?.focus({ preventScroll: true });
-      stage.current?.setPointerCapture(event.pointerId);
+      capturePointer(event, stage.current!);
       action.current = {
         mode: "move",
         layer: copy,
@@ -229,6 +357,8 @@ export function BubbleCanvas({
     const current = action.current;
     const result = liveRef.current;
     action.current = null;
+    viewport.setInteracting(false);
+    release();
     setLive(null);
     if (!current?.moved) return;
     dragging(null);
@@ -263,7 +393,7 @@ export function BubbleCanvas({
       select(null);
       background.select(true);
       stage.current?.focus({ preventScroll: true });
-      event.currentTarget.setPointerCapture(event.pointerId);
+      capturePointer(event);
       backgroundAction.current = {
         handle,
         pointer: { x: event.clientX, y: event.clientY },
@@ -311,6 +441,8 @@ export function BubbleCanvas({
     const current = backgroundAction.current;
     const result = liveRef.current;
     backgroundAction.current = null;
+    viewport.setInteracting(false);
+    release();
     setLive(null);
     if (!current?.moved || !result || !background) return;
     background.commit(freeBackground(result.box, body));
@@ -325,183 +457,269 @@ export function BubbleCanvas({
   ].filter((layer) => !layer.hidden);
   return (
     <div
-      ref={stage}
-      className="bubble-canvas"
-      tabIndex={0}
-      aria-label={t("bubble.editor.canvas_hint")}
-      style={{
-        width: geometry.width * zoom + PAD * 2,
-        height: geometry.height * zoom + PAD * 2,
-        padding: PAD,
+      ref={surface}
+      className="bubble-viewport"
+      data-zoom={zoom}
+      data-body-width={body.width}
+      onPointerEnter={() => {
+        hovering.current = true;
       }}
-      onPointerDown={() => {
-        stage.current?.focus({ preventScroll: true });
-        select(null);
-        background?.select(false);
+      onPointerLeave={() => {
+        hovering.current = false;
       }}
-      onPointerMove={onStage(move)}
-      onPointerUp={onStage(end)}
-      onPointerCancel={onStage(end)}
-      onKeyDown={(event) => {
-        // Esc puts a dragged photo back where it was.
-        if (event.key !== "Escape" || !backgroundAction.current) return;
+      onPointerDownCapture={(event) => {
+        if (event.button !== 1 && !(event.button === 0 && space.current))
+          return;
         event.preventDefault();
         event.stopPropagation();
-        backgroundAction.current = null;
-        setLive(null);
-        background?.cancel();
+        if (viewport.interacting) return;
+        stage.current?.focus({ preventScroll: true });
+        pan.current = { x: event.clientX, y: event.clientY, view };
+        capturePointer(event);
       }}
-      onDragOver={(event) => {
-        if (event.dataTransfer.types.includes("Files")) event.preventDefault();
+      onPointerMoveCapture={(event) => {
+        if (!pan.current) return;
+        event.stopPropagation();
+        const start = pan.current;
+        viewport.setViewState(
+          clampView(
+            {
+              ...start.view,
+              fit: false,
+              x: start.view.x + event.clientX - start.x,
+              y: start.view.y + event.clientY - start.y,
+            },
+            geometry,
+            {
+              width: surface.current!.clientWidth,
+              height: surface.current!.clientHeight,
+            },
+          ),
+        );
       }}
-      onDrop={(event) => {
-        if (!event.dataTransfer.files.length) return;
-        event.preventDefault();
-        dropFiles(event.dataTransfer.files, bodyPoint(event));
+      onPointerUpCapture={(event) => {
+        if (!pan.current) return;
+        event.stopPropagation();
+        pan.current = null;
+        viewport.setInteracting(false);
+        release();
+      }}
+      onPointerCancelCapture={(event) => {
+        event.stopPropagation();
+        cancel();
+      }}
+      onLostPointerCapture={() => {
+        if (capture.current) cancel();
+      }}
+      onKeyDownCapture={(event) => {
+        if (event.key === "Escape" && cancelActive()) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+        if (event.code === "Space") {
+          space.current = true;
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        if (!(event.ctrlKey || event.metaKey)) return;
+        if (["+", "=", "-", "0"].includes(event.key)) {
+          event.preventDefault();
+          event.stopPropagation();
+          if (event.key === "0") viewport.fit();
+          else viewport.setZoom(zoom * (event.key === "-" ? 1 / 1.25 : 1.25));
+        }
+      }}
+      onKeyUp={(event) => {
+        if (event.code === "Space") space.current = false;
+      }}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          space.current = false;
+          cancel();
+        }
       }}
     >
-      <img
-        className="bubble-preview-image"
-        src={preview}
-        alt={t("message.1000")}
-        draggable={false}
-        style={{ width: px(geometry.width), height: px(geometry.height) }}
-      />
-      {background && backgroundShown && (
-        <div
-          role="button"
-          tabIndex={-1}
-          aria-label={t("message.1074")}
-          aria-pressed={background.selected}
-          className={`canvas-layer canvas-background${
-            background.selected ? " is-selected" : ""
-          }`}
-          style={{
-            left: PAD + (body.x + backgroundShown.x) * zoom,
-            top: PAD + (body.y + backgroundShown.y) * zoom,
-            width: px(backgroundShown.width),
-            height: px(backgroundShown.height),
-          }}
-          onPointerDown={beginBackground(null)}
-          onPointerMove={moveBackground}
-          onPointerUp={endBackground}
-          onPointerCancel={endBackground}
-        >
-          {background.selected &&
-            BACKGROUND_HANDLES.map((handle) => (
-              <span
-                key={handle}
-                className={`canvas-handle canvas-handle-${handle}`}
-                onPointerDown={beginBackground(handle)}
-                onPointerMove={moveBackground}
-                onPointerUp={endBackground}
-                onPointerCancel={endBackground}
-              />
-            ))}
-        </div>
-      )}
-      {live?.guides.map((guide, index) => (
-        <span
-          key={index}
-          className={`canvas-guide canvas-guide-${guide.axis}`}
-          style={
-            guide.axis === "x"
-              ? { left: PAD + (body.x + guide.at) * zoom }
-              : { top: PAD + (body.y + guide.at) * zoom }
-          }
+      <div
+        ref={stage}
+        className="bubble-canvas"
+        tabIndex={0}
+        aria-label={t("bubble.editor.canvas_hint")}
+        style={{
+          width: geometry.width * zoom + PAD * 2,
+          height: geometry.height * zoom + PAD * 2,
+          padding: PAD,
+          position: "absolute",
+          left: view.x - PAD,
+          top: view.y - PAD,
+        }}
+        onPointerDown={() => {
+          stage.current?.focus({ preventScroll: true });
+          select(null);
+          background?.select(false);
+        }}
+        onPointerMove={onStage(move)}
+        onPointerUp={onStage(end)}
+        onPointerCancel={cancel}
+        onDragOver={(event) => {
+          if (event.dataTransfer.types.includes("Files"))
+            event.preventDefault();
+        }}
+        onDrop={(event) => {
+          if (!event.dataTransfer.files.length) return;
+          event.preventDefault();
+          dropFiles(event.dataTransfer.files, bodyPoint(event));
+        }}
+      >
+        <img
+          className="bubble-preview-image"
+          src={preview}
+          alt={t("message.1000")}
+          draggable={false}
+          style={{ width: px(geometry.width), height: px(geometry.height) }}
         />
-      ))}
-      {[
-        ...petLayers.filter((layer) => layer.placement === "back"),
-        ...petLayers.filter((layer) => layer.placement !== "back"),
-      ].map((layer) => {
-        const box = layerBox(layer, body, radius);
-        return (
+        {background && backgroundShown && (
           <div
-            key={`@pet:${layer.id}`}
             role="button"
             tabIndex={-1}
-            aria-label={layer.name || t("bubble.editor.pet_layer_tag")}
-            className="canvas-layer canvas-pet-layer"
-            style={{
-              left: PAD + (body.x + box.x) * zoom,
-              top: PAD + (body.y + box.y) * zoom,
-              width: px(box.width),
-              height: px(box.height),
-              transform: layer.rotation
-                ? `rotate(${layer.rotation}deg)`
-                : undefined,
-            }}
-            onPointerDown={adoptAndMove(layer)}
-          />
-        );
-      })}
-      {ordered.map((layer) => {
-        const active = live?.id === layer.id ? live : null;
-        const box = active?.box ?? layerBox(layer, body, radius);
-        const rotation = active?.rotation ?? layer.rotation;
-        const isSelected = layer.id === selected;
-        return (
-          <div
-            key={layer.id}
-            role="button"
-            tabIndex={-1}
-            aria-label={layer.name || t("bubble.editor.layer")}
-            aria-pressed={isSelected}
-            className={`canvas-layer${isSelected ? " is-selected" : ""}${
-              locked.has(layer.id) ? " is-locked" : ""
+            aria-label={t("message.1074")}
+            aria-pressed={background.selected}
+            className={`canvas-layer canvas-background${
+              background.selected ? " is-selected" : ""
             }`}
             style={{
-              left: PAD + (body.x + box.x) * zoom,
-              top: PAD + (body.y + box.y) * zoom,
-              width: px(box.width),
-              height: px(box.height),
-              transform: rotation ? `rotate(${rotation}deg)` : undefined,
+              left: PAD + (body.x + backgroundShown.x) * zoom,
+              top: PAD + (body.y + backgroundShown.y) * zoom,
+              width: px(backgroundShown.width),
+              height: px(backgroundShown.height),
             }}
-            onPointerDown={begin(layer, "move")}
-            onPointerMove={move}
-            onPointerUp={end}
-            onPointerCancel={end}
+            onPointerDown={beginBackground(null)}
+            onPointerMove={moveBackground}
+            onPointerUp={endBackground}
+            onPointerCancel={cancel}
           >
-            {active && thumbnails.get(layer.image) && (
-              <img
-                className="canvas-layer-image"
-                src={thumbnails.get(layer.image)}
-                alt=""
-                draggable={false}
-                style={{
-                  opacity: layer.alpha / 255,
-                  transform: `scale(${layer.mirror ? -1 : 1}, ${
-                    layer.flip_y ? -1 : 1
-                  })`,
-                }}
-              />
-            )}
-            {isSelected && !locked.has(layer.id) && (
-              <>
-                {CORNERS.map((corner) => (
+            {background.selected &&
+              BACKGROUND_HANDLES.map((handle) => (
+                <span
+                  key={handle}
+                  className={`canvas-handle canvas-handle-${handle}`}
+                  onPointerDown={beginBackground(handle)}
+                  onPointerMove={moveBackground}
+                  onPointerUp={endBackground}
+                  onPointerCancel={cancel}
+                />
+              ))}
+          </div>
+        )}
+        {live?.guides.map((guide, index) => (
+          <span
+            key={index}
+            className={`canvas-guide canvas-guide-${guide.axis}`}
+            style={
+              guide.axis === "x"
+                ? { left: PAD + (body.x + guide.at) * zoom }
+                : { top: PAD + (body.y + guide.at) * zoom }
+            }
+          />
+        ))}
+        {[
+          ...petLayers.filter((layer) => layer.placement === "back"),
+          ...petLayers.filter((layer) => layer.placement !== "back"),
+        ].map((layer) => {
+          const box = layerBox(layer, body, radius);
+          return (
+            <div
+              key={`@pet:${layer.id}`}
+              role="button"
+              tabIndex={-1}
+              aria-label={layer.name || t("bubble.editor.pet_layer_tag")}
+              className="canvas-layer canvas-pet-layer"
+              style={{
+                left: PAD + (body.x + box.x) * zoom,
+                top: PAD + (body.y + box.y) * zoom,
+                width: px(box.width),
+                height: px(box.height),
+                transform: layer.rotation
+                  ? `rotate(${layer.rotation}deg)`
+                  : undefined,
+              }}
+              onPointerDown={adoptAndMove(layer)}
+            />
+          );
+        })}
+        {ordered.map((layer) => {
+          const active = live?.id === layer.id ? live : null;
+          const box = active?.box ?? layerBox(layer, body, radius);
+          const rotation = active?.rotation ?? layer.rotation;
+          const isSelected = layer.id === selected;
+          return (
+            <div
+              key={layer.id}
+              role="button"
+              tabIndex={-1}
+              aria-label={layer.name || t("bubble.editor.layer")}
+              aria-pressed={isSelected}
+              className={`canvas-layer${isSelected ? " is-selected" : ""}${
+                locked.has(layer.id) ? " is-locked" : ""
+              }`}
+              style={{
+                left: PAD + (body.x + box.x) * zoom,
+                top: PAD + (body.y + box.y) * zoom,
+                width: px(box.width),
+                height: px(box.height),
+                transform: rotation ? `rotate(${rotation}deg)` : undefined,
+              }}
+              onPointerDown={begin(layer, "move")}
+              onPointerMove={move}
+              onPointerUp={end}
+              onPointerCancel={cancel}
+            >
+              {active && thumbnails.get(layer.image) && (
+                <img
+                  className="canvas-layer-image"
+                  src={thumbnails.get(layer.image)}
+                  alt=""
+                  draggable={false}
+                  style={{
+                    opacity: layer.alpha / 255,
+                    transform: `scale(${layer.mirror ? -1 : 1}, ${
+                      layer.flip_y ? -1 : 1
+                    })`,
+                  }}
+                />
+              )}
+              {isSelected && !locked.has(layer.id) && (
+                <>
+                  {CORNERS.map((corner) => (
+                    <span
+                      key={corner}
+                      className={`canvas-handle canvas-handle-${corner}`}
+                      onPointerDown={begin(layer, "resize", corner)}
+                      onPointerMove={move}
+                      onPointerUp={end}
+                      onPointerCancel={cancel}
+                    />
+                  ))}
                   <span
-                    key={corner}
-                    className={`canvas-handle canvas-handle-${corner}`}
-                    onPointerDown={begin(layer, "resize", corner)}
+                    className="canvas-rotate"
+                    title={t("bubble.editor.rotate_hint")}
+                    onPointerDown={begin(layer, "rotate")}
                     onPointerMove={move}
                     onPointerUp={end}
-                    onPointerCancel={end}
+                    onPointerCancel={cancel}
                   />
-                ))}
-                <span
-                  className="canvas-rotate"
-                  title={t("bubble.editor.rotate_hint")}
-                  onPointerDown={begin(layer, "rotate")}
-                  onPointerMove={move}
-                  onPointerUp={end}
-                  onPointerCancel={end}
-                />
-              </>
-            )}
-          </div>
-        );
-      })}
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
+
+  function cancelActive() {
+    return action.current || backgroundAction.current || pan.current
+      ? cancel()
+      : false;
+  }
 }

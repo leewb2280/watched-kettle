@@ -31,6 +31,7 @@ def whats_new():
     """This version's highlights, in the active language."""
     return [
         t("whats_new.01511.bubble_editor"),
+        t("whats_new.01511.bubble_viewport"),
         t("whats_new.01511.pet_link"),
         t("whats_new.01511.animation_speed"),
         t("whats_new.01511.pet_manager_clicks"),

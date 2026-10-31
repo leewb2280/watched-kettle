@@ -2,6 +2,13 @@
 import type { CommandCall, Request } from "./types";
 declare const request: Request;
 declare const command: CommandCall;
+declare const bubbleTheme: import("./types").SpeechBubbleTheme;
+request("bubble.render", { theme: bubbleTheme });
+request("bubble.render", { theme: bubbleTheme, pixelRatio: 8 });
+// @ts-expect-error only supported raster ratios cross the preview boundary
+request("bubble.render", { theme: bubbleTheme, pixelRatio: 3 });
+// @ts-expect-error a numeric ratio cannot be replaced by a boolean
+request("bubble.render", { theme: bubbleTheme, pixelRatio: true });
 
 request("pet.preview", { petId: "mori-bot" }).then((value) => {
   value.cropBounds.width.toFixed();

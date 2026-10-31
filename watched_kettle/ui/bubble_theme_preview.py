@@ -20,13 +20,16 @@ from watched_kettle.ui.speech_bubble_window import SpeechBubbleWindow
 
 
 PREVIEW_SAMPLES = ("notice", "long", "project")
-# Rendered at twice the size so the editor stays sharp on high-DPI screens
-# and when zoomed in.
+# Old clients default to 2x; the editor can request bounded 4x/8x images.
 PREVIEW_PIXEL_RATIO = 2
+PREVIEW_MAX_PIXELS = 8_388_608
+PREVIEW_MAX_EDGE = 4096
 PROJECT_BODY_HEIGHT = 150
 
 
-def render_bubble_preview(theme, registry, sample="notice"):
+def render_bubble_preview(
+    theme, registry, sample="notice", pixel_ratio=PREVIEW_PIXEL_RATIO
+):
     """Draw a sample at the real 100% size; return (image, geometry).
 
     Notices use the real bubble window, so size, text and decorations match the
@@ -52,14 +55,24 @@ def render_bubble_preview(theme, registry, sample="notice"):
         widget.adjustSize()
     try:
         size = widget.size()
+        while pixel_ratio > 1 and (
+            size.width() * size.height() * pixel_ratio**2 > PREVIEW_MAX_PIXELS
+            or max(size.width(), size.height()) * pixel_ratio > PREVIEW_MAX_EDGE
+        ):
+            pixel_ratio //= 2
+        if (
+            size.width() * size.height() * pixel_ratio**2 > PREVIEW_MAX_PIXELS
+            or max(size.width(), size.height()) * pixel_ratio > PREVIEW_MAX_EDGE
+        ):
+            raise ValueError("Preview dimensions exceed the image budget")
         image = QImage(
-            size.width() * PREVIEW_PIXEL_RATIO,
-            size.height() * PREVIEW_PIXEL_RATIO,
+            size.width() * pixel_ratio,
+            size.height() * pixel_ratio,
             QImage.Format.Format_ARGB32_Premultiplied,
         )
         image.fill(Qt.GlobalColor.transparent)
         painter = QPainter(image)
-        painter.scale(PREVIEW_PIXEL_RATIO, PREVIEW_PIXEL_RATIO)
+        painter.scale(pixel_ratio, pixel_ratio)
         widget.render(painter, QPoint(), QRegion(), QWidget.RenderFlag.DrawChildren)
         painter.end()
         return image, preview_geometry(theme, widget.body_rect(), size, registry)

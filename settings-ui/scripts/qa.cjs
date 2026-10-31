@@ -5,6 +5,12 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 const assert = require("node:assert/strict");
 const { performance } = require("node:perf_hooks");
+const {
+  testBubbleViewport,
+  testBubbleLayerTransforms,
+  testBubbleBackgroundTransforms,
+  selectBubbleSection,
+} = require("./bubble-viewport-qa.cjs");
 
 const root = path.resolve(__dirname, "../..");
 const edition = process.argv[2] || "pet-assistant";
@@ -375,6 +381,47 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       .getByRole("heading", { name: "펫", exact: true, level: 1 })
       .waitFor();
     metrics.coldOpenMs = Math.round(performance.now() - start);
+    // Focused iteration still uses the same isolated host and real painter.
+    // Full QA below always includes these checks too.
+    if (process.argv.includes("--bubble-only")) {
+      await page.getByRole("button", { name: "말풍선", exact: true }).click();
+      await page
+        .getByRole("button", { name: "말풍선 꾸미기", exact: true })
+        .click();
+      await page.locator(".bubble-preview-image").waitFor();
+      metrics.bubbleViewport = await testBubbleViewport({ page, app, out });
+      await selectBubbleSection(page, "장식");
+      const image = path.join(out, "viewport-decor.png");
+      await fs.writeFile(image, Buffer.from(QA_DECOR_PNG, "base64"));
+      await app.evaluate(({ dialog }, file) => {
+        globalThis.qaOriginalPicker = dialog.showOpenDialog;
+        dialog.showOpenDialog = async () => ({
+          canceled: false,
+          filePaths: [file],
+        });
+      }, image);
+      await page
+        .getByRole("button", { name: "이미지 가져오기", exact: true })
+        .click();
+      await page.locator(".canvas-layer.is-selected").waitFor();
+      await app.evaluate(({ dialog }) => {
+        dialog.showOpenDialog = globalThis.qaOriginalPicker;
+      });
+      metrics.bubbleLayerTransforms = await testBubbleLayerTransforms({
+        page,
+        app,
+      });
+      assert.deepEqual(metrics.errors, []);
+      metrics.status = "passed";
+      console.log(
+        JSON.stringify({
+          edition,
+          status: metrics.status,
+          scope: "bubble-only",
+        }),
+      );
+      return;
+    }
     const controlGesture = async () => {
       await fs.writeFile(
         connection.control,
@@ -1672,9 +1719,9 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
           .getByAltText("현재 말풍선 디자인 미리보기")
           .getAttribute("src")) !== projectPreview,
     );
+    metrics.bubbleViewport = await testBubbleViewport({ page, app, out });
     // Fields live in tabs; the shape tab holds the corner radius.
-    const editorTab = (name) =>
-      page.getByRole("tab", { name, exact: true }).click();
+    const editorTab = (name) => selectBubbleSection(page, name);
     await editorTab("테두리·모양");
     const radius = page.getByLabel("모서리 곡률", { exact: true });
     // Theme numbers are sliders that stop at the bound Python applies.
@@ -1756,6 +1803,10 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
     const decorPercent = async () => Number(await decorX.inputValue());
     const placed = await decorPercent();
     assert.ok(placed > 50);
+    metrics.bubbleLayerTransforms = await testBubbleLayerTransforms({
+      page,
+      app,
+    });
     const decorStart = await decorBox.boundingBox();
     await page.mouse.move(
       decorStart.x + decorStart.width / 2,
@@ -1909,6 +1960,10 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       return box && Math.abs(box.width / box.height - 80 / 60) < 0.05;
     });
     await photoLayer.click();
+    metrics.bubbleBackgroundTransforms = await testBubbleBackgroundTransforms({
+      page,
+      app,
+    });
     const dragHandle = async (handle, dx, dy) => {
       const box = await photoLayer
         .locator(`.canvas-handle-${handle}`)
@@ -1948,6 +2003,7 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
     assert.equal(await photoWidth.getAttribute("type"), "number");
     assert.equal(await photoX.getAttribute("type"), "range");
     const opacityBefore = await opacity.inputValue();
+    await opacity.scrollIntoViewIfNeeded();
     const track = await opacity.boundingBox();
     await page.mouse.move(
       track.x + track.width * 0.5,
@@ -3115,20 +3171,31 @@ async function testPetBatch({ page, app, connection, out, metrics }) {
       ),
       false,
     );
-    // Narrow editor: the compact preview must leave the first fields visible.
+    // In a short window the overlay panel scrolls independently of the canvas.
     await page
       .getByRole("button", { name: "말풍선 꾸미기", exact: true })
       .click();
     await page.getByAltText("현재 말풍선 디자인 미리보기").waitFor();
+    await selectBubbleSection(page, "배경");
     const firstField = page.getByLabel("배경색", { exact: true });
+    await firstField.scrollIntoViewIfNeeded();
     const firstFieldBox = await firstField.boundingBox();
     const viewport = await page.evaluate(() => innerHeight);
     assert.ok(
       firstFieldBox && firstFieldBox.y + firstFieldBox.height < viewport,
     );
+    const contentBounds = await page
+      .locator(".bubble-editor-modal .modal-content")
+      .boundingBox();
+    assert.ok(
+      firstFieldBox.y >= contentBounds.y &&
+        firstFieldBox.y + firstFieldBox.height <=
+          contentBounds.y + contentBounds.height,
+    );
     await page.screenshot({ path: path.join(out, "editor-narrow-dark.png") });
     // Reopened after a cancel, a photo picked from the list is still a layer.
     const pickPhoto = async () => {
+      await selectBubbleSection(page, "배경");
       const select = page.getByLabel("이미지", { exact: true });
       await select.selectOption(
         await select.evaluate(

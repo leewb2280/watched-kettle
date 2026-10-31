@@ -1309,17 +1309,31 @@ class CoreSettingsAdapter(QObject):
 
     def _render_bubble(self, args):
         theme = self._theme(args.get("theme"))
-        image, geometry = render_bubble_preview(
-            theme,
-            self.pet_vm.bubble_editor_state.registry,
-            choice(args.get("sample", "notice"), PREVIEW_SAMPLES),
+        ratio = choice(
+            integer(args.get("pixelRatio", PREVIEW_PIXEL_RATIO), 1, 8), (1, 2, 4, 8)
         )
-        return dict(
-            image=png_data(image),
-            theme=themes.bubble_theme_to_dict(theme),
-            geometry=geometry,
-            pixelRatio=PREVIEW_PIXEL_RATIO,
-        )
+        sample = choice(args.get("sample", "notice"), PREVIEW_SAMPLES)
+        while True:
+            try:
+                image, geometry = render_bubble_preview(
+                    theme, self.pet_vm.bubble_editor_state.registry, sample, ratio
+                )
+            except ValueError as error:
+                raise CommandError("response_limit", t("message.0589")) from error
+            actual = image.width() // geometry["width"]
+            try:
+                encoded = png_data(image)
+            except CommandError as error:
+                if error.code != "response_limit" or actual == 1:
+                    raise
+                ratio = actual // 2
+                continue
+            return dict(
+                image=encoded,
+                theme=themes.bubble_theme_to_dict(theme),
+                geometry=geometry,
+                pixelRatio=actual,
+            )
 
     def _set_setting(self, args):
         self._context(args)

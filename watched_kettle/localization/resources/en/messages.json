@@ -6801,5 +6801,29 @@
   "pet.animation_speed": {
     "sourceRevision": 1,
     "value": "Pet animation speed"
+  },
+  "bubble.editor.panel_collapse": {
+    "sourceRevision": 1,
+    "value": "Collapse panel"
+  },
+  "bubble.editor.fit": {
+    "sourceRevision": 1,
+    "value": "Fit to view"
+  },
+  "bubble.editor.zoom_in": {
+    "sourceRevision": 1,
+    "value": "Zoom in"
+  },
+  "bubble.editor.zoom_out": {
+    "sourceRevision": 1,
+    "value": "Zoom out"
+  },
+  "bubble.editor.viewport_hint": {
+    "sourceRevision": 1,
+    "value": "Zoom with the wheel. Pan with Space+drag or the middle button."
+  },
+  "whats_new.01511.bubble_viewport": {
+    "sourceRevision": 2,
+    "value": "Edit bubbles in a spacious workspace with up to 400% zoom. Open editing panels from the tabs on the right, and use wheel zoom and pan."
   }
 }

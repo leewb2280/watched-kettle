@@ -817,6 +817,41 @@ async function until(fn, timeout = 15000) {
         await assertText(editor, "bubble editor");
         await page.screenshot({ path: path.join(out, "bubble-editor.png") });
         assert.equal(
+          await editor.locator(".preview-mode, [role=tablist]").count(),
+          0,
+        );
+        // A narrow window folds the panel; its rail names the tabs.
+        if (!(await editor.locator(".editor-controls").isVisible()))
+          await editor
+            .locator(".editor-rail")
+            .getByRole("button", {
+              name: english ? "Background" : "배경",
+              exact: true,
+            })
+            .click();
+        await assertText(editor, "bubble workspace");
+        for (const tab of english
+          ? [
+              "Background",
+              "Border and shape",
+              "Decorations",
+              "Text & layout",
+              "My themes",
+            ]
+          : ["배경", "테두리·모양", "장식", "글자·배치", "내 테마"]) {
+          // The open tab's rail button would fold the panel instead.
+          const rail = editor
+            .locator(".editor-rail")
+            .getByRole("button", { name: tab, exact: true });
+          if ((await rail.getAttribute("aria-pressed")) !== "true")
+            await rail.click();
+          await assertText(editor, `bubble workspace / ${tab}`);
+        }
+        await page.screenshot({
+          path: path.join(out, "bubble-editor-workspace.png"),
+        });
+        await page.keyboard.press("Escape");
+        assert.equal(
           await editor.evaluate((node) => node.scrollWidth > node.clientWidth),
           false,
         );

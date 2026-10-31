@@ -12375,6 +12375,48 @@
       "variables": {},
       "context": "watched_kettle\\application\\settings_ui\\core.py",
       "domain": "core"
+    },
+    "bubble.editor.panel_collapse": {
+      "value": "패널 접기",
+      "revision": 1,
+      "variables": {},
+      "context": "크게 편집 화면의 오른쪽 편집 패널을 접는 버튼",
+      "domain": "core"
+    },
+    "bubble.editor.fit": {
+      "value": "전체 맞춤",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 미리보기의 확대·화면 이동·설정 패널 조작",
+      "domain": "core"
+    },
+    "bubble.editor.zoom_in": {
+      "value": "확대",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 미리보기의 확대·화면 이동·설정 패널 조작",
+      "domain": "core"
+    },
+    "bubble.editor.zoom_out": {
+      "value": "축소",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 미리보기의 확대·화면 이동·설정 패널 조작",
+      "domain": "core"
+    },
+    "bubble.editor.viewport_hint": {
+      "value": "휠로 확대하고 Space+드래그 또는 가운데 버튼으로 화면을 옮겨요.",
+      "revision": 1,
+      "variables": {},
+      "context": "말풍선 미리보기의 확대·화면 이동·설정 패널 조작",
+      "domain": "core"
+    },
+    "whats_new.01511.bubble_viewport": {
+      "value": "넓은 말풍선 편집 화면에서 최대 400% 확대해 꾸밀 수 있어요. 오른쪽 탭으로 편집 패널을 열고 휠 확대·화면 이동을 사용해요.",
+      "revision": 2,
+      "variables": {},
+      "context": "0.15.11 새 기능; 말풍선 확대 편집",
+      "domain": "core"
     }
   },
   "retiredIds": [
@@ -12478,6 +12520,9 @@
     "bubble.editor.start_from_pet",
     "bubble.editor.start_from_pet_hint",
     "message.0537",
-    "pet.animation_speed.description"
+    "pet.animation_speed.description",
+    "bubble.editor.expand",
+    "bubble.editor.collapse",
+    "bubble.editor.expanded_title"
   ]
 }

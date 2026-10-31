@@ -1044,6 +1044,89 @@ class SettingsBridgeTests(unittest.TestCase):
         self.assertEqual(before, self.pet.bubble_controller.theme)
         self.assertIsNone(self.pet.custom_bubble_theme)
 
+    def test_bubble_preview_ratios_preserve_geometry_and_revision(self):
+        editor = self.core.editor()
+        before = self.core.revision
+        args = dict(theme=editor["theme"], sample="project")
+        default = self.core.execute("bubble.render", args)
+        self.assertEqual(default["pixelRatio"], 2)
+        for ratio in (1, 2, 4, 8):
+            result = self.core.execute("bubble.render", {**args, "pixelRatio": ratio})
+            self.assertEqual(result["geometry"], default["geometry"])
+            image = Image.open(BytesIO(base64.b64decode(result["image"].split(",")[1])))
+            self.assertLessEqual(image.width * image.height, 8_388_608)
+            self.assertLessEqual(max(image.size), 4096)
+            self.assertEqual(
+                image.width, result["geometry"]["width"] * result["pixelRatio"]
+            )
+            self.assertLessEqual(result["pixelRatio"], ratio)
+        self.assertEqual(self.core.revision, before)
+        for bad in (True, False, None, 0, 3, 16, 2.0, "4"):
+            with self.subTest(bad=bad), self.assertRaises(CommandError):
+                self.core.execute("bubble.render", {**args, "pixelRatio": bad})
+
+    def test_bubble_preview_falls_back_before_allocation_and_on_png_limit(self):
+        from watched_kettle.application.settings_ui.core import png_data
+
+        args = dict(theme=self.core.editor()["theme"], pixelRatio=8)
+        with patch("watched_kettle.ui.bubble_theme_preview.PREVIEW_MAX_EDGE", 700):
+            result = self.core.execute("bubble.render", args)
+        self.assertLessEqual(result["geometry"]["width"] * result["pixelRatio"], 700)
+        with patch(
+            "watched_kettle.ui.bubble_theme_preview.PREVIEW_MAX_PIXELS", 100_000
+        ):
+            result = self.core.execute("bubble.render", args)
+        self.assertLessEqual(
+            result["geometry"]["width"]
+            * result["geometry"]["height"]
+            * result["pixelRatio"] ** 2,
+            100_000,
+        )
+        with patch("watched_kettle.ui.bubble_theme_preview.PREVIEW_MAX_EDGE", 10):
+            with self.assertRaises(CommandError) as too_large:
+                self.core.execute("bubble.render", args)
+        self.assertEqual(too_large.exception.code, "response_limit")
+        attempted = []
+
+        def encode(image):
+            attempted.append(image.width())
+            if len(attempted) < 3:
+                raise CommandError("response_limit", "too large")
+            return png_data(image)
+
+        with patch(
+            "watched_kettle.application.settings_ui.core.png_data", side_effect=encode
+        ):
+            result = self.core.execute("bubble.render", args)
+        self.assertEqual(
+            attempted, [attempted[0], attempted[0] // 2, attempted[0] // 4]
+        )
+        self.assertEqual(result["pixelRatio"], 2)
+        with patch(
+            "watched_kettle.application.settings_ui.core.png_data",
+            side_effect=CommandError("response_limit", "too large"),
+        ) as encode_mock:
+            with self.assertRaises(CommandError):
+                self.core.execute("bubble.render", args)
+        self.assertEqual(encode_mock.call_count, 4)
+
+    def test_bubble_png_limit_rejects_real_oversize_encoded_image(self):
+        from PySide6.QtGui import QImage
+        from watched_kettle.application.settings_ui.core import png_data
+
+        # Incompressible RGB pixels exceed 512KiB, unlike a large solid fill.
+        import random
+
+        image = Image.frombytes(
+            "RGB", (600, 600), random.Random(42).randbytes(600 * 600 * 3)
+        )
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+        self.assertGreater(len(buffer.getvalue()), 512 * 1024)
+        with self.assertRaises(CommandError) as too_large:
+            png_data(QImage.fromData(buffer.getvalue()))
+        self.assertEqual(too_large.exception.code, "response_limit")
+
     def test_catalog_lists_name_order_with_sharp_cropped_thumbnails(self):
         real = next(iter(self.vm.all_pets()))
         broken = self.root / "broken.png"

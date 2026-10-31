@@ -572,6 +572,7 @@ class ThemeRequest(Context):
 
 class RenderTheme(ThemeRequest):
     sample: NotRequired[Literal["notice", "long", "project"]]
+    pixelRatio: NotRequired[Literal[1, 2, 4, 8]]
 
 
 class ElementDelete(Context):

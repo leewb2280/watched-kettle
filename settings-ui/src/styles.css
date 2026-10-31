@@ -78,15 +78,6 @@
   gap: 9px;
   align-items: center;
 }
-.editor-grid {
-  display: grid;
-  grid-template-columns: minmax(250px, 1fr) minmax(250px, 1fr);
-  gap: 20px;
-  align-items: start;
-}
-.editor-preview {
-  padding: 15px;
-}
 .preview-heading {
   display: flex;
   align-items: center;
@@ -98,54 +89,6 @@
   margin-right: auto;
   color: var(--muted);
   font-size: 11px;
-}
-@media (max-width: 850px) {
-  .editor-grid {
-    display: flex;
-    flex-direction: column-reverse;
-  }
-  /* Keep a compact preview pinned above the fields instead of a full-height
-     image that hides every control on small windows. */
-  .editor-preview {
-    width: 100%;
-    padding: 8px 12px;
-  }
-  .editor-preview .preview-heading,
-  .editor-preview > .footnote {
-    display: none;
-  }
-  .editor-preview .bubble-scene {
-    max-height: 180px;
-  }
-  /* Only the drawing stays pinned; presets and resets scroll with the
-     fields, as one scrolling row above the tabs. */
-  .design-tools-preview {
-    display: none;
-  }
-  .editor-controls > .design-tools-controls {
-    display: block;
-    margin-bottom: 14px;
-  }
-  .design-tools .preset-section {
-    margin: 0;
-  }
-  .design-tools .preset-heading {
-    display: none;
-  }
-  .design-tools .preset-gallery {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-  }
-  .design-tools .preset-chip {
-    flex: none;
-  }
-  .design-tools .button-row {
-    margin: 8px 0 0;
-    justify-content: center;
-  }
-  .editor-controls {
-    width: 100%;
-  }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
@@ -1313,17 +1256,6 @@ select {
   height: 45px;
   object-fit: contain;
 }
-.editor-preview {
-  position: sticky;
-  top: -22px;
-  z-index: 2;
-  text-align: center;
-  background: var(--solid);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  min-height: 180px;
-  margin-bottom: 20px;
-}
 .editor-preview img {
   display: block;
   max-width: 100%;
@@ -2453,107 +2385,6 @@ input[type="color"] {
     display: none;
   }
 }
-@media (max-width: 850px) {
-  .history-columns,
-  .quota-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .status-hero,
-  .activity-summary {
-    flex-wrap: wrap;
-  }
-  .shell {
-    grid-template-columns: 160px minmax(0, 1fr);
-  }
-  main {
-    padding: 0 20px 20px;
-  }
-  .pet-grid {
-    grid-template-columns: 1fr;
-  }
-  .pet-scene {
-    min-height: 180px;
-  }
-  .pet-caption p {
-    max-width: none;
-  }
-  .stage-picker {
-    width: auto;
-    margin: 14px;
-  }
-  .pet-scene .orbit {
-    width: 155px;
-    height: 155px;
-  }
-  .animation-actions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .animation-panel summary {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-  .animation-current {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    padding-left: 28px;
-  }
-  .animation-disclosure-chevron {
-    grid-column: 2;
-    grid-row: 1;
-  }
-  .quota-grid {
-    grid-template-columns: 1fr;
-  }
-  .bubble-intro {
-    flex-wrap: wrap;
-  }
-  .bubble-intro-actions {
-    width: 100%;
-    margin-left: 0;
-  }
-  .bubble-intro-actions .button {
-    flex: 1;
-  }
-  .optional-number-row {
-    display: block;
-  }
-  .optional-number-row > label {
-    display: block;
-    margin-bottom: 10px;
-    padding-top: 0;
-    font-weight: 600;
-  }
-  .optional-number-row .row-control {
-    max-width: none;
-  }
-  .snooze-card {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .snooze-actions {
-    justify-content: flex-start;
-    width: 100%;
-  }
-  h1 {
-    font-size: 22px;
-  }
-  .page-heading {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .editor-fields {
-    grid-template-columns: 1fr;
-  }
-  .range-control input {
-    width: 120px;
-  }
-  .activity-summary {
-    gap: 15px;
-    padding: 18px;
-  }
-  .activity-summary strong {
-    font-size: 18px;
-  }
-}
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -2786,10 +2617,6 @@ input[type="color"] {
   padding: 10px 2px;
   font-weight: var(--weight-semibold);
 }
-.editor-preview {
-  position: sticky;
-  top: 0;
-}
 .preview-samples {
   margin-left: auto;
   display: inline-flex;
@@ -2803,18 +2630,50 @@ input[type="color"] {
 .preview-options {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
+  align-items: center;
   gap: 6px;
   margin-bottom: 8px;
 }
 .preview-options .preview-samples {
   margin-left: 0;
 }
-/* The canvas scrolls inside the preview card when zoomed in. */
+/* The view transform owns zoom and pan; native scrolling never moves artwork. */
 .bubble-scene {
-  overflow: auto;
+  overflow: hidden;
+  position: relative;
+}
+.editor-preview .bubble-scene {
+  max-height: none;
+}
+.bubble-viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  touch-action: none;
+}
+.preview-options {
+  flex-wrap: wrap;
+}
+.preview-zoom {
   display: flex;
-  justify-content: center;
+  align-items: center;
+  gap: 4px;
+}
+/* Zoom and the view mode switch wrap together, so the switch keeps the
+   right end of the toolbar in both sizes. */
+.preview-view-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.preview-zoom select {
+  max-width: 100px;
+}
+.preview-zoom output {
+  min-width: 36px;
+  font-size: 11px;
 }
 .bubble-canvas {
   position: relative;
@@ -2937,33 +2796,163 @@ input[type="color"] {
 .editor-tab-panel {
   margin-top: 12px;
 }
-/* The bubble editor keeps one height on every tab, so switching tabs never
-   moves the dialog; only its content scrolls, under the pinned tab bar. */
+/* One workspace at every window size; only the editing panel scrolls. */
 .bubble-editor-modal[open] {
   display: flex;
   flex-direction: column;
-  height: min(840px, calc(100vh - 70px));
   overflow: hidden;
+  position: fixed;
+  inset: 63px 16px 16px;
+  margin: 0;
+  width: calc(100vw - 32px);
+  max-width: none;
+  height: calc(100vh - 79px);
+  max-height: none;
 }
 .bubble-editor-modal .modal-content {
   flex: 1;
   min-height: 0;
   max-height: none;
+  overflow: hidden;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+}
+.bubble-editor-modal .editor-grid {
+  display: flex;
+  flex-direction: row;
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  gap: 12px;
+  align-items: stretch;
+}
+.bubble-editor-modal .editor-preview {
+  order: 0;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  position: static;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px;
+}
+.bubble-editor-modal .editor-preview .preview-heading {
+  display: flex;
+  flex: none;
+  padding: 2px 0;
+}
+.bubble-editor-modal .editor-preview .bubble-scene {
+  flex: 1;
+  height: auto;
+  min-height: 60px;
+}
+.bubble-editor-modal .editor-preview > .footnote {
+  display: block;
+  margin: 4px 0 0;
+}
+.bubble-editor-modal .editor-controls {
+  display: none;
+  order: 1;
+}
+.bubble-editor-modal.panel-open .editor-controls {
+  display: block;
+  flex: 0 0 320px;
+  width: 320px;
+  overflow: auto;
+  min-height: 0;
+  padding: 0 10px 10px;
+  background: var(--solid);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  z-index: 4;
+}
+.bubble-editor-modal .editor-fields {
+  grid-template-columns: 1fr;
+}
+/* The rail names the tabs while the panel is folded. */
+.editor-panel-heading {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 -10px 8px;
+  padding: 8px 6px 8px 12px;
+  background: var(--solid);
+  border-bottom: 1px solid var(--line);
+}
+.editor-panel-heading h3 {
+  margin: 0;
+  font-size: 13px;
+}
+.editor-rail {
+  order: 2;
+  flex: 0 0 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  overflow: auto;
+}
+.editor-rail button {
+  padding: 8px 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--solid);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  text-align: center;
+  /* English tab names wrap between words, never inside one. */
+  overflow-wrap: normal;
+  word-break: normal;
+  cursor: pointer;
+}
+.editor-rail button:hover {
+  border-color: var(--accent);
+}
+.editor-rail button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.editor-rail button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+@media (max-width: 959px) {
+  .bubble-editor-modal.panel-open .editor-controls {
+    position: absolute;
+    right: 108px;
+    top: 86px;
+    bottom: 0;
+    width: min(320px, calc(100% - 108px));
+    box-shadow: 0 4px 18px #0003;
+  }
+}
+@media (max-height: 600px) {
+  .bubble-editor-modal .editor-preview .preview-heading,
+  .bubble-editor-modal .editor-preview > .footnote {
+    display: none;
+  }
+  .bubble-editor-modal .modal-heading {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .bubble-editor-modal .modal-footer {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
 }
 /* Buttons for a field sit right under it. */
 .bubble-editor-modal .setting-row + .button-row {
   margin: 0 0 10px;
-}
-.bubble-editor-modal .editor-controls > .tabs {
-  position: sticky;
-  top: -22px;
-  z-index: 3;
-  margin-top: -22px;
-  padding-top: 22px;
-  background: var(--solid);
-}
-.design-tools-controls {
-  display: none;
 }
 @media (max-width: 850px) {
   /* The pinned preview already holds the top; the tabs scroll. */
@@ -2984,6 +2973,27 @@ input[type="color"] {
 }
 .bubble-editor-modal .range-control output {
   width: 48px;
+}
+.bubble-editor-modal .editor-controls .setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  align-items: start;
+}
+.bubble-editor-modal .editor-controls .row-control {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  justify-content: flex-start;
+}
+.bubble-editor-modal .editor-controls .range-control {
+  width: 100%;
+  min-width: 0;
+}
+.bubble-editor-modal .editor-controls .range-control input {
+  flex: 1;
+  width: 0;
+  min-width: 0;
 }
 .bubble-editor-modal .row-control > select {
   width: 140px;
@@ -3837,6 +3847,18 @@ input[type="color"] {
 .theme-save input {
   flex: 1;
   min-width: 0;
+}
+.bubble-editor-modal .theme-library {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+.bubble-editor-modal .theme-save {
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+}
+.bubble-editor-modal .theme-save input {
+  width: 100%;
 }
 /* Join pets: steps, look rows, transition pairs and a small player. */
 .pet-link-body {

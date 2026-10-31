@@ -1,16 +1,17 @@
 import { t } from "../../localization.cjs";
-import type { KeyboardEvent } from "react";
+import { useEffect, useRef, type KeyboardEvent } from "react";
 import {
   Check,
   Eye,
   FolderOpen,
+  PanelRightClose,
   Plus,
   Redo2,
   RotateCcw,
   Trash2,
   Undo2,
 } from "lucide-react";
-import { Field, Modal, Section, TabList } from "../components";
+import { Field, Modal, Section } from "../components";
 import { errorText } from "../errors";
 import type {
   BubbleDecorLayer,
@@ -85,6 +86,17 @@ export function BubbleEditorDialog({
     setSelectedLayer,
     geometry,
   } = bubble;
+  const rail = useRef<HTMLDivElement>(null);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (editor && wasOpen.current && !bubble.panelOpen)
+      rail.current
+        ?.querySelector<HTMLButtonElement>(
+          `#bubble-editor-section-${bubble.editorTab}`,
+        )
+        ?.focus({ preventScroll: true });
+    wasOpen.current = !!editor && bubble.panelOpen;
+  }, [!!editor, bubble.panelOpen, bubble.editorTab]);
   if (!editor) return null;
   const layers: BubbleDecorLayer[] = draft.decor ?? [];
   const setLayers = (
@@ -158,6 +170,7 @@ export function BubbleEditorDialog({
       (event.target as HTMLElement).tagName,
     );
   const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape" || bubble.interacting) return;
     if (editing(event)) return;
     const key = event.key.toLowerCase();
     if (event.ctrlKey || event.metaKey) {
@@ -184,18 +197,11 @@ export function BubbleEditorDialog({
           x: photoBox.x + arrow[0] * step,
           y: photoBox.y + arrow[1] * step,
         });
-      } else if (event.key === "Escape") {
-        event.stopPropagation();
-        bubble.setBackgroundSelected(false);
       } else return;
       event.preventDefault();
       return;
     }
     if (!selected || bubble.lockedLayers.has(selected.id)) {
-      if (event.key === "Escape" && selected) {
-        event.stopPropagation();
-        setSelectedLayer(null);
-      }
       return;
     }
     const arrow = ARROWS[event.key];
@@ -217,9 +223,6 @@ export function BubbleEditorDialog({
         layers.filter((layer) => layer.id !== selected.id),
         null,
       );
-    } else if (event.key === "Escape") {
-      event.stopPropagation();
-      setSelectedLayer(null);
     } else return;
     event.preventDefault();
   };
@@ -366,18 +369,17 @@ export function BubbleEditorDialog({
         changeDraft({ ...draft, ...extra, [key]: images[0].id });
     });
   };
-  // Presets and resets: under the preview, or above the tabs in a narrow
-  // window where only the drawing stays pinned.
-  const designTools = (where: "preview" | "controls") => (
-    <div className={`design-tools design-tools-${where}`}>
+  // Presets and resets live in the same panel at every window size.
+  const designTools = (
+    <div className="design-tools">
       <div className="preset-section">
-        <h3 id={`bubble-presets-${where}`} className="preset-heading">
+        <h3 id="bubble-presets" className="preset-heading">
           {t("message.0984")}
         </h3>
         <div
           className="preset-gallery"
           role="group"
-          aria-labelledby={`bubble-presets-${where}`}
+          aria-labelledby="bubble-presets"
         >
           {(editor.presets || []).map((preset) => (
             <button
@@ -417,9 +419,10 @@ export function BubbleEditorDialog({
   );
   return (
     <Modal
-      className="bubble-editor-modal"
+      className={`bubble-editor-modal${bubble.panelOpen ? " panel-open" : ""}`}
       title={t("message.0978", { value0: snapshot.pet.display_name })}
       close={bubble.closeEditor}
+      cancel={bubble.escapeEditor}
       footer={
         <>
           <span className="draft-status" aria-live="polite">
@@ -462,21 +465,26 @@ export function BubbleEditorDialog({
           bubble.pasteImage(image).then((images) => addLayers(images));
         }}
       >
-        <div className="editor-controls">
-          {designTools("controls")}
-          <TabList
-            id="bubble-editor"
-            label={t("bubble.editor.tabs")}
-            tabs={tabs}
-            value={bubble.editorTab}
-            select={(key) => bubble.setEditorTab(key as EditorTab)}
-          />
-          <div
-            id="bubble-editor-panel"
-            role="tabpanel"
-            aria-labelledby={`bubble-editor-tab-${bubble.editorTab}`}
-            className="editor-tab-panel"
-          >
+        <div
+          className="editor-controls"
+          id="bubble-editor-controls"
+          role="region"
+          aria-labelledby={`bubble-editor-section-${bubble.editorTab}`}
+          hidden={!bubble.panelOpen}
+        >
+          <div className="editor-panel-heading">
+            <h3>{tabs.find(([id]) => id === bubble.editorTab)?.[1]}</h3>
+            <button
+              className="icon-button"
+              aria-label={t("bubble.editor.panel_collapse")}
+              title={t("bubble.editor.panel_collapse")}
+              onClick={() => bubble.setPanelOpen(false)}
+            >
+              <PanelRightClose size={15} />
+            </button>
+          </div>
+          {designTools}
+          <div id="bubble-editor-panel" className="editor-tab-panel">
             {bubble.editorTab === "themes" && <ThemeLibrary bubble={bubble} />}
             {bubble.editorTab === "decor" && (
               <DecorPanel
@@ -628,26 +636,59 @@ export function BubbleEditorDialog({
                 <button
                   key={value}
                   aria-pressed={bubble.previewSample === value}
-                  onClick={() => bubble.setPreviewSample(value)}
+                  disabled={bubble.interacting}
+                  onClick={() => bubble.changeSample(value)}
                 >
                   {label}
                 </button>
               ))}
             </span>
-            <span
-              className="segmented"
-              role="group"
-              aria-label={t("bubble.editor.zoom")}
-            >
-              {[1, 2].map((value) => (
+            <span className="preview-view-tools">
+              <span className="preview-zoom">
                 <button
-                  key={value}
-                  aria-pressed={bubble.zoom === value}
-                  onClick={() => bubble.setZoom(value)}
+                  className="button compact"
+                  aria-label={t("bubble.editor.zoom_out")}
+                  disabled={bubble.interacting || bubble.zoom <= 0.01}
+                  onClick={() => bubble.setZoom(bubble.zoom / 1.25)}
                 >
-                  {value * 100}%
+                  −
                 </button>
-              ))}
+                <select
+                  aria-label={t("bubble.editor.zoom")}
+                  disabled={bubble.interacting}
+                  value={bubble.view.fit ? "fit" : String(bubble.zoom)}
+                  onChange={(event) =>
+                    event.target.value === "fit"
+                      ? bubble.fit()
+                      : bubble.setZoom(Number(event.target.value))
+                  }
+                >
+                  <option value="fit">{t("bubble.editor.fit")}</option>
+                  {![1, 2, 4].includes(bubble.zoom) && !bubble.view.fit && (
+                    <option value={String(bubble.zoom)}>
+                      {Math.round(bubble.zoom * 100)}%
+                    </option>
+                  )}
+                  {[1, 2, 4].map((value) => (
+                    <option key={value} value={value}>
+                      {value * 100}%
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="button compact"
+                  aria-label={t("bubble.editor.zoom_in")}
+                  disabled={bubble.interacting || bubble.zoom >= 4}
+                  onClick={() => bubble.setZoom(bubble.zoom * 1.25)}
+                >
+                  +
+                </button>
+                {bubble.view.fit && (
+                  <output aria-live="off">
+                    {Math.round(bubble.zoom * 100)}%
+                  </output>
+                )}
+              </span>
             </span>
           </div>
           <div className="bubble-scene">
@@ -656,6 +697,7 @@ export function BubbleEditorDialog({
                 preview={bubble.preview}
                 geometry={geometry}
                 zoom={bubble.zoom}
+                viewport={bubble}
                 layers={layers}
                 radius={draft.radius}
                 selected={selectedLayer}
@@ -702,6 +744,7 @@ export function BubbleEditorDialog({
             )}
           </div>
           <p className="footnote">
+            {t("bubble.editor.viewport_hint")}{" "}
             {photoBox
               ? t("bubble.editor.background_hint")
               : petLayers.length > 0
@@ -734,7 +777,35 @@ export function BubbleEditorDialog({
               )}
             </div>
           )}
-          {designTools("preview")}
+        </div>
+        {/* The tab names stay in sight; the open tab again folds the panel. */}
+        <div
+          ref={rail}
+          className="editor-rail"
+          role="group"
+          aria-label={t("bubble.editor.tabs")}
+        >
+          {tabs.map(([id, label]) => {
+            const open = bubble.panelOpen && bubble.editorTab === id;
+            return (
+              <button
+                key={id}
+                id={`bubble-editor-section-${id}`}
+                aria-pressed={open}
+                aria-expanded={open}
+                aria-controls="bubble-editor-controls"
+                onClick={() => {
+                  if (open) bubble.setPanelOpen(false);
+                  else {
+                    bubble.setEditorTab(id as EditorTab);
+                    bubble.setPanelOpen(true);
+                  }
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
     </Modal>

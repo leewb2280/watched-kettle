@@ -113,6 +113,12 @@ flowchart TD
     CP[앱 외부에서 준비한 완성된 펫 패키지] --> PF[사용자 펫 폴더]
     PF -->|앱 재실행 뒤 기존 로더| CAT
     BP --> ER
+    ER --> EV[useBubbleEditor: 편집 세션의 시야·확대·편집 패널·단일 미리보기 요청]
+    EV --> VT[bubbleViewport: 논리 좌표와 표시 좌표의 순수 변환]
+    VT --> BCAN[BubbleCanvas: 휠 확대·화면 이동·장식 조작]
+    WSZ[설정창·캔버스 크기 변경] --> EV
+    WSZ --> BCAN
+    EV -->|선택적 pixelRatio · 논리 geometry 유지| BP
     ER --> ACK[표시 완료 ACK]
     ACK --> EH
     EH -->|표시·epoch·기한 확인 후| N
@@ -202,6 +208,7 @@ Claude Code는 중단·권한 거절·패널 닫기 때 종료 이벤트를 보�
 | 제목 측정·최대 두 줄·말줄임 | `ui/wrapped_title_button.py` | 프로젝트 집계 |
 | 공통 창·글꼴·외형·배치 계산 | `ui/speech_bubble_window.py`, `speech_bubble_paint.py`, `speech_bubble_decorations.py` | 알림 전달 정책 |
 | 테마 정규화·자산·편집 | `pet/bubble_theme.py`, `ui/bubble_elements.py`, 미리보기 `ui/bubble_theme_preview.py`, 초안·미리보기 세대는 `settings-ui/src/core/useBubbleEditor.ts`, 표시는 `core/BubbleEditorDialog.tsx` | 실행 상태 변경 |
+| 편집 화면의 확대·이동·패널 | `useBubbleEditor`가 저장하지 않는 세션 상태·단일 렌더 요청·최신 요청 합치기와 늦은 응답 폐기를 소유한다. `bubbleViewport.ts`는 논리/표시 좌표·맞춤·이동 한계의 순수 계산, `BubbleCanvas`는 입력과 포인터 취소를 맡는다. 닫기·숨김·포커스 상실은 미확정 조작을 정리한다. | 테마·revision·되돌리기 이력에 시야 저장, 활동·알림 의미 변경 |
 | 펫 패키지의 바깥 장식 검증·등록과 그리기 | `pet/bubble_frame.py`(로더가 `pet:<id>`로 등록; repeatY 옵션 검증), `ui/speech_bubble_frame.py`(본문 높이 내 완전한 이미지 반복, 사용자 테마가 직접 정한 안쪽 선·후광·글 여백이 있으면 펫 장식 값 대신 사용) | 상태·표시 기한·창 배치 결정 |
 | 펫·위젯 고정(클릭 통과)과 전역 단축키 | 펫 창 플래그는 `pet/window.py`, 버튼 말풍선은 `ActionableBubbleController.sync_click_through`, 위젯은 `ui/usage_widget/window.py`, 단축키 등록은 `integrations/windows_hotkeys.py`, 조립은 두 runtime의 `application/click_through.py` | 말풍선 상태·표시 기한·클릭 대상 변경, 고정 여부로 활동 상태 추정 |
 | 펫 더블클릭의 설정 조회·명시적 이동 | `application/pet_actions.py`, 신호는 `pet/pointer_interaction.py`, 두 runtime이 생성·종료 | 활동·알림·애니메이션 상태 변경, 마지막 이벤트로 목적지 추정 |
@@ -732,6 +739,19 @@ Electron 이동은 비동기이므로 `open_target`은 즉시 성공을 반환�
 설정 편집기의 PNG 미리보기는 독립 위젯으로 공통 painter를 사용한다. 펫에서 미리보기 명령과
 구분하며 실제 제어기·알림·표시 기한을 변경하지 않는다. 일반 설정은 기존 ViewModel과
 QSettings를 사용하고, 테마 편집기 Apply는 펫 ID와 revision이 맞을 때만 저장한다.
+편집기는 제목 표시줄 아래 16px 여백의 넓은 단일 화면으로 열린다. 캔버스·오른쪽 96px 레일·320px 편집 패널과 고정된 적용/취소를 사용하며 전환 모드나 작은 미리보기 레이아웃은 없다.
+초안·선택·실행 취소 이력과 시야·패널 상태의 소유자는 기존 `useBubbleEditor` 하나다. 일반 휠은 포인터 기준 1~400% 확대, Space+왼쪽 드래그·가운데 버튼은 화면 이동이고 네이티브 캔버스 스크롤은 없다.
+시야·패널만 바뀔 때 테마·revision·실행 취소 항목은 바뀌지 않는다(BA-01·BA-06).
+새 세션은 배경·전체 맞춤이며 960px 이상은 패널을 연 채로, 미만은 접힌 채로 시작한다. 같은 레일 항목을 다시 누르거나 패널 접기로 닫는다. 좁은 창에서는 레일 왼쪽에 겹쳐 연다. 넓은 창이 960px 아래로 넘어갈 때만 자동으로 접고 다시 넓혀도 열지 않는다. 이미 좁은 창에서 직접 연 패널은 같은 구간의 크기 변경으로 닫지 않는다.
+수동 배율·이동은 창 크기 변경에도 유지하고 이동 한계만 보정한다. 맞춤 상태는 가용 공간에 다시 맞춘다. 레일 버튼의 열림 상태·패널 이름을 연결하며 패널을 닫으면 현재 레일 항목으로 포커스를 돌린다.
+Escape는 진행 중 조작 취소 → 패널 접기 → 선택 해제 → 미저장 확인을 거친 편집기 닫기다. 숨김·페이지 왕복은 초안·선택·실행 취소와 시야·패널을 유지한다. 창/캔버스 크기 변경은 미확정 캔버스 조작을 취소한다.
+조작 시작에 맞춤을 고정하고, 포인터 취소·숨김·포커스 상실은 미확정 값을 버린다(BA-07).
+`bubble.render` v1은 선택적 `pixelRatio` 1/2/4/8(생략 2)을 받고 실제 비율과 동일한 논리 geometry를 돌려준다.
+Qt GUI 스레드의 독립 painter와 기존 PNG 512KiB 제한을 유지하며, 이미지 8,388,608픽셀·한 변 4096px를
+할당 전에 검사한다. 예산 초과는 8→4→2→1로 줄이고 1배도 실패하면 오류다.
+renderer는 즉시 기존 그림을 확대하고 250ms 뒤 필요한 해상도를 요청한다. 한 요청만 실행하고 최신 대기 요청으로
+합치며, 오래된 응답은 버린다. 현재 테마·견본의 최고 해상도 그림 한 장만 보관하고 실패해도 마지막 정상 그림을 유지한다.
+이 계약은 `bubble-viewport.test.cjs`, `test_settings_bridge`, `bubble-viewport-qa.cjs`와 두 구성 QA에서 대조한다(BA-10).
 충돌 뒤에는 Apply를 막고, 사용자가 요청한 최신 상태 다시 불러오기에서만 초안을 유지한 채
 revision을 갱신한다. 편집기 숫자 범위는 정규화와 같은 `BUBBLE_THEME_LIMITS`를 사용한다.
 Electron 설정창은 펫에서 미리보기, 종류별 시간 초기화, 알림 일시 중지를 서로 다른 명령과
@@ -908,6 +928,7 @@ ID·경로를 덮어쓰지 않습니다. 영구 삭제와 비우기는 사용자
 | 트레이 Codex 한도 요약·worker 연결 | `test_tray_worker_regression` |
 | BA-01·BA-07·BA-10 사용량 출처 분리·독립 스위치·reserve 순서 | `test_usage_models`, `test_widget_state`, `test_usage_widget_qml`, `test_usage_companion`, `test_localization`, `test_pet_menu`, `test_tray_worker_regression`, `test_settings_bridge`, `settings-ui/scripts/qa.cjs` |
 | BA-01·BA-06·BA-07·BA-10 펫 수명·휴지통·중단 복구 | `test_pet_trash`, `test_pet_batch`, `test_settings_bridge`, `test_pet_catalog`, `test_pet_preferences`, `test_bubble_architecture`, `settings-ui/scripts/qa.cjs` |
+| BA-01·BA-06·BA-07·BA-10 확대 편집·시야·렌더 예산 | `test_settings_bridge`, `bubble-viewport.test.cjs`, `bubble-viewport-qa.cjs`, 두 구성 Electron·영어 화면 QA |
 | BA-01·BA-06·BA-07·BA-09 설정 경계·독립 미리보기·비동기 확인 | `test_settings_bridge`, `settings-ui/scripts/qa.cjs` |
 
 표시 시간 Electron QA는 Python 설정 스냅샷의 저장값과 renderer의 표시값을 각각 확인한다.

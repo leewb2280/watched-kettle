@@ -12,14 +12,18 @@ import type {
   Shell,
 } from "../types";
 import { dropMissingElements, sameTheme, ThemeValues } from "./bubbleTheme";
+import {
+  clampView,
+  fitView,
+  INITIAL_VIEW,
+  zoomView,
+  type Point,
+  type Size,
+  type View,
+} from "./bubbleViewport";
 
 export type PreviewSample = "notice" | "long" | "project";
-export type EditorTab =
-  | "background"
-  | "border"
-  | "decor"
-  | "layout"
-  | "themes";
+export type EditorTab = "background" | "border" | "decor" | "layout" | "themes";
 // Enough to back out of a dragging session without keeping every keystroke.
 const HISTORY_LIMIT = 50;
 
@@ -45,7 +49,50 @@ export function useBubbleEditor(
 
   const [previewSample, setPreviewSample] = useState<PreviewSample>("notice");
 
-  const [zoom, setZoom] = useState(1);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [viewportSize, setViewportSize] = useState<Size>({
+    width: 1,
+    height: 1,
+  });
+  const [viewState, setViewState] = useState<View>(INITIAL_VIEW);
+  const [interacting, setInteracting] = useState(false);
+  const interactionCancel = useRef<(() => boolean) | null>(null);
+  const view = geometry
+    ? viewState.fit
+      ? fitView(geometry, viewportSize)
+      : clampView(viewState, geometry, viewportSize)
+    : viewState;
+  const zoom = view.zoom;
+  const fit = () => {
+    if (!interacting && !overrideRef.current) setViewState(INITIAL_VIEW);
+  };
+  const setZoom = (value: number, anchor?: Point) => {
+    if (interacting || overrideRef.current || !geometry) return;
+    setViewState(
+      zoomView(
+        view,
+        value,
+        anchor ?? { x: viewportSize.width / 2, y: viewportSize.height / 2 },
+        geometry,
+        viewportSize,
+      ),
+    );
+  };
+  const beginInteraction = () => {
+    setViewState({ ...view, fit: false });
+    setInteracting(true);
+  };
+  useEffect(() => {
+    let wide = window.innerWidth >= 960;
+    const resize = () => {
+      interactionCancel.current?.();
+      const nextWide = window.innerWidth >= 960;
+      if (wide && !nextWide) setPanelOpen(false);
+      wide = nextWide;
+    };
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
 
   // The tab survives navigation and hiding, like the draft; opening starts over.
   const [editorTab, setEditorTab] = useState<EditorTab>("background");
@@ -65,6 +112,7 @@ export function useBubbleEditor(
     useState<Partial<ThemeValues> | null>(null);
   const overrideRef = useRef<Partial<ThemeValues> | null>(null);
   const setPreviewOverride = (value: Partial<ThemeValues> | null) => {
+    if (value && !overrideRef.current) setViewState({ ...view, fit: false });
     overrideRef.current = value;
     setOverrideState(value);
   };
@@ -91,6 +139,54 @@ export function useBubbleEditor(
   const [editorNotice, setEditorNotice] = useState("");
 
   const previewSequence = useRef(0);
+  const rendering = useRef(false);
+  const pendingRender = useRef<(() => Promise<void>) | null>(null);
+  const previewCache = useRef<{
+    key: string;
+    ratio: number;
+    image: string;
+    geometry: BubbleGeometry;
+  } | null>(null);
+  const pumpRender = async () => {
+    if (rendering.current) return;
+    rendering.current = true;
+    try {
+      while (pendingRender.current) {
+        const render = pendingRender.current;
+        pendingRender.current = null;
+        await render();
+      }
+    } finally {
+      rendering.current = false;
+    }
+  };
+  const [, setDeviceRatio] = useState(window.devicePixelRatio);
+  useEffect(() => {
+    let media: MediaQueryList;
+    const update = () => {
+      media?.removeEventListener("change", update);
+      setDeviceRatio(window.devicePixelRatio);
+      media = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+      media.addEventListener("change", update);
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      media.removeEventListener("change", update);
+    };
+  }, []);
+  useEffect(() => {
+    if (!shell.visible) interactionCancel.current?.();
+  }, [shell.visible]);
+  const renderRatio =
+    draggedLayer !== null || previewOverride !== null || interacting
+      ? 2
+      : zoom * window.devicePixelRatio > 4
+        ? 8
+        : zoom * window.devicePixelRatio > 2
+          ? 4
+          : 2;
 
   /** A user edit: remembered for undo, and it is no longer a reset. */
   const changeDraft = (next: ThemeValues) => {
@@ -144,36 +240,58 @@ export function useBubbleEditor(
             ),
           };
     const live = draggedLayer !== null || previewOverride !== null;
+    const key = JSON.stringify([theme, previewSample]);
     const timer = setTimeout(
-      () =>
-        window
-          .settings!.request("bubble.render", {
-            theme,
-            sample: previewSample,
-          })
-          .then((value) => {
+      () => {
+        pendingRender.current = async () => {
+          const cached = previewCache.current;
+          if (cached?.key === key && cached.ratio >= renderRatio) {
             if (sequence === previewSequence.current) {
-              setPreview(value.image);
-              setGeometry(value.geometry);
+              setPreview(cached.image);
+              setGeometry(cached.geometry);
               setRenderError("");
-              if (live) return;
-              // Python clamps cross-field values (e.g. max width below min
-              // width); mirror the normalized theme so fields match the preview.
-              const normalized: ThemeValues = value.theme;
-              if (!sameTheme(draft, normalized)) {
-                setDraft(normalized);
-                setEditorNotice(t("message.1146"));
-              }
             }
-          })
-          .catch((error) => {
-            if (sequence === previewSequence.current)
-              setRenderError(errorText(error));
-          }),
-      live ? 0 : 160,
+            return;
+          }
+          await window
+            .settings!.request("bubble.render", {
+              theme,
+              sample: previewSample,
+              pixelRatio: renderRatio,
+            })
+            .then((value) => {
+              if (sequence === previewSequence.current) {
+                setPreview(value.image);
+                setGeometry(value.geometry);
+                previewCache.current = {
+                  key,
+                  ratio: value.pixelRatio,
+                  image: value.image,
+                  geometry: value.geometry,
+                };
+                setRenderError("");
+                if (live) return;
+                // Python clamps cross-field values (e.g. max width below min
+                // width); mirror the normalized theme so fields match the preview.
+                const normalized: ThemeValues = value.theme;
+                if (!sameTheme(draft, normalized)) {
+                  setDraft(normalized);
+                  setEditorNotice(t("message.1146"));
+                }
+              }
+            })
+            .catch((error) => {
+              if (sequence === previewSequence.current)
+                setRenderError(errorText(error));
+            });
+        };
+        void pumpRender();
+      },
+      live ? 0 : 250,
     );
     return () => {
       clearTimeout(timer);
+      pendingRender.current = null;
       ++previewSequence.current;
     };
   }, [
@@ -183,6 +301,8 @@ export function useBubbleEditor(
     previewSample,
     draggedLayer,
     previewOverride,
+    renderRatio,
+    zoom,
   ]);
   const openEditor = async () => {
     try {
@@ -196,6 +316,12 @@ export function useBubbleEditor(
       setRenderError("");
       setPreview("");
       setGeometry(null);
+      previewCache.current = null;
+      setPanelOpen(window.innerWidth >= 960);
+      setViewState(INITIAL_VIEW);
+      setInteracting(false);
+      setDraggedLayer(null);
+      setPreviewOverride(null);
       setSelectedLayer(null);
       setBackgroundSelected(false);
       setLockedLayers(new Set());
@@ -241,9 +367,17 @@ export function useBubbleEditor(
   const closeEditor = () => {
     if (!dirty || confirm(t("message.1149"))) {
       setEditor(null);
+      interactionCancel.current?.();
       setPreview("");
       setGeometry(null);
     }
+  };
+  const escapeEditor = () => {
+    if (interactionCancel.current?.()) return;
+    if (panelOpen) setPanelOpen(false);
+    else if (selectedLayer) setSelectedLayer(null);
+    else if (backgroundSelected) setBackgroundSelected(false);
+    else closeEditor();
   };
 
   const saveEditor = async () => {
@@ -335,8 +469,25 @@ export function useBubbleEditor(
     geometry,
     previewSample,
     setPreviewSample,
+    changeSample: (sample: PreviewSample) => {
+      if (!interacting) {
+        setPreviewSample(sample);
+        fit();
+      }
+    },
     zoom,
     setZoom,
+    view,
+    setViewState,
+    setViewportSize,
+    fit,
+    panelOpen,
+    setPanelOpen,
+    interacting,
+    beginInteraction,
+    setInteracting,
+    interactionCancel,
+    escapeEditor,
     editorTab,
     setEditorTab,
     selectedLayer,

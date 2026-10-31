@@ -58,7 +58,7 @@ try {
     Invoke-Checked "Python compile" { & $python -m compileall -q watched_kettle scripts tests }
     Invoke-Checked "Project structure" { & $python -m scripts.validate_project }
     Invoke-Checked "Settings appearance and protocol policies" {
-        & node.exe --test settings-ui/scripts/appearance.test.cjs settings-ui/scripts/protocol.test.cjs settings-ui/scripts/localization.test.cjs settings-ui/scripts/localization-literals.test.cjs
+        & node.exe --test settings-ui/scripts/appearance.test.cjs settings-ui/scripts/protocol.test.cjs settings-ui/scripts/localization.test.cjs settings-ui/scripts/localization-literals.test.cjs settings-ui/scripts/bubble-viewport.test.cjs
     }
     Invoke-Checked "Official language pack" { & $python -m scripts.language_pack check watched_kettle/localization/resources/en --official }
     Invoke-Checked "Localization guards" { & $python -m scripts.localization_guard check }

@@ -427,11 +427,13 @@ are moved to the new folder automatically on the first start.
 
 ### Bubble design
 
-Select `Edit bubble design` under `Customize → Bubbles` to open the bubble editor for the current pet. The `Background` / `Border and shape` /
-`Decorations` / `Text & layout` / `My themes` tabs are on the left, and the preview and presets on the right. In a narrow window the preview stays at the top.
+Select `Edit bubble design` under `Customize → Bubbles` to open the bubble editor for the current pet. The editor opens as a spacious workspace with a canvas and the editing sections on the right. The bottom Apply and Cancel actions stay visible.
 Changes are kept only when you select `Apply`, and the pet's bubbles change right away.
 
-- **Preview**: switch between `Short notification`, `Long message` and `Project card`, and zoom to 100% or 200%. It is drawn the same way as real bubbles.
+- **Preview**: switch between `Short notification`, `Long message` and `Project card`, and fit the image or zoom up to 400% with the wheel. It is drawn the same way as real bubbles.
+  The tab rail on the right (`Background`, `Border and shape`, `Decorations` and so on) opens that section’s editing panel; select the open section again or `Collapse panel` to fold it. At 960px or wider the panel starts open, and below 960px it starts folded and opens over the canvas. Crossing below 960px folds the panel automatically; growing the window does not reopen it. Pan with Space+left drag or the middle button.
+  With the canvas focused, Ctrl++/− zooms and Ctrl+0 fits the image. Escape cancels the active gesture, folds the editing panel, then clears selection or closes the editor with the usual unsaved-changes confirmation.
+  Zoom and pan do not change the saved design or add undo steps.
   `Undo` and `Redo` (Ctrl+Z, Ctrl+Y) step through your changes. `Pet's default design` goes back to the design the pet ships with,
   and `Reload saved values` to the design you last applied.
 - **Presets**: cream, sage, graphite, sky, paper note and pop change only colors, shapes and layout.

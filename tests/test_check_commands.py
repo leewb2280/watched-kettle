@@ -146,6 +146,7 @@ class CheckCommandTests(unittest.TestCase):
                 "settings-ui/scripts/protocol.test.cjs",
                 "settings-ui/scripts/localization.test.cjs",
                 "settings-ui/scripts/localization-literals.test.cjs",
+                "settings-ui/scripts/bubble-viewport.test.cjs",
             ],
         )
         self.assertEqual(
