@@ -148,6 +148,7 @@ en.ReadyTools=Tools in use:
 en.ReadyNoTools=None
 en.LegacyHookMigrateFailed=Could not move the Codex hook from the previous name to the new program. Repair it on the app's connection page.
 en.RuntimeSwapFailed=The new version could not be put in place. A version that was already installed is kept as it was. Close Watched Kettle and run Setup again.
+en.RuntimeRelaunchFailed=Installation finished, but Watched Kettle could not be started. Open Watched Kettle from the Start menu.
 en.IntegrationsFailed=Some Codex or Claude Code connection settings could not be applied. Check the app's connection and diagnostics page.
 en.HookRemoveFailed=Could not remove the Codex and Claude Code hooks this app added, so the assistant files were kept. Run Setup again, or check each tool's hook settings.
 en.UninstallDataCaption=Uninstall Watched Kettle
@@ -205,6 +206,7 @@ ko.ReadyTools=사용할 도구:
 ko.ReadyNoTools=없음
 ko.LegacyHookMigrateFailed=이전 이름의 Codex hook을 새 실행 파일로 옮기지 못했습니다. 앱의 연결 화면에서 hook을 복구해 주세요.
 ko.RuntimeSwapFailed=새 버전을 설치하지 못했습니다. 이미 설치되어 있던 버전은 그대로 두었습니다. Watched Kettle을 닫고 설치 프로그램을 다시 실행해 주세요.
+ko.RuntimeRelaunchFailed=설치는 완료됐지만 Watched Kettle을 시작하지 못했습니다. 시작 메뉴에서 Watched Kettle을 실행해 주세요.
 ko.IntegrationsFailed=Codex·Claude Code 연동 설정 일부를 적용하지 못했습니다. 앱의 연결·진단 화면에서 확인해 주세요.
 ko.HookRemoveFailed=이 앱이 추가한 Codex·Claude Code hook을 제거하지 못해 비서 파일을 남겨 두었습니다. 설치 프로그램을 다시 실행하거나 각 도구의 hook 설정을 확인해 주세요.
 ko.UninstallDataCaption=Watched Kettle 제거
@@ -297,10 +299,9 @@ Type: files; Name: "{app}\runtime\edition"
 Type: filesandordirs; Name: "{app}\runtime"
 
 [Run]
-; Neither starts the app when its new runtime could not be put in place.
+; Interactive launches run after ssPostInstall has committed the runtime.
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,Watched Kettle}"; Flags: nowait postinstall skipifsilent; Check: RuntimeReady
-; The app's own update runs Setup with /VERYSILENT /RELAUNCH=1 and has already quit.
-Filename: "{app}\{#AppExe}"; Flags: nowait; Check: RelaunchRequested
+; Silent /RELAUNCH=1 is handled only after the runtime commit, not by [Run].
 
 [Code]
 const
@@ -332,6 +333,8 @@ type
 var
   // False once the copied runtime failed its check or could not be swapped in.
   RuntimeSwapError: Boolean;
+  RuntimeCommitted: Boolean;
+  RuntimeRelaunchError: Boolean;
   // Install state of the chosen folder, read once before files change.
   DetectedDir: String;
   HadPetRuntime: Boolean;
@@ -1379,12 +1382,25 @@ end;
 // The app's update button starts Setup this way after it quits itself.
 function RuntimeReady(): Boolean;
 begin
-  Result := not RuntimeSwapError;
+  Result := RuntimeCommitted and (not RuntimeSwapError);
 end;
 
 function RelaunchRequested(): Boolean;
 begin
   Result := WizardSilent and (ExpandConstant('{param:RELAUNCH|0}') = '1') and RuntimeReady();
+end;
+
+procedure RelaunchInstalledRuntime();
+var ExitCode: Integer;
+begin
+  if not RelaunchRequested() then
+    Exit;
+  if not Exec(ExpandConstant('{app}\{#AppExe}'), '', ExpandConstant('{app}'),
+              SW_SHOWNORMAL, ewNoWait, ExitCode) then begin
+    RuntimeRelaunchError := True;
+    Log(Format('The committed runtime could not be started (error %d).', [ExitCode]));
+    SuppressibleMsgBox(CustomMessage('RuntimeRelaunchFailed'), mbError, MB_OK, IDOK);
+  end;
 end;
 
 // Setup cannot fail after its files are copied, so a runtime that was not put
@@ -1393,6 +1409,8 @@ function GetCustomSetupExitCode(): Integer;
 begin
   if RuntimeSwapError then
     Result := 9
+  else if RuntimeRelaunchError then
+    Result := 10
   else
     Result := 0;
 end;
@@ -1540,6 +1558,8 @@ begin
     DeleteFile(ExpandConstant('{app}\{#LegacyAppExe}'));
     DelTree(ExpandConstant('{app}\_internal'), True, True, True);
   end;
+  RuntimeCommitted := True;
+  RelaunchInstalledRuntime();
 end;
 
 // ---- Uninstall steps -------------------------------------------------------

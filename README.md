@@ -31,6 +31,8 @@ Codex와 Claude Code가 작업하는 동안 화면 위의 작은 펫이 상태�
 
 ## 빠르게 시작하기
 
+초기 0.15.11을 설치했다면 [설치기 수정 안내](docs/release-notes/v0.15.11.md)를 확인하고 수정 통합 설치기를 직접 실행해 주세요. 같은 버전의 수정본은 앱 안 업데이트로 감지되지 않습니다.
+
 1. **내려받기:** [최신 Releases](https://github.com/leewb2280/watched-kettle/releases/latest)에서
    `WatchedKettle-<버전>-public-unsigned-setup.exe`와 같은 이름의 `.exe.sha256` 파일을 받습니다.
    아래 방법으로 SHA-256을 확인한 뒤 설치 파일을 실행하세요.

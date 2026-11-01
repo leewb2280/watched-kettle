@@ -31,6 +31,8 @@ You can also use the pet on its own, without connecting an agent.
 
 ## Quick start
 
+If you installed the initial 0.15.11 release, see the [installer correction notice](docs/release-notes/v0.15.11.en.md) and run the corrected full installer manually. The in-app updater cannot detect a replacement with the same version number.
+
 1. **Download:** On the [latest Releases page](https://github.com/leewb2280/watched-kettle/releases/latest), download
    `WatchedKettle-<version>-public-unsigned-setup.exe` and its matching `.exe.sha256` file.
    Verify the SHA-256 as described below, then run the installer.
