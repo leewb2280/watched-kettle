@@ -12,10 +12,10 @@ from watched_kettle.usage.models import (
     UsageSnapshot,
     UsageWindow,
 )
+from watched_kettle.usage.reset_time import clock_text
 from watched_kettle.usage.widget_state import (
     age_text,
     limit_level,
-    reset_text,
     today_flow,
     widget_state,
 )
@@ -80,6 +80,20 @@ class WidgetStateTests(unittest.TestCase):
         ]
         self.assertEqual(row["main"]["label"], "7일")
 
+    def test_reset_display_words_every_limit_the_same_way(self):
+        row = widget_state(snapshot(codex()), emphasis="five_hour", now=NOW)[
+            "providers"
+        ][0]
+        self.assertEqual(row["main"]["resetText"], "2시간 0분 뒤 갱신")
+        self.assertNotIn("reset", row["main"])
+        row = widget_state(
+            snapshot(codex()), emphasis="five_hour", reset_display="clock", now=NOW
+        )["providers"][0]
+        five_hour = clock_text((NOW + timedelta(hours=2)).astimezone())
+        self.assertTrue(row["main"]["resetText"].endswith(five_hour + " 갱신"))
+        # The 7-day reset is on another day, so it names the date too.
+        self.assertRegex(row["other"]["resetText"], r"^\d+/\d+\(.\) 오[전후] ")
+
     def test_unseen_or_disabled_providers_take_no_room(self):
         self.assertTrue(
             widget_state(snapshot(state="offline", account=""), now=NOW)["empty"]
@@ -115,6 +129,21 @@ class WidgetStateTests(unittest.TestCase):
         self.assertEqual((row["state"], row["age"]), ("stale", "18분 전"))
         fresh = widget_state(replace(old, last_updated_at=NOW), now=NOW)
         self.assertEqual(fresh["providers"][0]["state"], "ok")
+
+    def test_old_claude_code_values_stay_grey_without_their_age(self):
+        result = widget_state(
+            snapshot(codex(), claude(), updated=NOW - timedelta(minutes=18)),
+            claude_code_observed_at=NOW - timedelta(hours=8),
+            now=NOW,
+        )
+        codex_row, claude_row = result["providers"]
+        self.assertEqual(
+            (codex_row["state"], codex_row["sampleText"]), ("stale", "18분 전 표본")
+        )
+        self.assertEqual(
+            (claude_row["state"], claude_row["age"], claude_row["sampleText"]),
+            ("stale", "", ""),
+        )
 
     def test_activity_counts_follow_their_provider(self):
         result = widget_state(
@@ -173,10 +202,6 @@ class WidgetStateTests(unittest.TestCase):
             [limit_level(v) for v in (None, 9, 10, 29, 30)],
             ["unknown", "critical", "low", "low", "ok"],
         )
-        self.assertEqual(
-            reset_text(NOW + timedelta(days=1, hours=2), NOW), "1일 2시간 뒤"
-        )
-        self.assertEqual(reset_text(NOW + timedelta(minutes=5), NOW), "5분 뒤")
         self.assertEqual(age_text(NOW - timedelta(hours=2), NOW), ("2시간 전", True))
         self.assertEqual(age_text(NOW, NOW), ("방금", False))
 

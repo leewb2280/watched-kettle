@@ -273,6 +273,7 @@ class QuickUsageWindow(QQuickView):
         state = widget_state(
             snapshot.for_display(),
             emphasis=context.get("emphasis", "auto"),
+            reset_display=context.get("reset_display", "remaining"),
             claude_code_enabled=context.get("claude_code_enabled"),
             claude_code_observed_at=context.get("claude_code_observed_at"),
             activity=context.get("activity"),

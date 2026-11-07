@@ -19,12 +19,14 @@ class PetFrameRenderer:
     def clear(self):
         self._cache.clear()
 
-    def scale(self, pixmap, target_size):
+    def scale(self, pixmap, target_size, key=None):
+        """The pixmap at ``target_size``; ``key`` names a frame that may be
+        unpacked again as a new QPixmap, so its scaled copy is still found."""
         if pixmap.size() == target_size:
             return pixmap
 
         cache_key = (
-            pixmap.cacheKey(),
+            pixmap.cacheKey() if key is None else key,
             target_size.width(),
             target_size.height(),
         )

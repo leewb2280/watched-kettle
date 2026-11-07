@@ -5,10 +5,7 @@ import json
 import logging
 from pathlib import Path
 
-from PIL import Image
-from PIL.ImageQt import ImageQt
-
-from PySide6.QtGui import QPixmap, QTransform
+from PIL import Image, ImageOps
 
 from watched_kettle.config import (
     FRAME_WIDTH,
@@ -19,6 +16,7 @@ from watched_kettle.config import (
 from watched_kettle.pet.bubble_frame import register_package_frame
 from watched_kettle.pet.import_package import PET_IMAGE_FORMATS
 from watched_kettle.pet.look_direction import mirrored_right_frame_source
+from watched_kettle.pet.packed_frames import FrameDecodeCache, PackedFrames
 
 
 logger = logging.getLogger(__name__)
@@ -70,11 +68,15 @@ def load_pet(pet_directory: Path):
         rows,
     )
 
-    frames = extract_frames(atlas)
-    look_frames = extract_look_frames(atlas, sprite_version)
-
-    if manifest.get("mirrorRightLookFromLeft", False):
-        look_frames = mirror_right_look_from_left(look_frames)
+    # One decode cache for every frame of this pet, look variants included.
+    cache = FrameDecodeCache()
+    frames = extract_frames(atlas, cache)
+    look_frames = extract_look_frames(
+        atlas,
+        sprite_version,
+        cache,
+        mirror_right=manifest.get("mirrorRightLookFromLeft", False),
+    )
 
     # Bubble themes name the frame "pet:<id>"; painting looks it up there.
     register_package_frame(manifest, pet_directory)
@@ -114,6 +116,7 @@ def load_appearance_frames(directory, manifest, frames, look_frames, version):
     if version != 2:
         raise invalid_appearance()
     variants, transitions = {}, {}
+    cache = getattr(look_frames, "cache", None)
     for variant in spec.variants:
         raw = read_local(directory, variant.path, MAX_APPEARANCE_IMAGE_BYTES)
         with Image.open(BytesIO(raw), formats=PET_IMAGE_FORMATS) as image:
@@ -121,102 +124,67 @@ def load_appearance_frames(directory, manifest, frames, look_frames, version):
         if variant.id == spec.default:
             variants[variant.id] = (frames, look_frames)
         else:
-            looks = extract_look_frames(atlas, 2)
-            if manifest.get("mirrorRightLookFromLeft", False):
-                looks = mirror_right_look_from_left(looks)
-            variants[variant.id] = (extract_frames(atlas), looks)
+            looks = extract_look_frames(
+                atlas,
+                2,
+                cache,
+                mirror_right=manifest.get("mirrorRightLookFromLeft", False),
+            )
+            variants[variant.id] = (extract_frames(atlas, cache), looks)
     for transition in spec.transitions:
         raw = read_local(directory, transition.path, MAX_APPEARANCE_IMAGE_BYTES)
         with Image.open(BytesIO(raw), formats=PET_IMAGE_FORMATS) as image:
             strip = validate_appearance_image(image, frames=transition.frames)
-        transitions[(transition.source, transition.target)] = [
-            QPixmap.fromImage(
-                ImageQt(
-                    strip.crop(
-                        (c * FRAME_WIDTH, 0, (c + 1) * FRAME_WIDTH, FRAME_HEIGHT)
-                    )
-                )
-            )
-            for c in range(transition.frames)
-        ]
+        transitions[(transition.source, transition.target)] = PackedFrames.from_images(
+            (
+                strip.crop((c * FRAME_WIDTH, 0, (c + 1) * FRAME_WIDTH, FRAME_HEIGHT))
+                for c in range(transition.frames)
+            ),
+            cache,
+        )
     return spec, variants, transitions
 
 
-def extract_frames(atlas: Image.Image):
-    frames: dict = {}
+def _cell(atlas: Image.Image, row, column):
+    left, top = column * FRAME_WIDTH, row * FRAME_HEIGHT
+    return atlas.crop((left, top, left + FRAME_WIDTH, top + FRAME_HEIGHT))
 
-    for state, info in ANIMATIONS.items():
-        row = info["row"]
-        frame_count = info["frames"]
 
-        frames[state] = []
-
-        for column in range(frame_count):
-            left = column * FRAME_WIDTH
-            top = row * FRAME_HEIGHT
-
-            frame = atlas.crop(
-                (
-                    left,
-                    top,
-                    left + FRAME_WIDTH,
-                    top + FRAME_HEIGHT,
-                )
-            )
-
-            qimage = ImageQt(frame)
-
-            pixmap = QPixmap.fromImage(qimage)
-
-            frames[state].append(pixmap)
-
-    return frames
+def extract_frames(atlas: Image.Image, cache=None):
+    """Each state's frames, kept compressed; indexing yields a QPixmap."""
+    cache = cache if cache is not None else FrameDecodeCache()
+    return {
+        state: PackedFrames.from_images(
+            (_cell(atlas, info["row"], column) for column in range(info["frames"])),
+            cache,
+        )
+        for state, info in ANIMATIONS.items()
+    }
 
 
 def extract_look_frames(
     atlas: Image.Image,
     sprite_version: int,
+    cache=None,
+    *,
+    mirror_right=False,
 ):
-    """Extract V2 look poses in clockwise order, starting at 12 o'clock."""
+    """V2 look poses in clockwise order, starting at 12 o'clock.
+
+    With ``mirror_right`` the right-side poses are the left ones flipped, as a
+    package that draws only one side asks.
+    """
+    cache = cache if cache is not None else FrameDecodeCache()
     if sprite_version < 2:
-        return []
-
-    look_frames = []
-
-    for row in (9, 10):
-        for column in range(ATLAS_COLUMNS):
-            left = column * FRAME_WIDTH
-            top = row * FRAME_HEIGHT
-
-            frame = atlas.crop(
-                (
-                    left,
-                    top,
-                    left + FRAME_WIDTH,
-                    top + FRAME_HEIGHT,
-                )
-            )
-
-            qimage = ImageQt(frame)
-            look_frames.append(QPixmap.fromImage(qimage))
-
-    return look_frames
-
-
-def mirror_right_look_from_left(look_frames):
-    if len(look_frames) != 16:
-        return look_frames
-
-    horizontal_flip = QTransform.fromScale(-1, 1)
-    corrected_frames = []
-
-    for direction_index in range(16):
-        source_index, should_flip = mirrored_right_frame_source(direction_index)
-        source_frame = look_frames[source_index]
-
-        if should_flip:
-            source_frame = source_frame.transformed(horizontal_flip)
-
-        corrected_frames.append(source_frame)
-
-    return corrected_frames
+        return PackedFrames((), cache)
+    cells = [
+        _cell(atlas, row, column) for row in (9, 10) for column in range(ATLAS_COLUMNS)
+    ]
+    if mirror_right and len(cells) == 16:
+        corrected = []
+        for direction_index in range(16):
+            source_index, should_flip = mirrored_right_frame_source(direction_index)
+            cell = cells[source_index]
+            corrected.append(ImageOps.mirror(cell) if should_flip else cell)
+        cells = corrected
+    return PackedFrames.from_images(cells, cache)

@@ -35,6 +35,7 @@ from watched_kettle.app_preferences import USAGE_CHART_DAYS
 from watched_kettle.application.diagnostics import _safe_snapshot
 from watched_kettle.usage.models import usage_limit_groups, usage_limit_options
 from watched_kettle.usage.trends import current_hours, daily_series
+from watched_kettle.usage.reset_time import RESET_DISPLAYS
 from watched_kettle.usage.task_query import ORDERS
 from watched_kettle.ui.bubble_models import source_display_label
 from watched_kettle.ui.usage_widget.backdrop import acrylic_available
@@ -124,6 +125,23 @@ class AssistantSettingsAdapter:
                 group=t("message.0494"),
                 disabled=hidden,
                 description=t("message.0495"),
+            ),
+            control(
+                "widget_reset_display",
+                t("widget.reset_display"),
+                vm.widget_reset_display,
+                "select",
+                options=[
+                    dict(value=v, label=label)
+                    for v, label in (
+                        ("remaining", t("widget.reset_display_remaining")),
+                        ("clock", t("widget.reset_display_clock")),
+                    )
+                ],
+                groupId="widget",
+                group=t("message.0494"),
+                disabled=hidden,
+                description=t("widget.reset_display_description"),
             ),
             control(
                 "widget_tasks",
@@ -506,6 +524,8 @@ class AssistantSettingsAdapter:
             vm.set_widget_shape(choice(value, ("rings", "bars", "chips")))
         elif key == "widget_emphasis":
             vm.set_widget_emphasis(choice(value, ("auto", "five_hour", "seven_day")))
+        elif key == "widget_reset_display":
+            vm.set_widget_reset_display(choice(value, RESET_DISPLAYS))
         elif key == "widget_material":
             vm.set_widget_material(choice(value, ("opaque", "acrylic")))
         elif key == "widget_theme":

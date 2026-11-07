@@ -312,11 +312,18 @@ class PetPreferencesTests(unittest.TestCase):
         service = FakeUsageService()
         selected = []
         service.set_selected_limit_key = selected.append
+        displays = []
+        service.set_reset_display = displays.append
         viewmodel = UsageViewModel(service, ApplicationPreferences(FakeSettings()))
 
         self.assertEqual(viewmodel.set_widget_shape("chips"), "chips")
         self.assertEqual(viewmodel.set_widget_emphasis("five_hour"), "five_hour")
         self.assertEqual(selected, ["codex|primary"])
+        self.assertEqual(viewmodel.widget_reset_display, "remaining")
+        self.assertEqual(viewmodel.set_widget_reset_display("clock"), "clock")
+        self.assertEqual(viewmodel.widget_reset_display, "clock")
+        self.assertEqual(viewmodel.set_widget_reset_display("bogus"), "remaining")
+        viewmodel.set_widget_reset_display("clock")
         self.assertFalse(viewmodel.set_widget_tasks_visible(False))
         self.assertTrue(viewmodel.set_widget_today_visible(True))
         self.assertEqual(viewmodel.set_widget_theme_mode("custom"), "custom")
@@ -328,6 +335,8 @@ class PetPreferencesTests(unittest.TestCase):
         self.assertTrue(viewmodel.widget_tasks_visible)
         self.assertFalse(viewmodel.widget_today_visible)
         self.assertEqual(selected[-1], "")
+        self.assertEqual(viewmodel.widget_reset_display, "remaining")
+        self.assertEqual(displays, ["clock", "remaining", "clock", "remaining"])
         # Style and placement are separate resets.
         self.assertEqual(viewmodel.widget_theme_mode, "custom")
         self.assertEqual(viewmodel.widget_hour_range, (7, 22))

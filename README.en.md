@@ -2,7 +2,7 @@
 
 [한국어](README.md) · [English](README.en.md)
 
-[Roadmap (Korean)](ROADMAP.md) · [0.15.11 release notes](docs/release-notes/v0.15.11.en.md) · [Release readiness (Korean)](RELEASE_READINESS.md)
+[Roadmap (Korean)](ROADMAP.md) · [0.15.12 release notes](docs/release-notes/v0.15.12.en.md) · [Release readiness (Korean)](RELEASE_READINESS.md)
 
 **A desktop pet that keeps you posted on your coding agents**
 
@@ -30,8 +30,6 @@ You can also use the pet on its own, without connecting an agent.
 > Codex is an OpenAI product; Claude Code is an Anthropic product.
 
 ## Quick start
-
-If you installed the initial 0.15.11 release, see the [installer correction notice](docs/release-notes/v0.15.11.en.md) and run the corrected full installer manually. The in-app updater cannot detect a replacement with the same version number.
 
 1. **Download:** On the [latest Releases page](https://github.com/leewb2280/watched-kettle/releases/latest), download
    `WatchedKettle-<version>-public-unsigned-setup.exe` and its matching `.exe.sha256` file.

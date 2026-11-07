@@ -187,6 +187,7 @@ class SettingsSnapshot(TypedDict):
     doubleClickAction: DoubleClickAction
     appearance: Appearance
     startup: Startup
+    hardwareAcceleration: bool
     animations: list[Animation]
     update: UpdateState
     language: LanguageState
@@ -612,6 +613,7 @@ class BooleanSetting(Context):
         "startup",
         "click_through",
         "click_through_bubbles",
+        "settings_hardware_acceleration",
     ]
     value: bool
 
@@ -771,6 +773,7 @@ class Ready(TypedDict):
     localization: LocalizationBootstrap
     edition: NotRequired[Literal["pet-only", "pet-assistant"]]
     route: NotRequired[Route | None]
+    tabs: NotRequired[dict[str, str]]
     appearance: EffectiveAppearance
 
 
@@ -796,6 +799,12 @@ class WindowState(TypedDict, total=False):
 
 class SaveWindow(TypedDict):
     state: WindowState
+
+
+class ViewTabs(TypedDict):
+    """Tabs chosen in this run, by screen; kept while the renderer is retired."""
+
+    tabs: dict[str, str]
 
 
 class FilePath(TypedDict):
@@ -988,6 +997,7 @@ COMMANDS = {
     "window.visibility": Command("Visibility", "Visibility", "main"),
     "window.state": Command("SaveWindow", "Saved", "main"),
     "window.restore": Command("Empty", "WindowState", "main"),
+    "window.tabs": Command("ViewTabs", "Saved"),
     "file.import": Command("ImportElement", "ElementImported", "main"),
     "file.pet.prepare": Command("FilePath", "PetPreparation", "main"),
     "file.pet.start": Command("FilePath", "PetImportJob", "main"),
@@ -1587,6 +1597,7 @@ class UsageString(Context):
     key: Literal[
         "widget_shape",
         "widget_emphasis",
+        "widget_reset_display",
         "widget_material",
         "widget_theme",
         "widget_color",

@@ -11,7 +11,11 @@ from unittest.mock import patch
 from PySide6.QtCore import QCoreApplication, QEvent, QEventLoop, QTimer
 from PySide6.QtWidgets import QApplication
 
-from watched_kettle.integrations.account_monitor import AccountMonitor
+from watched_kettle.integrations.account_monitor import (
+    FILE_PERIODIC_CHECK_MS,
+    PERIODIC_CHECK_MS,
+    AccountMonitor,
+)
 from watched_kettle.application.logging import close_logging, configure_logging
 from watched_kettle.usage.identifiers import hash_identifier
 from watched_kettle.usage.models import UsageRefreshState, UsageSnapshot
@@ -675,6 +679,35 @@ class AccountRefreshTests(unittest.TestCase):
         self.assertEqual(
             self.service._verified_account.account_hash, hash_identifier("b")
         )
+
+    def file_sign_in(self):
+        self.monitor.auth_path.write_text("fixture-sign-in", encoding="utf-8")
+        self.monitor.poll_file()
+        self.monitor.debounce.timeout.emit()
+        self.probe()
+
+    def test_periodic_check_slows_down_only_while_auth_file_exists(self):
+        self.ready()
+        self.assertEqual(self.monitor.periodic.interval(), PERIODIC_CHECK_MS)
+        self.file_sign_in()
+        self.assertEqual(self.monitor.periodic.interval(), FILE_PERIODIC_CHECK_MS)
+        self.assertTrue(self.monitor.periodic.isActive())
+        self.monitor.auth_path.unlink()
+        self.monitor.poll_file()
+        self.monitor.debounce.timeout.emit()
+        self.probe(None)
+        self.assertEqual(self.monitor.periodic.interval(), PERIODIC_CHECK_MS)
+        self.assertTrue(self.monitor.periodic.isActive())
+
+    def test_failed_check_keeps_the_short_interval_with_auth_file(self):
+        self.ready()
+        self.file_sign_in()
+        self.monitor.check(suspicious=True)
+        self.respond(self.probes[-1], "account/read", error={"code": "timeout"})
+        self.assertEqual(self.monitor.periodic.interval(), PERIODIC_CHECK_MS)
+        self.monitor.periodic.timeout.emit()
+        self.probe()
+        self.assertEqual(self.monitor.periodic.interval(), FILE_PERIODIC_CHECK_MS)
 
     def test_gui_acceptance_is_immediate_and_timeout_fences_queued_results(self):
         facade = UsageWorkerService(

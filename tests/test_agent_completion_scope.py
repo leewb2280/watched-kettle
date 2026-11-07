@@ -23,7 +23,10 @@ from watched_kettle.integrations.codex_ipc import (
     JSONL_TRANSPORT,
     PIPE_TRANSPORT,
 )
-from watched_kettle.integrations.codex_log import CodexLogMonitor
+from watched_kettle.integrations.codex_log import (
+    DISCOVERY_INTERVAL_SECONDS,
+    CodexLogMonitor,
+)
 from watched_kettle.integrations.codex_spool import (
     drain_spooled_events,
     spool_pet_event,
@@ -42,7 +45,7 @@ class AgentCompletionScopeTests(unittest.TestCase):
         clock_patch = patch(
             "watched_kettle.integrations.codex_log.monotonic", return_value=0.0
         )
-        clock_patch.start()
+        self.clock = clock_patch.start()
         self.addCleanup(clock_patch.stop)
         self.directory = TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
@@ -303,6 +306,10 @@ class AgentCompletionScopeTests(unittest.TestCase):
         for source in (None, "future-source", {"future": "source"}):
             path = self.rollout(source, session_id=uuid4().hex)
             self.append(path, "event_msg", {"type": "task_complete"})
+            # Quick creations often leave the folder mtime unchanged, so the
+            # new file is found by the timed rediscovery, never the mtime.
+            os.utime(self.monitor.sessions_root, ns=(0, 0))
+            self.clock.return_value += DISCOVERY_INTERVAL_SECONDS
             before = len(self.presentations)
             for _ in range(20):
                 self.monitor.poll_now()

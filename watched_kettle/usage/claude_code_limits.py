@@ -18,6 +18,7 @@ from pathlib import Path
 from watched_kettle.usage.identifiers import hash_identifier
 from watched_kettle.usage.models import RateLimitBucket, UsageWindow
 from watched_kettle.usage.notice_policy import ALERT_THRESHOLDS
+from watched_kettle.usage.reset_time import REMAINING, notice_reset_text
 
 
 LIMIT_ID = "claude_code"
@@ -126,7 +127,7 @@ def _next_reset(name, resets_at, now):
     return resets_at + period * ((now - resets_at) // period + 1)
 
 
-def threshold_notices(previous, sample, now=None):
+def threshold_notices(previous, sample, now=None, reset_display=REMAINING):
     """Notices for thresholds this sample crossed in the same reset window.
 
     Without an earlier sample (first run) nothing is announced, like the Codex
@@ -144,14 +145,7 @@ def threshold_notices(previous, sample, now=None):
             continue
         remaining = max(0.0, 100.0 - sample.used_percent)
         text = t("message.0335", value0=label, value1=f"{remaining:.0f}")
-        if sample.resets_at is not None:
-            seconds = max(0, int((sample.resets_at - now).total_seconds()))
-            hours, rest = divmod(seconds, 3600)
-            text += (
-                t("message.0337", value0=hours, value1=rest // 60)
-                if hours
-                else t("message.0338", value0=rest // 60)
-            )
+        text += notice_reset_text(sample.resets_at, now, reset_display)
         prefix = f"{LIMIT_ID}|{sample.window}|{reset_key}"
         notices.append(
             LimitNotice(

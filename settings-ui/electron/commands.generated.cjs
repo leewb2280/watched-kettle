@@ -55,6 +55,7 @@ module.exports = {
     "app.restart",
     "navigation.ack",
     "window.subscribe",
+    "window.tabs",
     "usage.snapshot",
     "usage.widget_preview",
     "usage.set",

@@ -10,6 +10,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QWidget
 
+from watched_kettle.application.logging import _safe_event_fields
 from watched_kettle.pet.topmost_guard import TopmostGuard, app_topmost_windows
 
 
@@ -63,7 +64,12 @@ class TopmostGuardTests(unittest.TestCase):
 
         self.assertEqual(zorder.raised, [11, 12])
         self.assertEqual(
-            [call.args[1] for call in log.call_args_list], ["topmost_lost"] * 2
+            [
+                call.args[1]
+                for call in log.call_args_list
+                if call.args[1] not in {"topmost_restore_failed", "topmost_restored"}
+            ],
+            ["topmost_lost"] * 2,
         )
         self.assertEqual(log.call_args.kwargs["reason"], "screens")
         self.assertEqual(log.call_args.kwargs["window"], "SpeechBubbleWindow")
@@ -79,9 +85,43 @@ class TopmostGuardTests(unittest.TestCase):
             zorder.covered = True
             guard.check()
 
-        events = [call.args[1] for call in log.call_args_list]
+        events = [
+            call.args[1]
+            for call in log.call_args_list
+            if call.args[1] not in {"topmost_restore_failed", "topmost_restored"}
+        ]
         self.assertEqual(events, ["topmost_covered"] * 4)
-        self.assertEqual(len(zorder.raised), 8)
+        # Raised only while covered; a covered window is never a failed repair.
+        self.assertEqual(len(zorder.raised), 6)
+        self.assertNotIn(
+            "topmost_restore_failed", [c.args[1] for c in log.call_args_list]
+        )
+        self.assertFalse(guard.retry_timer.isActive())
+
+    def test_covered_windows_wait_for_the_slow_check(self):
+        zorder = FakeZorder(covered=True)
+        guard = self.guard(zorder)
+        with patch("watched_kettle.pet.topmost_guard.log_event") as log:
+            for _ in range(11):
+                guard._tick()
+            self.assertEqual(zorder.raised, [])
+            guard._tick()
+            self.assertEqual(zorder.raised, [11, 12])
+            guard.check("retry", raise_covered=False)
+        self.assertEqual(zorder.raised, [11, 12])
+        self.assertEqual(
+            [c.args[1] for c in log.call_args_list], ["topmost_covered"] * 2
+        )
+
+    def test_lost_or_sunk_windows_are_repaired_on_every_check(self):
+        zorder = FakeZorder(covered=True)
+        guard = self.guard(zorder)
+        guard._tick()
+        self.assertEqual(zorder.raised, [])
+        zorder.sunk = ("CabinetWClass", False)
+        with patch("watched_kettle.pet.topmost_guard.log_event"):
+            guard._tick()
+        self.assertEqual(zorder.raised, [11, 12])
 
     def test_sinking_below_ordinary_windows_is_logged_once_per_stretch(self):
         # Covered by a topmost window too, but sinking is the one that matters.
@@ -96,10 +136,15 @@ class TopmostGuardTests(unittest.TestCase):
             zorder.sunk = ("Chrome_WidgetWin_1", False)
             guard.check("screens")
 
-        events = [call.args[1] for call in log.call_args_list]
+        events = [
+            call.args[1]
+            for call in log.call_args_list
+            if call.args[1] not in {"topmost_restore_failed", "topmost_restored"}
+        ]
         self.assertEqual(events, ["topmost_sunk"] * 4)
         self.assertEqual(len(zorder.raised), 8)
-        first, last = log.call_args_list[0].kwargs, log.call_args.kwargs
+        causes = [c for c in log.call_args_list if c.args[1] == "topmost_sunk"]
+        first, last = causes[0].kwargs, causes[-1].kwargs
         self.assertEqual(
             first,
             {
@@ -111,6 +156,92 @@ class TopmostGuardTests(unittest.TestCase):
             },
         )
         self.assertEqual((last["hidden"], last["reason"]), (False, "screens"))
+
+    def test_healthy_windows_are_not_raised(self):
+        zorder = FakeZorder()
+        guard = self.guard(zorder)
+        guard.check()
+        self.assertEqual(zorder.raised, [])
+        self.assertFalse(guard.retry_timer.isActive())
+
+    def test_failed_raise_retries_then_records_verified_recovery(self):
+        zorder = FakeZorder(topmost=False)
+        guard = self.guard(zorder)
+        with (
+            patch.object(zorder, "raise_topmost", return_value=False),
+            patch("watched_kettle.pet.topmost_guard.log_event") as log,
+        ):
+            guard.check()
+            self.assertTrue(guard.retry_timer.isActive())
+            self.assertEqual(log.call_args.kwargs["error_code"], "api_failed")
+            guard.retry_timer.stop()
+            guard.check("retry")
+            guard.retry_timer.stop()
+            guard.check("retry")
+            self.assertFalse(guard.retry_timer.isActive())
+
+        def restore(hwnd):
+            zorder.raised.append(hwnd)
+            zorder.topmost = True
+            return True
+
+        with (
+            patch.object(zorder, "raise_topmost", side_effect=restore),
+            patch("watched_kettle.pet.topmost_guard.log_event") as log,
+        ):
+            guard.check()
+        self.assertEqual(zorder.raised, [11, 12])
+        self.assertEqual(
+            [c.args[1] for c in log.call_args_list], ["topmost_restored"] * 2
+        )
+        self.assertFalse(guard.retry_timer.isActive())
+        self.assertFalse(guard._results)
+
+    def test_api_success_without_restoring_order_is_not_success(self):
+        guard = self.guard(FakeZorder(sunk=("CabinetWClass", True)))
+        with patch("watched_kettle.pet.topmost_guard.log_event") as log:
+            guard.check()
+        self.assertEqual(log.call_args.kwargs["error_code"], "still_obstructed")
+        self.assertNotIn("topmost_restored", [c.args[1] for c in log.call_args_list])
+        self.assertTrue(guard.retry_timer.isActive())
+
+    def test_retry_respects_fullscreen_and_clears_hidden_handles(self):
+        zorder = FakeZorder(topmost=False)
+        guard = self.guard(zorder)
+        with patch("watched_kettle.pet.topmost_guard.log_event"):
+            guard.check()
+            zorder.raised.clear()
+            zorder.fullscreen = True
+            guard.check("retry")
+            self.assertFalse(guard.retry_timer.isActive())
+            self.assertEqual(zorder.raised, [])
+            guard.windows = lambda: []
+            guard.check()
+        self.assertFalse(guard._results)
+        self.assertFalse(guard._states)
+
+    def test_logged_causes_survive_the_log_allowlist(self):
+        # The guard's fields were once dropped by the log filter, so a sunk
+        # pet left only "reason" in app.log.
+        repaired = FakeZorder(topmost=False)
+
+        def restore(hwnd):
+            repaired.topmost = True
+            return True
+
+        repaired.raise_topmost = restore
+        cases = (
+            (FakeZorder(topmost=False), "topmost_restore_failed"),
+            (FakeZorder(covered=True), "topmost_covered"),
+            (FakeZorder(sunk=("Chrome_WidgetWin_1", True)), "topmost_sunk"),
+            (repaired, "topmost_restored"),
+        )
+        for zorder, event in cases:
+            with patch("watched_kettle.pet.topmost_guard.log_event") as log:
+                self.guard(zorder).check()
+            self.assertIn(event, [c.args[1] for c in log.call_args_list])
+            for logged in log.call_args_list:
+                self.assertEqual(_safe_event_fields(logged.kwargs), logged.kwargs)
 
     def test_full_screen_app_or_switched_off_leaves_windows_alone(self):
         for zorder, enabled in (

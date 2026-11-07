@@ -28,6 +28,7 @@ from watched_kettle.usage.claude_code_service import (
 from watched_kettle.usage.models import UsageSnapshot, UsageRefreshState
 from datetime import datetime, timezone
 from watched_kettle.usage.presentation import format_tray_summary
+from watched_kettle.usage.reset_time import normalize_reset_display
 from watched_kettle.usage.service import CodexUsageService
 
 
@@ -37,6 +38,7 @@ class WorkerPreferences:
     quiet: bool
     selected_limit_key: str = ""
     claude_code_enabled: bool = True
+    reset_display: str = "remaining"
 
     def load_usage_enabled(self):
         return self.enabled
@@ -52,6 +54,9 @@ class WorkerPreferences:
 
     def load_usage_widget_limit_key(self):
         return self.selected_limit_key
+
+    def load_usage_widget_reset_display(self):
+        return self.reset_display
 
 
 @dataclass(frozen=True)
@@ -73,12 +78,21 @@ class _UsageWorker(QObject):
     wake_requested = Signal()
     account_changed = Signal(bool)
 
-    def __init__(self, paths, preferences, client_factory, claude_config_dir=None):
+    def __init__(
+        self,
+        paths,
+        preferences,
+        client_factory,
+        claude_config_dir=None,
+        account_client_factory=None,
+    ):
         super().__init__()
         self.claude_config_dir = claude_config_dir
         self.paths = paths
         self.preferences = preferences
         self.client_factory = client_factory
+        # Account checks start their own App Server to read the sign-in anew.
+        self.account_client_factory = account_client_factory or client_factory
         self.commands: deque[tuple[int, str, tuple[object, ...]]] = deque()
         self.lock = Lock()
         self.stopping = False
@@ -153,7 +167,7 @@ class _UsageWorker(QObject):
             self.preferences,
             repository,
             parent=self,
-            account_monitor=AccountMonitor(self.client_factory, parent=self),
+            account_monitor=AccountMonitor(self.account_client_factory, parent=self),
         )
         self.service.account_changed.connect(self.account_changed)
         self.service.snapshot_changed.connect(self.publish)
@@ -165,6 +179,7 @@ class _UsageWorker(QObject):
             enabled=self.preferences.claude_code_enabled,
             parent=self,
         )
+        self.claude.set_reset_display(self.preferences.reset_display)
         self.claude.snapshot_changed.connect(self.claude_code_result)
         self.claude.notice_requested.connect(self.notice)
         self.claude.start()
@@ -281,6 +296,7 @@ class UsageWorkerService(QObject):
         client_factory=CodexAppServerClient,
         lifecycle_errors=None,
         claude_config_dir=None,
+        account_client_factory=None,
     ):
         super().__init__(parent)
         self.lifecycle_errors = lifecycle_errors if lifecycle_errors is not None else {}
@@ -295,6 +311,8 @@ class UsageWorkerService(QObject):
         self._account_generation = 0
         self._minimum_result_id = 0
         self._closed = False
+        self._codex_active: bool | None = None
+        self._sending_activity = False
         self._pending_recovery = None
         self._recovery_delivery = QTimer(self)
         self._recovery_delivery.setSingleShot(True)
@@ -312,9 +330,11 @@ class UsageWorkerService(QObject):
                 self.quiet_summary_enabled,
                 preferences.load_usage_widget_limit_key(),
                 self.claude_code_enabled,
+                preferences.load_usage_widget_reset_display(),
             ),
             client_factory,
             claude_config_dir,
+            account_client_factory,
         )
         self._worker.moveToThread(self._thread)
         self._thread.started.connect(self._worker.initialize)
@@ -396,6 +416,8 @@ class UsageWorkerService(QObject):
                 return
             if not incoming.refresh.busy:
                 self._refresh_timer.stop()
+            if self._account_generation != result.account_generation:
+                self._codex_active = None
             self._account_generation = result.account_generation
             self.snapshot = incoming
             self.snapshot_changed.emit(self.snapshot.for_display())
@@ -426,6 +448,24 @@ class UsageWorkerService(QObject):
 
     def start(self):
         return self._send("start")
+
+    def set_codex_active(self, active):
+        # A rejected send publishes a snapshot whose listener calls back here
+        # synchronously; without this guard a full queue recurses until
+        # RecursionError. The next snapshot after the queue drains retries.
+        if self._closed or self._sending_activity:
+            return False
+        active = bool(active) and self.enabled and not self.snapshot.account_checking
+        if active == self._codex_active:
+            return True
+        self._sending_activity = True
+        try:
+            accepted = self._send("set_codex_active", active, self._account_generation)
+        finally:
+            self._sending_activity = False
+        if accepted:
+            self._codex_active = active
+        return accepted
 
     def tray_summary(self) -> str:
         return format_tray_summary(self.snapshot.for_display())
@@ -492,6 +532,11 @@ class UsageWorkerService(QObject):
 
     def set_selected_limit_key(self, key):
         return self._send("set_selected_limit_key", str(key or ""))
+
+    def set_reset_display(self, display):
+        display = normalize_reset_display(display)
+        self._send("set_reset_display", display)
+        return self.claude_code("set_reset_display", display)
 
     def clear_device_history(self):
         return self._send("clear_device_history")

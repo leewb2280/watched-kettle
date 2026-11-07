@@ -14,6 +14,13 @@ from watched_kettle.application.logging import log_event
 from watched_kettle.integrations.codex_paths import codex_home
 from watched_kettle.usage.identifiers import hash_identifier
 
+# Without auth.json (sign-in kept in the OS credential store, or signed out)
+# only a fresh process can notice a switch, so it runs every five minutes.
+PERIODIC_CHECK_MS = 5 * 60_000
+# With auth.json a fresh process reads the same file the 2-second watch
+# already follows, so the periodic check is only a safety net.
+FILE_PERIODIC_CHECK_MS = 30 * 60_000
+
 
 def masked_email(value):
     value = str(value or "")
@@ -63,11 +70,12 @@ class AccountMonitor(QObject):
         self.signature = self._signature()
         self.probe_signature = self.signature
         # Each check starts a fresh App Server so it reads the sign-in anew.
-        # With auth.json a switch shows up through the file watch below; the
-        # periodic check covers sign-ins kept in the OS credential store and
-        # server-side changes such as the plan.
+        # With auth.json a switch, a sign-out and a token refresh (which also
+        # carries plan changes) rewrite the file, and the file watch below
+        # starts a check. The periodic check covers sign-ins kept in the OS
+        # credential store, so it slows down while auth.json exists.
         self.periodic = QTimer(self)
-        self.periodic.setInterval(5 * 60_000)
+        self.periodic.setInterval(PERIODIC_CHECK_MS)
         self.periodic.timeout.connect(self.check)
         self.file_timer = QTimer(self)
         self.file_timer.setInterval(2_000)
@@ -314,7 +322,19 @@ class AccountMonitor(QObject):
             state=state,
             error_code=error_code or None,
         )
+        self._schedule_periodic(failed=bool(error_code))
         self.checked.emit(result)
+
+    def _schedule_periodic(self, *, failed):
+        # A failed check keeps the short interval so it is retried soon.
+        interval = (
+            FILE_PERIODIC_CHECK_MS
+            if self.signature is not None and not failed
+            else PERIODIC_CHECK_MS
+        )
+        if self.running and self.periodic.interval() != interval:
+            # setInterval restarts a running timer, counting from this check.
+            self.periodic.setInterval(interval)
 
     def _dispose(self):
         self.deadline.stop()

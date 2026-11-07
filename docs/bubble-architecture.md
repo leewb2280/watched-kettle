@@ -47,6 +47,9 @@ flowchart TD
     M[ConversationMetadataService: 비임시 여부·출처·부모·제목·프로젝트 관계] --> P
     P -->|미확인 활동·보류 완료도 조회 대상| M
     CM[UsageConversationCatalog: 로컬 연결·읽기 전용 개별 조회·목록 탐색] --> UH[사용량 기록: 프로젝트·대화별 탐색]
+    HUB[AppServerHub: App Server 프로세스 하나, 요청한 쪽에만 응답] -.연결 창구.- TS
+    HUB -.연결 창구.- M
+    HUB -.연결 창구.- CM
     CM --> UC[UsageRepository: 계정별 해시 분류 관계·근거·확인 시각 저장]
     UC -->|이름 조회 전 분류 복원| UH
     PS[저장소: 전체 프로젝트 집계] --> PH[ProjectHistory: 정렬·선택·페이지]
@@ -56,6 +59,12 @@ flowchart TD
     G -->|ApplicationRuntime 연결| P
     A --> S[기존 상태 제어기: 펫 애니메이션]
     P --> WA[ApplicationRuntime: 출처별 작업·확인 개수]
+    P --> UA[ApplicationRuntime: Codex working 여부만 전달]
+    UA --> UW[UsageWorkerService: 계정 세대가 붙은 활동 명령]
+    UW --> US[CodexUsageService: 작업 중 60초·완료 5초 뒤 한도 전용 조회]
+    US --> HUB
+    US --> UV[불변 사용량 snapshot: worker → UsageViewModel]
+    UV --> WC
     WS[위젯 설정: 작업 상태 표시] --> WC[UsageCompanionController: 실사용·미리보기 문맥]
     WA --> WC
     WC --> WM[widget_state: 작업 표시 스위치·번역된 표시 값]
@@ -186,6 +195,7 @@ Claude Code는 중단·권한 거절·패널 닫기 때 종료 이벤트를 보�
 | 펫·비서가 공유하는 말풍선 표시 값, 출처 레이블, 출처 색 점(`SOURCE_MARK_TOKENS`) | `ui/bubble_models.py` | 상태 전이·알림 기한 결정 |
 | 펫 아래 활동 문구(작업 중인 출처 이름) | `ui/activity_caption.py`, 출처 목록은 `state/presentation.py`의 `working_sources` | 출처별 세션 상태 해석 |
 | 사용량 위젯의 출처별 작업 개수·표시 스위치·번역 문구 | `ApplicationRuntime._widget_activity`, `ui/usage_companion.py`, `usage/widget_state.py` | 활동 수집·상태 전이·완료 판정 |
+| 작업 중 사용량 추가 조회의 활동 입력·일정·계정 경계 | `ApplicationRuntime._sync_usage_activity`가 기존 Codex 카드 `working` 여부만 `UsageWorkerService.set_codex_active`로 전달하고 `usage/service.py`가 조회 타이머·한 건의 보류 요청·응답을 소유 | 사용량 서비스에서 활동 상태 재해석·UI 참조, 위젯 표시 여부로 조회 정책 변경 |
 | 사용량 위젯의 상태 점·펼친 상세 | `ui/usage_widget/window.py`, `ui/usage_widget/qml` | 작업 생성·수집·설정 저장 |
 | 트레이 상태·프로젝트 메뉴·사용량 요약 | `ui/assistant_tray.py`, Codex 한도 요약은 `usage/presentation.py` | 활동 상태 생성·한도 데이터 수정 |
 | 훅·로그 해석, Codex 도구 대기 종류·현재 턴 모드·구조화된 한도 재개 시각 정규화, 현재 턴의 새 도구 호출 근거 생성·내부 전달, 비동기 질문과 후속 사용자 메시지의 요청 ID 연결, 전달 중복 판정 | `integrations/codex_hooks.py`, `claude_code_hooks.py`, `claude_code_transcript.py`, `log_lifecycle.py`, `codex_log.py`, `codex_ipc.py` | 실제 카드나 펫 상태 직접 변경 |
@@ -197,6 +207,7 @@ Claude Code는 중단·권한 거절·패널 닫기 때 종료 이벤트를 보�
 | Claude Code 프로젝트 이름·해시(git 주 저장소 기준, 워크트리·하위 폴더 통합) | `integrations/claude_code_hooks.py`의 `project_identity`·`project_root`(hook 브리지와 대화 기록 공통) | 카드 수명·정렬 |
 | 복구 근거 수용·저장 종료와 새 호출의 충돌 판정·현재 상태 전환·임시 행 만료 | `features/project_activity/service.py` | 원본 로그 스캔·과거 이벤트 재전송 |
 | 읽기 전용 대화 신원 근거·제목·프로젝트 관계 보강 | `features/project_activity/metadata.py` | 수신 지연을 근거로 작업 완료 추정 |
+| 사용량·대화 메타데이터·턴 상태가 함께 쓰는 Codex App Server 프로세스 하나, 요청한 쪽에만 응답·열린 쪽 모두에 알림, 쪽마다 따로 닫기, 사용량 쪽 재연결 시 프로세스 재시작 | `integrations/codex_app_server_hub.py` | 조회 대상 선정·응답 해석·계정 확인(`AccountMonitor`는 자기 프로세스를 따로 띄움) |
 | 사용량 기록의 제목·프로젝트 조회·갱신 일정 | `usage/conversation_catalog.py`, `application/settings_ui/assistant.py` | 활동 상태 변경·과거 이벤트 재전송·이름의 영구 저장 |
 | 사용량 기록의 해시 프로젝트 분류 보관·복원·정리 | `storage/usage_repository.py`, 값 계약 `usage/conversation_models.py` | 이름·제목·원본 ID·경로 저장, 말풍선 상태·수명 변경 |
 | Claude Code 작업 기록(대화 기록 파일의 턴별 토큰) | `usage/claude_code_transcripts.py`, `usage/claude_code_service.py`, `storage/claude_code_repository.py` | 말풍선 활동 상태 변경 |
@@ -231,7 +242,9 @@ Claude Code는 중단·권한 거절·패널 닫기 때 종료 이벤트를 보�
 수집 계층은 정규화된 이벤트와 복구 근거를 만들 수 있지만 표시할 활동 상태의 최종 소유자는 서비스다.
 UI의 `shown`·`named` 시각 보고는 관측이며 상태 전이가 아니다. 계층 간 신호 연결은 runtime/coordinator에 둔다.
 
-사용량 기록의 제목 조회는 사용량 worker의 App Server 연결에서 별도로 수행한다. 기존 메타데이터 모듈의
+사용량 기록의 제목 조회는 사용량 worker의 App Server 연결 창구에서 메타데이터 조회와 별도로 수행한다.
+App Server 프로세스는 `AppServerHub`가 사용량·메타데이터·턴 상태에 공유하지만, 창구마다 자기 요청의 응답만
+받고 닫기도 따로 한다. 기존 메타데이터 모듈의
 로컬 프로젝트 인덱스 읽기·경로 정규화 함수와 제목 정제 함수만 공유하며, 말풍선 서비스 인스턴스나 활동
 이벤트를 재사용하지 않는다. 이름은 계정·실행 세대에 묶인 메모리에만 보관하고 계정 초기화 때 비운다.
 이는 BA-01·BA-02·BA-08·BA-09의 책임 경계를 유지하는 별도 읽기 경로다.
@@ -351,6 +364,15 @@ Claude Code가 실행되는 VS Code의 가장 앞 창을 그대로 앞으로 가
 타이머를 정리하며 다시 보일 때 과거 자동 요청을 몰아서 재생하지 않는다.
 설정 snapshot과 현재 외형 미리보기만 갱신하며 카드·알림 수명과 테마는 그대로다.
 BA-01·BA-06·BA-07·BA-10을 보존한다. 세부 계약은 [외형 전환](pet-appearance.md)을 따른다.
+
+Codex 사용량 추가 조회는 활동 상태를 만들지 않는다. 조립 계층이 기존 카드의 Codex `working`
+여부만 계정 세대를 붙인 명령으로 전달하고, 사용량 worker가 작업 중 60초 조회와 기존 메인 작업
+완료·실패 경로의 5초 뒤 재조회를 관리한다. 연속 완료는 첫 5초 기한을 미루지 않고 합친다.
+사용량 연결의 진행 중 한도 요청과 보류 요청은 각각 최대 한 건이며, 완료 이전에 시작한 요청만으로 후속 조회를
+충족하지 않는다. 추가 응답은 위젯·임계치 알림만 갱신하고 이력 저장·전체 집계·대화 복구·요약 조회는
+늘리지 않는다. 기존 정기 조회·서버 알림·수동 갱신 경로는 유지한다. 계정 확인·전환·연동 끄기·연결
+종료·앱 종료에서 추가 타이머와 보류 요청을 취소하며, 이전 계정 세대의 활동 명령과 응답은 버린다.
+BA-01·BA-06·BA-10의 상태 소유권·계층 경계는 바꾸지 않는다. 회귀 기준은 `test_usage_refresh`다.
 
 ## 3. 카드 종류와 표시량
 
@@ -555,7 +577,7 @@ Claude Code의 `Stop` 등은 기존 해석을 유지한다.
 한도 종료의 숫자 시각만 전달하며 UI·트레이는 같은 현지 시각 레이블을 쓴다. 확정 한도 행의 기한은
 다른 실패와 같은 결과 표시 시간이며, 재개 시각은 표시 문구에만 쓴다(BA-01·BA-02·BA-04·BA-08·BA-09).
 
-`CodexTurnStatusMonitor`는 별도 Qt worker와 기존 App Server 클라이언트로 `thread/turns/list`만 읽는다.
+`CodexTurnStatusMonitor`는 별도 Qt worker와 공유 App Server의 자기 연결 창구로 `thread/turns/list`만 읽는다.
 종료 미확정은 즉시, 활동 무응답은 기존 지연 기준, 사용자 대기는 60초 뒤 종료 여부만 조사한다.
 복구 행도 즉시 조사할 수 있다. 동시에 1건, 대상 128개, 요청 10초, 재조회 최소 30초,
 최신순 20턴씩 최대 2페이지(40턴)이며 `itemsView=notLoaded`로 본문을 받지 않는다.
@@ -705,6 +727,18 @@ Codex의 `wait_agent`·`collaboration.wait_agent`·`functions.wait_agent` 호출
 BA-01·BA-05·BA-06·BA-07·BA-10을 보존하며 `test_bubble_frame`의 높이·배율·미리보기·상한과
 `test_pet_import_sources`의 폴더·ZIP·식별 해시 보존 회귀로 확인한다.
 - 말풍선 배율은 80~140%, 기본 100%다. 말풍선 글꼴의 `PreferNoHinting`은 배율 변경 후에도 유지한다.
+
+### 항상 위 순서 유지
+
+`pet/topmost_guard.py`와 `integrations/windows_zorder.py`는 펫·말풍선·위젯의 창 순서만 다루며,
+BA-01·BA-06·BA-10의 상태 의미와 UI 책임 경계를 바꾸지 않는다. 5초마다 점검하고 정상 창은 올리지 않는다.
+항상 위 속성을 잃었거나(`topmost_lost`) 일반 창 아래로 가라앉으면(`topmost_sunk`) 펫부터 전체 창 그룹을
+앞으로 올리고 적용 뒤 속성·겹침을 다시 확인하며, 실패하면 1.5초 간격으로 최대 두 번 더 시도한다.
+다른 항상 위 창(시작 메뉴·작업 표시줄·다른 앱)에 덮인 경우(`topmost_covered`)는 다투지 않도록
+12번째 점검(60초)마다만 올리고 검증·재시도하지 않는다. 전체 화면 앱·열린 메뉴·항상 위 끄기는 재시도에서도 존중한다.
+`topmost_restore_failed`는 API 실패·확인 불가·순서 미복구를 구분하고 같은 실패는 반복 기록하지 않으며,
+`topmost_restored`는 확인된 복구만 기록한다. 창 종류·위 창의 클래스 이름·입력 없던 시간만 남기고
+창 제목·핸들·내용은 기록하지 않는다. 회귀 기준은 `test_topmost_guard`다.
 
 ## 6. 숨김·알림·클릭·저장
 
@@ -910,7 +944,7 @@ ID·경로를 덮어쓰지 않습니다. 영구 삭제와 비우기는 사용자
 | BA-03·BA-04 수명·기한 | `test_project_completion_rows`, `test_notification_service`, `test_bubble_timing`, `test_bubble_latency`, `test_claude_code_activity` |
 | BA-05·BA-06 외형·정렬·스크롤·소속 이동 | `test_project_completion_rows`, `test_bubble_title_width`, `test_bubble_customization`, `test_title_activity_stability` |
 | BA-07 숨김·미리보기·초기화 | `test_project_completion_rows`, `test_notification_service`, `test_bubble_customization` |
-| BA-09 대화 신원 확인·첫 표시·복구·조회·보관 상한 | `test_codex_conversation_identity`, `test_bubble_latency`, `test_project_metadata`, `test_codex_log_monitor`, `test_fork_log_identity` |
+| BA-09 대화 신원 확인·첫 표시·복구·조회·보관 상한 | `test_codex_conversation_identity`, `test_bubble_latency`, `test_project_metadata`, `test_codex_log_monitor`, `test_fork_log_identity`, `test_codex_app_server_hub` |
 | BA-01·BA-02·BA-07·BA-08·BA-09·BA-10 사용량 해시 분류 캐시·조회 재사용·계정 및 삭제 경계 | `test_usage_project_cache`, `test_usage_conversations`, `test_usage_projects`, `test_structured_storage`, `test_usage_service` |
 | BA-01·BA-06·BA-07·BA-10 펫·위젯 고정과 전역 단축키 | `test_windows_hotkeys`, `test_pet_window`, `test_pet_menu`, `test_actionable_bubbles`, `test_settings_bridge` |
 | BA-07·BA-10 앱 업데이트 안내(새 버전·업데이트 뒤 첫 실행)와 정보 화면 | `test_settings_bridge`, `test_update_check`, `test_about`, 두 구성의 `settings-ui/scripts/qa.cjs` |
@@ -924,8 +958,10 @@ ID·경로를 덮어쓰지 않습니다. 영구 삭제와 비우기는 사용자
 | BA-01·BA-02·BA-08·BA-09·BA-10 Codex 관리 hook의 Windows 실행·복구·수신 | `test_codex_hook_install`, `test_codex_windows_command`, `test_codex_hook_bridge` (실측 기록: `docs/windows-hook-command-verification.md`) |
 | BA-01·BA-08·BA-10 Claude Code 관리 hook·status line의 Windows 실행·복구 | `test_claude_code_hook_install`, `test_claude_code_status_line_install` (실측 기록: `docs/windows-hook-command-verification.md`) |
 | BA-01·BA-06·BA-07·BA-10 사용자 폴더의 펫 발견·로딩·전용 장식 | `test_pet_catalog`, `test_pet_loader`, `test_bubble_frame` |
+| BA-01·BA-06·BA-10 펫·말풍선·위젯 창의 항상 위 순서 유지·복구 진단 | `test_topmost_guard`, `test_pet_window` |
 | BA-01·BA-02·BA-04·BA-06·BA-08·BA-09 활동·조회·표시·이동 진단 | `test_bubble_diagnostics`, `test_activity_trace`, `test_diagnostics` |
 | 트레이 Codex 한도 요약·worker 연결 | `test_tray_worker_regression` |
+| BA-01·BA-06·BA-10 활동에서 사용량 추가 조회로의 조립·계정 세대·한도 전용 갱신 | `test_usage_refresh`, `test_usage_service`, `test_account_refresh`, `test_application_runtime` |
 | BA-01·BA-07·BA-10 사용량 출처 분리·독립 스위치·reserve 순서 | `test_usage_models`, `test_widget_state`, `test_usage_widget_qml`, `test_usage_companion`, `test_localization`, `test_pet_menu`, `test_tray_worker_regression`, `test_settings_bridge`, `settings-ui/scripts/qa.cjs` |
 | BA-01·BA-06·BA-07·BA-10 펫 수명·휴지통·중단 복구 | `test_pet_trash`, `test_pet_batch`, `test_settings_bridge`, `test_pet_catalog`, `test_pet_preferences`, `test_bubble_architecture`, `settings-ui/scripts/qa.cjs` |
 | BA-01·BA-06·BA-07·BA-10 확대 편집·시야·렌더 예산 | `test_settings_bridge`, `bubble-viewport.test.cjs`, `bubble-viewport-qa.cjs`, 두 구성 Electron·영어 화면 QA |

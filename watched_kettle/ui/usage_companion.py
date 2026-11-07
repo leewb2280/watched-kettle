@@ -87,11 +87,11 @@ class UsageCompanionController(QObject):
         self._preview_release.setSingleShot(True)
         self._preview_release.setInterval(PREVIEW_RELEASE_MS)
         self._preview_release.timeout.connect(self._release_preview)
-        self.window = QuickUsageWindow(pet, backdrop=Backdrop())
-        self.window.context = self._widget_context
-        self.window.usage_route_requested.connect(self.open_usage)
-        self.window.size_changed.connect(self.reposition)
-        self.window.position_changed.connect(self._position_changed)
+        self._backdrop_class = Backdrop
+        # Made when the widget is turned on and closed when it is turned off:
+        # one hidden Qt Quick view still holds about 15-19 MiB. Hiding the pet
+        # only hides it.
+        self.window = None
         usage_viewmodel.snapshot_changed.connect(self._usage_changed)
         pet_viewmodel.snapshot_changed.connect(self._pet_changed)
         self._connect_pet_signal(
@@ -132,10 +132,32 @@ class UsageCompanionController(QObject):
         if hints is not None and hasattr(hints, "colorSchemeChanged"):
             # "Follow the app theme" also follows Windows when the app follows it.
             hints.colorSchemeChanged.connect(self.refresh)
-        self._render(usage_viewmodel.snapshot)
         self._sync_menu_state()
         self._sync_visibility()
-        self.window.sync_click_through(usage_viewmodel.widget_click_through)
+
+    def _wanted(self):
+        vm = self.usage_viewmodel
+        return bool(getattr(vm, "any_enabled", vm.enabled) and vm.widget_visible)
+
+    def ensure_window(self):
+        """The widget window, made now if it does not exist yet."""
+        if self.window is not None:
+            return self.window
+        window = self._window_class(self.pet, backdrop=self._backdrop_class())
+        window.context = self._widget_context
+        window.usage_route_requested.connect(self.open_usage)
+        window.size_changed.connect(self.reposition)
+        window.position_changed.connect(self._position_changed)
+        window.sync_click_through(self.usage_viewmodel.widget_click_through)
+        self.window = window
+        self._render(self.usage_viewmodel.snapshot)
+        return window
+
+    def _drop_window(self):
+        window, self.window = self.window, None
+        if window is not None:
+            window.close()
+            window.deleteLater()
 
     def toggle_click_through(self):
         self.usage_viewmodel.toggle_widget_click_through()
@@ -147,6 +169,7 @@ class UsageCompanionController(QObject):
         return {
             "layout": vm.widget_shape,
             "emphasis": vm.widget_emphasis,
+            "reset_display": getattr(vm, "widget_reset_display", "remaining"),
             "theme": self.app_theme(),
             "background": vm.widget_background_color if custom else None,
             "opacity": vm.widget_background_opacity,
@@ -178,9 +201,11 @@ class UsageCompanionController(QObject):
                 self._sync_visibility()
             elif event.type() == QEvent.Type.Hide:
                 self._tick.stop()
-                self.window.hide()
+                if self.window is not None:
+                    self.window.hide()
             elif event.type() == QEvent.Type.Close:
-                self.window.close()
+                if self.window is not None:
+                    self.window.close()
         return super().eventFilter(watched, event)
 
     def _watch_screen(self, screen):
@@ -194,10 +219,12 @@ class UsageCompanionController(QObject):
         self._screens_changed()
 
     def _screens_changed(self, *_args):
-        if self.window.isVisible():
+        if self.window is not None and self.window.isVisible():
             self.reposition()
 
     def _render(self, snapshot):
+        if self.window is None:
+            return
         self.window.apply_snapshot(
             snapshot, scale_percent=self.usage_viewmodel.widget_scale_percent
         )
@@ -259,10 +286,12 @@ class UsageCompanionController(QObject):
         self._render(snapshot)
         self._sync_menu_state()
         self._sync_visibility()
-        self.window.sync_click_through(self.usage_viewmodel.widget_click_through)
+        if self.window is not None:
+            self.window.sync_click_through(self.usage_viewmodel.widget_click_through)
 
     def _pet_changed(self, snapshot):
-        self.window.sync_always_on_top(snapshot.always_on_top)
+        if self.window is not None:
+            self.window.sync_always_on_top(snapshot.always_on_top)
         self._sync_visibility()
 
     def _sync_menu_state(self):
@@ -277,14 +306,11 @@ class UsageCompanionController(QObject):
         self.pet.usage_widget_click_through = self.usage_viewmodel.widget_click_through
 
     def _sync_visibility(self):
-        visible = (
-            getattr(self.usage_viewmodel, "any_enabled", self.usage_viewmodel.enabled)
-            and self.usage_viewmodel.widget_visible
-            and self.pet.isVisible()
-        )
-        if visible:
-            was_visible = self.window.isVisible()
-            self.window.show()
+        wanted = self._wanted()
+        if wanted and self.pet.isVisible():
+            window = self.ensure_window()
+            was_visible = window.isVisible()
+            window.show()
             if not was_visible:
                 # Acrylic needs the native window, which exists once shown.
                 self._render(self.usage_viewmodel.snapshot)
@@ -293,9 +319,15 @@ class UsageCompanionController(QObject):
                 self._tick.start()
         else:
             self._tick.stop()
-            self.window.hide()
+            if not wanted:
+                self._drop_window()
+            elif self.window is not None:
+                self.window.hide()
 
     def _placement(self):
+        window = self.window
+        if window is None:
+            return None, None
         screen = (
             QApplication.screenAt(self.pet.frameGeometry().center())
             or self.pet.screen()
@@ -306,13 +338,13 @@ class UsageCompanionController(QObject):
         bounds = screen.availableGeometry()
         base = usage_companion_position(
             self.pet.frameGeometry(),
-            self.window.size(),
+            window.size(),
             bounds,
         )
         return base, bounds
 
     def reposition(self):
-        if not self.window.isVisible():
+        if self.window is None or not self.window.isVisible():
             return
         # Bubbles, usage and size updates arrive mid-drag; moving to the saved
         # spot then would pull the widget back. Release saves the new spot.
@@ -350,9 +382,12 @@ class UsageCompanionController(QObject):
         self._detach_at(position)
 
     def _detach_at(self, position):
+        window = self.window
+        if window is None:
+            return
         screen = (
-            QApplication.screenAt(position + self.window.rect().center())
-            or self.window.screen()
+            QApplication.screenAt(position + window.rect().center())
+            or window.screen()
             or QApplication.primaryScreen()
         )
         if screen is None:
@@ -360,7 +395,7 @@ class UsageCompanionController(QObject):
         placement = create_saved_placement(
             screen.name(),
             position,
-            self.window.size(),
+            window.size(),
             screen.availableGeometry(),
         )
         self.usage_viewmodel.detach_widget(placement)
@@ -387,4 +422,4 @@ class UsageCompanionController(QObject):
                 pass
         self._watched_screens.clear()
         self.pet.removeEventFilter(self)
-        self.window.close()
+        self._drop_window()

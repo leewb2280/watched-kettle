@@ -28,6 +28,13 @@ class Client:
         self.calls.append((method, params))
         return len(self.calls)
 
+    def start(self):
+        self.ready = True
+
+    def close(self):
+        # The worker closes an idle App Server; the next lookup starts it.
+        self.ready = False
+
 
 class StabilityTests(unittest.TestCase):
     @classmethod

@@ -42,6 +42,7 @@ from watched_kettle.usage.conversation_models import (
 )
 from watched_kettle.usage.identifiers import hash_identifier
 from watched_kettle.usage.models import TaskUsageRecord, UsageAvailability
+from watched_kettle.usage.reset_time import REMAINING, normalize_reset_display
 from watched_kettle.usage.task_query import ORDERS, PAGE_SIZE, search_text
 from watched_kettle.usage.trends import (
     AVERAGE_DAYS,
@@ -174,6 +175,7 @@ class ClaudeCodeUsageService(QObject):
         self.repository = repository
         self.config_dir = Path(config_dir) if config_dir else claude_config_dir()
         self.enabled = bool(enabled)
+        self.reset_display = REMAINING
         self.snapshot = ClaudeCodeUsageSnapshot()
         self.titles: dict[str, str] = {}
         self.project_names: dict[str, str] = {}
@@ -212,6 +214,10 @@ class ClaudeCodeUsageService(QObject):
     def close(self):
         self._closed = True
         self.timer.stop()
+
+    def set_reset_display(self, display):
+        """Time left or clock time in the limit notices' reset suffix."""
+        self.reset_display = normalize_reset_display(display)
 
     def set_enabled(self, enabled):
         self.enabled = bool(enabled)
@@ -294,7 +300,11 @@ class ClaudeCodeUsageService(QObject):
             self._load_limits(account)
         samples = samples_from_payload(payload)
         for sample in samples:
-            for notice in threshold_notices(self._latest.get(sample.window), sample):
+            for notice in threshold_notices(
+                self._latest.get(sample.window),
+                sample,
+                reset_display=self.reset_display,
+            ):
                 self.notice_requested.emit(
                     NoticeRequest(
                         source="system",

@@ -321,6 +321,10 @@ class SettingsBridgeTests(unittest.TestCase):
             "usage.set",
             dict(epoch=core.account_epoch, key="widget_click_through", value=True),
         )
+        # The widget is made once it can be shown next to the pet.
+        self.assertIsNone(runtime.usage_companion.window)
+        self.pet.show()
+        self.app.processEvents()
         window = runtime.usage_companion.window
         self.assertTrue(window.flags() & Qt.WindowType.WindowTransparentForInput)
         self.assertTrue(self.pet.usage_widget_click_through)
@@ -1419,6 +1423,26 @@ class SettingsBridgeTests(unittest.TestCase):
                 "usage.set",
                 dict(epoch=core.account_epoch, key="widget_shape", value="donut"),
             )
+        reset = controls()["widget_reset_display"]
+        self.assertEqual(reset["value"], "remaining")
+        self.assertEqual(
+            [option["value"] for option in reset["options"]], ["remaining", "clock"]
+        )
+        self.assertTrue(reset["description"])
+        core.execute(
+            "usage.set",
+            dict(epoch=core.account_epoch, key="widget_reset_display", value="clock"),
+        )
+        self.assertEqual(self.runtime.usage_vm.widget_reset_display, "clock")
+        with self.assertRaises(CommandError):
+            core.execute(
+                "usage.set",
+                dict(
+                    epoch=core.account_epoch,
+                    key="widget_reset_display",
+                    value="calendar",
+                ),
+            )
         core.execute(
             "usage.set",
             dict(epoch=core.account_epoch, key="widget_visible", value=False),
@@ -1426,7 +1450,13 @@ class SettingsBridgeTests(unittest.TestCase):
         hidden = controls()
         self.assertFalse(hidden["widget_visible"].get("disabled"))
         self.assertFalse(hidden["chart_days"].get("disabled"))
-        for key in ("widget_shape", "widget_emphasis", "widget_today", "widget_color"):
+        for key in (
+            "widget_shape",
+            "widget_emphasis",
+            "widget_reset_display",
+            "widget_today",
+            "widget_color",
+        ):
             self.assertTrue(hidden[key]["disabled"], key)
         core.execute(
             "usage.set",
@@ -1987,11 +2017,69 @@ class SettingsBridgeTests(unittest.TestCase):
         with self.assertRaises(CommandError):
             self.host._execute("window.subscribe", {"topics": ["filesystem"]})
 
+    def test_selected_tabs_reach_the_next_renderer_and_are_validated(self):
+        self.assertEqual(
+            self.host._execute(
+                "window.tabs", {"tabs": {"pet": "pet_behavior", "usage": "history"}}
+            ),
+            {"saved": True},
+        )
+        self.host._start_server()
+        client = QLocalSocket()
+        client.connectToServer(self.host.server.fullServerName())
+        self.assertTrue(wait_until(lambda: self.host.socket is not None))
+        client.write(
+            json.dumps(dict(version=1, token=self.host.token)).encode() + b"\n"
+        )
+        ready = json.loads(read_line(client))
+        self.assertEqual(ready["event"], "ready")
+        self.assertEqual(
+            ready["data"]["tabs"], {"pet": "pet_behavior", "usage": "history"}
+        )
+        client.disconnectFromServer()
+        for tabs in (
+            "pet",
+            {"Pet": "x"},
+            {"pet": "../x"},
+            {"pet": 1},
+            {f"t{i}": "a" for i in range(9)},
+        ):
+            with self.subTest(tabs=tabs), self.assertRaises(CommandError):
+                self.host._execute("window.tabs", {"tabs": tabs})
+        # A rejected update keeps the last valid tabs.
+        self.assertEqual(self.host.tabs, {"pet": "pet_behavior", "usage": "history"})
+
     def hidden_child(self):
         child, sent = FakeChild(), []
         self.host.process = child
         self.host._send = sent.append
         return child, sent
+
+    def test_settings_window_hardware_acceleration_choice(self):
+        self.assertTrue(self.core.snapshot()["hardwareAcceleration"])
+        self.core.execute(
+            "settings.set",
+            self.context(key="settings_hardware_acceleration", value=False),
+        )
+        self.assertFalse(self.preferences.load_settings_hardware_acceleration())
+        self.assertFalse(self.core.snapshot()["hardwareAcceleration"])
+        with self.assertRaises(CommandError):
+            self.core.execute(
+                "settings.set",
+                self.context(key="settings_hardware_acceleration", value="off"),
+            )
+
+        # A window started with the other choice is restarted once hidden.
+        child, _sent = self.hidden_child()
+        self.host.launched_gpu = True
+        self.host.visible = True
+        self.host._execute("window.visibility", {"visible": False})
+        self.assertTrue(self.host.retire_timer.isActive())
+        self.assertEqual(self.host.retire_timer.interval(), 0)
+        self.host.retire_timer.stop()
+        self.host.launched_gpu = False
+        self.host.hide()
+        self.assertEqual(self.host.retire_timer.interval(), 60 * 1000)
 
     def test_hidden_renderer_is_retired_after_the_idle_interval(self):
         child, sent = self.hidden_child()
@@ -1999,7 +2087,7 @@ class SettingsBridgeTests(unittest.TestCase):
 
         self.host._execute("window.visibility", {"visible": False})
         self.assertTrue(self.host.retire_timer.isActive())
-        self.assertEqual(self.host.retire_timer.interval(), 5 * 60 * 1000)
+        self.assertEqual(self.host.retire_timer.interval(), 60 * 1000)
         self.host._execute("window.visibility", {"visible": True})
         self.assertFalse(self.host.retire_timer.isActive())
         self.host.hide()

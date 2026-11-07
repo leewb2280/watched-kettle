@@ -9,6 +9,7 @@ from .models import (
     USAGE_WIDGET_CONFIG_VERSION,
     USAGE_WIDGET_EMPHASES,
     USAGE_WIDGET_EMPHASIS_LIMIT_KEYS,
+    USAGE_WIDGET_RESET_DISPLAYS,
     USAGE_WIDGET_SCALE_BASIS_VERSION,
     USAGE_WIDGET_SHAPES,
     USAGE_WIDGET_MATERIALS,
@@ -164,6 +165,16 @@ class WidgetPreferences:
     def save_usage_widget_emphasis(self, emphasis):
         return self._save_choice(
             "usage/widgetEmphasis", emphasis, USAGE_WIDGET_EMPHASES
+        )
+
+    def load_usage_widget_reset_display(self):
+        return self._load_choice(
+            "usage/widgetResetDisplay", USAGE_WIDGET_RESET_DISPLAYS
+        )
+
+    def save_usage_widget_reset_display(self, display):
+        return self._save_choice(
+            "usage/widgetResetDisplay", display, USAGE_WIDGET_RESET_DISPLAYS
         )
 
     def load_usage_widget_tasks_visible(self):

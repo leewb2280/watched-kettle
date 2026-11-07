@@ -1716,10 +1716,6 @@
     "sourceRevision": 1,
     "value": "{value0} min"
   },
-  "message.0424": {
-    "sourceRevision": 1,
-    "value": "In {value0}m"
-  },
   "message.0425": {
     "sourceRevision": 1,
     "value": "{value0}d"
@@ -1727,14 +1723,6 @@
   "message.0426": {
     "sourceRevision": 1,
     "value": "{value0}h"
-  },
-  "message.0427": {
-    "sourceRevision": 1,
-    "value": "In {value0}d {value1}h"
-  },
-  "message.0428": {
-    "sourceRevision": 1,
-    "value": "In {value0}h {value1}m"
   },
   "message.0429": {
     "sourceRevision": 1,
@@ -5343,6 +5331,78 @@
     "sourceRevision": 1,
     "value": "Resets in {value0}m"
   },
+  "widget.reset_at_today": {
+    "sourceRevision": 1,
+    "value": "Resets {time}"
+  },
+  "widget.reset_at_day": {
+    "sourceRevision": 1,
+    "value": "Resets {date} {time}"
+  },
+  "usage.notice_reset_at_today": {
+    "sourceRevision": 1,
+    "value": " · Resets {time}"
+  },
+  "usage.notice_reset_at_day": {
+    "sourceRevision": 1,
+    "value": " · Resets {date} {time}"
+  },
+  "time.clock_am": {
+    "sourceRevision": 1,
+    "value": "{hour}:{minute} AM"
+  },
+  "time.clock_pm": {
+    "sourceRevision": 1,
+    "value": "{hour}:{minute} PM"
+  },
+  "time.month_day_weekday": {
+    "sourceRevision": 1,
+    "value": "{weekday} {month}/{day}"
+  },
+  "time.weekday_0": {
+    "sourceRevision": 1,
+    "value": "Mon"
+  },
+  "time.weekday_1": {
+    "sourceRevision": 1,
+    "value": "Tue"
+  },
+  "time.weekday_2": {
+    "sourceRevision": 1,
+    "value": "Wed"
+  },
+  "time.weekday_3": {
+    "sourceRevision": 1,
+    "value": "Thu"
+  },
+  "time.weekday_4": {
+    "sourceRevision": 1,
+    "value": "Fri"
+  },
+  "time.weekday_5": {
+    "sourceRevision": 1,
+    "value": "Sat"
+  },
+  "time.weekday_6": {
+    "sourceRevision": 1,
+    "value": "Sun"
+  },
+  "widget.reset_display": {
+    "sourceRevision": 1,
+    "value": "Reset display"
+  },
+  "widget.reset_display_remaining": {
+    "sourceRevision": 1,
+    "value": "Time left"
+  },
+  "widget.reset_display_clock": {
+    "sourceRevision": 1,
+    "value": "Reset time"
+  },
+  "widget.reset_display_description": {
+    "sourceRevision": 1,
+    "value": "Shows the time left until a limit resets, or the time it resets. Limit alerts use the same style."
+  },
   "widget.sample_age": {
     "sourceRevision": 1,
     "value": "Sample from {age}"
@@ -5790,21 +5850,17 @@
     "sourceRevision": 1,
     "value": "When a new version is found, downloads the changed files and applies them the next time the app starts. If the full installer is needed, it only tells you."
   },
-  "whats_new.01511.bubble_editor": {
+  "app.performance": {
     "sourceRevision": 1,
-    "value": "In Edit bubble design you can now pick the background, border, shape and decorations yourself, drag decorations into place, and save or share a design."
+    "value": "Performance"
   },
-  "whats_new.01511.pet_link": {
+  "app.settings_gpu": {
     "sourceRevision": 1,
-    "value": "Join pets combines installed pets into the looks of one pet, with transitions between the looks."
+    "value": "Settings window hardware acceleration"
   },
-  "whats_new.01511.animation_speed": {
+  "app.settings_gpu_description": {
     "sourceRevision": 1,
-    "value": "You can set the pet's animation speed from 50% to 200%."
-  },
-  "whats_new.01511.pet_manager_clicks": {
-    "sourceRevision": 1,
-    "value": "Switches and buttons in Manage pets no longer ignore a click right after another change."
+    "value": "Turning it off saves about 120 MB while the settings window is open, but transitions and blur effects may be less smooth. Takes effect when you close and reopen the settings window."
   },
   "pet.appearance.title": {
     "sourceRevision": 2,
@@ -6822,8 +6878,28 @@
     "sourceRevision": 1,
     "value": "Zoom with the wheel. Pan with Space+drag or the middle button."
   },
-  "whats_new.01511.bubble_viewport": {
-    "sourceRevision": 2,
-    "value": "Edit bubbles in a spacious workspace with up to 400% zoom. Open editing panels from the tabs on the right, and use wheel zoom and pan."
+  "whats_new.01512.reset_clock": {
+    "sourceRevision": 1,
+    "value": "The usage widget can show when a limit resets, such as \"Resets 12:39 PM\", instead of the time left."
+  },
+  "whats_new.01512.memory": {
+    "sourceRevision": 1,
+    "value": "Uses less memory day to day: pet frames stay compressed and Codex features share one connection."
+  },
+  "whats_new.01512.settings_gpu": {
+    "sourceRevision": 1,
+    "value": "Turn off settings window hardware acceleration in App settings to save about 120 MB while the window is open."
+  },
+  "whats_new.01512.settings_window": {
+    "sourceRevision": 1,
+    "value": "A closed settings window frees its memory after a minute and reopens on the tab you were viewing."
+  },
+  "whats_new.01512.usage_refresh": {
+    "sourceRevision": 1,
+    "value": "When a Codex task ends, the widget and limit alerts catch up within seconds."
+  },
+  "whats_new.01512.pet_on_top": {
+    "sourceRevision": 1,
+    "value": "If the pet or widget slips behind another window, it comes back on top within 5 seconds."
   }
 }

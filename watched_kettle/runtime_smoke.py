@@ -301,6 +301,11 @@ def _run(root, duration, report, *, require_tray=False, exit_via_settings=False)
             if not state["tray_initial_checked"]:
                 raise RuntimeError("smoke_tray_initial_summary")
         runtime.start()
+        # The bundle drops unused QML modules; the widget must still load. It
+        # is made only once it can be shown, and the smoke pet stays hidden.
+        state["usage_widget_ready"] = bool(
+            runtime.usage_companion.ensure_window().ready
+        )
         runtime.center.open_route(RouteId.USAGE, show=False)
         runtime.center.open_route(RouteId.INTEGRATIONS_DIAGNOSTICS, show=False)
         if exit_via_settings:
@@ -321,8 +326,6 @@ def _run(root, duration, report, *, require_tray=False, exit_via_settings=False)
         # Capture application cleanup before the harness's finally block can mask it.
         state["runtime_closed_on_exit"] = runtime._closed
         state["settings_closed_on_exit"] = runtime.center.closed
-        # The bundle drops unused QML modules; the widget must still load.
-        state["usage_widget_ready"] = bool(runtime.usage_companion.window.ready)
         state["tray_closed_on_exit"] = (
             isinstance(runtime.tray, AssistantSystemTray)
             and runtime.tray._closed

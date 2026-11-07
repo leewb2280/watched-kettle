@@ -46,6 +46,8 @@ from watched_kettle.integrations.claude_code_status_line_install import (
 from watched_kettle.integrations.claude_code_transcript import (
     ClaudeCodeTranscriptMonitor,
 )
+from watched_kettle.integrations.codex_app_server import CodexAppServerClient
+from watched_kettle.integrations.codex_app_server_hub import AppServerHub
 from watched_kettle.integrations.codex_ipc import CodexHookServer
 from watched_kettle.integrations.codex_install import CodexHookInstaller
 from watched_kettle.integrations.codex_log_worker import ThreadedCodexLogMonitor
@@ -109,15 +111,22 @@ class ApplicationRuntime(QObject):
                     codex=preferences.load_usage_enabled(),
                     claude_code=migrated,
                 )
-            usage_options = (
-                {"client_factory": usage_client_factory} if usage_client_factory else {}
+            # One App Server process shared by the usage, metadata and turn
+            # readers; account checks still start their own.
+            app_server_client = usage_client_factory or CodexAppServerClient
+            self.app_server_hub = AppServerHub(
+                parent=self, client_factory=app_server_client
             )
+            usage_options = {"client_factory": self.app_server_hub.handle_factory()}
             self.usage_service = UsageWorkerService(
                 self.paths,
                 preferences,
                 parent=self,
                 lifecycle_errors=self.lifecycle_errors,
-                **usage_options,
+                client_factory=self.app_server_hub.handle_factory(
+                    restart_on_reopen=True
+                ),
+                account_client_factory=app_server_client,
             )
             self.database = self.usage_service  # status-only facade used by diagnostics
 
@@ -271,6 +280,7 @@ class ApplicationRuntime(QObject):
             self.usage_vm.snapshot_changed.connect(self._update_source_marks)
             self.integrations_vm.snapshot_changed.connect(self._update_source_marks)
             self.projects.changed.connect(self._project_changed)
+            self.usage_service.snapshot_changed.connect(self._sync_usage_activity)
             self._project_generation = self.projects.generation
             self.tray = (
                 AssistantSystemTray(
@@ -595,6 +605,7 @@ class ApplicationRuntime(QObject):
             ("turn_status_monitor", "close"),
             ("conversation_metadata", "close"),
             ("usage_service", "close"),
+            ("app_server_hub", "close"),
             ("codex_server", "close"),
             ("claude_code_transcript_monitor", "close"),
             ("codex_log_monitor", "close"),
@@ -634,7 +645,16 @@ class ApplicationRuntime(QObject):
             self.notification_service.clear_history()
             # A Codex account change must not hide Claude Code work.
             self.pet.agent_controller.clear(source="codex")
+        self._sync_usage_activity()
         self.tray.request_refresh()
+
+    def _sync_usage_activity(self, *_args):
+        self.usage_service.set_codex_active(
+            self.tool_enabled("codex")
+            and any(
+                card.source == "codex" and card.working for card in self.projects.cards
+            )
+        )
 
 
 class _NullTray:

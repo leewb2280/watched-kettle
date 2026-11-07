@@ -718,6 +718,7 @@ class CoreSettingsAdapter(QObject):
                 enabled=startup.enabled,
                 matches_current_app=startup.matches_current_app,
             ),
+            hardwareAcceleration=self.preferences.load_settings_hardware_acceleration(),
             animations=[
                 dict(label=label, value=value) for label, value in ACTION_TEST_STATES
             ],
@@ -1433,6 +1434,9 @@ class CoreSettingsAdapter(QObject):
         elif key == "update_auto_check":
             self.preferences.save_update_auto_check(boolean(value))
             self.update_schedule.set_enabled(boolean(value))
+        elif key == "settings_hardware_acceleration":
+            # Read when Electron starts; the host restarts a hidden window.
+            self.preferences.save_settings_hardware_acceleration(boolean(value))
         elif key == "startup":
             result = self.settings_vm.set_startup_enabled(boolean(value))
             require(
@@ -1732,7 +1736,7 @@ class CoreSettingsAdapter(QObject):
                 "settings.language",
                 "copy_failed",
                 level="warning",
-                error=type(error).__name__,
+                error_code=type(error).__name__,
             )
             raise CommandError("save_failed", t("language.copy_failed")) from error
         # A failed save keeps the new folder; it stays selectable from the list.

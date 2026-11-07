@@ -4,6 +4,7 @@ from watched_kettle.localization import t
 
 import sqlite3
 from watched_kettle.usage.contracts import UsageRepository
+from watched_kettle.usage.reset_time import REMAINING, notice_reset_text
 from watched_kettle.usage.widget_presentation import _percent_text
 
 ALERT_THRESHOLDS = (70, 90, 100)
@@ -19,6 +20,7 @@ class UsageNoticePolicy:
         self._session_markers: set[str] = set()
         self._session_summaries: set[str] = set()
         self._last_used_percent: dict[tuple[str, str], float] = {}
+        self.reset_display = REMAINING
 
     def reset(self):
         self._session_markers.clear()
@@ -78,24 +80,12 @@ class UsageNoticePolicy:
                             if threshold >= 100
                             else t("message.0369", value0=_percent_text(remaining))
                         )
-                        if window.resets_at is not None:
-                            reset_seconds = max(
-                                0,
-                                int((window.resets_at - self._now()).total_seconds()),
-                            )
-                            reset_hours, reset_remainder = divmod(
-                                reset_seconds,
-                                3600,
-                            )
-                            reset_minutes = reset_remainder // 60
-                            if reset_hours:
-                                text += t(
-                                    "message.0337",
-                                    value0=reset_hours,
-                                    value1=reset_minutes,
-                                )
-                            else:
-                                text += t("message.0338", value0=reset_minutes)
+                        # The system zone at conversion time, like the widget:
+                        # the service's zone is a fixed offset taken at start
+                        # and would be an hour off across a DST change.
+                        text += notice_reset_text(
+                            window.resets_at, self._now(), self.reset_display
+                        )
                         self._emit_notice(text, urgency, marker, f"{prefix}{reset_key}")
         if changed:
             if snapshot.account_hash:

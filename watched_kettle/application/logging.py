@@ -86,6 +86,19 @@ _EVENT_FIELDS = frozenset(
         "lookup_request_id",
         "fallback_result",
         "fallback_error_code",
+        # Topmost guard: window class names (never titles) and input idle time.
+        "window",
+        "above",
+        "hidden",
+        "idle_s",
+        # App versions, announcement and tool switch states, error counts.
+        "version",
+        "shown",
+        "codex",
+        "claude_code",
+        "error_count",
+        # Extra usage limit reads while Codex works (a count).
+        "reads",
     }
 )
 # Durations and counts; a string here is never a measurement.
@@ -100,6 +113,9 @@ _NUMERIC_EVENT_FIELDS = frozenset(
         "copied",
         "extracted",
         "member_count",
+        "idle_s",
+        "error_count",
+        "reads",
     }
 )
 # String fields carry enums, hashes, exception names and RPC method names

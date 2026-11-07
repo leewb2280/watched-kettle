@@ -995,22 +995,25 @@ class DesktopPet(
         transition_pixmap = (
             self.appearance_controller.pixmap if self.appearance_controller else None
         )
+        key = None
         if transition_pixmap is not None:
             pixmap = transition_pixmap
-        elif (
-            self.current_state == "idle"
-            and self.look_direction_index is not None
-            and self.look_frames
-        ):
-            pixmap = self.look_frames[self.look_direction_index]
-
         else:
-            pixmap = self.frames[self.current_state][self.current_frame]
+            if (
+                self.current_state == "idle"
+                and self.look_direction_index is not None
+                and self.look_frames
+            ):
+                sequence, index = self.look_frames, self.look_direction_index
+            else:
+                sequence, index = self.frames[self.current_state], self.current_frame
+            pixmap = sequence[index]
+            # Packed frames are unpacked again after they leave the decode
+            # cache; their key keeps the scaled copy valid.
+            frame_key = getattr(sequence, "frame_key", None)
+            key = frame_key(index) if frame_key is not None else None
 
-        scaled_pixmap = self.renderer.scale(
-            pixmap,
-            self.size(),
-        )
+        scaled_pixmap = self.renderer.scale(pixmap, self.size(), key)
         painter.setOpacity(self.opacity_percent / 100)
         if self.shadow_enabled:
             self._paint_ground_shadow(painter)

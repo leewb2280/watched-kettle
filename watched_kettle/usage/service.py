@@ -12,6 +12,7 @@ from watched_kettle.usage.turn_measurement import (
 
 import sqlite3
 import logging
+import time
 from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 
@@ -35,6 +36,7 @@ from watched_kettle.usage.models import (
 from watched_kettle.usage.contracts import UsageRepository
 from watched_kettle.usage.presentation import format_tray_summary
 from watched_kettle.usage.notice_policy import UsageNoticePolicy
+from watched_kettle.usage.reset_time import normalize_reset_display
 from watched_kettle.usage.account_session import AccountSession, RequestContext
 from watched_kettle.usage.identifiers import hash_identifier
 from watched_kettle.usage.device import DeviceBatch, parse_device_batch
@@ -50,6 +52,8 @@ from watched_kettle.integrations.account_monitor import masked_email
 
 RATE_REFRESH_MS = 5 * 60 * 1000
 USAGE_REFRESH_MS = 10 * 60 * 1000
+ACTIVE_RATE_REFRESH_MS = 60 * 1000
+COMPLETION_RATE_REFRESH_MS = 5000
 # Today's device values belong to a local day. Nothing else recomputes them at
 # midnight when Codex is idle or the app server is unavailable, so a cheap date
 # check runs every minute (also catching up after sleep).
@@ -139,6 +143,8 @@ class CodexUsageService(QObject):
             self._emit_notice,
             self._storage_failed,
         )
+        if hasattr(preferences, "load_usage_widget_reset_display"):
+            self.set_reset_display(preferences.load_usage_widget_reset_display())
         self._initial_limits_received = False
         self._daily_summary_pending = False
         self._usage_refresh_pending = False
@@ -152,6 +158,21 @@ class CodexUsageService(QObject):
         self.rate_timer = QTimer(self)
         self.rate_timer.setInterval(RATE_REFRESH_MS)
         self.rate_timer.timeout.connect(self._refresh_rate_limits)
+        self._codex_active = False
+        self._active_started = 0.0
+        self._active_reads = 0
+        # Transport ownership outlives a discarded account/request context. A
+        # manual refresh or account verification must not overlap that read.
+        self._limits_request_id: int | None = None
+        self._full_limits_pending = False
+        self._additional_limits_pending = ""
+        self.active_rate_timer = QTimer(self)
+        self.active_rate_timer.setInterval(ACTIVE_RATE_REFRESH_MS)
+        self.active_rate_timer.timeout.connect(self._request_additional_limits)
+        self.completion_rate_timer = QTimer(self)
+        self.completion_rate_timer.setSingleShot(True)
+        self.completion_rate_timer.setInterval(COMPLETION_RATE_REFRESH_MS)
+        self.completion_rate_timer.timeout.connect(self._completion_rate_due)
         self.usage_timer = QTimer(self)
         self.usage_timer.setInterval(USAGE_REFRESH_MS)
         self.usage_timer.timeout.connect(self._refresh_account_usage)
@@ -190,6 +211,7 @@ class CodexUsageService(QObject):
         self.client.start()
 
     def close(self):
+        self._cancel_additional_limits()
         log_event("usage.service", "closed", state=self.snapshot.availability.state)
         if self.account_monitor is not None:
             self.account_monitor.close()
@@ -231,6 +253,7 @@ class CodexUsageService(QObject):
         if force:
             if self.snapshot.refresh.busy:
                 return True
+            self._cancel_additional_limits(clear_activity=False)
             self._recovery_started_for = None
             self._refresh_serial = max(self._refresh_serial + 1, refresh_id)
             log_event(
@@ -304,6 +327,8 @@ class CodexUsageService(QObject):
                 completed_at=self._now(),
             )
         )
+        self._sync_active_rate_timer()
+        self._drain_pending_limits()
 
     def _refresh_timeout(self):
         self._finish_refresh(
@@ -317,6 +342,7 @@ class CodexUsageService(QObject):
 
     def _account_checking(self, suspicious):
         if suspicious:
+            self._cancel_additional_limits()
             log_event(
                 "usage.service",
                 "account_checking",
@@ -503,6 +529,10 @@ class CodexUsageService(QObject):
         self.selected_limit_key = str(key or "")
         self._refresh_hourly_activity()
 
+    def set_reset_display(self, display):
+        """Time left or clock time in the limit notices' reset suffix."""
+        self.notice_policy.reset_display = normalize_reset_display(display)
+
     def observe_local_usage_batch(self, records):
         if not self.enabled:
             return
@@ -589,6 +619,8 @@ class CodexUsageService(QObject):
             self._refresh_rate_limits()
             self._daily_summary_pending = True
             self._refresh_account_usage()
+            if not self.completion_rate_timer.isActive():
+                self.completion_rate_timer.start()
 
     def _expire_tasks(self):
         now = self._now()
@@ -614,6 +646,7 @@ class CodexUsageService(QObject):
         return format_tray_summary(self.snapshot.for_display())
 
     def _reset_account(self, state="starting", preserve_refresh=False):
+        self._cancel_additional_limits()
         if not preserve_refresh:
             self._finish_refresh("cancelled", t("message.0380"))
         self.account.invalidate()
@@ -660,6 +693,8 @@ class CodexUsageService(QObject):
         self.snapshot_changed.emit(self.snapshot.for_display())
 
     def _client_ready_changed(self, ready):
+        if not ready:
+            self._limits_request_id = None
         if ready and self._connecting_auth_generation is not None:
             self._applied_auth_generation = self._connecting_auth_generation
             self._connecting_auth_generation = None
@@ -692,7 +727,7 @@ class CodexUsageService(QObject):
             self._publish(availability=UsageAvailability("offline", str(message)))
             self._finish_refresh("error", t("message.0381"))
 
-    def _request(self, method, params, kind, task_key=None):
+    def _request(self, method, params, kind, task_key=None, *, full_refresh=True):
         if kind in {"account", "limits", "usage"} and any(
             c.kind == kind for c in self.account.requests.values()
         ):
@@ -706,7 +741,10 @@ class CodexUsageService(QObject):
                 self.snapshot.refresh.request_id
                 if self.snapshot.refresh.busy and kind in {"account", "limits", "usage"}
                 else 0,
+                full_refresh,
             )
+            if kind == "limits":
+                self._limits_request_id = request_id
         elif kind in {"account", "limits", "usage"}:
             log_event(
                 "usage.service",
@@ -722,12 +760,114 @@ class CodexUsageService(QObject):
             )
         return request_id
 
+    def set_codex_active(self, active, generation=None):
+        if generation is not None and generation != self.account.generation:
+            return
+        if self.snapshot.account_checking:
+            return
+        self._set_codex_activity(bool(active) and self.enabled, "inactive")
+        if not self._codex_active and self._additional_limits_pending == "active":
+            self._additional_limits_pending = ""
+        self._sync_active_rate_timer()
+
+    def _can_read_additional_limits(self):
+        return (
+            self.enabled
+            and self.client.ready
+            and self._account_supported
+            and bool(self.snapshot.account_hash)
+            and not self.snapshot.account_checking
+        )
+
+    def _sync_active_rate_timer(self):
+        if (
+            self._codex_active
+            and self._can_read_additional_limits()
+            and not self.snapshot.refresh.busy
+        ):
+            if not self.active_rate_timer.isActive():
+                self.active_rate_timer.start()
+        else:
+            self.active_rate_timer.stop()
+
+    def _cancel_additional_limits(self, *, clear_activity=True):
+        self.active_rate_timer.stop()
+        self.completion_rate_timer.stop()
+        self._full_limits_pending = False
+        self._additional_limits_pending = ""
+        if clear_activity:
+            self._set_codex_activity(False, "cancelled")
+
+    def _set_codex_activity(self, active, reason):
+        # The per-minute reads themselves are not logged; one line when Codex
+        # work starts and one with the read count when it stops.
+        if active == self._codex_active:
+            return
+        self._codex_active = active
+        if active:
+            self._active_started = time.monotonic()
+            self._active_reads = 0
+            log_event("usage.service", "active_limits_started")
+        else:
+            log_event(
+                "usage.service",
+                "active_limits_stopped",
+                reason=reason,
+                reads=self._active_reads,
+                duration_ms=round((time.monotonic() - self._active_started) * 1000),
+            )
+
+    def _completion_rate_due(self):
+        self._request_additional_limits(completion=True)
+
+    def _request_additional_limits(self, *, completion=False):
+        if self._can_read_additional_limits() and (completion or self._codex_active):
+            if completion or not self._additional_limits_pending:
+                self._additional_limits_pending = (
+                    "completion" if completion else "active"
+                )
+            self._drain_pending_limits()
+
+    def _drain_pending_limits(self):
+        if self._limits_request_id is not None:
+            return
+        if self._full_limits_pending:
+            self._refresh_rate_limits()
+        elif (
+            self._additional_limits_pending
+            and self._can_read_additional_limits()
+            and not self.snapshot.refresh.busy
+        ):
+            pending, self._additional_limits_pending = (
+                self._additional_limits_pending,
+                "",
+            )
+            request_id = self._request(
+                "account/rateLimits/read", None, "limits", full_refresh=False
+            )
+            if request_id is None:
+                return
+            if pending == "completion":
+                log_event(
+                    "usage.service",
+                    "completion_limits_requested",
+                    request_id=request_id,
+                )
+            else:
+                self._active_reads += 1
+
     def _refresh_rate_limits(self):
         if self.snapshot.account_checking or (
             self.snapshot.refresh.busy and self.snapshot.refresh.phase != "limits"
         ):
             return
         if self.client.ready and self._account_supported:
+            if self._limits_request_id is not None:
+                self._full_limits_pending = True
+                return
+            self._full_limits_pending = False
+            # This newly started full read also satisfies any queued extra read.
+            self._additional_limits_pending = ""
             self._request("account/rateLimits/read", None, "limits")
 
     def _refresh_account_usage(self):
@@ -745,6 +885,16 @@ class CodexUsageService(QObject):
         return self._request("account/usage/read", {}, "usage")
 
     def _response_received(self, request_id, method, params, result, error):
+        limits_finished = request_id == self._limits_request_id
+        if limits_finished:
+            self._limits_request_id = None
+        try:
+            self._apply_response(request_id, method, params, result, error)
+        finally:
+            if limits_finished:
+                self._drain_pending_limits()
+
+    def _apply_response(self, request_id, method, params, result, error):
         context = self.account.consume(request_id)
         if context is None or not self.enabled:
             return
@@ -802,7 +952,7 @@ class CodexUsageService(QObject):
                     )
                 )
                 return
-            self._handle_limits(result)
+            self._handle_limits(result, full_refresh=context.full_refresh)
         elif kind == "usage":
             if not isinstance(result, dict) or not (
                 isinstance(result.get("summary"), dict)
@@ -871,7 +1021,7 @@ class CodexUsageService(QObject):
         self._refresh_phase("limits", t("message.0372"))
         self._refresh_rate_limits()
 
-    def _handle_limits(self, result, sparse=False):
+    def _handle_limits(self, result, sparse=False, *, full_refresh=True):
         account_id = result.get("accountId") if isinstance(result, dict) else None
         if (
             not sparse
@@ -932,7 +1082,7 @@ class CodexUsageService(QObject):
         self._publish(
             account_hash=account_hash,
             buckets=buckets,
-            **self._history_values(account_hash, latest=True),
+            **(self._history_values(account_hash, latest=True) if full_refresh else {}),
             reset_credit_count=reset_credit_count,
             availability=UsageAvailability(
                 "available",
@@ -940,7 +1090,7 @@ class CodexUsageService(QObject):
             ),
             last_updated_at=self._now(),
         )
-        if account_hash:
+        if account_hash and full_refresh:
             if self._conversation_mode:
                 self.conversation_catalog.start(force=self.snapshot.refresh.busy)
             self._record_rate_limit_samples(fresh, self._now())
@@ -951,7 +1101,8 @@ class CodexUsageService(QObject):
                 self.recovery_pages.start(manual=self.snapshot.refresh.busy)
         self._check_thresholds(buckets, alert=self._initial_limits_received)
         self._initial_limits_received = True
-        if not sparse:
+        self._sync_active_rate_timer()
+        if not sparse and full_refresh:
             self._refresh_limits_ok = True
             self._refresh_phase("usage", t("message.0383"))
             self._refresh_account_usage()

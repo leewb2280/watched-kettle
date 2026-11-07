@@ -36,6 +36,8 @@ USAGE_WIDGET_CONFIG_VERSION = 2
 USAGE_WIDGET_SHAPES = ("rings", "bars", "chips")
 DEFAULT_USAGE_WIDGET_SHAPE = "rings"
 USAGE_WIDGET_EMPHASES = ("auto", "five_hour", "seven_day")
+# How a limit's reset is worded: time left, or the local clock time.
+USAGE_WIDGET_RESET_DISPLAYS = ("remaining", "clock")
 USAGE_WIDGET_THEME_MODES = ("app", "custom")
 # Background material: an opaque card, or Windows 11 acrylic behind it.
 USAGE_WIDGET_MATERIALS = ("opaque", "acrylic")

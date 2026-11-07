@@ -2,7 +2,7 @@
 
 [한국어](README.md) · [English](README.en.md)
 
-[로드맵](ROADMAP.md) · [0.15.11 패치노트](docs/release-notes/v0.15.11.md) · [배포 준비 상태](RELEASE_READINESS.md)
+[로드맵](ROADMAP.md) · [0.15.12 패치노트](docs/release-notes/v0.15.12.md) · [배포 준비 상태](RELEASE_READINESS.md)
 
 **코딩 에이전트의 작업 상태를 알려 주는 데스크톱 펫**
 
@@ -30,8 +30,6 @@ Codex와 Claude Code가 작업하는 동안 화면 위의 작은 펫이 상태�
 > 두 회사와 관계가 없습니다. Codex는 OpenAI, Claude Code는 Anthropic의 제품입니다.
 
 ## 빠르게 시작하기
-
-초기 0.15.11을 설치했다면 [설치기 수정 안내](docs/release-notes/v0.15.11.md)를 확인하고 수정 통합 설치기를 직접 실행해 주세요. 같은 버전의 수정본은 앱 안 업데이트로 감지되지 않습니다.
 
 1. **내려받기:** [최신 Releases](https://github.com/leewb2280/watched-kettle/releases/latest)에서
    `WatchedKettle-<버전>-public-unsigned-setup.exe`와 같은 이름의 `.exe.sha256` 파일을 받습니다.

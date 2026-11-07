@@ -96,6 +96,19 @@ export function CoreAppPage({
         change={appearanceChange}
       />
       <p className="footnote">{t("message.1091")}</p>
+      <Section title={t("app.performance")}>
+        <div className="setting-row">
+          <div>
+            <h3>{t("app.settings_gpu")}</h3>
+            <p>{t("app.settings_gpu_description")}</p>
+          </div>
+          <Switch
+            label={t("app.settings_gpu")}
+            value={snapshot.hardwareAcceleration}
+            change={(value) => change("settings_hardware_acceleration", value)}
+          />
+        </div>
+      </Section>
       <Section title={t("message.1092")}>
         <UpdateRow
           version={snapshot.version}

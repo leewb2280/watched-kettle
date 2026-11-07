@@ -1357,11 +1357,13 @@ async function until(fn, timeout = 15000) {
     await restartButton.click();
     await until(async () => await restartButton.isDisabled());
     const restartReport = path.join(out, "restart-request.json");
-    await fs.writeFile(
-      connection.control,
-      JSON.stringify({ action: "report", path: restartReport }),
-    );
+    // The button disables before the host handles the request, so a single
+    // report can predate it on a slow runner; ask again until it is counted.
     await until(async () => {
+      await fs.writeFile(
+        connection.control,
+        JSON.stringify({ action: "report", path: restartReport }),
+      );
       const report = await fs
         .readFile(restartReport, "utf8")
         .then(JSON.parse)

@@ -9,6 +9,7 @@ class RequestContext:
     kind: str
     task_key: tuple[str, str] | None = None
     refresh_id: int = 0
+    full_refresh: bool = True
 
 
 class AccountSession:

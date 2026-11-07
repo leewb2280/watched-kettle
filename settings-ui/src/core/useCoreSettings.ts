@@ -11,6 +11,7 @@ import type {
   Shell,
 } from "../types";
 import { petTabs } from "./petCatalog";
+import { useRememberedTab } from "../rememberedTabs";
 import { useBubbleEditor } from "./useBubbleEditor";
 /** Keeps state alive across page changes; the shell remains mounted. */
 export function useCoreSettings(shell: Shell, page: Page) {
@@ -38,7 +39,7 @@ export function useCoreSettings(shell: Shell, page: Page) {
 
   const [pickerError, setPickerError] = useState("");
 
-  const [petTab, setPetTab] = useState(petTabs[0]);
+  const [petTab, setPetTab] = useRememberedTab("pet", petTabs, petTabs[0]);
 
   const bubbleEditor = useBubbleEditor(shell);
   const {

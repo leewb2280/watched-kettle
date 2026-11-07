@@ -133,6 +133,13 @@ class ApplicationPreferences:
             bool(shown),
         )
 
+    def load_settings_hardware_acceleration(self):
+        """GPU compositing for the Electron settings window (~120 MiB more)."""
+        return self.settings.value("settingsUI/hardwareAcceleration", True, type=bool)
+
+    def save_settings_hardware_acceleration(self, enabled):
+        self.settings.setValue("settingsUI/hardwareAcceleration", bool(enabled))
+
     def load_update_auto_check(self):
         return self.settings.value("updates/autoCheck", True, type=bool)
 
@@ -429,6 +436,12 @@ class ApplicationPreferences:
 
     def save_usage_widget_emphasis(self, value):
         return self.widget.save_usage_widget_emphasis(value)
+
+    def load_usage_widget_reset_display(self):
+        return self.widget.load_usage_widget_reset_display()
+
+    def save_usage_widget_reset_display(self, value):
+        return self.widget.save_usage_widget_reset_display(value)
 
     def load_usage_widget_tasks_visible(self):
         return self.widget.load_usage_widget_tasks_visible()

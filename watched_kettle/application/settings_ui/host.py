@@ -10,6 +10,7 @@ import hmac
 import hashlib
 import json
 from pathlib import Path
+import re
 import secrets
 import sys
 import time
@@ -52,9 +53,13 @@ ROUTES = {
     "bubble": "bubble",
     "about": "about",
 }
-# A hidden renderer still holds ~225 MiB; a cold reopen takes ~0.5 s (ADR 0004).
-HIDDEN_RETIRE_MS = 5 * 60 * 1000
+# A hidden settings window still holds ~120 MiB; a cold reopen takes ~0.5 s
+# (ADR 0004).
+HIDDEN_RETIRE_MS = 60 * 1000
 RETIRE_KILL_MS = 3000
+# Selected tabs outlive a retired renderer for this run only.
+MAX_REMEMBERED_TABS = 8
+TAB_NAME = re.compile(r"[a-z][a-z0-9_]{0,39}")
 
 
 class SettingsWindowHost(QObject):
@@ -83,6 +88,7 @@ class SettingsWindowHost(QObject):
         self.responses = OrderedDict()
         self.response_bytes = 0
         self.route = {"page": "pet", "section": "", "navigationId": ""}
+        self.tabs = {}
         self.navigation = {}
         self.error_dialog = None
         self.flush_timer = QTimer(self)
@@ -94,6 +100,7 @@ class SettingsWindowHost(QObject):
         self.handshake_timer.timeout.connect(self._disconnect)
         self.retiring = False
         self.pending_open = False
+        self.launched_gpu = True
         self.retire_timer = QTimer(self)
         self.retire_timer.setSingleShot(True)
         self.retire_timer.setInterval(HIDDEN_RETIRE_MS)
@@ -170,6 +177,10 @@ class SettingsWindowHost(QObject):
         environment.insert(
             "WATCHED_KETTLE_SETTINGS_PROFILE",
             str(self.adapter.preferences.settings.fileName()) + ".electron",
+        )
+        self.launched_gpu = self._hardware_acceleration()
+        environment.insert(
+            "WATCHED_KETTLE_SETTINGS_GPU", "1" if self.launched_gpu else "0"
         )
         # Source runs use node_modules' electron.exe, which carries Electron's icon.
         if APP_ICON_PATH.is_file():
@@ -248,6 +259,7 @@ class SettingsWindowHost(QObject):
                                 if self.adapter.assistant
                                 else "pet-only",
                                 route=self.route,
+                                tabs=dict(self.tabs),
                             ),
                         )
                     )
@@ -333,6 +345,20 @@ class SettingsWindowHost(QObject):
                 "settingsUI/window", json.dumps(state)
             )
             self.adapter._sync()
+            return dict(saved=True)
+        if method == "window.tabs":
+            tabs = args.get("tabs")
+            require(isinstance(tabs, dict) and len(tabs) <= MAX_REMEMBERED_TABS)
+            require(
+                all(
+                    isinstance(key, str)
+                    and isinstance(value, str)
+                    and TAB_NAME.fullmatch(key)
+                    and TAB_NAME.fullmatch(value)
+                    for key, value in tabs.items()
+                )
+            )
+            self.tabs = dict(tabs)
             return dict(saved=True)
         if method == "window.restore":
             try:
@@ -508,11 +534,22 @@ class SettingsWindowHost(QObject):
         if not self.closed and _error == QProcess.ProcessError.FailedToStart:
             self._show_error(t("message.0575"))
 
+    def _hardware_acceleration(self):
+        load = getattr(
+            self.adapter.preferences, "load_settings_hardware_acceleration", None
+        )
+        return True if load is None else bool(load())
+
     def _schedule_retire(self):
         if self.visible or self.closed:
             self.retire_timer.stop()
         elif self.process.state() != QProcess.ProcessState.NotRunning:
-            self.retire_timer.start()
+            if self.launched_gpu != self._hardware_acceleration():
+                # Electron reads the GPU choice only at start: restart it now
+                # so the next open already uses the new setting.
+                self.retire_timer.start(0)
+            else:
+                self.retire_timer.start(HIDDEN_RETIRE_MS)
 
     def _retire(self):
         """Stop a renderer that stayed hidden; the next open starts a new one."""

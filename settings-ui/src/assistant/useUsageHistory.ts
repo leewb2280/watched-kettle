@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { errorText } from "../errors";
+import { useRememberedTab } from "../rememberedTabs";
 import type {
   ClaudeCodeUsageSnapshot,
   ConversationQuery,
@@ -14,12 +15,17 @@ import type {
 } from "../types";
 import type { AssistantRead } from "./commands";
 import { PAGE_SIZE } from "./presentation";
+const usageTabs = ["overview", "history", "settings"];
+
 export function useUsageHistory(
   usage: UsageResponse | null,
   command: Shell["command"],
   read: AssistantRead,
 ) {
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useRememberedTab("usage", usageTabs, "overview");
+
+  // A history tab restored after the renderer was retired loads its list once.
+  const restoredHistory = useRef(tab === "history");
 
   const [search, setSearch] = useState("");
 
@@ -71,14 +77,26 @@ export function useUsageHistory(
     setConversationOrder(h.conversation_order || "recent");
   }, [source, h?.project_search, h?.project_order, h?.conversation_order]);
 
+  useEffect(() => {
+    if (!h || !restoredHistory.current) return;
+    restoredHistory.current = false;
+    queryProjects(
+      h.project_offset || 0,
+      h.project_order || "recent",
+      source,
+      h.project_search ?? "",
+    );
+  }, [h]);
+
   const queryProjects = (
     offset = 0,
     order = projectOrder,
     from: string = source,
+    term = search,
   ) =>
     read("usage.query", {
       kind: "projects",
-      search,
+      search: term,
       order: order as ProjectQuery["order"],
       offset,
       provider: from as Provider,

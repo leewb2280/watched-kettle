@@ -21,6 +21,12 @@ let localization;
 const pipe = process.env.WATCHED_KETTLE_SETTINGS_PIPE;
 const token = process.env.WATCHED_KETTLE_SETTINGS_TOKEN;
 delete process.env.WATCHED_KETTLE_SETTINGS_TOKEN;
+// The user's "settings window hardware acceleration" choice, read at start.
+// Off, the GPU process drops from about 139 to 19 MiB of the window's 236 MiB
+// and the page draws the same (measured 2026-11-04); transitions and the
+// dialog backdrop blur are then drawn by the CPU.
+if (process.env.WATCHED_KETTLE_SETTINGS_GPU === "0")
+  app.disableHardwareAcceleration();
 if (process.env.WATCHED_KETTLE_SETTINGS_PROFILE)
   app.setPath("userData", process.env.WATCHED_KETTLE_SETTINGS_PROFILE);
 let window,
@@ -105,6 +111,7 @@ ipcMain.handle("settings:ready", (event) => {
     localization,
     edition: ready?.edition,
     route: latestRoute,
+    tabs: ready?.tabs || {},
     appearance: applyAppearance(),
   };
 });

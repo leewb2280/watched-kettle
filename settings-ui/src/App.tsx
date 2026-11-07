@@ -20,6 +20,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Empty, Heading, Modal } from "./components";
 import { CorePages } from "./CorePages";
 import { errorText } from "./errors";
+import { restoreTabs } from "./rememberedTabs";
 import type {
   Args,
   CommandCall,
@@ -192,6 +193,7 @@ export function App() {
     window.settings
       .ready()
       .then((state) => {
+        restoreTabs(state.tabs);
         if (state.route) {
           setPage(state.route.page);
           setRoute(state.route);

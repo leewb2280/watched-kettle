@@ -31,6 +31,9 @@ from watched_kettle.features.project_activity.service import (
 
 
 MAX_DESKTOP_STATE_BYTES = 16 * 1024 * 1024
+# With no conversation to look up, the App Server is closed after this long and
+# started again for the next one; an idle app keeps one process (~35 MiB) fewer.
+IDLE_CLOSE_SECONDS = 60
 
 
 def _normalized_project_path(value):
@@ -126,6 +129,8 @@ class _MetadataWorker(QObject):
         self.poll = None
         self.last_account_check = 0.0
         self.clock = time.monotonic
+        self.idle_since: float | None = None
+        self.idle_closed = False
         self.targets: dict[str, int] = {}
         self.due: dict[str, float] = {}
         self.failures: dict[str, int] = {}
@@ -464,7 +469,40 @@ class _MetadataWorker(QObject):
                 self.epoch,
             )
 
+    def _close_when_idle(self):
+        """Close the App Server once nothing needed a lookup for a while.
+
+        True while it stays closed for that reason; the next target starts it
+        again, and its ready reads the account before any lookup.
+        """
+        if self.client is None:
+            return False
+        # The 30-second account check is not a lookup; closing fails it quietly
+        # and the next connection reads the account again.
+        if self.targets or self.pending:
+            self.idle_since = None
+            if self.idle_closed:
+                self.idle_closed = False
+                self.client.start()
+            return False
+        if self.idle_closed:
+            return True
+        now = self.clock()
+        if self.idle_since is None:
+            self.idle_since = now
+            return False
+        if now - self.idle_since < IDLE_CLOSE_SECONDS:
+            return False
+        self.idle_since = None
+        self.idle_closed = True
+        self.account_verified = False
+        self.stamps.clear()
+        self.client.close()
+        return True
+
     def pump(self):
+        if self._close_when_idle():
+            return
         now = self.clock()
         if self.account_verified and now - self._local_checked >= 1:
             self._local_checked = now
@@ -727,6 +765,8 @@ class _MetadataWorker(QObject):
             self.control_requests.clear()
             self.client.close()
         elif not self.poll.isActive():
+            self.idle_closed = False
+            self.idle_since = None
             self.client.start()
             self.poll.start()
 
@@ -739,6 +779,8 @@ class _MetadataWorker(QObject):
             self.pending.clear()
             self.stamps.clear()
             self.control_requests.clear()
+            self.idle_closed = False
+            self.idle_since = None
             self.client.close()
             self.client.start()
 

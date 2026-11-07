@@ -150,6 +150,7 @@ export type SettingsSnapshot = {
   doubleClickAction: DoubleClickAction;
   appearance: Appearance;
   startup: Startup;
+  hardwareAcceleration: boolean;
   animations: Array<Animation>;
   update: UpdateState;
   language: LanguageState;
@@ -536,7 +537,7 @@ export type PetAction = Context & {
 };
 
 export type BooleanSetting = Context & {
-  key: "always_on_top" | "activity_labels" | "shadow" | "fade" | "idle" | "movement" | "bubbles" | "update_auto_check" | "update_auto_install" | "startup" | "click_through" | "click_through_bubbles";
+  key: "always_on_top" | "activity_labels" | "shadow" | "fade" | "idle" | "movement" | "bubbles" | "update_auto_check" | "update_auto_install" | "startup" | "click_through" | "click_through_bubbles" | "settings_hardware_acceleration";
   value: boolean;
 };
 
@@ -654,6 +655,7 @@ export type Ready = {
   localization: LocalizationBootstrap;
   edition?: "pet-only" | "pet-assistant";
   route?: Route | null;
+  tabs?: { [key: string]: string };
   appearance: EffectiveAppearance;
 };
 
@@ -679,6 +681,10 @@ export type WindowState = {
 
 export type SaveWindow = {
   state: WindowState;
+};
+
+export type ViewTabs = {
+  tabs: { [key: string]: string };
 };
 
 export type FilePath = {
@@ -1371,7 +1377,7 @@ export type UsageNumber = Context & {
 };
 
 export type UsageString = Context & {
-  key: "widget_shape" | "widget_emphasis" | "widget_material" | "widget_theme" | "widget_color" | "widget_click_through_hotkey";
+  key: "widget_shape" | "widget_emphasis" | "widget_reset_display" | "widget_material" | "widget_theme" | "widget_color" | "widget_click_through_hotkey";
   value: string;
 };
 
@@ -1573,6 +1579,8 @@ export interface CommandMap {
 
   "window.restore": { args: Empty; result: WindowState };
 
+  "window.tabs": { args: ViewTabs; result: Saved };
+
   "file.import": { args: ImportElement; result: ElementImported };
 
   "file.pet.prepare": { args: FilePath; result: PetPreparation };
@@ -1623,7 +1631,7 @@ export interface CommandMap {
 
 }
 
-export type RendererCommand = "language.list" | "language.refresh" | "language.copy" | "settings.snapshot" | "settings.set" | "pet.catalog" | "pet.preview" | "pet.select" | "pet.import.commit" | "pet.import.cancel" | "pet.import.start" | "pet.import.status" | "pet.import.stop" | "pet.import.installed" | "pet.import.installed.thumbnail" | "pet.import.installed.start" | "pet.import.preview" | "pet.link.sources" | "pet.link.load" | "pet.link.preview" | "pet.link.transition.clear" | "pet.link.reset" | "pet.link.create" | "pet.catalog.save" | "pet.trash.list" | "pet.trash.move" | "pet.trash.restore" | "pet.trash.delete" | "pet.trash.empty" | "pet.trash.batch.start" | "pet.trash.batch.status" | "pet.trash.batch.cancel" | "pet.action" | "bubble.editor" | "bubble.render" | "bubble.save" | "bubble.reset" | "element.delete" | "element.usage" | "element.open_folder" | "bubble.theme.list" | "bubble.theme.save" | "bubble.theme.load" | "bubble.theme.delete" | "update.check" | "update.download" | "update.apply" | "update.cancel" | "update.open" | "about.open_licenses" | "app.quit" | "app.restart" | "navigation.ack" | "window.subscribe" | "usage.snapshot" | "usage.widget_preview" | "usage.set" | "usage.query" | "usage.select" | "usage.move" | "usage.action" | "activity.snapshot" | "activity.clear" | "activity.confirm_all" | "activity.open" | "integration.snapshot" | "integration.preview" | "integration.apply" | "integration.set";
+export type RendererCommand = "language.list" | "language.refresh" | "language.copy" | "settings.snapshot" | "settings.set" | "pet.catalog" | "pet.preview" | "pet.select" | "pet.import.commit" | "pet.import.cancel" | "pet.import.start" | "pet.import.status" | "pet.import.stop" | "pet.import.installed" | "pet.import.installed.thumbnail" | "pet.import.installed.start" | "pet.import.preview" | "pet.link.sources" | "pet.link.load" | "pet.link.preview" | "pet.link.transition.clear" | "pet.link.reset" | "pet.link.create" | "pet.catalog.save" | "pet.trash.list" | "pet.trash.move" | "pet.trash.restore" | "pet.trash.delete" | "pet.trash.empty" | "pet.trash.batch.start" | "pet.trash.batch.status" | "pet.trash.batch.cancel" | "pet.action" | "bubble.editor" | "bubble.render" | "bubble.save" | "bubble.reset" | "element.delete" | "element.usage" | "element.open_folder" | "bubble.theme.list" | "bubble.theme.save" | "bubble.theme.load" | "bubble.theme.delete" | "update.check" | "update.download" | "update.apply" | "update.cancel" | "update.open" | "about.open_licenses" | "app.quit" | "app.restart" | "navigation.ack" | "window.subscribe" | "window.tabs" | "usage.snapshot" | "usage.widget_preview" | "usage.set" | "usage.query" | "usage.select" | "usage.move" | "usage.action" | "activity.snapshot" | "activity.clear" | "activity.confirm_all" | "activity.open" | "integration.snapshot" | "integration.preview" | "integration.apply" | "integration.set";
 
 export type Args<M extends RendererCommand> = CommandMap[M]['args'];
 

@@ -14,14 +14,19 @@ import tempfile
 import time
 import unittest
 
-from tests.test_launcher_update import wait_for_process
+from tests.test_launcher_update import CSC, wait_for_process
 
 ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "packaging/windows-installer.iss"
-CSC = Path(os.environ.get("WINDIR", "C:/Windows")) / (
-    "Microsoft.NET/Framework64/v4.0.30319/csc.exe"
+ISCC = (
+    Path(os.environ.get("ProgramFiles(x86)", "C:/Program Files (x86)"))
+    / "Inno Setup 6/ISCC.exe"
 )
-ISCC = Path("C:/Program Files (x86)/Inno Setup 6/ISCC.exe")
+# A launch is nowait, so a Setup that started the app can exit before the app
+# writes its log. A launch that is expected not to happen gets this long.
+LAUNCH_GRACE = 2
+# Inno Setup logs every [Run] entry it runs; the silent relaunch must not be one.
+RUN_ENTRY = "-- Run entry --"
 FAKE_LAUNCHER = r"""
 using System;
 using System.IO;
@@ -45,7 +50,7 @@ HEADER = r"""
 AppId=WatchedKettle-LifecycleFixture-{#FixtureId}
 AppName=Installer lifecycle fixture
 AppVersion=1.0.0
-DefaultDirName={#CaseRoot}\app
+DefaultDirName={param:CASE}\app
 UsePreviousAppDir=no
 UsePreviousLanguage=no
 Uninstallable=no
@@ -57,7 +62,7 @@ DisableWelcomePage=yes
 DisableDirPage=yes
 DisableReadyPage=yes
 DisableFinishedPage=yes
-OutputDir={#CaseRoot}
+OutputDir={#OutputRoot}
 OutputBaseFilename=fixture-setup
 SetupLogging=yes
 [Languages]
@@ -65,19 +70,23 @@ Name: "en"; MessagesFile: "compiler:Default.isl"
 Name: "ko"; MessagesFile: "compiler:Languages\Korean.isl"
 """
 
+# Each case passes its folder, edition and swap result as Setup parameters,
+# so one compiled fixture serves every case.
 STUBS = r"""
+function CaseFile(const Name: String): String;
+begin Result := ExpandConstant('{param:CASE}\') + Name; end;
 procedure DetectInstalledState();
 begin
   if RuntimeReady() then
-    SaveStringToFile('{#CaseRoot}\before-ready.txt', '1', False)
+    SaveStringToFile(CaseFile('before-ready.txt'), '1', False)
   else
-    SaveStringToFile('{#CaseRoot}\before-ready.txt', '0', False);
+    SaveStringToFile(CaseFile('before-ready.txt'), '0', False);
 end;
 function SelectedEdition(): String;
-begin Result := '{#Edition}'; end;
+begin Result := ExpandConstant('{param:EDITION}'); end;
 function SwapInstalledRuntime(const Edition: String): Boolean;
 begin
-  Result := '{#FailSwap}' = '0';
+  Result := ExpandConstant('{param:FAILSWAP|0}') = '0';
   if Result then
     SaveStringToFile(ExpandConstant('{app}\runtime\fixture-version.txt'), 'new', False);
 end;
@@ -101,9 +110,9 @@ TAIL = r"""
 procedure DeinitializeSetup();
 begin
   if RuntimeReady() then
-    SaveStringToFile('{#CaseRoot}\after-ready.txt', '1', False)
+    SaveStringToFile(CaseFile('after-ready.txt'), '1', False)
   else
-    SaveStringToFile('{#CaseRoot}\after-ready.txt', '0', False);
+    SaveStringToFile(CaseFile('after-ready.txt'), '0', False);
 end;
 """
 
@@ -163,11 +172,37 @@ class InstallerLifecycleTests(unittest.TestCase):
             check=True,
             capture_output=True,
         )
+        cls.setups = {
+            postinstall: cls.compile_fixture(postinstall)
+            for postinstall in (False, True)
+        }
         cls.counter = 0
 
     @classmethod
     def tearDownClass(cls):
         cls.temp.cleanup()
+
+    @classmethod
+    def compile_fixture(cls, postinstall):
+        output = cls.root / ("postinstall" if postinstall else "silent")
+        output.mkdir()
+        script = output / "fixture.iss"
+        script.write_text(fixture_source(postinstall=postinstall), encoding="utf-8")
+        compiled = subprocess.run(
+            [
+                str(ISCC),
+                f"/DOutputRoot={output}",
+                f"/DFixtureId={output.name}-{os.getpid()}",
+                str(script),
+            ],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        if compiled.returncode != 0:
+            raise AssertionError(compiled.stdout + compiled.stderr)
+        return output / "fixture-setup.exe"
 
     def run_case(
         self, edition, *, swap=True, relaunch=True, launcher=True, postinstall=False
@@ -182,51 +217,38 @@ class InstallerLifecycleTests(unittest.TestCase):
         sentinel.write_text("keep", encoding="ascii")
         if launcher:
             shutil.copy2(self.launcher, app / "WatchedKettle.exe")
-        script = root / "fixture.iss"
-        script.write_text(fixture_source(postinstall=postinstall), encoding="utf-8")
-        compiled = subprocess.run(
-            [
-                str(ISCC),
-                f"/DCaseRoot={root}",
-                f"/DFixtureId={root.name}-{os.getpid()}",
-                f"/DEdition={edition}",
-                f"/DFailSwap={0 if swap else 1}",
-                str(script),
-            ],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-        )
-        self.assertEqual(compiled.returncode, 0, compiled.stdout + compiled.stderr)
         startup = subprocess.STARTUPINFO()
         startup.dwFlags = subprocess.STARTF_USESHOWWINDOW
         startup.wShowWindow = subprocess.SW_HIDE
         result = subprocess.run(
             [
-                str(root / "fixture-setup.exe"),
+                str(self.setups[postinstall]),
                 "/VERYSILENT",
                 "/SUPPRESSMSGBOXES",
                 "/SP-",
                 "/NORESTART",
                 "/LANG=en",
                 f"/RELAUNCH={1 if relaunch else 0}",
+                f"/CASE={root}",
+                f"/EDITION={edition}",
+                f"/FAILSWAP={0 if swap else 1}",
                 f"/LOG={root / 'setup.log'}",
             ],
             startupinfo=startup,
             timeout=25,
         )
+        setup_log = (root / "setup.log").read_text(encoding="utf-8-sig")
         log = root / "launch.log"
-        if swap and launcher and (relaunch or postinstall):
-            deadline = time.monotonic() + 10
-            while not log.is_file() and time.monotonic() < deadline:
-                time.sleep(0.01)
-            self.assertTrue(
-                log.is_file(), (root / "setup.log").read_text(encoding="utf-8-sig")
-            )
+        expected = swap and launcher and (relaunch or postinstall)
+        deadline = time.monotonic() + (10 if expected else LAUNCH_GRACE)
+        while not log.is_file() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        if log.is_file():
             wait_for_process(int(log.with_suffix(".log.pid").read_text()), 10)
-        else:
-            time.sleep(0.1)
+        self.assertEqual(log.is_file(), expected, setup_log)
+        # Only the interactive launch may come from [Run]; the silent relaunch
+        # runs after the runtime commit, which no [Run] entry can follow.
+        self.assertEqual(RUN_ENTRY in setup_log, postinstall and expected, setup_log)
         self.assertEqual(sentinel.read_text(), "keep")
         return (
             result.returncode,

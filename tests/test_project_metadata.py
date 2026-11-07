@@ -28,6 +28,13 @@ class Client:
         self.calls.append((method, params))
         return len(self.calls)
 
+    def start(self):
+        self.ready = True
+
+    def close(self):
+        # The worker closes an idle App Server; the next lookup starts it.
+        self.ready = False
+
 
 class MetadataTests(unittest.TestCase):
     def setUp(self):
@@ -412,3 +419,89 @@ class MetadataTests(unittest.TestCase):
             patch("pathlib.Path.is_dir", side_effect=PermissionError),
         ):
             self.assertFalse(installed_codex_app())
+
+
+class LifecycleClient:
+    """App Server stand-in that records start and close."""
+
+    def __init__(self):
+        self.ready = True
+        self.calls = []
+        self.starts = 0
+        self.closes = 0
+
+    def request(self, method, params):
+        self.calls.append((method, params))
+        return len(self.calls)
+
+    def start(self):
+        self.starts += 1
+        self.ready = True
+
+    def close(self):
+        self.closes += 1
+        self.ready = False
+
+
+class MetadataIdleCloseTests(unittest.TestCase):
+    def setUp(self):
+        from watched_kettle.features.project_activity.metadata import (
+            IDLE_CLOSE_SECONDS,
+        )
+
+        self.idle = IDLE_CLOSE_SECONDS
+        self.temp = TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        path = Path(self.temp.name) / ".codex-global-state.json"
+        self.worker = _MetadataWorker(LifecycleClient, path)
+        self.client = LifecycleClient()
+        self.worker.client = self.client
+        self.now = 1000.0
+        self.worker.clock = lambda: self.now
+        self.worker.last_account_check = self.now
+        self.worker.account_verified = True
+
+    def test_app_server_closes_without_lookups_and_returns_for_the_next(self):
+        self.worker.pump()
+        self.now += self.idle - 1
+        self.worker.pump()
+        self.assertEqual(self.client.closes, 0)
+        self.now += 1
+        self.worker.pump()
+        self.assertEqual(self.client.closes, 1)
+        self.assertTrue(self.worker.idle_closed)
+        self.assertFalse(self.worker.account_verified)
+
+        # Closed, it neither reads the account nor looks anything up.
+        calls = len(self.client.calls)
+        self.now += 120
+        self.worker.pump()
+        self.assertEqual(len(self.client.calls), calls)
+        self.assertEqual(self.client.closes, 1)
+
+        self.worker.sync_targets({"thread": (1, 0, 3)}, self.worker.generation)
+        self.assertEqual(self.client.starts, 1)
+        self.assertFalse(self.worker.idle_closed)
+
+    def test_targets_and_pending_replies_keep_the_connection(self):
+        self.worker.sync_targets({"thread": (1, 0, 3)}, self.worker.generation)
+        self.now += self.idle * 3
+        self.worker.pump()
+        self.assertEqual(self.client.closes, 0)
+        self.worker.sync_targets({}, self.worker.generation)
+        self.worker.pending[99] = ("gone", self.worker.generation)
+        self.now += self.idle * 3
+        self.worker.pump()
+        self.worker.pump()
+        self.assertEqual(self.client.closes, 0)
+        self.worker.pending.clear()
+        self.worker.pump()
+        self.now += self.idle
+        self.worker.pump()
+        self.assertEqual(self.client.closes, 1)
+
+    def test_resume_and_reconnect_clear_the_idle_close(self):
+        self.worker.idle_closed = True
+        self.worker.reconnect()
+        self.assertFalse(self.worker.idle_closed)
+        self.assertEqual(self.client.starts, 1)

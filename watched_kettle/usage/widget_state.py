@@ -11,6 +11,7 @@ from watched_kettle.localization import t
 from datetime import datetime, timezone
 
 from watched_kettle.usage.claude_code_limits import LIMIT_ID as CLAUDE_CODE_LIMIT_ID
+from watched_kettle.usage.reset_time import REMAINING, widget_reset_text
 from watched_kettle.usage.widget_presentation import compact_token_text
 
 CODEX_LIMIT_ID = "codex"
@@ -44,26 +45,6 @@ def duration_label(minutes):
     return t("message.0423", value0=minutes)
 
 
-def reset_text(resets_at, now, *, full=False):
-    if resets_at is None:
-        return ""
-    seconds = max(0, int((resets_at - now).total_seconds()))
-    days, remainder = divmod(seconds, 86400)
-    hours, remainder = divmod(remainder, 3600)
-    minutes = remainder // 60
-    if days:
-        return t(
-            "widget.reset_days" if full else "message.0427", value0=days, value1=hours
-        )
-    if hours:
-        return t(
-            "widget.reset_hours" if full else "message.0428",
-            value0=hours,
-            value1=minutes,
-        )
-    return t("widget.reset_minutes" if full else "message.0424", value0=minutes)
-
-
 def age_text(observed_at, now):
     """Return (text, stale) for when a provider's limits were last seen."""
     if observed_at is None:
@@ -76,7 +57,7 @@ def age_text(observed_at, now):
     return t("message.0429", value0=minutes // 60), True
 
 
-def _limit(window, now):
+def _limit(window, now, reset_display=REMAINING):
     if window is None or window.remaining_percent is None:
         return None
     remaining = max(0, min(100, round(window.remaining_percent)))
@@ -88,18 +69,17 @@ def _limit(window, now):
         "remainingText": t(
             "widget.remaining_value", label=label, percent=f"{remaining}%{mark}"
         ),
-        "resetText": reset_text(window.resets_at, now, full=True),
+        "resetText": widget_reset_text(window.resets_at, now, reset_display),
         "remaining": remaining,
         "level": limit_level(remaining),
-        "reset": reset_text(window.resets_at, now),
         "estimated": window.estimated,
         "estimateMark": t("widget.estimated"),
     }
 
 
-def _ordered_limits(bucket, emphasis, now):
+def _ordered_limits(bucket, emphasis, now, reset_display=REMAINING):
     windows = [w for w in (bucket.primary, bucket.secondary) if w is not None]
-    limits = [(w, _limit(w, now)) for w in windows]
+    limits = [(w, _limit(w, now, reset_display)) for w in windows]
     limits = [(w, item) for w, item in limits if item is not None]
     if not limits:
         return None, None
@@ -128,11 +108,24 @@ def today_flow(hours, hour_range=(0, 24)):
     }
 
 
-def _provider(key, name, bucket, emphasis, now, observed_at, state, activity):
+def _provider(
+    key,
+    name,
+    bucket,
+    emphasis,
+    now,
+    observed_at,
+    state,
+    activity,
+    reset_display=REMAINING,
+    show_age=True,
+):
     main, other = (None, None)
     if bucket is not None:
-        main, other = _ordered_limits(bucket, emphasis, now)
+        main, other = _ordered_limits(bucket, emphasis, now, reset_display)
     age, stale = age_text(observed_at, now) if main else ("", False)
+    if not show_age:
+        age = ""
     if main is None and state == "ok":
         state = "no_limits"
     return {
@@ -181,13 +174,15 @@ def widget_state(
     today=False,
     hour_range=(0, 24),
     claude_code_hourly=(),
+    reset_display=REMAINING,
     now=None,
 ):
     """Describe each provider the widget should show, in display order.
 
     ``snapshot`` is the usage view model snapshot whose buckets already include
     the Claude Code limits. ``activity`` maps provider keys to running and
-    attention counts. ``tasks_visible`` controls activity presentation only;
+    attention counts. ``reset_display`` picks time left or the clock time for
+    each reset. ``tasks_visible`` controls activity presentation only;
     hiding it does not reset the source activity. A provider that is off and has
     nothing to show takes no room.
     """
@@ -220,6 +215,7 @@ def widget_state(
             observed,
             state,
             activity.get("codex", {}),
+            reset_display,
         )
         if today:
             row["today"] = today_flow(
@@ -232,6 +228,8 @@ def widget_state(
     if claude_code_enabled is not False and (
         claude_bucket is not None or claude_code_enabled
     ):
+        # Claude Code limits arrive only while terminal Claude Code runs, so an
+        # hours-old sample is normal: old values stay grey, without the age.
         row = _provider(
             "claude_code",
             "Claude Code",
@@ -241,6 +239,8 @@ def widget_state(
             claude_code_observed_at,
             "ok",
             claude_activity,
+            reset_display,
+            show_age=False,
         )
         if today:
             # Hours with no finished turn are zero, not unobserved: the

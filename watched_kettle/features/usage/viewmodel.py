@@ -141,6 +141,10 @@ class UsageViewModel(QObject):
         return self.preferences.load_usage_widget_emphasis()
 
     @property
+    def widget_reset_display(self):
+        return self.preferences.load_usage_widget_reset_display()
+
+    @property
     def widget_tasks_visible(self):
         return self.preferences.load_usage_widget_tasks_visible()
 
@@ -246,6 +250,13 @@ class UsageViewModel(QObject):
         self.snapshot_changed.emit(self.snapshot)
         return emphasis
 
+    def set_widget_reset_display(self, display):
+        display = self.preferences.save_usage_widget_reset_display(display)
+        # Limit notices word their reset the same way as the widget.
+        self.service.set_reset_display(display)
+        self.snapshot_changed.emit(self.snapshot)
+        return display
+
     def set_widget_tasks_visible(self, visible):
         visible = self.preferences.save_usage_widget_tasks_visible(visible)
         self.snapshot_changed.emit(self.snapshot)
@@ -266,6 +277,7 @@ class UsageViewModel(QObject):
         self.preferences.save_usage_widget_shape("rings")
         self.preferences.save_usage_widget_tasks_visible(True)
         self.preferences.save_usage_widget_today_visible(False)
+        self.set_widget_reset_display("remaining")
         self.set_widget_emphasis("auto")
 
     def set_widget_background_color(self, color):

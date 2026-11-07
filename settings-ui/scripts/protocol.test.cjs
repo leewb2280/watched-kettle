@@ -36,10 +36,17 @@ test("assistant commands remain unavailable in pet-only", () => {
   assert.equal(new Set(renderer).size, renderer.length);
 });
 
-function rendererBridge() {
+function rendererBridge(env = {}) {
   const handlers = new Map();
   const electron = {
-    app: { whenReady: () => ({ then() {} }), on() {}, setPath() {} },
+    app: {
+      whenReady: () => ({ then() {} }),
+      on() {},
+      setPath() {},
+      disableHardwareAcceleration() {
+        electron.gpuDisabled = true;
+      },
+    },
     ipcMain: { handle: (name, callback) => handlers.set(name, callback) },
   };
   const directory = path.resolve(__dirname, "../electron");
@@ -48,7 +55,7 @@ function rendererBridge() {
     Buffer,
     setTimeout,
     clearTimeout,
-    process: { env: {}, platform: process.platform },
+    process: { env, platform: process.platform },
     require: (name) =>
       name === "electron"
         ? electron
@@ -71,11 +78,25 @@ function rendererBridge() {
   `,
     context,
   );
-  return { ...context.bridge, invoke: handlers.get("settings:request") };
+  return {
+    ...context.bridge,
+    invoke: handlers.get("settings:request"),
+    gpuDisabled: electron.gpuDisabled === true,
+  };
 }
 
 test("the actual Electron IPC guard enforces exposure, edition and sender", async () => {
   const bridge = rendererBridge();
+  // GPU compositing stays on unless the user turned it off (~120 MiB less).
+  assert.equal(bridge.gpuDisabled, false);
+  assert.equal(
+    rendererBridge({ WATCHED_KETTLE_SETTINGS_GPU: "0" }).gpuDisabled,
+    true,
+  );
+  assert.equal(
+    rendererBridge({ WATCHED_KETTLE_SETTINGS_GPU: "1" }).gpuDisabled,
+    false,
+  );
   for (const method of [
     "file.pet.prepare",
     "language.bootstrap",

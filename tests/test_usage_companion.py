@@ -214,12 +214,24 @@ class UsageCompanionTests(unittest.TestCase):
     def test_widget_follows_pet_visibility_and_settings(self):
         controller, pet, usage_vm, _ = self.controller()
         self.assertTrue(controller.window.isVisible())
+        # Turned off, the Qt Quick view is closed, not kept hidden.
+        first = controller.window
         usage_vm.set_widget_visible(False)
-        self.assertFalse(controller.window.isVisible())
+        self.assertIsNone(controller.window)
+        self.assertFalse(first.isVisible())
         usage_vm.set_widget_visible(True)
+        self.assertIsNot(controller.window, first)
+        self.assertTrue(controller.window.isVisible())
+        self.assertTrue(controller.window.ready)
+        # Hiding the pet only hides the widget.
+        second = controller.window
         pet.hide()
         self.app.processEvents()
-        self.assertFalse(controller.window.isVisible())
+        self.assertIs(controller.window, second)
+        self.assertFalse(second.isVisible())
+        pet.show()
+        self.app.processEvents()
+        self.assertTrue(second.isVisible())
 
     def test_refresh_timer_runs_only_while_the_widget_is_shown(self):
         controller, pet, usage_vm, _ = self.controller()
@@ -248,7 +260,7 @@ class UsageCompanionTests(unittest.TestCase):
         usage_vm.claude_code_enabled = False
         usage_vm.any_enabled = False
         usage_vm._publish()
-        self.assertFalse(controller.window.isVisible())
+        self.assertIsNone(controller.window)
         self.assertFalse(controller._tick.isActive())
         self.assertFalse(controller.pet.usage_widget_available)
 
@@ -413,6 +425,7 @@ class UsageCompanionTests(unittest.TestCase):
         usage_vm.set_widget_visible(False)
         self.assertFalse(window.dragging)
         usage_vm.set_widget_visible(True)
+        window = controller.window
         self.assertFalse(usage_vm.widget_detached)
         self.assertEqual(window.position(), controller._placement()[0])
         pet.move(220, 200)

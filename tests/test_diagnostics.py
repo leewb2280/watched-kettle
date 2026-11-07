@@ -1,3 +1,4 @@
+import ast
 import json
 import logging
 import unittest
@@ -10,6 +11,7 @@ from watched_kettle.application.diagnostics import DiagnosticsExporter
 from watched_kettle.application.logging import (
     LOGGER_NAME,
     LOG_SCHEMA_VERSION,
+    _EVENT_FIELDS,
     _safe_event_fields,
     close_logging,
     configure_logging,
@@ -91,6 +93,28 @@ class DiagnosticLoggingTests(unittest.TestCase):
         self.assertEqual(
             _safe_event_fields(leaked), dict.fromkeys(leaked, "<redacted>")
         )
+
+    def test_every_log_event_field_is_in_the_allowlist(self):
+        # An unlisted keyword is dropped silently, so the log looks complete
+        # while the field a diagnosis needs never reaches disk.
+        package = Path(__file__).resolve().parents[1] / "watched_kettle"
+        dropped = []
+        for path in sorted(package.rglob("*.py")):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if not (
+                    isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Name)
+                    and node.func.id == "log_event"
+                ):
+                    continue
+                dropped.extend(
+                    f"{path.relative_to(package.parent)}:{node.lineno} {keyword.arg}"
+                    for keyword in node.keywords
+                    if keyword.arg not in (None, "level")
+                    and keyword.arg not in _EVENT_FIELDS
+                )
+        self.assertEqual(dropped, [])
 
     def test_existing_text_log_is_preserved_as_legacy(self):
         with TemporaryDirectory() as directory:
